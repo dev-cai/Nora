@@ -1,0 +1,54 @@
+name: PR conventions
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validate branch, title, and Issue link
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR metadata
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_HEAD: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        shell: python
+        run: |
+          import os
+          import re
+          import sys
+
+          types = "feat|fix|docs|style|refactor|perf|test|chore|build|ci|revert"
+          branch = os.environ["PR_HEAD"]
+          title = os.environ["PR_TITLE"]
+          body = os.environ.get("PR_BODY", "")
+
+          branch_pattern = rf"^nora/(?:{types})-[a-z0-9]+(?:-[a-z0-9]+)*$"
+          title_pattern = rf"^(?:{types})(?:\([a-z0-9][a-z0-9._/-]*\))?: .+$"
+          closing_pattern = r"(?im)^\s*Closes\s+#[0-9]+\s*$"
+
+          errors = []
+          if not re.fullmatch(branch_pattern, branch):
+              errors.append("分支必须符合 nora/<type>-<subject>")
+          if not re.fullmatch(title_pattern, title):
+              errors.append("PR 标题必须符合 <type>(<optional-scope>): <中文 subject>")
+          if not re.search(r"[\u3400-\u9fff]", title):
+              errors.append("PR 标题 subject 必须包含中文")
+          if re.match(r"^\[(?:Roadmap|Phase|Implementation|Bug|Docs)", title, re.I):
+              errors.append("PR 标题不得使用固定方括号前缀")
+          closing = re.findall(closing_pattern, body)
+          if len(closing) != 1:
+              errors.append("PR 正文必须恰好包含一行 Closes #<Issue>")
+
+          if errors:
+              print("\n".join(f"::error::{error}" for error in errors))
+              sys.exit(1)
+
+          print("PR metadata is valid")

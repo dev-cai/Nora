@@ -1,0 +1,29 @@
+name: Documentation
+description: 修正或补充项目文档与协作规范
+title: ""
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 文档问题
+      description: 指出缺失、冲突、过时或难以理解的内容。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议修改
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: 非目标
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: 验证计划
+    validations:
+      required: true

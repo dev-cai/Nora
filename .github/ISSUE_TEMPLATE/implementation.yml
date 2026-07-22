@@ -1,0 +1,48 @@
+name: Implementation
+description: 交付一个进入真实调用路径且可独立验收的切片
+title: ""
+body:
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景与目标
+      description: 说明用户价值和为什么现在需要实现。
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 范围
+      description: 列出允许新增或修改的模块、契约和调用路径。
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: 非目标
+      description: 明确不会顺带实现的内容。
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 前置依赖与边界
+      description: 说明前置 Issue、进程、分层、数据所有权和外部写边界。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收条件
+      placeholder: |
+        - [ ] 条件一
+        - [ ] 条件二
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: 验证计划
+      description: 列出静态、单元、契约、集成或动态测试；不适用时说明原因。
+    validations:
+      required: true

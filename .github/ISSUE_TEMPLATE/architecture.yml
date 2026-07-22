@@ -1,0 +1,34 @@
+name: Architecture
+description: 定义或修改架构边界、数据所有权和技术决策
+title: ""
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题与决策目标
+      description: 说明现状、约束和必须做出的决策。
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: 候选方案与取舍
+      description: 列出可行方案、证据、成本、风险和被拒绝方案。
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: 边界与影响
+      description: 说明进程、分层、数据所有权、安全、隐私和兼容性影响。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收条件
+      placeholder: |
+        - [ ] 决策一
+        - [ ] 决策二
+    validations:
+      required: true

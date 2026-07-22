@@ -1,0 +1,36 @@
+name: Bug report
+description: 报告已经存在且可以稳定复现的错误行为
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: 不要提交密钥、个人数据或漏洞利用细节。
+  - type: textarea
+    id: observed
+    attributes:
+      label: 实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 最小复现步骤
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本或提交
+      placeholder: Commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 已脱敏证据与环境
