@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nora Issue 创建流程"
+  short_description: "生成、预览并创建带标准标签和门禁的 Nora Issue"
+  default_prompt: "Use $nora-create-issue to draft, validate, preview, and create one properly labeled Nora Issue."

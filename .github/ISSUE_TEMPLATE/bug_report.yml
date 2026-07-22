@@ -1,10 +1,20 @@
 name: Bug report
 description: 报告已经存在且可以稳定复现的错误行为
 title: ""
+labels: ["type:bug"]
 body:
   - type: markdown
     attributes:
       value: 不要提交密钥、个人数据或漏洞利用细节。
+  - type: dropdown
+    id: status
+    attributes:
+      label: 状态
+      options:
+        - ready
+        - blocked
+    validations:
+      required: true
   - type: textarea
     id: observed
     attributes:

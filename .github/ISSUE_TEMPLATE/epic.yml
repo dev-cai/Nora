@@ -1,0 +1,66 @@
+name: Epic
+description: 定义跨多个原子 Task 的父级目标、边界和退出条件
+title: ""
+labels: ["type:epic"]
+body:
+  - type: dropdown
+    id: status
+    attributes:
+      label: 状态
+      options:
+        - ready
+        - blocked
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景
+      description: 说明跨任务问题以及 Current、Target 和 Pending 的边界。
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目标
+      description: 描述全部必需子 Task 完成后可观察、可验证的总体结果。
+    validations:
+      required: true
+  - type: textarea
+    id: children
+    attributes:
+      label: 子任务
+      description: 只使用真实 Issue 链接；父子层级不等于执行依赖。
+      placeholder: "- [ ] #"
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 外部依赖
+      description: 只填写子任务之外真正阻塞 Epic 退出的条件；无依赖写 —。
+    validations:
+      required: true
+  - type: textarea
+    id: exit
+    attributes:
+      label: Epic 退出条件
+      placeholder: |
+        - [ ] 所有必需子 Task 已完成并提供证据
+        - [ ] 跨任务契约、边界和集成结果一致
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: 边界与影响范围
+      description: 明确非目标以及代码、数据、UI、部署、安全和文档影响。
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: 验证
+      description: 汇总子 Task、阶段 Gate、Benchmark、E2E 或复现证据。
+    validations:
+      required: true
