@@ -32,7 +32,8 @@ description: Draft, validate, preview, and create one Nora GitHub Issue with the
 - `ready`：依赖和决策均满足，可开始实施。
 - `blocked`：存在明确未满足依赖或缺失决策。
 
-创建分支并产生实质修改后更新为 `in-progress`；创建 PR 后更新为 `review`。不创建重复的 `status:*` 标签。
+创建分支并产生实质修改后更新为 `in-progress`；本地待验收版本完成后更新为 `acceptance`；用户授权推送并创建 PR 后更新为
+`review`。用户要求修改时从 `acceptance` 返回 `in-progress`。不创建重复的 `status:*` 标签。
 
 `Parent Epic` 只表达层级归属；`依赖` 只列真正阻塞执行的 Issue、Contract、环境或生成物。无内容时写 `—`，不得混用。
 

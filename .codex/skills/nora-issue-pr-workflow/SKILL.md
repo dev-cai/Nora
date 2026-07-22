@@ -1,6 +1,6 @@
 ---
 name: nora-issue-pr-workflow
-description: Execute Nora repository delivery through its mandatory Issue, nora-prefixed branch, Chinese-first Conventional Commit, Pull Request, CI, review, and merge gates. Use whenever selecting, implementing, fixing, documenting, testing, committing, pushing, opening a PR, or reporting completion for work in the Nora repository.
+description: Execute Nora repository delivery through its mandatory Issue, nora-prefixed branch, Chinese-first Conventional Commit, user acceptance before push, Pull Request, CI, review, and merge gates. Use whenever selecting, implementing, fixing, documenting, testing, committing, requesting user acceptance, pushing, opening a PR, or reporting completion for work in the Nora repository.
 ---
 
 # Nora Issue 与 PR 流程
@@ -59,9 +59,26 @@ Refs #<Issue>
 - 按 Issue 执行集成测试；外部服务不可用时完成其余检查并记录跳过原因。
 - 不把未执行的检查写成通过，不用构建通过替代行为与安全审查。
 
+## 推送前人工验收
+
+本地实现、验证和 Commit 完成后，将 Issue 正文状态更新为 `acceptance`，然后停止在本地并请求用户手动验收。请求必须包含：
+
+- Issue 编号与 URL；
+- 当前 `nora/` 分支与本地 Commit；
+- 基于真实 diff 的变更摘要；
+- 已执行验证及实际结果；
+- 未执行检查及原因；
+- 用户可直接执行的验收步骤。
+
+人工验收是 `git push` 前的强制门禁。未经用户针对当前待验收版本明确回复可以推送，不得执行 `git push`、创建 PR 或进行
+任何依赖远端分支的操作。不得把最初的实现请求、Issue 确认、一般性的“继续”或历史授权解释为推送授权。
+
+用户要求修改时，将 Issue 状态改回 `in-progress`，继续在同一 Issue 和分支本地修正、验证并 Commit，再次请求验收。用户授权
+只对当次展示的 Commit 和工作树状态有效；授权后发生任何实质修改，原授权自动失效，必须重新验收。
+
 ## Pull Request
 
-- 推送唯一 `nora/` 分支并创建唯一 PR。
+- 仅在用户明确验收并授权当前版本后，推送唯一 `nora/` 分支并创建唯一 PR。
 - 标题使用 `<type>(<optional-scope>): <中文 subject>`。
 - 正文恰好包含一个 `Closes #<Issue>`，并写明背景、实际变更、非目标、风险、验证和审查提示。
 - 等待 CI 最终结果。除非用户明确授权，不擅自合并。
