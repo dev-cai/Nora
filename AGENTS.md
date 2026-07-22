@@ -2,6 +2,7 @@
 
 在本仓库执行 Issue 选择、实现、修复、文档、测试、Commit、Push 或 Pull Request 工作时，必须先读取并遵循：
 
+- `.codex/skills/nora-create-issue/SKILL.md`（创建、拆分、标记或规划 Issue 时）
 - `.codex/skills/nora-issue-pr-workflow/SKILL.md`
 - `CONTRIBUTING.md`
 - `docs/ISSUE_WORKFLOW.md`

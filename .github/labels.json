@@ -1,0 +1,23 @@
+{
+  "forbidden_labels": ["bug", "documentation", "enhancement"],
+  "labels": [
+    {"name": "type:architecture", "color": "6f42c1", "description": "架构边界、技术决策与数据所有权"},
+    {"name": "type:epic", "color": "8250df", "description": "包含多个原子 Task 的父级目标"},
+    {"name": "type:task", "color": "c5def5", "description": "可独立实现和验收的原子任务"},
+    {"name": "type:bug", "color": "d73a4a", "description": "已存在且可复现的缺陷"},
+    {"name": "type:docs", "color": "d4c5f9", "description": "纯文档、模板或流程变更"},
+    {"name": "priority:p0", "color": "b60205", "description": "阻塞当前主线，必须优先完成"},
+    {"name": "priority:p1", "color": "fbca04", "description": "重要任务，当前里程碑内完成"},
+    {"name": "priority:p2", "color": "0e8a16", "description": "一般任务，按依赖顺序推进"},
+    {"name": "priority:p3", "color": "cfd3d7", "description": "候选项或后续优化"},
+    {"name": "area:architecture", "color": "5319e7", "description": "架构、ADR、上下文和边界"},
+    {"name": "area:backend", "color": "62199f", "description": "API、应用服务和服务端"},
+    {"name": "area:frontend", "color": "1f6feb", "description": "Web、Gradio 和交互界面"},
+    {"name": "area:agent", "color": "7057ff", "description": "LangGraph、Agent 和 Tool 编排"},
+    {"name": "area:rag", "color": "bf8700", "description": "Embedding、检索、重排和向量库"},
+    {"name": "area:data", "color": "8250df", "description": "数据模型、数据库和长期记忆"},
+    {"name": "area:infra", "color": "0969da", "description": "Docker、CI、部署和可观测性"},
+    {"name": "area:security", "color": "d93f0b", "description": "身份、授权、隐私、审批和审计"},
+    {"name": "area:docs", "color": "0075ca", "description": "文档、模板和项目治理"}
+  ]
+}

@@ -1,7 +1,17 @@
 name: Architecture
 description: 定义或修改架构边界、数据所有权和技术决策
 title: ""
+labels: ["type:architecture"]
 body:
+  - type: dropdown
+    id: status
+    attributes:
+      label: 状态
+      options:
+        - ready
+        - blocked
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
