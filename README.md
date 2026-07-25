@@ -30,6 +30,12 @@ Nora 将公司背景调研、岗位匹配分析、面试准备、出行规划、
 - 推荐动作是什么，以及为什么
 - 哪些动作需要用户确认后才能执行
 
+完整的 N.O.R.A. 定义、用户旅程、五类产品能力和 Current/Planned/Evolution 边界见
+[`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md)。这些能力是产品目标，不代表均已实现。
+
+> **当前状态：规划与治理阶段。** 默认分支尚无应用运行时；当前可用内容是项目治理、架构与里程碑文档。
+> 首个工程实现从 [Issue #9](https://github.com/dev-cai/Nora/issues/9) 开始。
+
 ---
 
 ## 核心原则
@@ -62,7 +68,9 @@ Nora 将公司背景调研、岗位匹配分析、面试准备、出行规划、
 
 Domain 层只使用 Python 标准库，不导入 FastAPI、SQLAlchemy、LangGraph 等外部框架。违反该方向的代码在架构测试中被阻断。
 
-### 进程边界
+### 目标进程边界
+
+下图是 M4 引入可选异步中间件后的目标形态，不是当前仓库的运行状态。M0–M3 的逐步交付边界见路线图。
 
 ```mermaid
 flowchart LR
@@ -95,21 +103,22 @@ flowchart LR
 
 ---
 
-## 技术栈
+## 技术方向
 
-| 组件 | 选型 |
-|------|------|
-| 语言 | Python >=3.11 |
-| 包管理 | uv（`UV_SYSTEM_PYTHON=1`，无虚拟环境） |
-| Web 框架 | FastAPI + Uvicorn（异步） |
-| 数据库 | PostgreSQL 16 + pgvector |
-| ORM | SQLAlchemy（异步，Repository 模式） |
-| 异步队列 | Celery + Redis（M4 引入，可选中间件） |
-| 对象存储 | MinIO / S3（开发可用文件系统替代） |
-| Agent 框架 | LangGraph Adapter（Provider 无关） |
-| 模型网关 | Provider-neutral（DeepSeek / OpenAI 兼容） |
-| 代码质量 | ruff（lint + format）+ mypy（严格模式） |
-| 测试 | pytest（6 层测试策略） |
+| 组件 | 当前决策 | 交付状态 |
+|------|----------|----------|
+| 语言 | Python >=3.11 | M0 计划 |
+| 包管理 | uv（`UV_SYSTEM_PYTHON=1`，无虚拟环境） | M0 计划 |
+| Web 框架 | FastAPI + Uvicorn（异步） | M0 计划 |
+| 数据库 | PostgreSQL 16；M2 增加 pgvector | M0/M2 计划 |
+| ORM | SQLAlchemy（异步，Repository 模式） | M0 计划 |
+| 异步队列 | Celery + Redis | M4 可选中间件 |
+| 对象存储 | Object Storage Port；MinIO / S3 为 Adapter | 分阶段计划 |
+| Agent 框架 | LangGraph Adapter | M5+ 演进能力 |
+| 模型网关 | Provider-neutral，不锁定未验证模型版本 | M2 计划 |
+| 专用向量库 | Milvus / Zilliz | M5+ Benchmark 驱动评估 |
+| 代码质量 | ruff（lint + format）+ mypy（严格模式） | M0 计划 |
+| 测试 | pytest（6 层测试策略） | M0 起逐步交付 |
 
 ---
 
@@ -137,16 +146,15 @@ flowchart LR
 
 ---
 
-## 快速开始
+## 当前如何开始
 
-```bash
-# 前置条件：Docker + Docker Compose
-cp .env.example .env
-docker compose up
+应用运行文件尚未交付，因此当前不能执行 `cp .env.example .env` 或 `docker compose up`。请按以下顺序参与：
 
-# 验证服务
-curl http://localhost:8000/health
-```
+1. 从 [Issue #9](https://github.com/dev-cai/Nora/issues/9) 开始完成 Python 工程骨架。
+2. 按 M0 的依赖顺序逐项合并 #9–#15。
+3. 等待 [Issue #14](https://github.com/dev-cai/Nora/issues/14) 交付 `.env.example`、Compose 文件和可执行快速开始。
+
+规划中的容器操作手册见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)，其中命令只有在 #14 合并后才可执行。
 
 ---
 
@@ -154,6 +162,7 @@ curl http://localhost:8000/health
 
 | 文档 | 说明 |
 |------|------|
+| [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md) | 产品愿景、用户旅程、能力状态与文档真源 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 贡献指南与协作规则 |
 | [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | 完整交付操作手册（12 步） |
 | [`docs/ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) | Issue 类型、标签、状态流转 |

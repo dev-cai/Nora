@@ -3,6 +3,8 @@
 本文定义 Nora 新架构周期的第一版系统边界。它是后续 Architecture、Epic 和 Implementation Issue 的共同基线，
 不代表文中所有目标能力已经实现。
 
+产品目标、用户旅程和能力状态由 [`PRODUCT_VISION.md`](PRODUCT_VISION.md) 定义；本文只定义实现必须遵守的架构边界。
+
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
@@ -38,18 +40,18 @@ Nora 是面向求职决策的可审计多智能体平台。系统将公司背景
 
 ## 4. 当前关键决策
 
-| 编号 | 决策 | 当前选择 | 说明 |
-| :--- | :--- | :--- | :--- |
-| D-001 | 架构形态 | 模块化单体，独立 API/Worker 进程 | 单仓库、共享领域模型；进程按职责隔离 |
-| D-002 | 依赖方向 | Apps/Adapters → Application → Domain | 内层不导入 Web、ORM、Agent 或 SDK 类型 |
-| D-003 | 业务事实源 | PostgreSQL | 领域状态、版本、审批、运行和审计均以 PostgreSQL 为准 |
-| D-004 | 初期向量能力 | PostgreSQL + pgvector | 降低 M1/M2 部署成本；索引是可重建派生数据 |
-| D-005 | 目标向量能力 | Milvus/Zilliz 演进选项 | 达到规模或检索隔离触发条件后再引入 |
-| D-006 | Agent 编排 | LangGraph Adapter | 只管理运行图、暂停和恢复，不拥有领域事实 |
-| D-007 | 模型访问 | Provider-neutral Model Gateway | DeepSeek 等 Provider 由配置选择，不绑定未验证版本 |
-| D-008 | 异步任务 | Task Queue Port；目标 Adapter 为 Celery + Redis | 业务状态和最终结果不保存在 Celery Result Backend |
-| D-009 | 演示界面 | Gradio 作为独立客户端 | 通过公开 API 使用系统，不导入 Application/Infrastructure |
-| D-010 | 对象存储 | Object Storage Port | 本地开发可用文件系统；集成/部署可用 MinIO/S3 |
+| 编号 | 决策 | 当前选择 | 交付阶段 | 说明 |
+| :--- | :--- | :--- | :--- | :--- |
+| D-001 | 架构形态 | 模块化单体，按需启用 API/Worker 进程 | M0–M4 | 单仓库、共享领域模型；进程按职责隔离 |
+| D-002 | 依赖方向 | Apps/Adapters → Application → Domain | M0 起 | 内层不导入 Web、ORM、Agent 或 SDK 类型 |
+| D-003 | 业务事实源 | PostgreSQL | M0 起 | 领域状态、版本、审批、运行和审计均以 PostgreSQL 为准 |
+| D-004 | 初期向量能力 | PostgreSQL + pgvector | M2 | 降低部署成本；索引是可重建派生数据 |
+| D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | M5+ 评估 | 达到规模或检索隔离触发条件后再引入 |
+| D-006 | Agent 编排 | LangGraph Adapter | M5+ | 只管理运行图、暂停和恢复，不拥有领域事实 |
+| D-007 | 模型访问 | Provider-neutral Model Gateway | M2 | Provider 由配置选择，不绑定未验证版本 |
+| D-008 | 异步任务 | Task Queue Port；目标 Adapter 为 Celery + Redis | M4 | 业务状态和最终结果不保存在 Celery Result Backend |
+| D-009 | 演示界面 | Gradio 作为独立客户端 | M3 | 通过公开 API 使用系统，不导入 Application/Infrastructure |
+| D-010 | 对象存储 | Object Storage Port | 分阶段 | 本地开发可用文件系统；集成/部署可用 MinIO/S3 |
 
 ## 5. 系统上下文
 
@@ -132,7 +134,9 @@ flowchart TB
 上下文边界是逻辑所有权，不要求从第一天拆成独立服务。初期可位于同一 Python 包和 PostgreSQL 实例，但必须保持
 模块、Repository、表和事务责任清晰。
 
-## 8. 进程与运行时边界
+## 8. 目标进程与运行时边界
+
+下图描述 M4 可选中间件交付后的目标边界。M0–M3 不得因为目标图中出现 Worker、Redis 或 Agent Runtime 就提前引入它们。
 
 ```mermaid
 flowchart LR
@@ -160,7 +164,7 @@ flowchart LR
 
 ### Agent Runtime
 
-- 初期作为 Worker 内的逻辑模块运行，使用 LangGraph 管理条件边、暂停、恢复和 Checkpoint。
+- M5+ 引入后先作为 Worker 内的逻辑模块运行，使用 LangGraph 管理条件边、暂停、恢复和 Checkpoint。
 - State 只保存业务 ID、输入版本、步骤状态和 Artifact 引用。
 - 不保存数据库 Session、SDK Client、浏览器 Page、密钥或完整敏感文档。
 - 独立扩展或部署只有在 Agent 负载、资源隔离或发布节奏确有需要时进行。
@@ -339,13 +343,13 @@ stateDiagram-v2
 Nora/
 ├── apps/
 │   ├── api/                 # HTTP composition、路由与 lifespan
-│   ├── worker/              # Celery/任务进程 composition
+│   ├── worker/              # M4：Celery/任务进程 composition
 │   └── demo/                # Gradio 客户端，后续 Issue 引入
 ├── src/nora/
 │   ├── domain/              # Context 内领域模型与 Policy
 │   ├── application/         # Use Case、Command、Query、DTO
 │   ├── ports/               # Repository、Gateway、Clock、Queue 等边界
-│   ├── agents/              # LangGraph Adapter 与受控 Agent State
+│   ├── agents/              # M5+：LangGraph Adapter 与受控 Agent State
 │   ├── infrastructure/      # PostgreSQL、Redis、Vector、Storage Adapter
 │   └── integrations/        # Model、地图、天气、企业信息等 Adapter
 ├── tests/
@@ -376,17 +380,27 @@ Live 结果。
 
 ## 18. 部署演进
 
-### M1/M2 本地与演示部署
+### M1/M2 本地开发边界
 
 ```text
-Gradio/Web → API → PostgreSQL + pgvector
-                 ↘ Redis → Worker → Model/External Adapters
-                            ↘ Object Storage
+Client → API → PostgreSQL
+                 ↘ pgvector（M2）
+                 ↘ Model Gateway（M2，显式配置）
 ```
 
-- Docker Compose 编排 API、Worker、PostgreSQL、Redis 和可选 MinIO。
-- 只发布 API/UI 端口，数据库、Redis 和对象存储保持内部可见。
-- 模型、地图和天气 Provider 使用显式配置；无配置时使用 Disabled Adapter 并明确失败。
+- M0 的 Docker Compose 可提供 API、PostgreSQL 以及 Redis/MinIO 骨架，但 M1/M2 业务路径不依赖 Redis/Celery。
+- 只发布 API 端口，数据库和其他基础设施保持内部可见。
+- M2 Model Provider 使用显式配置；无配置时使用 Disabled Adapter 并明确失败。
+
+### M3/M4 演示与异步边界
+
+```text
+M3: Gradio → API → PostgreSQL + pgvector → Model Gateway
+M4: Client  → API → Redis/Task Queue → Worker → PostgreSQL / Object Storage / Providers
+```
+
+- M3 的首个 Demo 不依赖 Agent Runtime、Redis 或 Celery。
+- M4 才把长任务迁移到 Worker，并引入 Redis/Celery、重试、任务幂等和生产准备能力。
 
 ### 服务拆分触发条件
 

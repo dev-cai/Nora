@@ -2,7 +2,8 @@
 
 > 完整定义 Nora 从工程基础到生产可用的里程碑规划。每个里程碑包含交付组件、验收条件和范围边界。
 >
-> 真源：`docs/ARCHITECTURE.md` §20、`docs/M0_PLAN.md`
+> 产品愿景：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)。架构边界：[`ARCHITECTURE.md`](ARCHITECTURE.md)。
+> 本文定义里程碑范围；实际执行状态以 GitHub Milestone 与 Issue 为准。
 
 ---
 
@@ -47,7 +48,7 @@
 
 ### Issue 拆分
 
-详见 `docs/M0_PLAN.md`，拆为 7 个 Implementation Issue。
+详见 [`M0_PLAN.md`](M0_PLAN.md)，拆为 7 个 Task Issue（GitHub #9–#15）。
 
 ---
 
@@ -184,7 +185,7 @@
 ### 前置依赖
 
 - M2 全部合并
-- M0 Docker Compose 编排已包含演示入口
+- M0 Docker Compose 基线已合并；M3.3 负责补充演示入口
 
 ### 风险与假设
 
@@ -245,6 +246,9 @@
 **目标**：引入 LangGraph Agent Runtime，逐个交付求职决策各环节的专项 Agent。在生产负载达到触发条件时评估服务拆分和 Milvus 迁移。
 
 **截止**：待定（按需启动）
+
+这里的五类 Agent 是产品能力角色，定义见 [`PRODUCT_VISION.md`](PRODUCT_VISION.md)。实现时可以根据状态和调用边界拆分或组合，
+不要求一类角色对应一个进程、服务或 LangGraph 节点。
 
 ### 交付组件
 
@@ -322,6 +326,6 @@ flowchart LR
 1. **一 Issue、一分支、一 PR、一验收**
 2. **人工验收门禁**：推送前必须用户授权
 3. **Docker 优先开发**：无宿主机环境依赖
-4. **依赖方向**：Domain → Application → Adapters
+4. **依赖方向**：Apps/Adapters → Application → Domain
 5. **模型输出不可信**：必须经过校验
 6. **外部写默认关闭**：需审批

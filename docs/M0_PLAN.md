@@ -1,6 +1,7 @@
 # M0：工程基础与 CI 门禁
 
-本文档将 M0 里程碑拆解为可独立验收的 Implementation Issue，遵循 Issue 模板的最低信息要求。
+本文档汇总 M0 里程碑的 7 个可独立验收 Task Issue。在线 Issue 承载执行状态和最终验收范围；本文用于说明依赖关系，
+不得替代 Issue 的实施门禁。
 
 ## M0 交付目标
 
@@ -9,7 +10,7 @@
 ## M0 范围边界
 
 - M0 **不实现**任何业务功能（无领域模型、无业务路由）
-- M0 **不引入** Redis/Celery（留给 M1）
+- M0 **不引入** Redis/Celery 业务能力；#14 只提供 Redis/MinIO Compose 骨架，运行时能力留给 M4
 - M0 **不引入** LLM/Agent/RAG 相关依赖
 - M0 **不引入** Gradio 客户端
 
@@ -31,9 +32,9 @@ flowchart LR
 
 ---
 
-## Issue M0.1：初始化 Python 包结构与构建系统
+## [Issue #9：M0.1 初始化 Python 包结构与构建系统](https://github.com/dev-cai/Nora/issues/9)
 
-**标签：** `type:implementation`、`priority:high`、`area:infrastructure`
+**标签：** `type:task`、`priority:p0`、`area:infra`
 **里程碑：** M0
 **前置依赖：** 无
 
@@ -89,9 +90,9 @@ flowchart LR
 
 ---
 
-## Issue M0.2：实现配置加载与异常基础设施
+## [Issue #10：M0.2 实现配置加载与异常基础设施](https://github.com/dev-cai/Nora/issues/10)
 
-**标签：** `type:implementation`、`priority:high`、`area:infrastructure`
+**标签：** `type:task`、`priority:p0`、`area:infra`
 **里程碑：** M0
 **前置依赖：** M0.1
 
@@ -138,9 +139,9 @@ flowchart LR
 
 ---
 
-## Issue M0.3：实现结构化日志系统
+## [Issue #11：M0.3 实现结构化日志系统](https://github.com/dev-cai/Nora/issues/11)
 
-**标签：** `type:implementation`、`priority:high`、`area:infrastructure`
+**标签：** `type:task`、`priority:p1`、`area:infra`
 **里程碑：** M0
 **前置依赖：** M0.2
 
@@ -182,9 +183,9 @@ flowchart LR
 
 ---
 
-## Issue M0.4：搭建 FastAPI 应用工厂与 API 基础
+## [Issue #12：M0.4 搭建 FastAPI 应用工厂与 API 基础](https://github.com/dev-cai/Nora/issues/12)
 
-**标签：** `type:implementation`、`priority:high`、`area:infrastructure`
+**标签：** `type:task`、`priority:p0`、`area:infra`
 **里程碑：** M0
 **前置依赖：** M0.2、M0.3
 
@@ -194,7 +195,7 @@ flowchart LR
 
 ### 允许范围
 
-- 实现 `src/nora/apps/api/` 应用工厂函数 `create_app()`
+- 实现 `apps/api/` 应用工厂函数 `create_app()`
 - `GET /health` — 返回 `{"status": "healthy"}`（含数据库连接状态占位）
 - `GET /ready` — 返回就绪状态
 - 全局异常处理器，将 `NoraError` 层级映射为稳定 HTTP 错误响应
@@ -219,7 +220,7 @@ flowchart LR
 - [ ] 未捕获的 `NoraError` 返回结构化 JSON：`{"error_code": "...", "message": "..."}`
 - [ ] 未捕获的未知异常返回 500 并记录日志（不泄露内部细节）
 - [ ] 响应中包含 `X-Request-ID` 头
-- [ ] `from nora.apps.api import create_app` 可导入
+- [ ] `from apps.api import create_app` 可导入
 
 ### 测试计划
 
@@ -232,9 +233,9 @@ flowchart LR
 
 ---
 
-## Issue M0.5：搭建 PostgreSQL 连接与 Repository 基线
+## [Issue #13：M0.5 搭建 PostgreSQL 连接与 Repository 基线](https://github.com/dev-cai/Nora/issues/13)
 
-**标签：** `type:implementation`、`priority:high`、`area:infrastructure`
+**标签：** `type:task`、`priority:p0`、`area:infra`
 **里程碑：** M0
 **前置依赖：** M0.4
 
@@ -288,9 +289,9 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 ---
 
-## Issue M0.6：定义 Docker Compose 本地开发环境
+## [Issue #14：M0.6 定义 Docker Compose 本地开发环境](https://github.com/dev-cai/Nora/issues/14)
 
-**标签：** `type:implementation`、`priority:high`、`area:infrastructure`
+**标签：** `type:task`、`priority:p1`、`area:infra`
 **里程碑：** M0
 **前置依赖：** M0.4、M0.5
 
@@ -343,9 +344,9 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 ---
 
-## Issue M0.7：扩展 CI 流水线（Lint + Type + Test）
+## [Issue #15：M0.7 扩展 CI 流水线（Lint + Type + Test）](https://github.com/dev-cai/Nora/issues/15)
 
-**标签：** `type:implementation`、`priority:high`、`area:infrastructure`
+**标签：** `type:task`、`priority:p1`、`area:infra`
 **里程碑：** M0
 **前置依赖：** M0.1、M0.5
 
