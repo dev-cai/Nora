@@ -1,5 +1,9 @@
 # 开发指南
 
+> **状态：规划性操作手册。** 当前默认分支尚无应用运行时、`.env.example` 或 Compose 文件。下列容器命令由
+> [Issue #14](https://github.com/dev-cai/Nora/issues/14) 交付并合并后才可执行；当前实施从
+> [Issue #9](https://github.com/dev-cai/Nora/issues/9) 开始。
+>
 > **Docker 优先。** 所有开发、测试和代码检查操作都在容器中进行。宿主机不需要安装 Python 或 pip，只需 Docker 和 Docker Compose。
 >
 > **无虚拟环境。** 不创建 `.venv`，不激活 venv。容器内使用 `uv --system` 直接管理系统 Python 环境，宿主机不安装项目依赖。
@@ -17,7 +21,7 @@ docker --version
 docker compose version
 ```
 
-## 快速开始
+## 规划中的快速开始（#14 合并后）
 
 ### 1. 启动开发环境
 
@@ -29,7 +33,7 @@ cp .env.example .env
 docker compose up
 ```
 
-首次启动会自动构建镜像并安装依赖，耗时约 1-3 分钟。后续启动使用缓存。
+#14 合并后，首次启动将构建镜像并安装依赖；实际耗时取决于镜像和依赖下载环境。后续启动可以使用缓存。
 
 ### 2. 验证服务
 
@@ -66,7 +70,9 @@ docker compose down -v
 
 ---
 
-## 容器架构
+## 目标容器架构
+
+以下结构是 M0 Compose 基线与后续里程碑的合并视图：Redis/MinIO 在 M0 只提供骨架，Celery Worker 在 M4 才进入业务路径。
 
 ```
 宿主机                        Docker 网络
@@ -95,9 +101,9 @@ docker compose down -v
 
 ---
 
-## 常用命令
+## 规划中的常用命令
 
-所有命令通过 `docker compose exec` 在运行中的容器内执行。
+这些命令要求 #14 已合并且容器正在运行，统一通过 `docker compose exec` 执行。
 
 ### 运行测试
 
@@ -248,17 +254,19 @@ docker compose up
 
 ## 代码组织
 
+以下是目标目录，不代表当前均已存在；每个目录只由对应 Issue 在提供真实实现和验证时创建。
+
 ```
 Nora/
 ├── apps/
 │   ├── api/              # FastAPI 应用工厂、路由、middleware
-│   ├── worker/           # Celery 任务进程
+│   ├── worker/           # M4：Celery 任务进程
 │   └── demo/             # Gradio 客户端（后续引入）
 ├── src/nora/
 │   ├── domain/           # 领域模型、规则、Policy（无外部依赖）
 │   ├── application/      # Use Case、Command、Query、DTO
 │   ├── ports/            # Repository、Gateway 等接口抽象
-│   ├── agents/           # LangGraph Adapter、Agent State
+│   ├── agents/           # M5+：LangGraph Adapter、Agent State
 │   ├── infrastructure/   # PostgreSQL、Redis、Storage 等实现
 │   └── integrations/     # 外部服务 Adapter（模型、地图、天气等）
 ├── tests/
@@ -294,6 +302,8 @@ apps/  ──→  src/nora/application/  ──→  src/nora/domain/
 
 ## 配置说明
 
+本节描述 #10、#14 及后续里程碑计划交付的配置契约；对应配置模型和模板合并前，不作为当前可用配置清单。
+
 ### 环境变量
 
 通过 `.env` 文件配置（由 `docker-compose.override.yml` 自动加载）：
@@ -307,7 +317,7 @@ LOG_LEVEL=debug
 # 数据库（由 docker-compose 提供服务，无需修改）
 DATABASE_URL=postgresql+asyncpg://nora:nora@db:5432/nora
 
-# Redis（由 docker-compose 提供服务，无需修改）
+# Redis（M0 仅 Compose 骨架，M4 才进入业务路径）
 REDIS_URL=redis://redis:6379/0
 
 # 对象存储（由 docker-compose 提供服务，无需修改）
@@ -354,7 +364,7 @@ RUN uv sync --frozen --no-dev
 COPY . /app
 
 # 开发模式入口（docker-compose.override.yml 覆盖 CMD）
-CMD ["uvicorn", "nora.apps.api:create_app()", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 > `UV_SYSTEM_PYTHON=1` 使 uv 直接操作容器内的系统 Python，不生成 `.venv` 目录。`--no-dev` 缩小生产镜像体积；开发时通过 `docker-compose.override.yml` 传入 `--dev`。
