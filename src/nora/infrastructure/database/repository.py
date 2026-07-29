@@ -1,10 +1,12 @@
 """SQLAlchemy Repository 通用实现。"""
 
 from datetime import datetime, timezone
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar, cast
 from uuid import UUID
 
-from sqlalchemy import delete as sql_delete, select, update as sql_update
+from sqlalchemy import delete as sql_delete
+from sqlalchemy import select
+from sqlalchemy import update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.inspection import inspect
 
@@ -34,31 +36,37 @@ class SqlAlchemyRepository(Repository[T], Generic[T]):
         return list(result)
 
     async def update(self, entity: T) -> T:
-        state = inspect(entity)
+        dynamic_entity = cast(Any, entity)
+        dynamic_model = cast(Any, self.model)
+        state = cast(Any, inspect(dynamic_entity))
         if not state.identity:
-            raise InfrastructureError("Cannot update a transient entity", error_code="entity_not_persisted")
+            raise InfrastructureError(
+                "Cannot update a transient entity", error_code="entity_not_persisted"
+            )
         entity_id = state.identity[0]
-        old_version = entity.version
+        old_version = dynamic_entity.version
+        mapper = cast(Any, inspect(dynamic_model).mapper)
         values = {
             column.key: getattr(entity, column.key)
-            for column in inspect(self.model).mapper.column_attrs
+            for column in mapper.column_attrs
             if column.key not in {"id", "version", "created_at", "updated_at"}
         }
         values["updated_at"] = datetime.now(timezone.utc)
         values["version"] = old_version + 1
         with self.session.no_autoflush:
             result = await self.session.execute(
-                sql_update(self.model)
-                .where(self.model.id == entity_id, self.model.version == old_version)
+                sql_update(dynamic_model)
+                .where(dynamic_model.id == entity_id, dynamic_model.version == old_version)
                 .values(**values)
             )
-        if result.rowcount != 1:
+        if cast(Any, result).rowcount != 1:
             raise InfrastructureError("Optimistic lock conflict", error_code="version_conflict")
-        entity.version = old_version + 1
-        entity.updated_at = values["updated_at"]
+        dynamic_entity.version = old_version + 1
+        dynamic_entity.updated_at = values["updated_at"]
         await self.session.flush()
         return entity
 
     async def delete(self, entity_id: UUID) -> None:
-        await self.session.execute(sql_delete(self.model).where(self.model.id == entity_id))
+        dynamic_model = cast(Any, self.model)
+        await self.session.execute(sql_delete(dynamic_model).where(dynamic_model.id == entity_id))
         await self.session.flush()

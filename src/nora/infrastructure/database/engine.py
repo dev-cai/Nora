@@ -1,6 +1,11 @@
 """异步 SQLAlchemy 引擎和会话工厂。"""
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from nora.infrastructure.config import Settings
 

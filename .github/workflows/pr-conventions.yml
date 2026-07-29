@@ -47,3 +47,54 @@ jobs:
               sys.exit(1)
 
           print("PR metadata is valid")
+
+  quality:
+    name: Code quality and tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nora
+          POSTGRES_PASSWORD: nora
+          POSTGRES_DB: nora
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nora -d nora"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.3"
+
+      - name: Sync locked development environment
+        run: uv sync --frozen --extra dev
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy src/
+
+      - name: Unit and integration tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://nora:nora@127.0.0.1:5432/nora
+        run: uv run pytest tests/unit tests/integration -q
+
+      - name: Architecture tests
+        run: uv run pytest tests/architecture -q

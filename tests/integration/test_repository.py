@@ -1,3 +1,4 @@
+import os
 from uuid import UUID
 
 import pytest
@@ -25,7 +26,8 @@ class Item(Base, AuditMixin):
 
 @pytest_asyncio.fixture
 async def session() -> AsyncSession:
-    engine = create_database_engine(Settings(), "sqlite+aiosqlite:///:memory:")
+    database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+    engine = create_database_engine(Settings(database_url=database_url), database_url)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     factory = create_session_factory(engine)

@@ -45,7 +45,9 @@ async def run_async_migrations() -> None:
     configuration = config.get_section(config.config_ini_section, {})
     if not configuration.get("sqlalchemy.url"):
         raise RuntimeError("DATABASE_URL is required for migrations")
-    connectable = async_engine_from_config(configuration, prefix="sqlalchemy.", poolclass=pool.NullPool)
+    connectable = async_engine_from_config(
+        configuration, prefix="sqlalchemy.", poolclass=pool.NullPool
+    )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()

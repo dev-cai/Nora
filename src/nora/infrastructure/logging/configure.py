@@ -13,9 +13,7 @@ from structlog.types import EventDict, Processor
 
 from nora.infrastructure.config import LogFormat, Settings, get_settings
 
-_SENSITIVE_KEYS = frozenset(
-    {"api_key", "authorization", "cookie", "password", "secret", "token"}
-)
+_SENSITIVE_KEYS = frozenset({"api_key", "authorization", "cookie", "password", "secret", "token"})
 
 
 def bind_log_context(**values: Any) -> None:
