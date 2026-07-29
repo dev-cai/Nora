@@ -1,8 +1,8 @@
 # Nora 开发指南
 
-> 本指南以 Windows 11/10 + WSL2 Ubuntu 为唯一推荐的本地开发环境。
-> 日常代码、uv、Docker Engine 和 Docker Compose 命令均在 WSL 终端中执行。
-> Windows PowerShell 只用于一次性安装或管理 WSL，不用于项目开发命令。
+> 本指南以 Windows 11/10 + Docker Desktop（WSL2 backend）+ WSL2 Ubuntu 为推荐的本地开发环境。
+> 日常 Git、Docker 和 Docker Compose 命令在 WSL 终端中执行；Python、uv、Alembic 和质量工具只在容器内执行。
+> Windows PowerShell 只用于一次性安装或管理 WSL 与 Docker Desktop，不用于项目开发命令。
 
 ## 环境边界
 
@@ -10,23 +10,25 @@
 
 ```text
 Windows
+  ├─ Docker Desktop：WSL2 backend、Docker Engine、Docker Compose
   └─ WSL2 Ubuntu
       ├─ 项目代码：~/projects/Nora
-      ├─ uv / Python：用于本地测试和质量检查
-      ├─ Docker Engine
-      └─ Docker Compose：API、PostgreSQL、Redis、MinIO
+      ├─ Git + Docker CLI
+      └─ Compose 容器：Python/uv、API、PostgreSQL、Redis、MinIO
 ```
 
-本项目不要求 Docker Desktop。不要在同一个工作流中混用 Windows Docker CLI、Docker Desktop 上下文和 WSL 内 Docker Engine。
+宿主不安装项目 Python、uv、pytest、ruff、mypy 或 Alembic。Docker Desktop 必须启用目标 WSL 发行版集成；
+不要同时在 WSL 中另起一套 Docker Engine。
 
 ## 前置条件
 
 ### Windows 一次性准备
 
-在管理员 PowerShell 中安装 WSL2 和 Ubuntu：
+在管理员 PowerShell 中安装 WSL2、Ubuntu 和 Docker Desktop：
 
 ```powershell
 wsl --install -d Ubuntu
+winget install --exact --id Docker.DockerDesktop
 ```
 
 安装完成后重启 Windows，并从开始菜单打开 Ubuntu，创建 Linux 用户。检查 WSL 版本：
@@ -37,44 +39,26 @@ wsl --list --verbose
 
 目标发行版的 `VERSION` 应为 `2`。
 
+启动 Docker Desktop，在 Settings → Resources → WSL Integration 中启用 Ubuntu。
+
 ### WSL 内安装工具
 
 以下命令全部在 Ubuntu/WSL 终端执行：
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y ca-certificates curl git python3 python3-pip docker.io docker-compose-plugin
+sudo apt-get install -y ca-certificates curl git
 ```
 
-将当前用户加入 Docker 组，然后重新打开 WSL 终端：
-
-```bash
-sudo usermod -aG docker "$USER"
-newgrp docker
-```
-
-如果发行版未启用 systemd，可临时启动 Docker daemon：
-
-```bash
-sudo service docker start
-```
-
-验证工具：
+Docker CLI 与 Compose 由 Docker Desktop 注入 WSL。验证宿主边界：
 
 ```bash
 docker version
 docker compose version
-python3 --version
 git --version
 ```
 
-安装 uv：
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source "$HOME/.local/bin/env"
-uv --version
-```
+不在 WSL 中安装 Python 或 uv；后续命令由 Compose development 镜像提供。
 
 ## 获取代码
 
@@ -203,37 +187,37 @@ docker compose exec db psql -U nora -d nora
 
 ## 本地测试与质量检查
 
-当前 API 镜像使用 `--no-dev` 安装 runtime 依赖。测试、Ruff 和 mypy 在 WSL 内使用 uv 执行，不在 Windows Python 中执行：
+Compose 开发覆写使用 Dockerfile 的 `development` target，开发依赖安装在容器 `/opt/venv`，不会被仓库
+bind mount 覆盖。静态检查、单元测试和架构测试不需要启动依赖服务：
 
 ```bash
-uv sync --extra dev
-uv run pytest -q
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy src/
-uv run pytest tests/architecture -q
+docker compose build api tools
+docker compose run --rm --no-deps tools ruff check .
+docker compose run --rm --no-deps tools ruff format --check .
+docker compose run --rm --no-deps tools mypy src/
+docker compose run --rm --no-deps tools pytest tests/unit tests/architecture -q
 ```
 
-PostgreSQL、API 和其他依赖服务仍通过 WSL 内的 Docker Compose 启动：
+集成测试只连接 `test` profile 中的隔离 PostgreSQL。`test-db` 使用 tmpfs，不复用开发数据库或命名卷：
 
 ```bash
-docker compose up -d
-uv run pytest -q
-docker compose down
+docker compose --profile test run --rm test
+docker compose --profile test stop test-db
 ```
 
-本地没有 PostgreSQL 时，Repository 集成测试会使用 SQLite async adapter；CI 会注入 PostgreSQL service 连接进行验证。
+集成测试要求 `TEST_DATABASE_URL` 或 `DATABASE_URL` 使用 `postgresql+asyncpg`。缺少连接或使用其他驱动时，
+测试会明确失败；项目不支持 SQLite 回退。
 
 ## 依赖管理
 
-运行时依赖和开发依赖均通过 WSL 内的 uv 管理：
+运行时依赖和开发依赖均通过 development 容器内的 uv 管理：
 
 ```bash
-uv add package-name
-uv add --dev package-name
-uv remove package-name
-uv lock
-uv sync --frozen --extra dev
+docker compose run --rm --no-deps tools uv add package-name
+docker compose run --rm --no-deps tools uv add --dev package-name
+docker compose run --rm --no-deps tools uv remove package-name
+docker compose run --rm --no-deps tools uv lock
+docker compose build api
 ```
 
 提交依赖变更时必须同时提交 `pyproject.toml` 和 `uv.lock`。不要提交 `.env`、`.venv`、`dist` 或其他本地产物。
@@ -248,28 +232,13 @@ uv sync --frozen --extra dev
 
 ## 故障排查
 
-### `docker: permission denied`
-
-确认用户已加入 Docker 组，并重新打开 WSL：
-
-```bash
-groups
-sudo usermod -aG docker "$USER"
-newgrp docker
-docker ps
-```
-
 ### Docker daemon 未运行
 
+确认 Windows 中 Docker Desktop 已启动，并且目标 Ubuntu 发行版的 WSL Integration 已启用。然后在 WSL 验证：
+
 ```bash
-sudo service docker start
+docker context show
 docker info
-```
-
-如果使用启用 systemd 的 WSL 发行版，可检查：
-
-```bash
-systemctl status docker
 ```
 
 ### 端口已被占用

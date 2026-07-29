@@ -49,3 +49,8 @@ def test_auth_configuration_rejects_weak_secret_and_invalid_lifetime() -> None:
         Settings(auth_secret_key="too-short", _env_file=None)
     with pytest.raises(ValidationError):
         Settings(auth_access_token_minutes=0, _env_file=None)
+
+
+def test_settings_reject_non_postgresql_database_url() -> None:
+    with pytest.raises(ValidationError, match=r"DATABASE_URL must use postgresql\+asyncpg"):
+        Settings(database_url="sqlite:///nora.db", _env_file=None)

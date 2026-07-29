@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
+      target: runtime
     environment:
       ENV: ${ENV:-dev}
       DEBUG: ${DEBUG:-true}

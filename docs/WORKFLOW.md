@@ -24,7 +24,7 @@
 
 ### 环境要求
 
-- Docker Desktop 或 Docker Engine + Docker Compose
+- Docker Desktop（WSL2 backend，包含 Docker Engine + Docker Compose）
 - Git
 - GitHub CLI（`gh`）
 
@@ -167,9 +167,11 @@ docker compose exec api alembic upgrade head
 提交前必须执行以下全部检查：
 
 ```bash
-docker compose exec api ruff check .
-docker compose exec api mypy src/
-docker compose exec api pytest
+docker compose run --rm --no-deps tools ruff check .
+docker compose run --rm --no-deps tools ruff format --check .
+docker compose run --rm --no-deps tools mypy src/
+docker compose run --rm --no-deps tools pytest tests/unit tests/architecture -q
+docker compose --profile test run --rm test
 ```
 
 全部通过方可提交。因外部服务不可用跳过部分检查时，必须记录原因。
@@ -277,29 +279,29 @@ docker compose down -v             # 完全清理（含数据卷）
 ### 测试
 
 ```bash
-docker compose exec api pytest                             # 全部
-docker compose exec api pytest tests/unit/                 # 单元
-docker compose exec api pytest tests/architecture/         # 架构
-docker compose exec api pytest -k "test_job_posting"      # 筛选
-docker compose exec api pytest --cov=nora --cov-report=term # 覆盖率
+docker compose run --rm --no-deps tools pytest tests/unit/           # 单元
+docker compose run --rm --no-deps tools pytest tests/architecture/   # 架构
+docker compose --profile test run --rm test                           # 全部，集成测试使用隔离 PostgreSQL
+docker compose --profile test run --rm test pytest -k "job_posting" # 筛选
+docker compose --profile test stop test-db                            # 停止临时测试数据库
 ```
 
 ### 代码检查
 
 ```bash
-docker compose exec api ruff check .                       # Lint
-docker compose exec api ruff format --check .              # 格式检查
-docker compose exec api ruff format .                      # 自动格式化
-docker compose exec api mypy src/                          # 类型检查
+docker compose run --rm --no-deps tools ruff check .          # Lint
+docker compose run --rm --no-deps tools ruff format --check . # 格式检查
+docker compose run --rm --no-deps tools ruff format .         # 自动格式化
+docker compose run --rm --no-deps tools mypy src/             # 类型检查
 ```
 
 ### 依赖管理
 
 ```bash
-docker compose exec api uv add <package>                   # 添加依赖
-docker compose exec api uv add --dev <package>             # 添加开发依赖
-docker compose exec api uv remove <package>                # 移除
-docker compose exec api uv sync --upgrade                  # 更新全部
+docker compose run --rm --no-deps tools uv add <package>       # 添加依赖
+docker compose run --rm --no-deps tools uv add --dev <package> # 添加开发依赖
+docker compose run --rm --no-deps tools uv remove <package>    # 移除
+docker compose run --rm --no-deps tools uv lock                # 更新锁文件
 ```
 
 修改依赖后提交 `pyproject.toml` 和 `uv.lock`。

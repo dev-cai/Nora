@@ -6,8 +6,21 @@ from typing import Self
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import make_url
 
 DEFAULT_AUTH_SECRET_KEY = "development-only-change-this-secret"
+
+
+def require_postgresql_database_url(value: str) -> str:
+    """只接受 Nora 运行时支持的 PostgreSQL 异步连接。"""
+
+    try:
+        driver_name = make_url(value).drivername
+    except Exception as exc:
+        raise ValueError("DATABASE_URL must be a valid SQLAlchemy URL") from exc
+    if driver_name != "postgresql+asyncpg":
+        raise ValueError("DATABASE_URL must use postgresql+asyncpg")
+    return value
 
 
 class Environment(StrEnum):
@@ -47,8 +60,11 @@ class Settings(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def reject_default_auth_secret_outside_development(self) -> Self:
-        """避免 staging/prod 意外使用仓库内公开的开发密钥。"""
+    def validate_environment_contracts(self) -> Self:
+        """验证数据库驱动和非开发环境的认证密钥。"""
+
+        if self.database_url is not None:
+            require_postgresql_database_url(self.database_url)
 
         if self.env is not Environment.DEV and self.auth_secret_key == DEFAULT_AUTH_SECRET_KEY:
             raise ValueError("AUTH_SECRET_KEY must be changed outside the dev environment")
