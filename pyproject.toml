@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nora-job-agent"
+version = "0.1.0"
+description = "面向求职决策的可审计智能体平台"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["agent", "career", "decision-support", "rag"]
+dependencies = []
+
+[project.urls]
+Documentation = "https://github.com/dev-cai/Nora/tree/main/docs"
+Issues = "https://github.com/dev-cai/Nora/issues"
+Repository = "https://github.com/dev-cai/Nora"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nora"]
