@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: LogFormat = LogFormat.JSON
     database_url: str | None = None
+    database_pool_size: int = 5
+    database_max_overflow: int = 10
+    database_pool_timeout: float = 30.0
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -13,6 +12,7 @@ from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from nora.domain.base.exceptions import NoraError
 from nora.infrastructure.config import Settings, get_settings
+from nora.infrastructure.database import create_database_engine
 from nora.infrastructure.logging import configure_logging, get_logger
 
 
@@ -24,7 +24,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         configure_logging(app_settings)
-        yield
+        _app.state.database_engine = None
+        if app_settings.database_url:
+            _app.state.database_engine = create_database_engine(app_settings)
+        try:
+            yield
+        finally:
+            if _app.state.database_engine is not None:
+                await _app.state.database_engine.dispose()
 
     app = FastAPI(title="Nora API", lifespan=lifespan)
     app.add_middleware(
@@ -60,6 +67,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/health")
     async def health() -> dict[str, str]:
+        if app.state.database_engine is not None:
+            try:
+                async with app.state.database_engine.connect() as connection:
+                    await connection.exec_driver_sql("SELECT 1")
+            except Exception:
+                return {"status": "degraded", "database": "unavailable"}
         return {"status": "healthy"}
 
     @app.get("/ready")
