@@ -20,3 +20,10 @@ Repository = "https://github.com/dev-cai/Nora"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nora"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.claude",
+    "/.venv",
+    "/dist",
+]
