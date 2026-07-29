@@ -132,6 +132,70 @@ flowchart TB
 | Knowledge & Evidence | 来源快照、文档版本、Chunk、Evidence、检索索引和记忆候选 | SourceDocument、Evidence、MemoryCandidate、RetrievalRecord | 直接决定业务状态或自动确认用户事实 |
 | Automation & Governance | Run、Task、Tool、Approval、Checkpoint、Audit 和幂等 | AgentRun、ProposedAction、Approval、ToolCall、AuditEvent | 拥有其他 Context 的业务聚合 |
 
+### Career Profile 契约
+
+`CandidateProfile` 是用户确认事实的主档，采用字段级确认而不是整份档案一次性确认：
+
+| 区块 | 最小字段 | 规则 |
+| :--- | :--- | :--- |
+| 基本信息 | 显示名、标题、所在城市、联系方式、公开链接 | 联系方式按隐私策略存储；每个字段可单独确认或撤回 |
+| 经历 | 公司、岗位、起止时间、雇佣类型、职责、成就、技术栈、来源引用 | 时间范围必须可排序；成就与技术栈可以有多个 Evidence |
+| 项目 | 名称、角色、时间、背景、职责、结果、技术栈、来源引用 | 结果优先保存用户原文；模型改写只能成为候选 |
+| 教育 | 学校、学历、专业、起止时间、来源引用 | 只保存用户确认内容 |
+| 技能 | 名称、分类、熟练度、最近使用时间、来源引用 | 使用规范化名称；熟练度是用户/规则标签，不是模型臆测 |
+| 偏好 | 地点、工作方式、行业、岗位类型、薪酬约束、硬性排除项 | 偏好影响建议，不改变岗位和公司事实 |
+
+每个字段都带 `confirmation_status`（`unconfirmed`、`confirmed`、`rejected`、`superseded`）、来源版本、更新时间和用户归属。PDF/Word 导入时，原文件进入 `SourceDocument`，解析结果先作为候选，用户确认后才写入 `CandidateProfile`。
+
+### 主档、简历与岗位输出关系
+
+```mermaid
+erDiagram
+    CandidateProfile ||--o{ ResumeVersion : "事实快照"
+    ResumeVersion ||--o{ ResumeVariant : "岗位定制"
+    OpportunityCase ||--o{ ApplicationDecision : "可重审"
+    ApplicationDecision ||--o| ApplicationRecord : "用户确认后"
+    ApplicationRecord ||--o{ InterviewCase : "面试流程"
+    ResumeVariant }o--|| OpportunityCase : "针对岗位"
+```
+
+修改 `CandidateProfile` 不会重写历史 `ResumeVersion`；用户显式发布后生成新 `ResumeVersion`。`ResumeVariant` 固定引用一个 `ResumeVersion`、一个 `OpportunityCase`、一个模板版本和一个渲染器版本。
+
+### ApplicationDecision 状态机
+
+```mermaid
+stateDiagram-v2
+    [*] --> analyzed
+    analyzed --> skip: 用户选择不投
+    analyzed --> apply: 用户选择投递
+    skip --> analyzed: 新报告重新评估
+    apply --> message_drafted: 生成草稿
+    message_drafted --> applied: 用户确认已手动投递
+    applied --> interviewing: 收到面试通知
+    applied --> rejected: 收到拒信
+    applied --> withdrawn: 用户撤回
+    interviewing --> offer_received: 收到 Offer
+    interviewing --> rejected: 流程结束
+    offer_received --> accepted: 用户接受
+    offer_received --> declined: 用户拒绝
+```
+
+状态转换必须记录操作者、时间、输入报告版本和幂等键。`message_drafted` 不代表消息已发送；只有用户确认外部网站或渠道已完成投递，才能进入 `applied`。
+
+### 简历模板、PDF 与 MessageDraft
+
+- 模板采用声明式 JSON `TemplateDefinition`：页面设置、样式 Token、区块顺序、允许字段和必填字段；不执行任意 HTML、JavaScript 或 Jinja。
+- 模板发布后不可变。`ResumeVariant` 固定模板版本、`ResumeVersion`、`OpportunityCase`、字段映射和生成器版本；模板更新不会重算历史 PDF。
+- 初版 PDF 统一使用 WeasyPrint Adapter，将受限模板转换为 HTML/CSS 后渲染；输出文件写入 Object Storage，保存 SHA-256、模板版本、来源版本和用户归属，构建产物不得进入 Git。
+- `MessageDraft` 是一条可编辑纯文本，默认 `professional` 风格，另支持 `concise` 和用户提供内推上下文的 `referral` 风格；输入只允许已确认主档、JD、公司 Evidence 和用户备注，初版不做平台适配、不自动发送。
+
+### 公司网评 Evidence 与历史跳过检索
+
+- 来源分为 `official/company`、`reputable_media`、`verified_platform`、`anonymous_platform`，保存 URL/来源标识、抓取时间、原始发布时间、许可信息和原文摘要。
+- 时效标签按原始发布时间计算：`fresh`（不超过 12 个月）、`aging`（12–24 个月）、`stale`（超过 24 个月）；过期内容继续可见但不得作为当前事实。
+- 初版只展示分层后的原文和时效，不对匿名评价做多数投票、加权平均或综合公司分数。
+- 新岗位报告生成时，在用户范围内按规范化技术栈标签交集检索历史 `skip` 记录：至少两个共同标签且岗位族一致，最多展示 3 条，并提示“历史相似记录”，不自动改变当前建议。
+
 上下文边界是逻辑所有权，不要求从第一天拆成独立服务。初期可位于同一 Python 包和 PostgreSQL 实例，但必须保持
 模块、Repository、表和事务责任清晰。
 

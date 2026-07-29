@@ -200,12 +200,12 @@
 
 M3 报告稳定后，按以下依赖顺序补齐用户真正需要的投递闭环。每一项都必须是独立、可验收的 Issue，不提前引入 Agent Runtime：
 
-1. `ApplicationDecision`：记录投递/不投递、原因、报告版本和后续状态。
-2. 公司与 JD 输入增强：受控 URL 抓取、截图/OCR、来源许可、时效和可信等级。
-3. `ResumeVariant` 与模板：受限模板 Schema、字段占位、用户确认和版本追踪。
-4. PDF 与消息草稿：确定性 PDF 渲染、对象存储、哈希、下载和首次打招呼草稿；不自动发送。
-5. `ApplicationRecord` 与面试：用户手动确认投递结果，录入面试通知、轮次、准备材料和复盘。
-6. 结果学习：将跳过原因、投递结果和面试复盘整理为待确认 `MemoryCandidate`。
+1. `ApplicationDecision`：按 `analyzed → skip|apply` 建立状态机；`skip` 可由新报告重新进入 `analyzed`，并按同岗位族和至少两个技术栈标签提示最多 3 条历史相似记录。
+2. 公司与 JD 输入增强：受控 URL 抓取、截图/OCR、来源许可、时效标签（fresh/aging/stale）和四级来源分类；初版只展示原文，不做网评聚合分数。
+3. `ResumeVariant` 与模板：`CandidateProfile → ResumeVersion → ResumeVariant` 关系固定；模板采用声明式 JSON Schema、字段占位和不可变版本，不执行任意模板代码。
+4. PDF 与消息草稿：使用 WeasyPrint Adapter 确定性渲染 PDF，保存对象存储、SHA-256 和版本元数据；`MessageDraft` 初版只输出一段可编辑纯文本，不自动发送。
+5. `ApplicationRecord` 与面试：按 `message_drafted → applied → interviewing → offer_received/rejected/withdrawn` 记录用户确认的投递结果，录入面试通知、轮次、准备材料和复盘。
+6. 结果学习：将跳过原因、投递结果和面试复盘整理为待确认 `MemoryCandidate`，确认后才影响主档。
 
 这些交付完成后，才评估是否需要把部分流程编排为 Agent；业务事实仍由既有 Context 和 PostgreSQL 管理。
 
