@@ -100,7 +100,7 @@
 
 ## M2：简历管理与 RAG 基础
 
-**目标**：建立简历事实管理和 RAG 检索管道，使系统具备"存储可信简历 → 向量化 → 混合检索 → Evidence Pack"的完整能力。
+**目标**：建立个人主档、简历事实和 RAG 检索管道，使系统具备"存储可信画像 → 向量化 → 混合检索 → Evidence Pack"的基础能力。
 
 **截止**：2026-08-07（6 天）
 
@@ -109,6 +109,7 @@
 | 组件 | 上下文 | 说明 |
 |------|--------|------|
 | ResumeVersion 模型 | Career Profile | 简历版本管理，已确认经历和技能 |
+| CandidateProfile 模型 | Career Profile | 基本信息、项目、经历、教育、偏好和确认状态 |
 | CapabilityEvidence | Career Profile | 技能/经历的来源定位与可信级别 |
 | SourceDocument 模型 | Knowledge & Evidence | 来源文档快照，含对象存储引用 |
 | Chunk 模型 | Knowledge & Evidence | 版本化文档切片，引用 Source 版本 |
@@ -124,7 +125,7 @@
 - 不实现决策报告（M3 做）
 - 不实现浏览器采集（延后）
 - 不实现 Milvus（保持 pgvector）
-- 不涉及自动简历解析（用户手工确认经历）
+- 不涉及 PDF/Word/OCR 自动简历解析（先由用户手工录入并确认事实）
 
 ### 验收条件
 
@@ -151,7 +152,7 @@
 
 ## M3：最小化 Demo
 
-**目标**：整合 M0-M2 已有能力，交付一个可运行的求职决策 Demo。用户可上传岗位和简历，系统生成附带 Evidence 引用的基础决策分析。**这是第一个可向用户演示的版本。**
+**目标**：整合 M0-M2 已有能力，交付一个可运行的求职决策 Demo。用户可录入岗位、个人主档和简历，系统生成附带 Evidence 引用的基础决策分析。**这是第一个可向用户演示的分析版本，不代表完整投递闭环。**
 
 **截止**：2026-08-15（8 天）
 
@@ -162,7 +163,7 @@
 | DecisionCase 模型 | Decision & Reporting | 组合用户画像与岗位快照的分析案例 |
 | 确定性规则引擎 | Decision & Reporting | 基于岗位/简历字段的匹配规则（无需 LLM 的部分） |
 | Decision Report | Decision & Reporting | 版本化决策报告，含 Evidence 引用链 |
-| Gradio Demo 客户端 | Apps/Demo | 简单的 Web 界面：登录 → 输入岗位 → 导入简历 → 查看分析 |
+| Gradio Demo 客户端 | Apps/Demo | 简单的 Web 界面：登录 → 输入岗位 → 管理主档/简历 → 查看分析 |
 | LLM 增强分析 | 跨上下文 | 基于 Evidence Pack 的 LLM 生成分析（经 Schema 校验） |
 | M0-M2 集成测试 | — | 跨越所有 Context 的 E2E 测试 |
 
@@ -171,6 +172,7 @@
 - 不依赖 Redis/Celery（M4 引入）
 - 不包含 Agent 编排（M5+）
 - 不包含浏览器采集或自动投递
+- 不包含投递决定、定制简历、模板/PDF、消息发送或面试工作流；这些属于 M3 后的独立交付
 - 不包含审批流程（M5+）
 - 不包含生产级部署配置（M4 做）
 
@@ -193,6 +195,19 @@
 - Demo 的"分析"质量取决于 M2 的 RAG 管道质量
 
 ---
+
+## M3 后：个人投递闭环（待拆分 Issue）
+
+M3 报告稳定后，按以下依赖顺序补齐用户真正需要的投递闭环。每一项都必须是独立、可验收的 Issue，不提前引入 Agent Runtime：
+
+1. `ApplicationDecision`：记录投递/不投递、原因、报告版本和后续状态。
+2. 公司与 JD 输入增强：受控 URL 抓取、截图/OCR、来源许可、时效和可信等级。
+3. `ResumeVariant` 与模板：受限模板 Schema、字段占位、用户确认和版本追踪。
+4. PDF 与消息草稿：确定性 PDF 渲染、对象存储、哈希、下载和首次打招呼草稿；不自动发送。
+5. `ApplicationRecord` 与面试：用户手动确认投递结果，录入面试通知、轮次、准备材料和复盘。
+6. 结果学习：将跳过原因、投递结果和面试复盘整理为待确认 `MemoryCandidate`。
+
+这些交付完成后，才评估是否需要把部分流程编排为 Agent；业务事实仍由既有 Context 和 PostgreSQL 管理。
 
 ## M4：可选中间件与生产准备
 

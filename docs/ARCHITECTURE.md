@@ -126,6 +126,7 @@ flowchart TB
 | Identity & Preferences | 用户身份、租户映射、时区、语言、隐私与出行偏好 | User、ExternalIdentity、UserPreference | 简历事实、岗位结论、第三方凭据正文 |
 | Career Profile | 简历版本、已确认经历、技能和能力证据 | ResumeVersion、CandidateProfile、CapabilityEvidence | 岗位评分、面试状态和模型推断事实化 |
 | Opportunity Intelligence | 公司与岗位快照、风险 Evidence、人岗分析输入 | CompanySnapshot、JobPosting、OpportunityCase | 投递状态、报告发布和消息发送 |
+| Application & Follow-up | 用户对机会的决定、投递产物和投递进度 | ApplicationDecision、ResumeVariant、MessageDraft、ApplicationRecord | 修改个人主档、自动发送外部消息或自动投递 |
 | Interview Journey | 面试计划、准备材料、题目、出行方案和复盘 | InterviewPlan、QuestionSet、TravelPlan、InterviewReview | 公司事实源和长期画像直接修改 |
 | Decision & Reporting | 汇总经校验的分析结果，生成版本化决策报告 | DecisionCase、Recommendation、DecisionReport | 原始抓取、任意模型调用和外部写执行 |
 | Knowledge & Evidence | 来源快照、文档版本、Chunk、Evidence、检索索引和记忆候选 | SourceDocument、Evidence、MemoryCandidate、RetrievalRecord | 直接决定业务状态或自动确认用户事实 |
@@ -179,9 +180,10 @@ flowchart LR
 
 | 数据类别 | 权威存储 | 性质 | 规则 |
 | :--- | :--- | :--- | :--- |
-| 用户、画像、岗位、面试、报告 | PostgreSQL | 业务事实 | 聚合和 Repository 负责写入与版本控制 |
+| 用户、画像、岗位、投递决定、投递记录、面试、报告 | PostgreSQL | 业务事实 | 聚合和 Repository 负责写入与版本控制 |
+| 简历版本、模板配置、简历变体、消息草稿元数据 | PostgreSQL | 结构化事实与版本 | 记录用户归属、输入版本、模板版本和生成器版本 |
 | Run、Approval、ToolCall、Audit | PostgreSQL | 治理事实 | 追加式或受状态机约束，不由队列状态替代 |
-| 原始简历、截图、附件、长文档 | Object Storage | 不可变或版本化对象 | 私有访问、摘要校验、短期签名引用 |
+| 原始简历、截图、附件、长文档、生成 PDF | Object Storage | 不可变或版本化对象 | 私有访问、摘要校验、短期签名引用；生成产物不得提交 Git |
 | Chunk、Embedding、稀疏索引 | pgvector；后续可迁移 Milvus | 可重建派生数据 | 必须引用 Source/Artifact 版本和生成器版本 |
 | 缓存、锁、限流、幂等占用 | Redis | 临时状态 | 必须有 TTL；丢失后可从事实源恢复 |
 | Celery 任务消息 | Redis Broker | 传输状态 | 只携带 ID 和版本；不保存最终业务结果 |

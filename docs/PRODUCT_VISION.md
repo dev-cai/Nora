@@ -43,6 +43,25 @@ Nora 将这些输入组织为版本化的 **Decision Report**。报告必须说�
 
 自动投递、自动发送招聘消息和无人值守浏览器写操作不属于初版目标。未来任何外部写都必须经过审批、幂等和审计。
 
+### 3.1 个人定制闭环
+
+Nora 的核心不是把简历全文塞进向量库，而是维护一份由用户确认的个人主档，并围绕每个机会建立可追溯的决策记录：
+
+```text
+CandidateProfile
+  -> OpportunityCase
+  -> DecisionReport
+  -> ApplicationDecision
+      -> skip -> OutcomeRecord -> MemoryCandidate
+      -> apply -> ResumeVariant + MessageDraft
+               -> ApplicationRecord
+               -> InterviewCase -> InterviewReview
+```
+
+`CandidateProfile` 包含基本信息、项目、经历、教育、技能、求职偏好和确认状态。`ResumeVersion` 是用户确认的简历事实版本，`ResumeVariant` 是针对某个岗位生成的输出版本；二者都不能替代主档。
+
+`ApplicationDecision` 至少记录 `undecided`、`apply`、`skip`、决策原因、时间、关联报告版本和使用的简历版本。用户决定不投递时，原因和报告仍可用于后续复盘；用户决定投递时，Nora 只生成简历与打招呼草稿，不自动执行外部投递。
+
 ## 4. 产品能力目录
 
 以下五类角色是稳定的产品能力分类，不承诺“一类角色等于一个 LangGraph 节点、进程或服务”。M5+ 实现时可根据
@@ -93,7 +112,7 @@ Nora 将这些输入组织为版本化的 **Decision Report**。报告必须说�
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已在默认分支实现并有验证证据 | 仓库治理、Issue/PR 工作流、初版架构与路线图；尚无应用运行时 |
+| **Current** | 已在默认分支实现并有验证证据 | 仓库治理、Issue/PR 工作流、M0 工程基础（FastAPI 工厂、健康检查、数据库与 CI 基线）；尚无业务运行时 |
 | **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M0 工程基础、M1 身份与岗位快照、M2 RAG、M3 Demo、M4 中间件 |
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | M5+ Agent Runtime、专项 Agent、Milvus、服务拆分和受控连接器 |
 
@@ -115,6 +134,7 @@ Nora 将这些输入组织为版本化的 **Decision Report**。报告必须说�
 | 主题 | 真源 | 说明 |
 | :--- | :--- | :--- |
 | 产品目标、用户旅程、能力目录 | 本文 | 描述目标价值，不证明能力已实现 |
+| 用户体验场景与交互目标 | [`USER_EXPERIENCE.md`](USER_EXPERIENCE.md) | 只描述设计目标，不证明功能已交付 |
 | 架构边界、数据所有权、依赖方向 | [`ARCHITECTURE.md`](ARCHITECTURE.md) 与已合并 ADR | 架构变更必须先有 Architecture Issue |
 | 里程碑范围与顺序 | [`ROADMAP.md`](ROADMAP.md) 与 GitHub Milestone | GitHub 中的实际状态优先于静态时间表 |
 | M0 Issue 映射 | [`M0_PLAN.md`](M0_PLAN.md) 与 GitHub Issue #9–#15 | 在线 Issue 承载执行状态和最终验收范围 |
@@ -129,3 +149,4 @@ Nora 将这些输入组织为版本化的 **Decision Report**。报告必须说�
 - 保存模型私有 chain-of-thought；
 - 在无 Benchmark 时同时维护 pgvector 与 Milvus；
 - 在初版中实现自动投递、自动消息发送、生产级多租户、计费或高可用。
+- 把个人资料、投递决定或生成 PDF 作为向量数据库的唯一事实源。
