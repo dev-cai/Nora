@@ -13,6 +13,7 @@ license-files = ["LICENSE"]
 keywords = ["agent", "career", "decision-support", "rag"]
 dependencies = [
     "pydantic-settings>=2.0,<3",
+    "structlog>=24.0,<26",
 ]
 
 [project.optional-dependencies]
