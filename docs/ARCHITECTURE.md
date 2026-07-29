@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3。
-- 当前仓库：只有治理、模板和项目 Skill，尚无应用代码或运行时依赖。
+- 当前代码：M0 工程基础和 M1 Identity 纵向切片；其余目标能力按 Issue 逐项交付。
 - 适用范围：M0 架构基础、M1 首个纵向切片和 M2 Agentic RAG 基础。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -525,7 +525,7 @@ M4: Client  → API → Redis/Task Queue → Worker → PostgreSQL / Object Stor
 以下决策需在相关实现前通过独立 Architecture Issue/ADR 固化：
 
 - 数据库 Schema 演进和迁移工具；
-- 身份 Provider、Session/OAuth 和本地开发身份；
+- 第三方身份 Provider、Session/OAuth 和生产身份联邦；
 - Celery Broker、重试、取消和可靠事件发布；
 - Object Storage 与用户数据删除策略；
 - BGE-M3 部署方式、Reranker 和检索 Benchmark；

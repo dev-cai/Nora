@@ -102,7 +102,8 @@ Windows 访问该目录时使用资源管理器地址：
 ```bash
 cd "$HOME/projects/Nora"
 cp .env.example .env
-docker compose up --build
+docker compose up -d --build
+docker compose exec api alembic upgrade head
 ```
 
 Compose 会启动：
@@ -121,11 +122,39 @@ curl http://localhost:8000/ready
 docker compose ps
 ```
 
+首次启动和拉取到新迁移后都要执行 `alembic upgrade head`。API 不会在启动时自动修改数据库结构。
+
 数据库可用时，健康检查应返回：
 
 ```json
 {"status":"healthy"}
 ```
+
+### 验证 Identity API
+
+Identity 纵向切片提供本地用户名/密码注册、登录和当前用户查询：
+
+```bash
+curl -X POST http://localhost:8000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","email":"alice@example.com","password":"change-me-123"}'
+
+curl -X POST http://localhost:8000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"change-me-123"}'
+
+curl http://localhost:8000/auth/me \
+  -H 'Authorization: Bearer <access_token>'
+```
+
+访问令牌默认有效期为 30 分钟。`AUTH_SECRET_KEY` 的开发默认值只适用于本机；`ENV=staging` 或
+`ENV=prod` 时必须提供至少 32 字节的随机值，否则应用拒绝启动。例如可在 WSL 中生成：
+
+```bash
+openssl rand -hex 32
+```
+
+不要把生成值写回 `.env.example` 或提交包含真实密钥的 `.env`。
 
 停止服务但保留数据卷：
 
@@ -293,4 +322,6 @@ docker compose up --build
 
 ## 当前边界
 
-当前 M0 提供 API、PostgreSQL、Alembic、Redis/MinIO Compose 骨架和 CI 门禁。认证、岗位业务、RAG、Agent、Celery 和生产部署文档由后续 Issue 交付；不要把路线图内容当作当前可用能力。
+当前已提供 M0 基线，以及 Identity 纵向切片的本地账号注册、登录、短时效 JWT 认证、当前用户上下文和用户范围
+Repository 契约。OAuth、邮箱验证、密码重置、角色权限、岗位业务、RAG、Agent、Celery 和生产部署仍由后续
+Issue 交付；不要把路线图内容当作当前可用能力。

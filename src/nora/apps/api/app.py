@@ -11,9 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
+from nora.apps.api.routes.auth import router as auth_router
 from nora.domain.base.exceptions import NoraError
 from nora.infrastructure.config import Settings, get_settings
-from nora.infrastructure.database import create_database_engine
+from nora.infrastructure.database import create_database_engine, create_session_factory
 from nora.infrastructure.logging import configure_logging, get_logger
 
 
@@ -26,8 +27,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         configure_logging(app_settings)
         _app.state.database_engine = None
+        _app.state.session_factory = None
+        _app.state.settings = app_settings
         if app_settings.database_url:
             _app.state.database_engine = create_database_engine(app_settings)
+            _app.state.session_factory = create_session_factory(_app.state.database_engine)
         try:
             yield
         finally:
@@ -35,6 +39,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await _app.state.database_engine.dispose()
 
     app = FastAPI(title="Nora API", lifespan=lifespan)
+    app.include_router(auth_router)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -58,7 +63,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.exception_handler(NoraError)
     async def nora_error_handler(_request: Request, exc: NoraError) -> JSONResponse:
-        return JSONResponse(status_code=400, content=exc.to_dict())
+        status_code = {
+            "authentication_failed": 401,
+            "username_conflict": 409,
+            "email_conflict": 409,
+            "database_unavailable": 503,
+            "identity_persistence_failed": 503,
+        }.get(exc.error_code, 400)
+        headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
+        return JSONResponse(status_code=status_code, content=exc.to_dict(), headers=headers)
 
     @app.exception_handler(Exception)
     async def unexpected_error_handler(_request: Request, exc: Exception) -> JSONResponse:
