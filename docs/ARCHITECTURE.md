@@ -8,9 +8,9 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3。
+- 决策来源：Architecture Issue #3、#49。
 - 当前代码：M0 工程基础、M1 Identity，以及不可变 JobPosting 领域模型和持久化适配器；岗位 API 与其余目标能力按 Issue 逐项交付。
-- 适用范围：M0 架构基础、M1 首个纵向切片和 M2 Agentic RAG 基础。
+- 适用范围：M0 架构基础、M1 首个纵向切片、M2 Agentic RAG 基础和 M3 Web Demo。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
 文档中的“当前决策”是后续实现必须遵守的边界；“目标能力”需要独立 Issue 验收；“演进选项”只有达到触发条件后
@@ -50,7 +50,7 @@ Nora 是面向求职决策的可审计多智能体平台。系统将公司背景
 | D-006 | Agent 编排 | LangGraph Adapter | M5+ | 只管理运行图、暂停和恢复，不拥有领域事实 |
 | D-007 | 模型访问 | Provider-neutral Model Gateway | M2 | Provider 由配置选择，不绑定未验证版本 |
 | D-008 | 异步任务 | Task Queue Port；目标 Adapter 为 Celery + Redis | M4 | 业务状态和最终结果不保存在 Celery Result Backend |
-| D-009 | 演示界面 | Gradio 作为独立客户端 | M3 | 通过公开 API 使用系统，不导入 Application/Infrastructure |
+| D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | M3 | 通过公开 HTTP API 使用系统，不导入 Python 内部模块；实现状态为 Planned |
 | D-010 | 对象存储 | Object Storage Port | 分阶段 | 本地开发可用文件系统；集成/部署可用 MinIO/S3 |
 
 ## 5. 系统上下文
@@ -58,7 +58,7 @@ Nora 是面向求职决策的可审计多智能体平台。系统将公司背景
 ```mermaid
 flowchart LR
     User["求职用户"]
-    UI["Gradio / Web 客户端"]
+    UI["Vue Web 客户端"]
     Nora["Nora 平台"]
     Model["模型与 Embedding Provider"]
     Maps["地图与天气 API"]
@@ -85,7 +85,7 @@ flowchart TB
     subgraph Apps["Apps / Composition"]
         API["FastAPI API"]
         Worker["Task Worker"]
-        Demo["Gradio Demo"]
+        Web["Vue Web 客户端"]
     end
 
     subgraph Outer["Outer Modules"]
@@ -102,7 +102,7 @@ flowchart TB
 
     API --> UseCases
     Worker --> UseCases
-    Demo --> API
+    Web --> API
     Agents --> UseCases
     Agents --> Ports
     Infra --> Ports
@@ -403,15 +403,16 @@ stateDiagram-v2
 
 ## 16. 目标目录与模块边界
 
-物理目录在首个工程基础 Issue 中落盘，目标形态如下：
+Python composition 的实际位置是 `src/nora/apps/`；Vue 前端是独立构建边界，计划放在根目录 `frontend/`。
+前端实现前必须遵守 [`FRONTEND.md`](FRONTEND.md) 定义的公开 API、认证、配置和 CI 契约。目标形态如下：
 
 ```text
 Nora/
-├── apps/
-│   ├── api/                 # HTTP composition、路由与 lifespan
-│   ├── worker/              # M4：Celery/任务进程 composition
-│   └── demo/                # Gradio 客户端，后续 Issue 引入
+├── frontend/                # M3：Vue 3 + Vite 独立 Web 客户端（Planned）
 ├── src/nora/
+│   ├── apps/
+│   │   ├── api/             # Current：HTTP composition、路由与 lifespan
+│   │   └── worker/          # M4：Celery/任务进程 composition（Planned）
 │   ├── domain/              # Context 内领域模型与 Policy
 │   ├── application/         # Use Case、Command、Query、DTO
 │   ├── ports/               # Repository、Gateway、Clock、Queue 等边界
@@ -461,7 +462,7 @@ Client → API → PostgreSQL
 ### M3/M4 演示与异步边界
 
 ```text
-M3: Gradio → API → PostgreSQL + pgvector → Model Gateway
+M3: Vue Web → API → PostgreSQL + pgvector → Model Gateway
 M4: Client  → API → Redis/Task Queue → Worker → PostgreSQL / Object Storage / Providers
 ```
 
