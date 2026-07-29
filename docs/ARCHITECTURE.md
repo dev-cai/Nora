@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3。
-- 当前代码：M0 工程基础和 M1 Identity 纵向切片；其余目标能力按 Issue 逐项交付。
+- 当前代码：M0 工程基础、M1 Identity，以及不可变 JobPosting 领域模型和持久化适配器；岗位 API 与其余目标能力按 Issue 逐项交付。
 - 适用范围：M0 架构基础、M1 首个纵向切片和 M2 Agentic RAG 基础。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 

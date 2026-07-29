@@ -322,6 +322,6 @@ docker compose up --build
 
 ## 当前边界
 
-当前已提供 M0 基线，以及 Identity 纵向切片的本地账号注册、登录、短时效 JWT 认证、当前用户上下文和用户范围
-Repository 契约。OAuth、邮箱验证、密码重置、角色权限、岗位业务、RAG、Agent、Celery 和生产部署仍由后续
-Issue 交付；不要把路线图内容当作当前可用能力。
+当前已提供 M0 基线、Identity 本地账号认证与用户范围 Repository，以及不可变 JobPosting 领域模型和持久化
+适配器。岗位创建/读取 API、幂等请求与审计仍由 M1 后续 Issue 交付；OAuth、邮箱验证、密码重置、角色权限、
+RAG、Agent、Celery 和生产部署也尚不可用。不要把路线图内容当作当前可用能力。

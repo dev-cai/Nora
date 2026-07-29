@@ -33,7 +33,7 @@ Nora 将公司背景调研、岗位匹配分析、面试准备、出行规划、
 完整的 N.O.R.A. 定义、用户旅程、五类产品能力和 Current/Planned/Evolution 边界见
 [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md)。这些能力是产品目标，不代表均已实现。
 
-> **当前状态：M0 工程基础与 Identity 纵向切片。** 当前可启动 API、PostgreSQL、Redis 和 MinIO 本地骨架，并提供本地账号注册、登录、短时效 JWT 和用户范围 Repository；岗位业务、RAG 和 Agent 能力仍由后续 Issue 交付。
+> **当前状态：M0 工程基础与 M1 领域基线。** 当前可启动 API、PostgreSQL、Redis 和 MinIO 本地骨架，提供本地账号认证、用户范围 Repository，以及不可变 JobPosting 领域模型和持久化适配器；岗位 API、RAG 和 Agent 能力仍由后续 Issue 交付。
 
 ---
 
