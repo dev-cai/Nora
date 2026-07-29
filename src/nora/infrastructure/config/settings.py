@@ -14,12 +14,20 @@ class Environment(StrEnum):
     PROD = "prod"
 
 
+class LogFormat(StrEnum):
+    """支持的日志输出格式。"""
+
+    JSON = "json"
+    CONSOLE = "console"
+
+
 class Settings(BaseSettings):
     """应用配置；同名环境变量优先于 .env 文件。"""
 
     env: Environment = Environment.DEV
     debug: bool = False
     log_level: str = "INFO"
+    log_format: LogFormat = LogFormat.JSON
     database_url: str | None = None
 
     model_config = SettingsConfigDict(
