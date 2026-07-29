@@ -1,413 +1,296 @@
-# 开发指南
+# Nora 开发指南
 
-> **状态：规划性操作手册。** 当前默认分支尚无应用运行时、`.env.example` 或 Compose 文件。下列容器命令由
-> [Issue #14](https://github.com/dev-cai/Nora/issues/14) 交付并合并后才可执行；当前实施从
-> [Issue #9](https://github.com/dev-cai/Nora/issues/9) 开始。
->
-> **Docker 优先。** 所有开发、测试和代码检查操作都在容器中进行。宿主机不需要安装 Python 或 pip，只需 Docker 和 Docker Compose。
->
-> **无虚拟环境。** 不创建 `.venv`，不激活 venv。容器内使用 `uv --system` 直接管理系统 Python 环境，宿主机不安装项目依赖。
+> 本指南以 Windows 11/10 + WSL2 Ubuntu 为唯一推荐的本地开发环境。
+> 日常代码、uv、Docker Engine 和 Docker Compose 命令均在 WSL 终端中执行。
+> Windows PowerShell 只用于一次性安装或管理 WSL，不用于项目开发命令。
+
+## 环境边界
+
+本地开发使用以下边界：
+
+```text
+Windows
+  └─ WSL2 Ubuntu
+      ├─ 项目代码：~/projects/Nora
+      ├─ uv / Python：用于本地测试和质量检查
+      ├─ Docker Engine
+      └─ Docker Compose：API、PostgreSQL、Redis、MinIO
+```
+
+本项目不要求 Docker Desktop。不要在同一个工作流中混用 Windows Docker CLI、Docker Desktop 上下文和 WSL 内 Docker Engine。
 
 ## 前置条件
 
-- **Docker Desktop**（Windows / macOS）或 **Docker Engine + Docker Compose**（Linux）
-- **uv**（可选，仅当需要在宿主机执行快速脚本或初始化时）
-- Git
+### Windows 一次性准备
 
-验证环境：
+在管理员 PowerShell 中安装 WSL2 和 Ubuntu：
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+安装完成后重启 Windows，并从开始菜单打开 Ubuntu，创建 Linux 用户。检查 WSL 版本：
+
+```powershell
+wsl --list --verbose
+```
+
+目标发行版的 `VERSION` 应为 `2`。
+
+### WSL 内安装工具
+
+以下命令全部在 Ubuntu/WSL 终端执行：
 
 ```bash
-docker --version
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl git python3 python3-pip docker.io docker-compose-plugin
+```
+
+将当前用户加入 Docker 组，然后重新打开 WSL 终端：
+
+```bash
+sudo usermod -aG docker "$USER"
+newgrp docker
+```
+
+如果发行版未启用 systemd，可临时启动 Docker daemon：
+
+```bash
+sudo service docker start
+```
+
+验证工具：
+
+```bash
+docker version
 docker compose version
+python3 --version
+git --version
 ```
 
-## 规划中的快速开始（#14 合并后）
-
-### 1. 启动开发环境
+安装 uv：
 
 ```bash
-# 从环境变量模板创建本地配置
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source "$HOME/.local/bin/env"
+uv --version
+```
+
+## 获取代码
+
+建议把仓库放在 WSL 的 Linux 文件系统中，而不是 `/mnt/c` 或 `/mnt/d` 下。这样可以避免 bind mount、文件监听和 I/O 性能问题。
+
+```bash
+mkdir -p "$HOME/projects"
+cd "$HOME/projects"
+git clone https://github.com/dev-cai/Nora.git
+cd Nora
+```
+
+Windows 访问该目录时使用资源管理器地址：
+
+```text
+\\wsl$\Ubuntu\home\<linux-user>\projects\Nora
+```
+
+从 WSL 访问 Windows 文件时使用 `/mnt/<drive-letter>/...`，但不建议将 Nora 工作区放在那里。
+
+## 快速开始
+
+以下命令均在 WSL 的仓库根目录执行：
+
+```bash
+cd "$HOME/projects/Nora"
 cp .env.example .env
-
-# 启动所有服务（API + 数据库 + Redis + MinIO）
-docker compose up
+docker compose up --build
 ```
 
-#14 合并后，首次启动将构建镜像并安装依赖；实际耗时取决于镜像和依赖下载环境。后续启动可以使用缓存。
+Compose 会启动：
 
-### 2. 验证服务
+- `api`：FastAPI API，监听 `localhost:8000`
+- `db`：PostgreSQL 16
+- `redis`：Redis 7 骨架，M4 才进入业务路径
+- `storage`：MinIO 骨架，后续对象存储能力按 Issue 交付
+
+另开一个 WSL 终端验证：
 
 ```bash
-# 健康检查
+cd "$HOME/projects/Nora"
 curl http://localhost:8000/health
-
-# 查看运行中的服务
+curl http://localhost:8000/ready
 docker compose ps
 ```
 
-### 3. 查看日志
+数据库可用时，健康检查应返回：
+
+```json
+{"status":"healthy"}
+```
+
+停止服务但保留数据卷：
 
 ```bash
-# 所有服务日志
-docker compose logs -f
+docker compose stop
+docker compose down
+```
 
-# 仅 API 服务日志
+删除容器和本地数据库/MinIO 数据：
+
+```bash
+docker compose down -v
+```
+
+## 日常操作
+
+查看服务日志：
+
+```bash
+docker compose logs -f
 docker compose logs -f api
 ```
 
-### 4. 停止环境
+查看容器状态和资源：
 
 ```bash
-# 停止并保留容器
-docker compose stop
-
-# 停止并删除容器（不删除数据卷）
-docker compose down
-
-# 完全清理（包括数据卷）
-docker compose down -v
-```
-
----
-
-## 目标容器架构
-
-以下结构是 M0 Compose 基线与后续里程碑的合并视图：Redis/MinIO 在 M0 只提供骨架，Celery Worker 在 M4 才进入业务路径。
-
-```
-宿主机                        Docker 网络
-┌──────────┐               ┌─────────────────────┐
-│  源码目录 │──volume mount──│  api (FastAPI)      │
-│  .env    │               │  uvicorn --reload    │
-│  .env.example           │  :8000               │
-│          │               ├─────────────────────┤
-│          │               │  db (PostgreSQL 16)  │
-│          │               │  :5432               │
-│          │               ├─────────────────────┤
-│          │               │  redis (Redis 7)     │
-│          │               │  :6379               │
-│          │               ├─────────────────────┤
-│          │               │  storage (MinIO)     │
-│          │               │  :9000 :9001         │
-└──────────┘               └─────────────────────┘
-```
-
-### Volume 挂载
-
-- 源码目录挂载到容器内，修改代码即时生效（uvicorn `--reload`）
-- 依赖锁文件（`uv.lock`）通过挂载同步到宿主机
-- 数据库数据存储在 Docker 命名卷中，不在项目目录内
-- 工具缓存（ruff、pytest、mypy）存储在容器内，不写入宿主机
-
----
-
-## 规划中的常用命令
-
-这些命令要求 #14 已合并且容器正在运行，统一通过 `docker compose exec` 执行。
-
-### 运行测试
-
-```bash
-# 运行全部测试
-docker compose exec api pytest
-
-# 运行指定测试文件
-docker compose exec api pytest tests/unit/test_config.py
-
-# 运行指定测试函数
-docker compose exec api pytest tests/unit/test_config.py::test_load_env
-
-# 带覆盖率
-docker compose exec api pytest --cov=nora --cov-report=term
-
-# 架构测试
-docker compose exec api pytest tests/architecture/
-```
-
-### 代码检查
-
-```bash
-# Lint 检查
-docker compose exec api ruff check .
-
-# 格式化检查
-docker compose exec api ruff format --check .
-
-# 自动格式化
-docker compose exec api ruff format .
-
-# 类型检查
-docker compose exec api mypy src/
-```
-
-### 数据库
-
-```bash
-# 执行迁移
-docker compose exec api alembic upgrade head
-
-# 创建新迁移
-docker compose exec api alembic revision --autogenerate -m "描述"
-
-# 回滚迁移
-docker compose exec api alembic downgrade -1
-
-# 查看迁移历史
-docker compose exec api alembic history
-
-# 连接到 PostgreSQL（psql）
-docker compose exec db psql -U nora -d nora
-```
-
-### 依赖管理
-
-使用 `uv` 管理依赖。容器内已设置 `UV_SYSTEM_PYTHON=1`，所有 `uv` 命令直接操作系统 Python，不创建虚拟环境。
-`pyproject.toml` 和 `uv.lock` 通过 volume 同步到宿主机。
-
-```bash
-# 添加运行时依赖
-docker compose exec api uv add httpx
-
-# 添加开发依赖
-docker compose exec api uv add --dev pytest-watch
-
-# 移除依赖
-docker compose exec api uv remove httpx
-
-# 更新所有依赖
-docker compose exec api uv sync --upgrade
-
-# 查看依赖树
-docker compose exec api uv tree
-```
-
-> 修改依赖后提交 `pyproject.toml` 和 `uv.lock` 的变更。
-
-### 其他
-
-```bash
-# 进入容器 Shell
-docker compose exec api bash
-
-# 打开 Python REPL
-docker compose exec api python
-
-# 重建镜像（修改 Dockerfile 或依赖后）
-docker compose build api
-
-# 查看容器资源使用
+docker compose ps
 docker stats
 ```
 
----
+修改 `src/` 后，开发覆写文件会挂载 WSL 工作区，Uvicorn 会自动重载 API。
 
-## 开发工作流
-
-### 标准循环
+执行数据库迁移：
 
 ```bash
-# 1. 从 main 创建分支
-git checkout -b nora/feat-xxx
-
-# 2. 启动环境（后台模式）
-docker compose up -d
-
-# 3. 编码 → 即时生效（hot reload）
-#    编辑源码文件，保存后 uvicorn 自动重载
-
-# 4. 运行测试和代码检查
-docker compose exec api pytest
-docker compose exec api ruff check .
-docker compose exec api mypy src/
-
-# 5. 创建迁移（如需修改数据库）
-docker compose exec api alembic revision --autogenerate -m "描述"
-
-# 6. 执行迁移
 docker compose exec api alembic upgrade head
+docker compose exec api alembic downgrade -1
+docker compose exec api alembic history
+```
 
-# 7. 提交代码
-git add -A
-git commit -m "feat(scope): 实现 xxx"
+连接 PostgreSQL：
 
-# 8. 停止环境
+```bash
+docker compose exec db psql -U nora -d nora
+```
+
+## 本地测试与质量检查
+
+当前 API 镜像使用 `--no-dev` 安装 runtime 依赖。测试、Ruff 和 mypy 在 WSL 内使用 uv 执行，不在 Windows Python 中执行：
+
+```bash
+uv sync --extra dev
+uv run pytest -q
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy src/
+uv run pytest tests/architecture -q
+```
+
+PostgreSQL、API 和其他依赖服务仍通过 WSL 内的 Docker Compose 启动：
+
+```bash
+docker compose up -d
+uv run pytest -q
 docker compose down
 ```
 
-### 添加新依赖
+本地没有 PostgreSQL 时，Repository 集成测试会使用 SQLite async adapter；CI 会注入 PostgreSQL service 连接进行验证。
+
+## 依赖管理
+
+运行时依赖和开发依赖均通过 WSL 内的 uv 管理：
 
 ```bash
-docker compose exec api uv add package-name
+uv add package-name
+uv add --dev package-name
+uv remove package-name
+uv lock
+uv sync --frozen --extra dev
 ```
 
-这会同时更新 `pyproject.toml` 和 `uv.lock`。后续提交这两个文件即可，其他开发者通过 `docker compose up` 重建镜像时自动安装新依赖。
+提交依赖变更时必须同时提交 `pyproject.toml` 和 `uv.lock`。不要提交 `.env`、`.venv`、`dist` 或其他本地产物。
 
-### 重置数据库
+## 路径与挂载规则
+
+- 推荐工作区：`/home/<user>/projects/Nora`。
+- Compose bind mount 的源路径来自 WSL 当前目录，不使用 `C:\...` 或 `D:\...`。
+- 不要在 PowerShell 中进入 WSL 工作区后调用另一套 Docker context。
+- `.env` 只在 WSL 工作区创建；模板是仓库中的 `.env.example`。
+- Docker 命名卷保存数据库和 MinIO 数据，不写入仓库目录。
+
+## 故障排查
+
+### `docker: permission denied`
+
+确认用户已加入 Docker 组，并重新打开 WSL：
 
 ```bash
-# 删除数据卷后重启
-docker compose down -v
-docker compose up
+groups
+sudo usermod -aG docker "$USER"
+newgrp docker
+docker ps
 ```
 
----
-
-## 代码组织
-
-以下是目标目录，不代表当前均已存在；每个目录只由对应 Issue 在提供真实实现和验证时创建。
-
-```
-Nora/
-├── apps/
-│   ├── api/              # FastAPI 应用工厂、路由、middleware
-│   ├── worker/           # M4：Celery 任务进程
-│   └── demo/             # Gradio 客户端（后续引入）
-├── src/nora/
-│   ├── domain/           # 领域模型、规则、Policy（无外部依赖）
-│   ├── application/      # Use Case、Command、Query、DTO
-│   ├── ports/            # Repository、Gateway 等接口抽象
-│   ├── agents/           # M5+：LangGraph Adapter、Agent State
-│   ├── infrastructure/   # PostgreSQL、Redis、Storage 等实现
-│   └── integrations/     # 外部服务 Adapter（模型、地图、天气等）
-├── tests/
-│   ├── unit/             # 无外部依赖的纯逻辑测试
-│   ├── architecture/     # 依赖方向、导入规则验证
-│   ├── contract/         # Port 契约测试
-│   ├── integration/      # 需要 PostgreSQL/Redis 等服务的测试
-│   └── e2e/              # 端到端测试
-├── docker/
-│   ├── Dockerfile.api    # API 服务镜像
-│   └── Dockerfile.worker # Worker 服务镜像
-├── docker-compose.yml    # 主编排文件
-├── docker-compose.override.yml  # 开发覆写
-└── pyproject.toml        # 项目元数据与工具配置
-```
-
-### 依赖方向（强制）
-
-```
-apps/  ──→  src/nora/application/  ──→  src/nora/domain/
-                │
-                ↓
-         src/nora/ports/  ←──  src/nora/infrastructure/
-                                    src/nora/integrations/
-```
-
-- `domain/` 只使用 Python 标准库，不导入 FastAPI、SQLAlchemy、LangGraph 等
-- `application/` 可以导入 domain 和 ports，不导入 infrastructure
-- `infrastructure/` 实现 ports 中定义的接口
-- 违反该方向的代码在架构测试中被阻断
-
----
-
-## 配置说明
-
-本节描述 #10、#14 及后续里程碑计划交付的配置契约；对应配置模型和模板合并前，不作为当前可用配置清单。
-
-### 环境变量
-
-通过 `.env` 文件配置（由 `docker-compose.override.yml` 自动加载）：
-
-```ini
-# 运行环境
-ENV=development
-DEBUG=true
-LOG_LEVEL=debug
-
-# 数据库（由 docker-compose 提供服务，无需修改）
-DATABASE_URL=postgresql+asyncpg://nora:nora@db:5432/nora
-
-# Redis（M0 仅 Compose 骨架，M4 才进入业务路径）
-REDIS_URL=redis://redis:6379/0
-
-# 对象存储（由 docker-compose 提供服务，无需修改）
-STORAGE_ENDPOINT=http://storage:9000
-STORAGE_ACCESS_KEY=noraminioadmin
-STORAGE_SECRET_KEY=noraminioadmin
-```
-
-> **不要提交 `.env` 文件。** 使用 `.env.example` 作为模板，提交 `.env.example` 的变更。
-
-### 端口映射
-
-| 服务 | 内部端口 | 宿主机端口 | 说明 |
-|------|---------|-----------|------|
-| API | 8000 | 8000 | FastAPI 服务 |
-| PostgreSQL | 5432 | 5432 | 数据库 |
-| Redis | 6379 | 6379 | 缓存/队列 |
-| MinIO API | 9000 | 9000 | 对象存储 |
-| MinIO Console | 9001 | 9001 | MinIO 管理界面 |
-
----
-
-## Dockerfile 说明
-
-### API 服务（`docker/Dockerfile.api`）
-
-```dockerfile
-FROM python:3.11-slim
-
-# uv 直接管理系统 Python，不创建虚拟环境
-ENV UV_SYSTEM_PYTHON=1
-
-# 安装 uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# 复制依赖文件
-COPY pyproject.toml uv.lock /app/
-WORKDIR /app
-
-# 安装依赖（直接写入系统 Python，无 .venv）
-RUN uv sync --frozen --no-dev
-
-# 复制源码
-COPY . /app
-
-# 开发模式入口（docker-compose.override.yml 覆盖 CMD）
-CMD ["uvicorn", "apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-> `UV_SYSTEM_PYTHON=1` 使 uv 直接操作容器内的系统 Python，不生成 `.venv` 目录。`--no-dev` 缩小生产镜像体积；开发时通过 `docker-compose.override.yml` 传入 `--dev`。
-
-### Worker 服务（`docker/Dockerfile.worker`）
-
-预留骨架，M4 补充。
-
----
-
-## 代码质量
-
-### 质量标准
-
-- **ruff**：代码风格和 lint 检查，遵循 `pyproject.toml` 中的配置
-- **mypy**：严格模式类型检查
-- **pytest**：测试覆盖率逐步提升，新代码必须有对应测试
-- **架构测试**：验证依赖方向，domain 层不得导入外部框架
-
-### 提交前运行
+### Docker daemon 未运行
 
 ```bash
-docker compose exec api ruff check .
-docker compose exec api mypy src/
-docker compose exec api pytest
+sudo service docker start
+docker info
 ```
 
-### 常见问题
+如果使用启用 systemd 的 WSL 发行版，可检查：
 
-**Q：修改代码后没有自动重载？**
-确保 `docker-compose.override.yml` 中挂载了源码目录，且 uvicorn 以 `--reload` 模式运行。
+```bash
+systemctl status docker
+```
 
-**Q：容器内无法连接数据库？**
-数据库服务名是 `db`，连接字符串使用 `host=db` 而不是 `localhost`。
+### 端口已被占用
 
-**Q：如何清理所有缓存和数据？**
+检查端口：
+
+```bash
+ss -ltnp | grep -E ':8000|:5432|:6379|:9000|:9001'
+```
+
+修改 `.env` 中的 `API_PORT`、`POSTGRES_PORT`、`REDIS_PORT`、`STORAGE_PORT` 或 `STORAGE_CONSOLE_PORT` 后重建服务：
+
+```bash
+docker compose down
+docker compose up --build
+```
+
+### API 无法连接数据库
+
+先检查数据库健康状态和 API 环境变量：
+
+```bash
+docker compose ps db api
+docker compose logs db
+docker compose exec api printenv DATABASE_URL
+```
+
+容器内数据库主机必须是 `db`，不能写 `localhost`。等待 `db` 通过 healthcheck 后再启动 API。
+
+### 修改代码后没有重载
+
+确认仓库位于 WSL Linux 文件系统，并检查挂载：
+
+```bash
+docker compose config
+docker compose exec api pwd
+docker compose logs api
+```
+
+如果仓库位于 `/mnt/c` 或 `/mnt/d`，迁移到 `$HOME/projects/Nora` 后重新执行 `docker compose up --build`。
+
+### 清理后重新初始化
+
+以下操作会删除本地数据库和 MinIO 数据，不可恢复：
+
 ```bash
 docker compose down -v
-docker system prune -a  # 清理所有未使用的镜像和构建缓存
+docker compose up --build
 ```
 
-**Q：依赖变更后容器未更新？**
-```bash
-docker compose build --no-cache api
-docker compose up -d
-```
+## 当前边界
+
+当前 M0 提供 API、PostgreSQL、Alembic、Redis/MinIO Compose 骨架和 CI 门禁。认证、岗位业务、RAG、Agent、Celery 和生产部署文档由后续 Issue 交付；不要把路线图内容当作当前可用能力。

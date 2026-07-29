@@ -33,8 +33,7 @@ Nora 将公司背景调研、岗位匹配分析、面试准备、出行规划、
 完整的 N.O.R.A. 定义、用户旅程、五类产品能力和 Current/Planned/Evolution 边界见
 [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md)。这些能力是产品目标，不代表均已实现。
 
-> **当前状态：规划与治理阶段。** 默认分支尚无应用运行时；当前可用内容是项目治理、架构与里程碑文档。
-> M0 已提供可启动的 API、PostgreSQL、Redis 和 MinIO 本地骨架；业务功能仍未实现。
+> **当前状态：M0 工程基础已合并。** 当前可启动 API、PostgreSQL、Redis 和 MinIO 本地骨架；认证、岗位业务、RAG 和 Agent 能力仍由后续 Issue 交付。
 
 ---
 
@@ -150,9 +149,10 @@ flowchart LR
 
 ### 本地快速开始
 
-前置条件：Docker Desktop、Docker Compose。
+前置条件：Windows + WSL2 Ubuntu，且 Docker Engine 和 Docker Compose 已安装在 WSL 内。
 
 ```bash
+cd "$HOME/projects/Nora"
 cp .env.example .env
 docker compose up --build
 ```
@@ -176,7 +176,7 @@ docker compose down
 1. 按 M0 的依赖顺序逐项合并 #9–#15。
 2. 当前 API 只提供健康/就绪端点，业务路由由后续 Issue 交付。
 
-规划中的容器操作手册见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)，其中命令只有在 #14 合并后才可执行。
+完整的 WSL 本地开发前置条件、Docker 安装、测试、迁移和故障排查见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
 
 ---
 
