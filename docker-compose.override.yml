@@ -1,0 +1,10 @@
+services:
+  api:
+    environment:
+      ENV: ${ENV:-dev}
+      DEBUG: ${DEBUG:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nora}:${POSTGRES_PASSWORD:-change-me-local}@db:5432/${POSTGRES_DB:-nora}
+    volumes:
+      - .:/app
+    command: ["uvicorn", "nora.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -1,0 +1,15 @@
+.git
+.github
+.codex
+.claude
+.venv
+__pycache__
+*.py[cod]
+*.db
+dist
+build
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.env
+!*.example

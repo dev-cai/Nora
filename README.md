@@ -34,7 +34,7 @@ Nora 将公司背景调研、岗位匹配分析、面试准备、出行规划、
 [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md)。这些能力是产品目标，不代表均已实现。
 
 > **当前状态：规划与治理阶段。** 默认分支尚无应用运行时；当前可用内容是项目治理、架构与里程碑文档。
-> 首个工程实现从 [Issue #9](https://github.com/dev-cai/Nora/issues/9) 开始。
+> M0 已提供可启动的 API、PostgreSQL、Redis 和 MinIO 本地骨架；业务功能仍未实现。
 
 ---
 
@@ -148,11 +148,33 @@ flowchart LR
 
 ## 当前如何开始
 
-应用运行文件尚未交付，因此当前不能执行 `cp .env.example .env` 或 `docker compose up`。请按以下顺序参与：
+### 本地快速开始
 
-1. 从 [Issue #9](https://github.com/dev-cai/Nora/issues/9) 开始完成 Python 工程骨架。
-2. 按 M0 的依赖顺序逐项合并 #9–#15。
-3. 等待 [Issue #14](https://github.com/dev-cai/Nora/issues/14) 交付 `.env.example`、Compose 文件和可执行快速开始。
+前置条件：Docker Desktop、Docker Compose。
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+API 启动后验证：
+
+```bash
+curl http://localhost:8000/health
+```
+
+停止环境：
+
+```bash
+docker compose down
+```
+
+本地数据库和 MinIO 数据保存在 Docker 命名卷中；执行 `docker compose down -v` 会删除这些数据。
+
+后续参与顺序：
+
+1. 按 M0 的依赖顺序逐项合并 #9–#15。
+2. 当前 API 只提供健康/就绪端点，业务路由由后续 Issue 交付。
 
 规划中的容器操作手册见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)，其中命令只有在 #14 合并后才可执行。
 
