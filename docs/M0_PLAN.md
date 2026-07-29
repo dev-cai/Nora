@@ -32,7 +32,7 @@ flowchart LR
 
 ---
 
-## [Issue #9：M0.1 初始化 Python 包结构与构建系统](https://github.com/dev-cai/Nora/issues/9)
+## [Issue #9：初始化 Python 包与构建元数据](https://github.com/dev-cai/Nora/issues/9)
 
 **标签：** `type:task`、`priority:p0`、`area:infra`
 **里程碑：** M0
@@ -40,53 +40,37 @@ flowchart LR
 
 ### 背景与用户价值
 
-项目需要一个标准的 Python 包结构来组织代码。当前仓库没有构建配置，无法安装、引入依赖、运行测试或进行类型检查。
+项目需要一个最小可安装的 Python 根包和可复现构建元数据。未来模块只有在对应 Issue 提供真实实现、测试和调用路径时才建立，
+不在本 Issue 中按目标蓝图批量创建空目录。
 
 ### 允许范围
 
-- 创建 `src/nora/` 包目录结构：
-  - `domain/`（`__init__.py` 及子目录空包）
-  - `application/`
-  - `ports/`
-  - `agents/`
-  - `infrastructure/`
-  - `integrations/`
-- 创建 `apps/` 目录：
-  - `api/`（空包）
-  - `worker/`（空包）
-  - `demo/`（空包）
-- 创建 `tests/` 目录结构：
-  - `unit/`
-  - `architecture/`
-  - `contract/`
-  - `integration/`
-  - `e2e/`
-- 创建 `pyproject.toml`，配置：
-  - 项目元数据（name、version、description、authors、license）
-  - Python 版本约束（>=3.11）
-  - 构建系统声明
-  - 后续 Issue 所需的工具配置段落占位（ruff、pytest、mypy）
-- 创建 `.python-version`（Python 3.11+）
-- 生成 `uv.lock`（可先无运行时依赖）
+- 创建 `pyproject.toml`，配置 PEP 621 项目元数据、Python `>=3.11`、Apache-2.0 许可证和 PEP 517 构建后端
+- 保持运行时 `dependencies` 为空
+- 创建 `.python-version`，声明 Python 3.11 基线
+- 创建 `src/nora/__init__.py`，只暴露 `0.1.0` 包版本
+- 生成并提交 `uv.lock`
 
 ### 非目标
 
-- 不安装任何运行时依赖（`dependencies` 初始为空）
-- 不创建应用代码、配置加载、日志、异常等
+- 不创建 `domain`、`application`、`ports`、`agents`、`infrastructure`、`integrations`、`apps` 或测试分类空目录
+- 不安装运行时或开发依赖，不创建工具配置占位
+- 不实现配置、日志、异常、API、数据库、Agent、RAG 或业务逻辑
 
 ### 验收条件
 
-- [ ] `uv sync` 成功执行，生成 `uv.lock`
-- [ ] `python -c "import nora; print(nora.__version__)"` 成功输出版本号
-- [ ] 上述所有目录结构存在（可为空包）
+- [ ] `uv lock --check` 与 `uv sync --frozen` 成功
+- [ ] `uv run python -c "import nora; print(nora.__version__)"` 输出 `0.1.0`
+- [ ] `uv build` 成功生成 wheel 和 sdist，且构建产物不包含未实施模块
+- [ ] `pyproject.toml` 的运行时依赖为空
 
 ### 测试计划
 
-无（骨架初始化暂无逻辑可测）。
+执行锁文件、环境同步、包导入、构建产物内容和 `git diff --check` 验证；本 Issue 无业务逻辑，单元和集成测试不适用。
 
 ### 文档更新范围
 
-无（README.md 已有说明，后续 M0.6 补充快速开始）。
+本文件同步 M0.1 的范围和验收；README 快速开始仍由 M0.6 补充。
 
 ---
 
@@ -400,7 +384,7 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 | Issue | 标题 | 前置依赖 | 预计文件变更 |
 |-------|------|---------|-------------|
-| M0.1 | 初始化 Python 包结构与构建系统 | 无 | 新建 10+ 目录/文件 |
+| M0.1 | 初始化 Python 包与构建元数据 | 无 | `pyproject.toml`、锁文件、Python 基线、根包 |
 | M0.2 | 实现配置加载与异常基础设施 | M0.1 | 配置 + 异常模块 |
 | M0.3 | 实现结构化日志系统 | M0.2 | 日志模块 |
 | M0.4 | 搭建 FastAPI 应用工厂与 API 基础 | M0.2、M0.3 | API 应用工厂 |
@@ -414,5 +398,5 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 1. 按依赖顺序逐个创建 Issue，从前置依赖最少的 M0.1 开始
 2. 每个 Issue 独立走完完整交付流程：Issue → 分支 → 实现 → 验收 → PR → 合并
-3. M0.2 和 M0.3 可并行实施（均依赖 M0.1，互不依赖）
+3. M0.3 依赖 M0.2；不得在 M0.2 合并前开始 M0.3
 4. 后续 Issue（M1+）计划在 M0 全部合并后再创建
