@@ -114,8 +114,8 @@ CandidateProfile
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已实现并有验证证据 | 仓库治理、Issue/PR 工作流、M0 工程基础，以及本地账号注册、登录、短时效 JWT 和用户范围 Repository |
-| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M1 岗位快照、M2 RAG、M3 Demo、M4 中间件 |
+| **Current** | 已实现并有验证证据 | 仓库治理、Issue/PR 工作流、M0 工程基础、本地账号认证、用户范围 Repository，以及不可变 JobPosting 领域模型和持久化适配器 |
+| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M1 岗位快照 API 与审计、M2 RAG、M3 Demo、M4 中间件 |
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | M5+ Agent Runtime、专项 Agent、Milvus、服务拆分和受控连接器 |
 
 状态以默认分支、已合并 PR 和 GitHub Issue 为证据。本文中的产品示例不能替代实现、测试或发布证明。
