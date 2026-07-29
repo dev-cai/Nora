@@ -33,7 +33,7 @@ Nora 将公司背景调研、岗位匹配分析、面试准备、出行规划、
 完整的 N.O.R.A. 定义、用户旅程、五类产品能力和 Current/Planned/Evolution 边界见
 [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md)。这些能力是产品目标，不代表均已实现。
 
-> **当前状态：M0 工程基础已合并。** 当前可启动 API、PostgreSQL、Redis 和 MinIO 本地骨架；认证、岗位业务、RAG 和 Agent 能力仍由后续 Issue 交付。
+> **当前状态：M0 工程基础与 Identity 纵向切片。** 当前可启动 API、PostgreSQL、Redis 和 MinIO 本地骨架，并提供本地账号注册、登录、短时效 JWT 和用户范围 Repository；岗位业务、RAG 和 Agent 能力仍由后续 Issue 交付。
 
 ---
 
@@ -106,18 +106,18 @@ flowchart LR
 
 | 组件 | 当前决策 | 交付状态 |
 |------|----------|----------|
-| 语言 | Python >=3.11 | M0 计划 |
-| 包管理 | uv（`UV_SYSTEM_PYTHON=1`，无虚拟环境） | M0 计划 |
-| Web 框架 | FastAPI + Uvicorn（异步） | M0 计划 |
-| 数据库 | PostgreSQL 16；M2 增加 pgvector | M0/M2 计划 |
-| ORM | SQLAlchemy（异步，Repository 模式） | M0 计划 |
+| 语言 | Python >=3.11 | Current |
+| 包管理 | uv | Current |
+| Web 框架 | FastAPI + Uvicorn（异步） | Current |
+| 数据库 | PostgreSQL 16；M2 增加 pgvector | PostgreSQL Current / pgvector Planned |
+| ORM | SQLAlchemy（异步，Repository 模式） | Current |
 | 异步队列 | Celery + Redis | M4 可选中间件 |
-| 对象存储 | Object Storage Port；MinIO / S3 为 Adapter | 分阶段计划 |
+| 对象存储 | Object Storage Port；MinIO / S3 为 Adapter | MinIO Compose 骨架 Current / 业务 Adapter Planned |
 | Agent 框架 | LangGraph Adapter | M5+ 演进能力 |
 | 模型网关 | Provider-neutral，不锁定未验证模型版本 | M2 计划 |
 | 专用向量库 | Milvus / Zilliz | M5+ Benchmark 驱动评估 |
-| 代码质量 | ruff（lint + format）+ mypy（严格模式） | M0 计划 |
-| 测试 | pytest（6 层测试策略） | M0 起逐步交付 |
+| 代码质量 | ruff（lint + format）+ mypy | Current |
+| 测试 | pytest（单元、集成、架构测试） | Current，按里程碑扩展 |
 
 ---
 
@@ -154,13 +154,15 @@ flowchart LR
 ```bash
 cd "$HOME/projects/Nora"
 cp .env.example .env
-docker compose up --build
+docker compose up -d --build
+docker compose exec api alembic upgrade head
 ```
 
 API 启动后验证：
 
 ```bash
 curl http://localhost:8000/health
+curl http://localhost:8000/ready
 ```
 
 停止环境：
@@ -171,10 +173,8 @@ docker compose down
 
 本地数据库和 MinIO 数据保存在 Docker 命名卷中；执行 `docker compose down -v` 会删除这些数据。
 
-后续参与顺序：
-
-1. 按 M0 的依赖顺序逐项合并 #9–#15。
-2. 当前 API 只提供健康/就绪端点，业务路由由后续 Issue 交付。
+Identity API 的注册、登录和当前用户验证命令见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。当前业务路由
+不包含岗位、简历、分析、投递或面试能力。
 
 完整的 WSL 本地开发前置条件、Docker 安装、测试、迁移和故障排查见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
 

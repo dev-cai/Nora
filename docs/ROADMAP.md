@@ -93,7 +93,7 @@
 
 ### 风险与假设
 
-- 身份 Provider 选择（自建 JWT / OAuth 集成）需在 M1 Architecture Issue 中固化
+- Identity Task #16 使用自建短时效 JWT；改为 Session、OAuth 或第三方身份 Provider 前需独立 Architecture Issue
 - 假设 M0 的 PostgreSQL Repository 基类已可用
 
 ---

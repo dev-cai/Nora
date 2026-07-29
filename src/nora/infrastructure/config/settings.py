@@ -2,8 +2,12 @@
 
 from enum import StrEnum
 from functools import lru_cache
+from typing import Self
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_AUTH_SECRET_KEY = "development-only-change-this-secret"
 
 
 class Environment(StrEnum):
@@ -32,6 +36,8 @@ class Settings(BaseSettings):
     database_pool_size: int = 5
     database_max_overflow: int = 10
     database_pool_timeout: float = 30.0
+    auth_secret_key: str = Field(default=DEFAULT_AUTH_SECRET_KEY, min_length=32)
+    auth_access_token_minutes: int = Field(default=30, ge=1, le=1440)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -39,6 +45,14 @@ class Settings(BaseSettings):
         extra="ignore",
         case_sensitive=False,
     )
+
+    @model_validator(mode="after")
+    def reject_default_auth_secret_outside_development(self) -> Self:
+        """避免 staging/prod 意外使用仓库内公开的开发密钥。"""
+
+        if self.env is not Environment.DEV and self.auth_secret_key == DEFAULT_AUTH_SECRET_KEY:
+            raise ValueError("AUTH_SECRET_KEY must be changed outside the dev environment")
+        return self
 
 
 @lru_cache(maxsize=1)

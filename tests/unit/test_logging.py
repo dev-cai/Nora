@@ -43,7 +43,8 @@ def test_log_level_filters_debug_and_info() -> None:
 def test_sensitive_fields_are_redacted() -> None:
     stream = StringIO()
     configure_logging(Settings(), stream=stream)
-    get_logger("test").info("credentials", token="secret-value")
+    get_logger("test").info("credentials", token="secret-value", auth_secret_key="another-secret")
 
     record = json.loads(stream.getvalue())
     assert record["token"] == "[REDACTED]"
+    assert record["auth_secret_key"] == "[REDACTED]"

@@ -1,11 +1,19 @@
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from nora.infrastructure.config import Environment, Settings
+
+TEST_AUTH_SECRET = "test-auth-secret-key-with-32-bytes!"
 
 
 def test_settings_load_dotenv_and_convert_types(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
-    env_file.write_text("ENV=staging\nDEBUG=true\nLOG_LEVEL=warning\n", encoding="utf-8")
+    env_file.write_text(
+        f"ENV=staging\nDEBUG=true\nLOG_LEVEL=warning\nAUTH_SECRET_KEY={TEST_AUTH_SECRET}\n",
+        encoding="utf-8",
+    )
 
     settings = Settings(_env_file=env_file)
 
@@ -16,7 +24,9 @@ def test_settings_load_dotenv_and_convert_types(tmp_path: Path) -> None:
 
 def test_environment_variables_override_dotenv(tmp_path: Path, monkeypatch) -> None:
     env_file = tmp_path / ".env"
-    env_file.write_text("ENV=staging\nDEBUG=false\n", encoding="utf-8")
+    env_file.write_text(
+        f"ENV=staging\nDEBUG=false\nAUTH_SECRET_KEY={TEST_AUTH_SECRET}\n", encoding="utf-8"
+    )
     monkeypatch.setenv("ENV", "prod")
     monkeypatch.setenv("DEBUG", "true")
 
@@ -24,3 +34,18 @@ def test_environment_variables_override_dotenv(tmp_path: Path, monkeypatch) -> N
 
     assert settings.env is Environment.PROD
     assert settings.debug is True
+
+
+@pytest.mark.parametrize("environment", [Environment.STAGING, Environment.PROD])
+def test_non_development_environment_rejects_default_auth_secret(
+    environment: Environment,
+) -> None:
+    with pytest.raises(ValidationError, match="AUTH_SECRET_KEY must be changed"):
+        Settings(env=environment, _env_file=None)
+
+
+def test_auth_configuration_rejects_weak_secret_and_invalid_lifetime() -> None:
+    with pytest.raises(ValidationError):
+        Settings(auth_secret_key="too-short", _env_file=None)
+    with pytest.raises(ValidationError):
+        Settings(auth_access_token_minutes=0, _env_file=None)
