@@ -12,12 +12,15 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 keywords = ["agent", "career", "decision-support", "rag"]
 dependencies = [
+    "fastapi>=0.115,<1",
     "pydantic-settings>=2.0,<3",
     "structlog>=24.0,<26",
+    "uvicorn[standard]>=0.30,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "httpx>=0.27,<1",
     "pytest>=8.0,<9",
 ]
 
