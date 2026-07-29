@@ -12,7 +12,7 @@
 - M0 **不实现**任何业务功能（无领域模型、无业务路由）
 - M0 **不引入** Redis/Celery 业务能力；#14 只提供 Redis/MinIO Compose 骨架，运行时能力留给 M4
 - M0 **不引入** LLM/Agent/RAG 相关依赖
-- M0 **不引入** Gradio 客户端
+- M0 **不引入** Web 客户端
 
 ## 依赖关系总览
 
@@ -179,7 +179,7 @@ flowchart LR
 
 ### 允许范围
 
-- 实现 `apps/api/` 应用工厂函数 `create_app()`
+- 实现 `src/nora/apps/api/` 应用工厂函数 `create_app()`
 - `GET /health` — 返回 `{"status": "healthy"}`（含数据库连接状态占位）
 - `GET /ready` — 返回就绪状态
 - 全局异常处理器，将 `NoraError` 层级映射为稳定 HTTP 错误响应

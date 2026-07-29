@@ -17,7 +17,7 @@
 
 | 组件 | 说明 |
 |------|------|
-| Python 包结构 | `src/nora/` + `apps/` + `tests/` 目录骨架，`pyproject.toml`，`uv.lock` |
+| Python 包结构 | `src/nora/`（含 `src/nora/apps/`）+ `tests/` 目录骨架，`pyproject.toml`，`uv.lock` |
 | 配置加载 | Pydantic Settings，支持 env/`.env` 文件，环境覆盖 |
 | 异常体系 | `NoraError` 基类，`DomainError`/`ApplicationError`/`InfrastructureError` 分支，稳定 `error_code` |
 | 结构化日志 | JSON 格式，`request_id`/`trace_id` 上下文注入，敏感字段脱敏预留 |
@@ -31,7 +31,7 @@
 - 不实现任何业务功能（无领域模型、无业务路由）
 - 不引入 Redis/Celery 作为运行时依赖（docker-compose 中预留骨架即可）
 - 不引入 LLM/Agent/RAG 相关依赖
-- 不引入 Gradio 客户端
+- 不引入 Web 客户端
 - 不设置覆盖率门禁（仅执行和报告）
 
 ### 验收条件
@@ -75,7 +75,7 @@
 - 不实现岗位评分、公司背调、简历匹配
 - 不实现 Agent、报告生成、浏览器采集或自动投递
 - 不依赖 LLM、RAG、Redis、Celery、Milvus 或外部 API
-- 不实现 Gradio 客户端（M3 做）
+- 不实现 Web 客户端（M3 做）
 - 不实现简历管理（M2 做）
 - 不实现更新/删除岗位（只创建和读取）
 
@@ -163,7 +163,7 @@
 | DecisionCase 模型 | Decision & Reporting | 组合用户画像与岗位快照的分析案例 |
 | 确定性规则引擎 | Decision & Reporting | 基于岗位/简历字段的匹配规则（无需 LLM 的部分） |
 | Decision Report | Decision & Reporting | 版本化决策报告，含 Evidence 引用链 |
-| Gradio Demo 客户端 | Apps/Demo | 简单的 Web 界面：登录 → 输入岗位 → 管理主档/简历 → 查看分析 |
+| Vue 3 + Vite Web 客户端 | Frontend | 独立 Web 界面：登录 → 输入岗位 → 管理主档/简历 → 查看分析 |
 | LLM 增强分析 | 跨上下文 | 基于 Evidence Pack 的 LLM 生成分析（经 Schema 校验） |
 | M0-M2 集成测试 | — | 跨越所有 Context 的 E2E 测试 |
 
@@ -178,7 +178,7 @@
 
 ### 验收条件
 
-- [ ] 用户通过 Gradio 界面完成完整流程：注册 → 录入岗位 → 导入简历 → 查看分析报告
+- [ ] 用户通过 Vue Web 界面完成完整流程：注册 → 录入岗位 → 导入简历 → 查看分析报告
 - [ ] 报告明确区分"事实"、"推断"和"建议"
 - [ ] 报告中的每个结论可追溯到 Evidence
 - [ ] 无模型输出时（Model Gateway 不可用），确定性规则仍可生成基础分析
@@ -187,11 +187,11 @@
 ### 前置依赖
 
 - M2 全部合并
-- M0 Docker Compose 基线已合并；M3.3 负责补充演示入口
+- M0 Docker Compose 基线已合并；Issue #49 定义前端边界，M3 客户端 Issue 负责补充 Web 入口
 
 ### 风险与假设
 
-- Gradio 客户端的引入方式需 Architecture Issue 确认（独立进程 vs 嵌入 API）
+- Vue 工程、Compose Web 服务与前端 CI 尚未实现，必须按 Issue #49 的边界拆成可独立验收的后续 Issue
 - Demo 的"分析"质量取决于 M2 的 RAG 管道质量
 
 ---

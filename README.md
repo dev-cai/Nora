@@ -109,6 +109,7 @@ flowchart LR
 | 语言 | Python >=3.11 | Current |
 | 包管理 | uv | Current |
 | Web 框架 | FastAPI + Uvicorn（异步） | Current |
+| Web 客户端 | [Vue 3 + Vite](docs/FRONTEND.md) | M3 Planned |
 | 数据库 | PostgreSQL 16；M2 增加 pgvector | PostgreSQL Current / pgvector Planned |
 | ORM | SQLAlchemy（异步，Repository 模式） | Current |
 | 异步队列 | Celery + Redis | M4 可选中间件 |
@@ -129,7 +130,7 @@ flowchart LR
   │   M0    │   M1    │    M2    │    M3    │    M4    │ 缓冲   │
   │  5 天   │  5 天   │  6 天    │  8 天    │  8 天    │ 2 天   │
   │ 工程基础 │ Identity│  简历    │  Demo    │ 中间件   │        │
-  │         │ + 岗位  │ + RAG    │ (Gradio) │ + 安全   │        │
+  │         │ + 岗位  │ + RAG    │  (Vue)   │ + 安全   │        │
   └─────────┴─────────┴──────────┴──────────┴──────────┴────────┘
                          M5+: 专项 Agent（按需启动）
 ```
@@ -139,7 +140,7 @@ flowchart LR
 | **M0** | Python 骨架、配置/日志/异常、FastAPI 工厂、PostgreSQL + Alembic、Docker Compose、CI 门禁 |
 | **M1** | 用户认证（注册/登录/Token）、岗位快照 CRUD（幂等）、审计日志 |
 | **M2** | 简历管理、SourceDocument -> Chunk -> Embedding -> 混合检索 -> Evidence Pack、Model Gateway |
-| **M3** | 确定性规则引擎、LLM 增强分析、版本化 Decision Report、Gradio Demo |
+| **M3** | 确定性规则引擎、LLM 增强分析、版本化 Decision Report、Vue Web 客户端 |
 | **M4** | Redis 缓存、Celery 任务队列、性能基准、安全扫描（SBOM）、部署文档 |
 | **M5+** | LangGraph Agent Runtime、专项 Agent、审批流程、Milvus / 服务拆分评估 |
 
