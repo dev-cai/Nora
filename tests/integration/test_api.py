@@ -18,6 +18,15 @@ def test_health_and_ready_include_request_id() -> None:
     assert ready.headers["X-Request-ID"]
 
 
+def test_health_is_degraded_when_database_is_unavailable() -> None:
+    settings = Settings(database_url="postgresql+asyncpg://nora:nora@127.0.0.1:1/nora")
+    with TestClient(create_app(settings)) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "degraded", "database": "unavailable"}
+
+
 def test_nora_error_maps_to_stable_response() -> None:
     app = create_app(Settings())
 
