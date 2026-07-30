@@ -10,7 +10,12 @@ from nora.application.identity import IdentityService
 from nora.domain.base.exceptions import NoraError
 from nora.domain.identity import User
 from nora.infrastructure.auth import Argon2PasswordHasher, JwtTokenIssuer
-from nora.infrastructure.database import SqlAlchemyJobPostingRepository, SqlAlchemyUserRepository
+from nora.infrastructure.database import (
+    SqlAlchemyAuditEventRepository,
+    SqlAlchemyJobPostingRepository,
+    SqlAlchemyUserRepository,
+)
+from nora.ports.governance import AuditEventRepository
 from nora.ports.opportunity import JobPostingRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -61,3 +66,12 @@ def get_job_posting_repository(
     """组装当前认证用户范围内的岗位快照 Repository。"""
 
     return SqlAlchemyJobPostingRepository(session, user.id)
+
+
+def get_audit_event_repository(
+    session: AsyncSession = Depends(get_session),
+    _user: User = Depends(get_current_user),
+) -> AuditEventRepository:
+    """组装与业务写入共享事务的只追加审计 Repository。"""
+
+    return SqlAlchemyAuditEventRepository(session)

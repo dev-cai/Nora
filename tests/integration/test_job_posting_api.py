@@ -1,14 +1,15 @@
 """岗位快照 API 的 PostgreSQL 集成测试。"""
 
 import asyncio
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from nora.apps.api import create_app
 from nora.infrastructure.config import Settings
-from nora.infrastructure.database import Base
+from nora.infrastructure.database import AuditEventRecord, Base
 
 
 def reset_database(database_url: str) -> None:
@@ -40,6 +41,20 @@ def register_and_login(client: TestClient, username: str) -> str:
     )
     assert login.status_code == 200
     return login.json()["access_token"]
+
+
+def load_audit_events(database_url: str) -> list[AuditEventRecord]:
+    """从隔离数据库读取岗位 API 产生的审计记录。"""
+
+    async def load() -> list[AuditEventRecord]:
+        engine = create_async_engine(database_url)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            records = (await session.scalars(select(AuditEventRecord))).all()
+        await engine.dispose()
+        return list(records)
+
+    return asyncio.run(load())
 
 
 def test_job_posting_create_replay_conflict_and_user_scope(database_url: str) -> None:
@@ -113,3 +128,13 @@ def test_job_posting_create_replay_conflict_and_user_scope(database_url: str) ->
         )
         assert other_owner_same_key.status_code == 201
         assert other_owner_same_key.json()["id"] != posting_id
+
+        events = load_audit_events(database_url)
+        assert len(events) == 2
+        matching_events = [event for event in events if event.target_id == UUID(posting_id)]
+        assert len(matching_events) == 1
+        alice_event = matching_events[0]
+        assert alice_event.action == "create"
+        assert alice_event.target_type == "job_posting"
+        assert alice_event.idempotency_key == "job-1"
+        assert "Senior Python Engineer" in (alice_event.after_summary or "")

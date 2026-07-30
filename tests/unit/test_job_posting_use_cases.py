@@ -11,6 +11,7 @@ from nora.application.opportunity import (
     GetJobPostingUseCase,
 )
 from nora.domain.base.exceptions import ApplicationError, InfrastructureError
+from nora.domain.governance import AuditEvent
 from nora.domain.opportunity import JobPosting, JobSourceType
 from nora.ports.opportunity import StoredIdempotentJobPosting
 
@@ -56,6 +57,17 @@ class FakeJobPostingRepository:
         self.commit_count += 1
 
 
+class FakeAuditEventRepository:
+    """记录用例追加的审计事件。"""
+
+    def __init__(self) -> None:
+        self.events: list[AuditEvent] = []
+
+    async def add(self, event: AuditEvent) -> AuditEvent:
+        self.events.append(event)
+        return event
+
+
 class RacingJobPostingRepository(FakeJobPostingRepository):
     """模拟首次查询后由并发事务占用幂等键。"""
 
@@ -79,7 +91,8 @@ class RacingJobPostingRepository(FakeJobPostingRepository):
 @pytest.mark.asyncio
 async def test_create_replays_normalized_same_request() -> None:
     repository = FakeJobPostingRepository()
-    use_case = CreateJobPostingUseCase(repository)
+    audit_repository = FakeAuditEventRepository()
+    use_case = CreateJobPostingUseCase(repository, audit_repository)
     owner_id = uuid4()
 
     created = await use_case.execute(
@@ -102,12 +115,20 @@ async def test_create_replays_normalized_same_request() -> None:
     assert replayed.job_posting.id == created.job_posting.id
     assert repository.commit_count == 1
     assert len(repository.postings) == 1
+    assert len(audit_repository.events) == 1
+    event = audit_repository.events[0]
+    assert event.actor_id == owner_id
+    assert event.target_id == created.job_posting.id
+    assert event.target_type == "job_posting"
+    assert event.idempotency_key == "import-1"
+    assert "Build APIs." in (event.after_summary or "")
 
 
 @pytest.mark.asyncio
 async def test_create_rejects_same_key_with_different_content() -> None:
     repository = FakeJobPostingRepository()
-    use_case = CreateJobPostingUseCase(repository)
+    audit_repository = FakeAuditEventRepository()
+    use_case = CreateJobPostingUseCase(repository, audit_repository)
     owner_id = uuid4()
     await use_case.execute(
         CreateJobPostingCommand(
@@ -128,13 +149,15 @@ async def test_create_rejects_same_key_with_different_content() -> None:
         )
 
     assert error.value.error_code == "idempotency_conflict"
+    assert len(audit_repository.events) == 1
 
 
 @pytest.mark.asyncio
 async def test_create_recovers_result_after_concurrent_key_claim() -> None:
     repository = RacingJobPostingRepository()
+    audit_repository = FakeAuditEventRepository()
 
-    result = await CreateJobPostingUseCase(repository).execute(
+    result = await CreateJobPostingUseCase(repository, audit_repository).execute(
         CreateJobPostingCommand(
             owner_id=uuid4(),
             idempotency_key="race-1",
@@ -145,6 +168,7 @@ async def test_create_recovers_result_after_concurrent_key_claim() -> None:
     assert result.replayed is True
     assert result.job_posting.jd_text == "Build APIs."
     assert repository.commit_count == 0
+    assert audit_repository.events == []
 
 
 @pytest.mark.asyncio

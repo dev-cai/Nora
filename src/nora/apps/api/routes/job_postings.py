@@ -13,9 +13,14 @@ from nora.application.opportunity import (
     GetJobPostingQuery,
     GetJobPostingUseCase,
 )
-from nora.apps.api.dependencies import get_current_user, get_job_posting_repository
+from nora.apps.api.dependencies import (
+    get_audit_event_repository,
+    get_current_user,
+    get_job_posting_repository,
+)
 from nora.domain.identity import User
 from nora.domain.opportunity import JobPosting, JobSourceType
+from nora.ports.governance import AuditEventRepository
 from nora.ports.opportunity import JobPostingRepository
 
 router = APIRouter(prefix="/job-postings", tags=["job-postings"])
@@ -55,8 +60,9 @@ async def create_job_posting(
     ],
     user: User = Depends(get_current_user),
     repository: JobPostingRepository = Depends(get_job_posting_repository),
+    audit_repository: AuditEventRepository = Depends(get_audit_event_repository),
 ) -> JobPostingResponse:
-    result = await CreateJobPostingUseCase(repository).execute(
+    result = await CreateJobPostingUseCase(repository, audit_repository).execute(
         CreateJobPostingCommand(
             owner_id=user.id,
             idempotency_key=idempotency_key,

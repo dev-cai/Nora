@@ -6,7 +6,9 @@ from hashlib import sha256
 from uuid import UUID
 
 from nora.domain.base.exceptions import ApplicationError, InfrastructureError
+from nora.domain.governance import AuditAction, AuditEvent
 from nora.domain.opportunity import JobPosting, JobSourceType
+from nora.ports.governance import AuditEventRepository
 from nora.ports.opportunity import JobPostingRepository
 
 
@@ -40,8 +42,13 @@ class GetJobPostingQuery:
 class CreateJobPostingUseCase:
     """创建一次岗位快照，或重放同键同内容的首次结果。"""
 
-    def __init__(self, repository: JobPostingRepository) -> None:
+    def __init__(
+        self,
+        repository: JobPostingRepository,
+        audit_repository: AuditEventRepository,
+    ) -> None:
         self.repository = repository
+        self.audit_repository = audit_repository
 
     async def execute(self, command: CreateJobPostingCommand) -> CreateJobPostingResult:
         idempotency_key = _normalize_idempotency_key(command.idempotency_key)
@@ -64,6 +71,16 @@ class CreateJobPostingUseCase:
                 posting,
                 idempotency_key=idempotency_key,
                 request_fingerprint=request_fingerprint,
+            )
+            await self.audit_repository.add(
+                AuditEvent.create(
+                    actor_id=command.owner_id,
+                    action=AuditAction.CREATE,
+                    target_type="job_posting",
+                    target_id=stored.id,
+                    after_summary=_audit_summary(stored),
+                    idempotency_key=idempotency_key,
+                )
             )
             await self.repository.commit()
         except InfrastructureError as exc:
@@ -113,6 +130,18 @@ def _request_fingerprint(posting: JobPosting) -> str:
     }
     serialized = json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
     return sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _audit_summary(posting: JobPosting) -> str:
+    """生成不复制完整 JD 的确定性审计摘要。"""
+
+    content = {
+        "source_type": posting.source_type.value,
+        "status": posting.status.value,
+        "summary": posting.text_summary,
+        "version": 1,
+    }
+    return json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
 def _resolve_replay(
