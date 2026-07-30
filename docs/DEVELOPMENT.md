@@ -208,6 +208,35 @@ docker compose --profile test stop test-db
 集成测试要求 `TEST_DATABASE_URL` 或 `DATABASE_URL` 使用 `postgresql+asyncpg`。缺少连接或使用其他驱动时，
 测试会明确失败；项目不支持 SQLite 回退。
 
+### 缓存目录
+
+容器内运行 Python 与质量工具时，所有项目缓存统一写入仓库根目录的 `.cache/`：
+
+- Python 字节码：`.cache/pycache/`
+- pytest：`.cache/pytest/`
+- mypy：`.cache/mypy/`
+- ruff：`.cache/ruff/`
+
+`.cache/` 已同时从 Git 和 Docker 构建上下文排除。源码、测试、Alembic 与脚本目录不应再生成
+`__pycache__/`，仓库根目录也不应再出现 `.pytest_cache/`、`.mypy_cache/` 或 `.ruff_cache/`。
+
+### 启用提交前门禁
+
+仓库在 `.githooks/pre-commit` 提供受版本控制的 Git hook。新克隆仓库只需执行一次：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+此 hook 通过一个 Compose `tools` 容器依次执行 ruff 格式检查、ruff lint、mypy，以及单元和架构测试；
+宿主仍只需要 Git、Docker 与 Docker Compose，不需要 Python 或 pre-commit 包。手动验证 hook：
+
+```bash
+.githooks/pre-commit
+```
+
+检查失败时 Git 会中止 Commit。修复问题后重新提交；不要使用 `--no-verify` 绕过项目门禁。
+
 ## 依赖管理
 
 运行时依赖和开发依赖均通过 development 容器内的 uv 管理：

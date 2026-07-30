@@ -3,13 +3,11 @@
 .codex
 .claude
 .venv
+.cache
 __pycache__
 *.py[cod]
 *.db
 dist
 build
-.pytest_cache
-.mypy_cache
-.ruff_cache
 .env
 !*.example
