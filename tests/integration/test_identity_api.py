@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from nora.apps.api import create_app
 from nora.domain.base.exceptions import NoraError
@@ -18,21 +18,21 @@ from nora.infrastructure.database import (
 )
 
 
-def prepare_database(database_url: str) -> None:
-    """创建测试数据库表。"""
+def reset_database(database_url: str) -> None:
+    """重建隔离的 PostgreSQL 测试表。"""
 
-    async def create_tables() -> None:
+    async def reset_tables() -> None:
         engine = create_async_engine(database_url)
         async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.drop_all)
             await connection.run_sync(Base.metadata.create_all)
         await engine.dispose()
 
-    asyncio.run(create_tables())
+    asyncio.run(reset_tables())
 
 
-def test_register_login_and_current_user(tmp_path) -> None:
-    database_url = f"sqlite+aiosqlite:///{(tmp_path / 'identity.sqlite').as_posix()}"
-    prepare_database(database_url)
+def test_register_login_and_current_user(database_url: str) -> None:
+    reset_database(database_url)
     settings = Settings(
         database_url=database_url,
         auth_secret_key="test-secret-key-32-bytes-long-key!",
@@ -97,13 +97,10 @@ def test_identity_endpoint_reports_missing_database_as_unavailable() -> None:
 
 
 @pytest.mark.asyncio
-async def test_database_identity_conflicts_are_stable_and_rollback(tmp_path) -> None:
-    database_url = f"sqlite+aiosqlite:///{(tmp_path / 'conflict.sqlite').as_posix()}"
-    engine = create_async_engine(database_url)
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
-
-    factory = create_session_factory(engine)
+async def test_database_identity_conflicts_are_stable_and_rollback(
+    database_engine: AsyncEngine,
+) -> None:
+    factory = create_session_factory(database_engine)
     async with factory() as session:
         repository = SqlAlchemyUserRepository(session)
         original = User.create("alice", "alice@example.com")
@@ -122,5 +119,3 @@ async def test_database_identity_conflicts_are_stable_and_rollback(tmp_path) -> 
         await repository.add(recovered, "hash")
         await repository.commit()
         assert await repository.get_by_id(recovered.id) == recovered
-
-    await engine.dispose()

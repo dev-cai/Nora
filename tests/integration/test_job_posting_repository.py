@@ -1,29 +1,24 @@
 """岗位快照 Repository 集成测试。"""
 
-import os
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from nora.domain.base.exceptions import InfrastructureError
 from nora.domain.opportunity import JobPosting, JobSourceType
-from nora.infrastructure.config import Settings
 from nora.infrastructure.database import (
-    Base,
     SqlAlchemyJobPostingRepository,
     UserRecord,
-    create_database_engine,
     create_session_factory,
 )
 
 
 @pytest.mark.asyncio
-async def test_job_posting_repository_round_trip_and_user_scope() -> None:
-    database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-    engine = create_database_engine(Settings(database_url=database_url), database_url)
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
-    factory = create_session_factory(engine)
+async def test_job_posting_repository_round_trip_and_user_scope(
+    database_engine: AsyncEngine,
+) -> None:
+    factory = create_session_factory(database_engine)
 
     owner_a = UserRecord(
         username=f"posting-owner-a-{uuid4()}",
@@ -72,5 +67,3 @@ async def test_job_posting_repository_round_trip_and_user_scope() -> None:
 
         assert await repository_b.get_by_id(posting_id) is None
         assert await repository_b.list() == []
-
-    await engine.dispose()

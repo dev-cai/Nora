@@ -1,14 +1,11 @@
-import os
 from uuid import UUID, uuid4
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import String
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from nora.domain.base.exceptions import InfrastructureError
-from nora.infrastructure.config import Settings
 from nora.infrastructure.database import (
     AuditMixin,
     Base,
@@ -16,8 +13,6 @@ from nora.infrastructure.database import (
     SqlAlchemyRepository,
     SqlAlchemyUserScopedRepository,
     UserRecord,
-    create_database_engine,
-    create_session_factory,
 )
 
 
@@ -31,18 +26,6 @@ class OwnedItem(Base, AuditMixin, OwnedByUserMixin):
     __tablename__ = "owned_items"
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-
-
-@pytest_asyncio.fixture
-async def session() -> AsyncSession:
-    database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-    engine = create_database_engine(Settings(database_url=database_url), database_url)
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
-    factory = create_session_factory(engine)
-    async with factory() as value:
-        yield value
-    await engine.dispose()
 
 
 @pytest.mark.asyncio

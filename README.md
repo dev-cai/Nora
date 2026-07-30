@@ -150,7 +150,7 @@ flowchart LR
 
 ### 本地快速开始
 
-前置条件：Windows + WSL2 Ubuntu，且 Docker Engine 和 Docker Compose 已安装在 WSL 内。
+前置条件：Windows + WSL2 Ubuntu + Docker Desktop（WSL2 backend）。宿主不需要安装项目 Python 或 uv。
 
 ```bash
 cd "$HOME/projects/Nora"
