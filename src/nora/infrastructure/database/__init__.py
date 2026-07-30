@@ -3,13 +3,18 @@
 from .base import AuditMixin, Base, OwnedByUserMixin
 from .engine import create_database_engine, create_session_factory
 from .identity import SqlAlchemyUserRepository, UserRecord
-from .opportunity import JobPostingRecord, SqlAlchemyJobPostingRepository
+from .opportunity import (
+    JobPostingIdempotencyRecord,
+    JobPostingRecord,
+    SqlAlchemyJobPostingRepository,
+)
 from .repository import SqlAlchemyRepository, SqlAlchemyUserScopedRepository
 
 __all__ = (
     "AuditMixin",
     "Base",
     "OwnedByUserMixin",
+    "JobPostingIdempotencyRecord",
     "JobPostingRecord",
     "SqlAlchemyRepository",
     "SqlAlchemyJobPostingRepository",

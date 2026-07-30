@@ -1,0 +1,128 @@
+"""岗位快照创建、幂等重放与读取用例。"""
+
+import json
+from dataclasses import dataclass
+from hashlib import sha256
+from uuid import UUID
+
+from nora.domain.base.exceptions import ApplicationError, InfrastructureError
+from nora.domain.opportunity import JobPosting, JobSourceType
+from nora.ports.opportunity import JobPostingRepository
+
+
+@dataclass(frozen=True, slots=True)
+class CreateJobPostingCommand:
+    """创建岗位快照所需的认证用户输入。"""
+
+    owner_id: UUID
+    idempotency_key: str
+    jd_text: str
+    source_type: JobSourceType = JobSourceType.MANUAL
+    source_url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CreateJobPostingResult:
+    """创建结果及是否命中历史幂等结果。"""
+
+    job_posting: JobPosting
+    replayed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class GetJobPostingQuery:
+    """按认证用户范围读取岗位快照。"""
+
+    owner_id: UUID
+    job_posting_id: UUID
+
+
+class CreateJobPostingUseCase:
+    """创建一次岗位快照，或重放同键同内容的首次结果。"""
+
+    def __init__(self, repository: JobPostingRepository) -> None:
+        self.repository = repository
+
+    async def execute(self, command: CreateJobPostingCommand) -> CreateJobPostingResult:
+        idempotency_key = _normalize_idempotency_key(command.idempotency_key)
+        posting = JobPosting.create(
+            owner_id=command.owner_id,
+            jd_text=command.jd_text,
+            source_type=command.source_type,
+            source_url=command.source_url,
+        )
+        request_fingerprint = _request_fingerprint(posting)
+
+        existing = await self.repository.get_by_idempotency_key(idempotency_key)
+        if existing is not None:
+            return _resolve_replay(
+                existing.job_posting, existing.request_fingerprint, request_fingerprint
+            )
+
+        try:
+            stored = await self.repository.add_idempotent(
+                posting,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+            )
+            await self.repository.commit()
+        except InfrastructureError as exc:
+            if exc.error_code != "idempotency_key_taken":
+                raise
+            existing = await self.repository.get_by_idempotency_key(idempotency_key)
+            if existing is None:
+                raise InfrastructureError(
+                    "Could not recover idempotent request",
+                    error_code="job_posting_persistence_failed",
+                ) from exc
+            return _resolve_replay(
+                existing.job_posting, existing.request_fingerprint, request_fingerprint
+            )
+
+        return CreateJobPostingResult(job_posting=stored, replayed=False)
+
+
+class GetJobPostingUseCase:
+    """读取当前用户拥有的单条岗位快照。"""
+
+    def __init__(self, repository: JobPostingRepository) -> None:
+        self.repository = repository
+
+    async def execute(self, query: GetJobPostingQuery) -> JobPosting:
+        posting = await self.repository.get_by_id(query.job_posting_id)
+        if posting is None or posting.owner_id != query.owner_id:
+            raise ApplicationError("Job posting not found", error_code="entity_not_found")
+        return posting
+
+
+def _normalize_idempotency_key(value: str) -> str:
+    normalized = value.strip()
+    if not normalized or len(normalized) > 255:
+        raise ApplicationError(
+            "Idempotency key must contain 1-255 characters",
+            error_code="invalid_idempotency_key",
+        )
+    return normalized
+
+
+def _request_fingerprint(posting: JobPosting) -> str:
+    content = {
+        "jd_text": posting.jd_text,
+        "source_type": posting.source_type.value,
+        "source_url": posting.source_url,
+    }
+    serialized = json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _resolve_replay(
+    posting: JobPosting,
+    stored_fingerprint: str,
+    request_fingerprint: str,
+) -> CreateJobPostingResult:
+    if stored_fingerprint != request_fingerprint:
+        raise ApplicationError(
+            "Idempotency key was already used with different content",
+            error_code="idempotency_conflict",
+        )
+    return CreateJobPostingResult(job_posting=posting, replayed=True)

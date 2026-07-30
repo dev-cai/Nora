@@ -3,7 +3,8 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,6 +12,7 @@ from nora.domain.base.exceptions import InfrastructureError
 from nora.domain.opportunity import JobPosting, JobPostingStatus, JobSourceType
 from nora.infrastructure.database.base import AuditMixin, Base, OwnedByUserMixin
 from nora.infrastructure.database.repository import SqlAlchemyUserScopedRepository
+from nora.ports.opportunity import StoredIdempotentJobPosting
 
 
 class JobPostingRecord(Base, AuditMixin, OwnedByUserMixin):
@@ -33,6 +35,26 @@ class JobPostingRecord(Base, AuditMixin, OwnedByUserMixin):
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     text_summary: Mapped[str] = mapped_column(String(240), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class JobPostingIdempotencyRecord(Base, AuditMixin, OwnedByUserMixin):
+    """用户范围内岗位创建请求的持久化幂等记录。"""
+
+    __tablename__ = "job_posting_idempotency"
+    __table_args__ = (
+        UniqueConstraint(
+            "owner_id",
+            "idempotency_key",
+            name="uq_job_posting_idempotency_owner_key",
+        ),
+        UniqueConstraint("job_posting_id", name="uq_job_posting_idempotency_posting"),
+    )
+
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    job_posting_id: Mapped[UUID] = mapped_column(
+        ForeignKey("job_postings.id", ondelete="CASCADE"), nullable=False
+    )
 
 
 class SqlAlchemyJobPostingRepository:
@@ -83,9 +105,60 @@ class SqlAlchemyJobPostingRepository:
         await self._records.add(record)
         return self._to_domain(record)
 
+    async def add_idempotent(
+        self,
+        job_posting: JobPosting,
+        *,
+        idempotency_key: str,
+        request_fingerprint: str,
+    ) -> JobPosting:
+        stored = await self.add(job_posting)
+        self.session.add(
+            JobPostingIdempotencyRecord(
+                owner_id=self.owner_id,
+                idempotency_key=idempotency_key,
+                request_fingerprint=request_fingerprint,
+                job_posting_id=stored.id,
+            )
+        )
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise InfrastructureError(
+                "Idempotency key is already in use",
+                error_code="idempotency_key_taken",
+            ) from exc
+        return stored
+
     async def get_by_id(self, job_posting_id: UUID) -> JobPosting | None:
         record = await self._records.get(job_posting_id)
         return None if record is None else self._to_domain(record)
+
+    async def get_by_idempotency_key(
+        self, idempotency_key: str
+    ) -> StoredIdempotentJobPosting | None:
+        row = (
+            await self.session.execute(
+                select(JobPostingRecord, JobPostingIdempotencyRecord.request_fingerprint)
+                .join(
+                    JobPostingIdempotencyRecord,
+                    JobPostingIdempotencyRecord.job_posting_id == JobPostingRecord.id,
+                )
+                .where(
+                    JobPostingRecord.owner_id == self.owner_id,
+                    JobPostingIdempotencyRecord.owner_id == self.owner_id,
+                    JobPostingIdempotencyRecord.idempotency_key == idempotency_key,
+                )
+            )
+        ).one_or_none()
+        if row is None:
+            return None
+        record, request_fingerprint = row
+        return StoredIdempotentJobPosting(
+            job_posting=self._to_domain(record),
+            request_fingerprint=request_fingerprint,
+        )
 
     async def list(self, *, offset: int = 0, limit: int = 100) -> list[JobPosting]:
         records = await self._records.list(offset=offset, limit=limit)
