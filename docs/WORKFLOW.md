@@ -112,6 +112,17 @@ Commit 正文按需解释原因，引用 Issue：`Refs #<编号>`。
 
 只有用户明确说"可以推送"后才能执行 `git push`。授权只对当前版本有效，修改后自动失效。推送授权不包含合并授权。
 
+### 本地 Git hook
+
+首次克隆后启用仓库提供的提交前门禁：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`.githooks/pre-commit` 使用 Compose `tools` 容器执行格式、lint、类型检查、单元测试和架构测试，
+不依赖宿主 Python。hook 失败时修复问题后重试，不使用 `--no-verify` 绕过检查。完整集成测试仍在下方本地门禁中执行。
+
 ### PR 规范
 
 - 正文必须以 `Closes #<编号>` 开头
@@ -145,6 +156,12 @@ git checkout -b nora/<type>-<subject>
 ```bash
 docker compose up -d
 curl http://localhost:8000/health    # 验证服务就绪
+```
+
+新克隆仓库还需要启用本地 hook：
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 ### 步骤 4：编码实现
@@ -327,5 +344,5 @@ docker compose exec db psql -U nora -d nora               # 连接 PostgreSQL
 6. 提交 `.env`、密钥、Token、Cookie、浏览器会话、真实简历等敏感信息
 7. 不经过 Architecture Issue 新增依赖、数据所有权或外部写能力
 8. Domain 层导入 FastAPI、SQLAlchemy、LangGraph 等外部框架
-9. 提交 `__pycache__/`、`.venv/`、`.pytest_cache/` 等缓存文件
+9. 提交 `.cache/`、`__pycache__/`、`.venv/` 等缓存文件
 10. 混入多个 Issue 的内容到同一个 PR
