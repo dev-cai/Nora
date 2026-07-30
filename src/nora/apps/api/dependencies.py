@@ -10,7 +10,8 @@ from nora.application.identity import IdentityService
 from nora.domain.base.exceptions import NoraError
 from nora.domain.identity import User
 from nora.infrastructure.auth import Argon2PasswordHasher, JwtTokenIssuer
-from nora.infrastructure.database import SqlAlchemyUserRepository
+from nora.infrastructure.database import SqlAlchemyJobPostingRepository, SqlAlchemyUserRepository
+from nora.ports.opportunity import JobPostingRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -51,3 +52,12 @@ async def get_current_user(
     user = await service.current_user(credentials.credentials)
     request.state.current_user = user
     return user
+
+
+def get_job_posting_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> JobPostingRepository:
+    """组装当前认证用户范围内的岗位快照 Repository。"""
+
+    return SqlAlchemyJobPostingRepository(session, user.id)

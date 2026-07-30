@@ -140,6 +140,24 @@ openssl rand -hex 32
 
 不要把生成值写回 `.env.example` 或提交包含真实密钥的 `.env`。
 
+### 验证岗位快照 API
+
+登录取得 Token 后，使用每次导入操作唯一的 `Idempotency-Key` 创建岗位快照：
+
+```bash
+curl -i -X POST http://localhost:8000/job-postings \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Idempotency-Key: local-job-001' \
+  -H 'Content-Type: application/json' \
+  -d '{"jd_text":"Senior Python Engineer - Build reliable APIs.","source_type":"manual"}'
+
+curl http://localhost:8000/job-postings/<job_posting_id> \
+  -H 'Authorization: Bearer <access_token>'
+```
+
+首次创建返回 `201`；同一用户使用同键和同内容重试返回首次结果及 `200`；同键但内容不同返回 `409`。
+岗位 ID 只能由所属用户读取，不存在或属于其他用户时统一返回 `404`。
+
 停止服务但保留数据卷：
 
 ```bash
@@ -320,6 +338,6 @@ docker compose up --build
 
 ## 当前边界
 
-当前已提供 M0 基线、Identity 本地账号认证与用户范围 Repository，以及不可变 JobPosting 领域模型和持久化
-适配器。岗位创建/读取 API、幂等请求与审计仍由 M1 后续 Issue 交付；OAuth、邮箱验证、密码重置、角色权限、
+当前已提供 M0 基线、Identity 本地账号认证，以及不可变 JobPosting 的创建/读取 API、持久化幂等请求和用户
+数据隔离。审计仍由 M1 后续 Issue 交付；OAuth、邮箱验证、密码重置、角色权限、
 RAG、Agent、Celery 和生产部署也尚不可用。不要把路线图内容当作当前可用能力。
