@@ -56,7 +56,7 @@ jobs:
         working-directory: backend
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
         env:
           POSTGRES_USER: nora
           POSTGRES_PASSWORD: nora
@@ -101,3 +101,26 @@ jobs:
 
       - name: Architecture tests
         run: uv run pytest tests/architecture -q
+
+  containers:
+    name: Container configuration and builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose --profile test config --quiet
+
+      - name: Build API development target
+        run: >-
+          docker build --file docker/Dockerfile.api --target development
+          --tag nora-api-development:ci .
+
+      - name: Build API runtime target
+        run: >-
+          docker build --file docker/Dockerfile.api --target runtime
+          --tag nora-api-runtime:ci .
+
+      - name: Build isolated test image
+        run: docker compose --profile test build test
