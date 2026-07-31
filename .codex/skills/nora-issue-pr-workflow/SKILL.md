@@ -85,3 +85,12 @@ Refs #<Issue>
 - 等待 CI 最终结果。除非用户明确授权，不擅自合并。
 
 PR 未合并时只报告 PR 和 CI 状态，不称 Issue 或功能已完成。合并关闭 Issue 后才开始下一项。
+
+## GitHub 正文写入安全
+
+在 Windows PowerShell 中，不得把 `gh issue view --jq .body` 或 `gh pr view --jq .body` 的多行输出捕获到普通变量后直接回写；
+PowerShell 可能把多行结果转换为空格连接的单行文本。包含中文或多行 Markdown 的 Issue/PR 正文必须使用 UTF-8 无 BOM 文件和
+`--body-file` 提交，不得依赖 PowerShell 管道默认编码。
+
+写入后立即回读线上正文，检查中文、章节换行、列表、复选框、代码块、状态和 Issue 关闭关键字。验证完成后删除临时文件并确认
+工作树干净。发现正文已损坏时，使用已知正确的完整正文恢复，不在损坏内容上继续做字符串替换。

@@ -74,3 +74,22 @@ Issue 编号前缀。Milestone 前缀只帮助阅读，不替代真实 Milestone
 Issue 状态返回 `in-progress`，继续在同一分支修正并重新提交验收。任何授权后的实质修改都会使原授权失效，必须再次验收。
 
 用户授权推送不代表授权合并。推送和创建 PR 后，Issue 状态改为 `review`，继续等待 CI、审查和用户的显式合并授权。
+
+## GitHub 多行正文写入
+
+在 Windows PowerShell 中更新 Issue 或 Pull Request 正文时，禁止把 `gh issue view --jq .body`、
+`gh pr view --jq .body` 或其他包含多行 Markdown 的命令输出存入普通 PowerShell 变量后直接写回。PowerShell 可能将输出按行
+拆成数组并在字符串转换时用空格连接，导致标题、列表、复选框和代码块被压成一行。
+
+多行中文正文必须先写入 UTF-8 无 BOM 文件，再通过 `gh issue edit --body-file <path>`、
+`gh pr edit --body-file <path>` 或对应 API 的文件载荷提交。不得依赖 PowerShell 管道的默认编码传递中文 JSON 或 Markdown。
+
+每次远端写入后必须立即回读并验证：
+
+- 中文内容无乱码；
+- Markdown 章节仍各自独占一行；
+- 列表、复选框和代码块结构完整；
+- 状态、Issue 关闭关键字及其他机器可读字段符合预期。
+
+临时正文文件必须在验证完成后删除，并确认不会进入 Commit 或污染工作树。若回读发现格式损坏，应先使用已知正确的完整正文恢复，
+不得继续基于损坏正文做字符串替换。
