@@ -1,5 +1,6 @@
 """岗位快照应用用例单元测试。"""
 
+import json
 from uuid import UUID, uuid4
 
 import pytest
@@ -119,8 +120,13 @@ async def test_create_replays_normalized_same_request() -> None:
     assert event.actor_id == owner_id
     assert event.target_id == created.job_posting.id
     assert event.target_type == "job_posting"
+    assert event.target_version == created.job_posting.version == 1
     assert event.idempotency_key == "import-1"
-    assert "Build APIs." in (event.after_summary or "")
+    assert json.loads(event.after_summary or "{}") == {
+        "source_type": "manual",
+        "status": "active",
+    }
+    assert "Build APIs." not in (event.after_summary or "")
 
 
 @pytest.mark.asyncio

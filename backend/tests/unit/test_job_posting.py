@@ -32,6 +32,7 @@ def test_job_posting_normalizes_fields_and_builds_summary() -> None:
     assert posting.source_url == "https://jobs.example.com/roles/123"
     assert posting.text_summary == "Senior Python Engineer Build reliable APIs."
     assert posting.status is JobPostingStatus.ACTIVE
+    assert posting.version == 1
     assert posting.imported_at == now
     assert posting.created_at == now
     with pytest.raises(FrozenInstanceError):

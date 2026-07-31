@@ -79,6 +79,7 @@ class SqlAlchemyJobPostingRepository:
             imported_at=_as_utc(record.imported_at),
             text_summary=record.text_summary,
             status=JobPostingStatus(record.status),
+            version=record.version,
             created_at=_as_utc(record.created_at),
         )
 

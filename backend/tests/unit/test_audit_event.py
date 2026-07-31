@@ -19,6 +19,7 @@ def test_audit_event_create_is_immutable_and_serializable() -> None:
         action=AuditAction.CREATE,
         target_type=" job_posting ",
         target_id=target_id,
+        target_version=1,
         after_summary='{"status":"active"}',
         idempotency_key=" job-1 ",
         now=occurred_at,
@@ -30,6 +31,7 @@ def test_audit_event_create_is_immutable_and_serializable() -> None:
         "action": "create",
         "target_type": "job_posting",
         "target_id": str(target_id),
+        "target_version": 1,
         "before_summary": None,
         "after_summary": '{"status":"active"}',
         "occurred_at": "2026-07-30T08:30:00+00:00",
@@ -46,7 +48,22 @@ def test_audit_event_rejects_naive_timestamp() -> None:
             action=AuditAction.CREATE,
             target_type="job_posting",
             target_id=uuid4(),
+            target_version=1,
             now=datetime(2026, 7, 30, 8, 30),
         )
 
     assert error.value.error_code == "invalid_timestamp"
+
+
+@pytest.mark.parametrize("target_version", [0, -1, True, 1.5])
+def test_audit_event_rejects_invalid_target_version(target_version: object) -> None:
+    with pytest.raises(DomainError) as error:
+        AuditEvent.create(
+            actor_id=uuid4(),
+            action=AuditAction.CREATE,
+            target_type="job_posting",
+            target_id=uuid4(),
+            target_version=target_version,  # type: ignore[arg-type]
+        )
+
+    assert error.value.error_code == "invalid_audit_target_version"
