@@ -19,7 +19,7 @@ services:
     command: ["uvicorn", "app.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 
   db:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-nora}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local}
@@ -35,12 +35,12 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     ports:
       - "${REDIS_PORT:-6379}:6379"
 
   storage:
-    image: minio/minio:latest
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}

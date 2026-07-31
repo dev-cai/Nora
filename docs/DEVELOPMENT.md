@@ -241,6 +241,37 @@ docker compose --profile test stop test-db
 集成测试要求 `TEST_DATABASE_URL` 或 `DATABASE_URL` 使用 `postgresql+asyncpg`。缺少连接或使用其他驱动时，
 测试会明确失败；项目不支持 SQLite 回退。
 
+### 镜像版本升级与回滚
+
+Dockerfile 和 Compose 中的 Python、uv、PostgreSQL、Redis 与 MinIO 镜像均固定到 manifest digest；Python、uv、
+PostgreSQL 和 Redis 同时保留可读版本标签。CI 只依赖 Docker 构建上下文，不要求 Runner 或开发宿主预装 Python、uv。
+
+升级镜像时，先选择上游明确版本标签并查询多架构 manifest digest：
+
+```bash
+docker buildx imagetools inspect <image>:<version> --format '{{json .Manifest.Digest}}'
+```
+
+在同一个 PR 中更新全部重复引用，尤其是 PostgreSQL 在 `docker-compose.yml`、`docker-compose.override.yml` 和
+`.github/workflows/pr-conventions.yml` 中的 digest。然后从仓库根目录执行完整解析和重建：
+
+```bash
+docker compose --profile test config --quiet
+docker compose --profile test build --no-cache api tools test
+docker build --no-cache --file docker/Dockerfile.api --target runtime --tag nora-api-runtime:verify .
+docker build --no-cache --file docker/Dockerfile.worker --tag nora-worker:verify .
+docker compose --profile test run --rm test
+docker compose up -d db api
+docker compose exec api alembic upgrade head
+curl --fail http://localhost:8000/health
+```
+
+这些 CI 构建命令只解析配置和构建镜像，不启动 Compose 服务，也不会创建或写入 PostgreSQL、MinIO 命名卷。人工健康
+检查才会启动 `db` 和 `api`；不要使用 `docker compose down -v`，除非明确要删除本地数据。
+
+镜像升级需要回滚时，使用 `git revert <image-update-commit>` 恢复上一组已审查 digest，再执行同一套完整重建和健康检查。
+不要只修改本地镜像标签或单个重复引用，否则开发环境与 CI 会使用不同镜像。
+
 ### 缓存目录
 
 容器内运行 Python 与质量工具时，所有后端项目缓存统一写入 `backend/.cache/`：
