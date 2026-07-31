@@ -54,9 +54,17 @@ def upgrade() -> None:
         FOR EACH ROW EXECUTE FUNCTION reject_audit_event_mutation()
         """
     )
+    op.execute(
+        """
+        CREATE TRIGGER audit_events_reject_truncate
+        BEFORE TRUNCATE ON audit_events
+        FOR EACH STATEMENT EXECUTE FUNCTION reject_audit_event_mutation()
+        """
+    )
 
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS audit_events_reject_truncate ON audit_events")
     op.execute("DROP TRIGGER IF EXISTS audit_events_append_only ON audit_events")
     op.execute("DROP FUNCTION IF EXISTS reject_audit_event_mutation()")
     op.drop_index("ix_audit_events_target", table_name="audit_events")

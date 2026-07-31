@@ -25,7 +25,7 @@ def reset_schema(database_url: str) -> None:
     asyncio.run(reset())
 
 
-def test_audit_event_migration_rejects_update_and_delete(database_url: str) -> None:
+def test_audit_event_migration_rejects_mutation_and_truncate(database_url: str) -> None:
     reset_schema(database_url)
     configuration = Config("alembic.ini")
     configuration.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
@@ -80,6 +80,10 @@ def test_audit_event_migration_rejects_update_and_delete(database_url: str) -> N
                     text("DELETE FROM audit_events WHERE id = :id"),
                     {"id": event_id},
                 )
+
+        with pytest.raises(DBAPIError, match="audit_events are append-only"):
+            async with engine.begin() as connection:
+                await connection.execute(text("TRUNCATE TABLE audit_events"))
 
         await engine.dispose()
 
