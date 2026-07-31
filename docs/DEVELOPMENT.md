@@ -114,6 +114,83 @@ docker compose ps
 {"status":"healthy"}
 ```
 
+## 环境变量与 Compose 对照
+
+`backend/.env.example` 是可公开提交的本地开发模板。快速开始命令把它复制为仓库根目录 `.env`，供 Compose
+执行 `${VARIABLE:-default}` 插值；根 `.env` 不会被整体注入容器，只有 Compose `environment` 中明确列出的值才会进入
+对应进程。不要在 `backend/.env.example` 中填写真实值，也不要提交根 `.env`。
+
+本地开发的覆盖顺序为：当前 shell 已导出的变量优先于根 `.env`，两者都没有提供时才使用 Compose 中的 `:-` 默认值。
+API 容器启动后，Settings 从进程环境读取同名变量；进程环境优先于 Settings 的 `backend/.env` 文件和代码默认值。
+
+### 可配置变量
+
+| 变量 | 模板值与有效默认值 | 所有者和作用域 | 安全与使用边界 |
+|------|--------------------|----------------|----------------|
+| `ENV` | `dev` | Compose 注入 API；Settings 接受 `dev`、`staging`、`prod` | 非开发环境会启用更严格的密钥校验 |
+| `DEBUG` | 模板和开发 Compose 为 `true`；Settings 独立默认 `false` | API / Settings | 非开发环境应为 `false` |
+| `LOG_LEVEL` | 模板和开发 Compose 为 `DEBUG`；基础 Compose 与 Settings 默认 `INFO` | API / Settings | 不得通过调高日志级别记录 Token、密码或正文 |
+| `API_PORT` | `8000` | 仅 Compose 宿主端口；映射到 API 容器固定端口 `8000` | 端口冲突时可修改，不进入 Settings |
+| `AUTH_SECRET_KEY` | `development-only-change-this-secret` | Compose 注入 API；Settings 要求至少 32 个字符 | 公开值仅限本地；`staging`/`prod` 必须替换且不得提交 |
+| `AUTH_ACCESS_TOKEN_MINUTES` | `30` | Compose 注入 API；Settings 允许 `1`–`1440` | 控制访问令牌有效期，不是密钥 |
+| `POSTGRES_USER` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 生产环境不得沿用公开示例凭据 |
+| `POSTGRES_PASSWORD` | `change-me-local` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 仅限本地示例；真实值不得提交或输出到日志 |
+| `POSTGRES_DB` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 数据库名称，不是宿主地址 |
+| `POSTGRES_PORT` | `5432` | 仅 Compose 宿主端口；映射到 `db:5432` | 容器间连接始终使用固定端口 `5432` |
+| `REDIS_PORT` | `6379` | 仅 Compose 宿主端口；映射到 `redis:6379` | Redis 当前只是骨架，不进入应用 Settings |
+| `STORAGE_PORT` | `9000` | 仅 Compose 宿主 S3 API 端口；映射到 `storage:9000` | MinIO 当前只是骨架，不进入应用 Settings |
+| `STORAGE_CONSOLE_PORT` | `9001` | 仅 Compose 宿主控制台端口；映射到 `storage:9001` | 不应暴露到不可信网络 |
+| `MINIO_ROOT_USER` | `minioadmin` | Compose 只注入 `storage` 容器 | 公开值仅限本地，生产环境必须替换 |
+| `MINIO_ROOT_PASSWORD` | `change-me-local` | Compose 只注入 `storage` 容器 | 公开值仅限本地，真实值不得提交 |
+
+### 内部派生值
+
+这些变量不属于根 `.env` 的用户配置面，因此不写入 `backend/.env.example`：
+
+| 变量 | 来源和有效值 | 作用域 |
+|------|--------------|--------|
+| `DATABASE_URL` | Compose 使用 `POSTGRES_USER`、`POSTGRES_PASSWORD` 和 `POSTGRES_DB` 生成 `postgresql+asyncpg://<user>:<password>@db:5432/<database>` | API 容器 / Settings；必须使用 `postgresql+asyncpg` |
+| `DATABASE_URL`、`TEST_DATABASE_URL` | test profile 固定为隔离测试库 `postgresql+asyncpg://nora_test:nora_test@test-db:5432/nora_test` | 仅 `test` 容器；不连接开发数据卷 |
+| `PYTHONPYCACHEPREFIX` | Compose 固定为 `/workspace/backend/.cache/pycache` | API development、tools 和 test 容器的缓存路径 |
+
+容器内服务发现使用 Compose 服务名：API 连接 PostgreSQL 时主机是 `db`，测试容器连接 `test-db`。从 WSL 宿主
+直接连接开发 PostgreSQL 时才使用 `localhost:${POSTGRES_PORT}`。`localhost` 在 API 容器内指向 API 容器自身，不能替代
+`db`。同理，宿主访问 API、Redis 和 MinIO 时使用对应宿主端口，容器间访问使用服务名和固定容器端口。
+
+Settings 还提供以下应用级默认值，但当前 Compose 没有把它们列入根 `.env` 配置面：
+
+| Settings 变量 | 代码默认值 | 说明 |
+|---------------|------------|------|
+| `LOG_FORMAT` | `json` | 可选 `json` 或 `console` |
+| `DATABASE_POOL_SIZE` | `5` | 数据库连接池常驻连接数 |
+| `DATABASE_MAX_OVERFLOW` | `10` | 连接池允许的额外连接数 |
+| `DATABASE_POOL_TIMEOUT` | `30.0` | 获取连接的超时秒数 |
+
+如需覆盖这些 Settings-only 值，应在受审查的 Compose environment 或进程环境中显式提供；只把它们写进仓库根 `.env`
+不会自动注入 API。此 Issue 不定义生产秘密管理或部署拓扑。
+
+### 对照验证
+
+在 WSL 仓库根目录运行以下检查。它会双向比较模板变量与两份 Compose 文件的插值变量；任一侧多出变量都会显示差异并
+让命令失败。内部派生值和固定值由上表单独维护，不参与插值集合比较。
+
+```bash
+example_vars="$(mktemp)"
+compose_vars="$(mktemp)"
+trap 'rm -f "$example_vars" "$compose_vars"' EXIT
+
+sed -n 's/^\([A-Z][A-Z0-9_]*\)=.*/\1/p' backend/.env.example | sort -u >"$example_vars"
+grep -hoE '\$\{[A-Z][A-Z0-9_]*' docker-compose.yml docker-compose.override.yml \
+  | cut -c3- | sort -u >"$compose_vars"
+
+comm -3 "$example_vars" "$compose_vars"
+test -z "$(comm -3 "$example_vars" "$compose_vars")"
+docker compose --profile test config --quiet
+```
+
+检查成功时 `comm` 没有输出，后续命令退出码为 `0`。`docker compose config` 的完整渲染结果可能包含本地密码，排障时只在
+本机查看，不要粘贴到 Issue、PR、日志或聊天记录。
+
 ### 验证 Identity API
 
 Identity 纵向切片提供本地用户名/密码注册、登录和当前用户查询：
