@@ -1,7 +1,12 @@
 # M0：工程基础与 CI 门禁
 
-本文档汇总 M0 里程碑的 7 个可独立验收 Task Issue。在线 Issue 承载执行状态和最终验收范围；本文用于说明依赖关系，
-不得替代 Issue 的实施门禁。
+> **历史计划（已完成）**：本文记录 M0 实施时的拆分、依赖和原始验收口径，不是当前工程结构或依赖清单的真源。
+> 当前交付状态以 [`ROADMAP.md`](ROADMAP.md)、GitHub
+> [M0 Milestone](https://github.com/dev-cai/Nora/milestone/1)、对应 Issue 和默认分支为准。Python 工程现位于
+> `backend/app/`，当前运行时依赖以 `backend/pyproject.toml` 为准。
+
+本文档汇总 M0 里程碑的 7 个可独立验收 Task Issue。在线 Issue 承载最终验收范围；下列复选框记录 M0 完成后的回扫结果，
+不得替代后续 Issue 的实施门禁。
 
 ## M0 交付目标
 
@@ -46,7 +51,7 @@ flowchart LR
 ### 允许范围
 
 - 创建 `backend/pyproject.toml`，配置 PEP 621 项目元数据、Python `>=3.11`、Apache-2.0 许可证和 PEP 517 构建后端
-- 保持运行时 `dependencies` 为空
+- 在 M0.1 初始提交中保持运行时 `dependencies` 为空；后续 M0/M1 Issue 已按需引入依赖
 - 创建 `.python-version`，声明 Python 3.11 基线
 - 创建 `backend/app/__init__.py`，只暴露 `0.1.0` 包版本
 - 生成并提交 `backend/uv.lock`
@@ -59,10 +64,10 @@ flowchart LR
 
 ### 验收条件
 
-- [ ] `uv lock --check` 与 `uv sync --frozen` 成功
-- [ ] `uv run python -c "import app; print(app.__version__)"` 输出 `0.1.0`
-- [ ] `uv build` 成功生成 wheel 和 sdist，且构建产物不包含未实施模块
-- [ ] `backend/pyproject.toml` 的运行时依赖为空
+- [x] `uv lock --check` 与 `uv sync --frozen` 成功
+- [x] `uv run python -c "import app; print(app.__version__)"` 输出 `0.1.0`
+- [x] `uv build` 成功生成 wheel 和 sdist，且构建产物不包含未实施模块
+- [x] M0.1 初始提交时 `backend/pyproject.toml` 的运行时依赖为空
 
 ### 测试计划
 
@@ -106,11 +111,11 @@ flowchart LR
 
 ### 验收条件
 
-- [ ] 从环境变量和 `.env` 文件均可加载配置，环境变量优先
-- [ ] 配置访问支持类型提示（如 `settings.env` 返回枚举，非字符串）
-- [ ] `NoraError` 可序列化为 `{"error_code": "...", "message": "..."}`
-- [ ] `DomainError`、`ApplicationError`、`InfrastructureError` 继承关系正确
-- [ ] 单元测试覆盖：配置加载、环境覆盖、异常序列化
+- [x] 从环境变量和 `.env` 文件均可加载配置，环境变量优先
+- [x] 配置访问支持类型提示（如 `settings.env` 返回枚举，非字符串）
+- [x] `NoraError` 可序列化为 `{"error_code": "...", "message": "..."}`
+- [x] `DomainError`、`ApplicationError`、`InfrastructureError` 继承关系正确
+- [x] 单元测试覆盖：配置加载、环境覆盖、异常序列化
 
 ### 测试计划
 
@@ -151,10 +156,10 @@ flowchart LR
 
 ### 验收条件
 
-- [ ] 日志输出为 JSON 格式，包含 `timestamp`、`level`、`message`
-- [ ] 注入 `request_id` 后日志行包含该字段
-- [ ] 通过 `LOG_LEVEL=WARNING` 配置可屏蔽 DEBUG/INFO 输出
-- [ ] 单元测试覆盖：格式化、级别控制、上下文注入
+- [x] 日志输出为 JSON 格式，包含 `timestamp`、`level`、`message`
+- [x] 注入 `request_id` 后日志行包含该字段
+- [x] 通过 `LOG_LEVEL=WARNING` 配置可屏蔽 DEBUG/INFO 输出
+- [x] 单元测试覆盖：格式化、级别控制、上下文注入
 
 ### 测试计划
 
@@ -199,12 +204,12 @@ flowchart LR
 
 ### 验收条件
 
-- [ ] `GET /health` 返回 `{"status": "healthy"}`，HTTP 200
-- [ ] `GET /ready` 返回就绪信息，HTTP 200
-- [ ] 未捕获的 `NoraError` 返回结构化 JSON：`{"error_code": "...", "message": "..."}`
-- [ ] 未捕获的未知异常返回 500 并记录日志（不泄露内部细节）
-- [ ] 响应中包含 `X-Request-ID` 头
-- [ ] `from apps.api import create_app` 可导入
+- [x] `GET /health` 返回 `{"status": "healthy"}`，HTTP 200
+- [x] `GET /ready` 返回就绪信息，HTTP 200
+- [x] 未捕获的 `NoraError` 返回结构化 JSON：`{"error_code": "...", "message": "..."}`
+- [x] 未捕获的未知异常返回 500 并记录日志（不泄露内部细节）
+- [x] 响应中包含 `X-Request-ID` 头
+- [x] `from app.apps.api import create_app` 可导入
 
 ### 测试计划
 
@@ -255,11 +260,11 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 ### 验收条件
 
-- [ ] Alembic `alembic upgrade head` 成功执行（空迁移）
-- [ ] `alembic downgrade -1` 成功回滚
-- [ ] Repository 基类支持 `add()`、`get()`、`list()`、`update()`、`delete()`
-- [ ] 数据库断开时 `/health` 返回降级状态而非崩溃
-- [ ] 集成测试覆盖：CRUD 操作、多表操作、连接池配置
+- [x] Alembic `alembic upgrade head` 成功执行（空迁移）
+- [x] `alembic downgrade -1` 成功回滚
+- [x] Repository 基类支持 `add()`、`get()`、`list()`、`update()`、`delete()`
+- [x] 数据库断开时 `/health` 返回降级状态而非崩溃
+- [x] 集成测试覆盖：CRUD 操作、多表操作、连接池配置
 
 ### 测试计划
 
@@ -310,10 +315,10 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 ### 验收条件
 
-- [ ] `docker compose up` 后 API 在 `localhost:8000` 可访问
-- [ ] `GET /health` 返回数据库已连接的 `{"status": "healthy"}`
-- [ ] `docker compose down` 后所有服务正常停止并清理
-- [ ] 修改 Python 源码后 API 自动重载
+- [x] `docker compose up` 后 API 在 `localhost:8000` 可访问
+- [x] `GET /health` 返回数据库已连接的 `{"status": "healthy"}`
+- [x] `docker compose down` 后所有服务正常停止并清理
+- [x] 修改 Python 源码后 API 自动重载
 
 ### 测试计划
 
@@ -363,11 +368,11 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 ### 验收条件
 
-- [ ] CI 中 ruff 检查通过（无 lint 错误、格式合规）
-- [ ] CI 中类型检查通过（当前代码无严重类型错误）
-- [ ] CI 中 `pytest` 通过（包含 M0.2~M0.5 的所有测试）
-- [ ] 架构测试正确检测非法导入（可故意注入非法导入验证）
-- [ ] CI 配置了 PostgreSQL service container，集成测试可连接
+- [x] CI 中 ruff 检查通过（无 lint 错误、格式合规）
+- [x] CI 中类型检查通过（当前代码无严重类型错误）
+- [x] CI 中 `pytest` 通过（包含 M0.2~M0.5 的所有测试）
+- [x] 架构测试正确检测非法导入（包含负向规则验证）
+- [x] CI 配置了 PostgreSQL service container，集成测试可连接
 
 ### 测试计划
 

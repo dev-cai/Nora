@@ -36,11 +36,15 @@
 
 ### 验收条件
 
-- [ ] `docker compose up` 后 API 在 `localhost:8000` 可访问
-- [ ] `curl localhost:8000/health` 返回 `{"status": "healthy"}`
-- [ ] CI 中 ruff、mypy、pytest 全部通过
-- [ ] 架构测试验证 domain 层不导入 FastAPI/SQLAlchemy
-- [ ] Alembic 空迁移可正常执行和回滚
+- [x] `docker compose up` 后 API 在 `localhost:8000` 可访问
+- [x] `curl localhost:8000/health` 返回 `{"status": "healthy"}`
+- [x] CI 中 ruff、mypy、pytest 全部通过
+- [x] 架构测试验证 domain 层不导入 FastAPI/SQLAlchemy
+- [x] Alembic 空迁移可正常执行和回滚
+
+完成证据：M0 [Milestone](https://github.com/dev-cai/Nora/milestone/1) 已关闭；容器与健康检查见
+[#14](https://github.com/dev-cai/Nora/issues/14)，CI 与架构门禁见 [#15](https://github.com/dev-cai/Nora/issues/15) 和
+[#65](https://github.com/dev-cai/Nora/issues/65)，迁移与 Repository 基线见 [#13](https://github.com/dev-cai/Nora/issues/13)。
 
 ### 前置依赖
 
@@ -81,11 +85,16 @@
 
 ### 验收条件
 
-- [ ] API 认证通过后可创建和读取岗位快照
-- [ ] 相同幂等键重复提交返回首次结果（HTTP 200，而非 409）
-- [ ] 用户 A 无法查看用户 B 的岗位
-- [ ] 审计记录包含操作者、动作、目标 ID 和时间
-- [ ] 单元/契约/集成测试全部通过
+- [x] API 认证通过后可创建和读取岗位快照
+- [x] 相同幂等键重复提交返回首次结果（HTTP 200，而非 409）
+- [x] 用户 A 无法查看用户 B 的岗位
+- [x] 审计记录包含操作者、动作、目标 ID 和时间
+- [x] 单元/契约/集成测试全部通过
+
+完成证据：M1 [Milestone](https://github.com/dev-cai/Nora/milestone/3) 已关闭；认证与隔离见
+[#16](https://github.com/dev-cai/Nora/issues/16)，岗位快照与幂等见 [#17](https://github.com/dev-cai/Nora/issues/17) 和
+[#18](https://github.com/dev-cai/Nora/issues/18)，审计与事务一致性见 [#19](https://github.com/dev-cai/Nora/issues/19)，
+最终回归门禁见 [#65](https://github.com/dev-cai/Nora/issues/65)。
 
 ### 前置依赖
 
