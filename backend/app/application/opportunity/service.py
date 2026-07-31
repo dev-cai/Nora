@@ -78,6 +78,7 @@ class CreateJobPostingUseCase:
                     action=AuditAction.CREATE,
                     target_type="job_posting",
                     target_id=stored.id,
+                    target_version=stored.version,
                     after_summary=_audit_summary(stored),
                     idempotency_key=idempotency_key,
                 )
@@ -138,8 +139,6 @@ def _audit_summary(posting: JobPosting) -> str:
     content = {
         "source_type": posting.source_type.value,
         "status": posting.status.value,
-        "summary": posting.text_summary,
-        "version": 1,
     }
     return json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 

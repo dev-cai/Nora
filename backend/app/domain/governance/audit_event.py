@@ -31,6 +31,7 @@ class AuditEvent:
     action: AuditAction
     target_type: str
     target_id: UUID
+    target_version: int
     before_summary: str | None
     after_summary: str | None
     occurred_at: datetime
@@ -44,6 +45,7 @@ class AuditEvent:
         action: AuditAction,
         target_type: str,
         target_id: UUID,
+        target_version: int,
         before_summary: str | None = None,
         after_summary: str | None = None,
         idempotency_key: str | None = None,
@@ -66,6 +68,15 @@ class AuditEvent:
         timestamp = now or datetime.now(timezone.utc)
         if timestamp.tzinfo is None or timestamp.utcoffset() is None:
             raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        if (
+            isinstance(target_version, bool)
+            or not isinstance(target_version, int)
+            or target_version < 1
+        ):
+            raise DomainError(
+                "Target version must be a positive integer",
+                error_code="invalid_audit_target_version",
+            )
 
         return cls(
             id=uuid4(),
@@ -73,6 +84,7 @@ class AuditEvent:
             action=action,
             target_type=normalized_target_type,
             target_id=target_id,
+            target_version=target_version,
             before_summary=_normalize_optional_text(
                 before_summary,
                 max_length=MAX_AUDIT_SUMMARY_LENGTH,
@@ -96,6 +108,7 @@ class AuditEvent:
             "action": self.action.value,
             "target_type": self.target_type,
             "target_id": str(self.target_id),
+            "target_version": self.target_version,
             "before_summary": self.before_summary,
             "after_summary": self.after_summary,
             "occurred_at": self.occurred_at.isoformat(),

@@ -2,12 +2,12 @@
 
 import asyncio
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -25,13 +25,15 @@ def reset_schema(database_url: str) -> None:
     asyncio.run(reset())
 
 
-def test_audit_event_migration_rejects_mutation_and_truncate(database_url: str) -> None:
+def test_audit_event_target_version_migrates_existing_rows_and_remains_append_only(
+    database_url: str,
+) -> None:
     reset_schema(database_url)
     configuration = Config("alembic.ini")
     configuration.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
-    command.upgrade(configuration, "head")
+    command.upgrade(configuration, "0005_audit_events")
 
-    async def verify() -> None:
+    async def insert_legacy_event() -> tuple[UUID, UUID]:
         engine = create_async_engine(database_url)
         actor_id = uuid4()
         event_id = uuid4()
@@ -66,6 +68,65 @@ def test_audit_event_migration_rejects_mutation_and_truncate(database_url: str) 
                 ),
                 {"id": event_id, "actor_id": actor_id, "target_id": target_id, "now": now},
             )
+        await engine.dispose()
+        return actor_id, event_id
+
+    async def verify(actor_id: UUID, event_id: UUID) -> None:
+        engine = create_async_engine(database_url)
+        async with engine.connect() as connection:
+            target_version = await connection.scalar(
+                text("SELECT target_version FROM audit_events WHERE id = :id"),
+                {"id": event_id},
+            )
+        assert target_version == 1
+
+        compatible_event_id = uuid4()
+        with pytest.raises(DBAPIError, match="ck_audit_events_target_version"):
+            async with engine.begin() as connection:
+                await connection.execute(
+                    text(
+                        """
+                        INSERT INTO audit_events (
+                            id, actor_id, action, target_type, target_id, target_version,
+                            before_summary, after_summary, occurred_at, idempotency_key
+                        ) VALUES (
+                            :id, :actor_id, 'create', 'job_posting', :target_id, 0,
+                            NULL, '{"status":"active"}', now(), 'invalid-version'
+                        )
+                        """
+                    ),
+                    {
+                        "id": uuid4(),
+                        "actor_id": actor_id,
+                        "target_id": uuid4(),
+                    },
+                )
+
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO audit_events (
+                        id, actor_id, action, target_type, target_id,
+                        before_summary, after_summary, occurred_at, idempotency_key
+                    ) VALUES (
+                        :id, :actor_id, 'create', 'job_posting', :target_id,
+                        NULL, '{"status":"active"}', now(), 'compatible-default'
+                    )
+                    """
+                ),
+                {
+                    "id": compatible_event_id,
+                    "actor_id": actor_id,
+                    "target_id": uuid4(),
+                },
+            )
+        async with engine.connect() as connection:
+            compatible_version = await connection.scalar(
+                text("SELECT target_version FROM audit_events WHERE id = :id"),
+                {"id": compatible_event_id},
+            )
+        assert compatible_version == 1
 
         with pytest.raises(DBAPIError, match="audit_events are append-only"):
             async with engine.begin() as connection:
@@ -87,7 +148,28 @@ def test_audit_event_migration_rejects_mutation_and_truncate(database_url: str) 
 
         await engine.dispose()
 
+    async def verify_downgrade_preserves_rows(event_id: UUID) -> None:
+        engine = create_async_engine(database_url)
+        async with engine.connect() as connection:
+            columns = await connection.run_sync(
+                lambda sync_connection: {
+                    column["name"]
+                    for column in inspect(sync_connection).get_columns("audit_events")
+                }
+            )
+            stored_id = await connection.scalar(
+                text("SELECT id FROM audit_events WHERE id = :id"),
+                {"id": event_id},
+            )
+        await engine.dispose()
+        assert "target_version" not in columns
+        assert stored_id == event_id
+
     try:
-        asyncio.run(verify())
+        actor_id, event_id = asyncio.run(insert_legacy_event())
+        command.upgrade(configuration, "head")
+        asyncio.run(verify(actor_id, event_id))
+        command.downgrade(configuration, "0005_audit_events")
+        asyncio.run(verify_downgrade_preserves_rows(event_id))
     finally:
         reset_schema(database_url)

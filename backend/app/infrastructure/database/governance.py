@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
@@ -21,6 +21,7 @@ class AuditEventRecord(Base):
             "action IN ('create', 'read', 'update', 'delete')",
             name="ck_audit_events_action",
         ),
+        CheckConstraint("target_version >= 1", name="ck_audit_events_target_version"),
         Index("ix_audit_events_target", "target_type", "target_id"),
     )
 
@@ -31,6 +32,7 @@ class AuditEventRecord(Base):
     action: Mapped[str] = mapped_column(String(16), nullable=False)
     target_type: Mapped[str] = mapped_column(String(100), nullable=False)
     target_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    target_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     before_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     after_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -51,6 +53,7 @@ class SqlAlchemyAuditEventRepository:
                 action=event.action.value,
                 target_type=event.target_type,
                 target_id=event.target_id,
+                target_version=event.target_version,
                 before_summary=event.before_summary,
                 after_summary=event.after_summary,
                 occurred_at=event.occurred_at,
@@ -69,6 +72,7 @@ class SqlAlchemyAuditEventRepository:
             action=AuditAction(record.action),
             target_type=record.target_type,
             target_id=record.target_id,
+            target_version=record.target_version,
             before_summary=record.before_summary,
             after_summary=record.after_summary,
             occurred_at=_as_utc(record.occurred_at),

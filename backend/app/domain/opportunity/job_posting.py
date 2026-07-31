@@ -43,6 +43,7 @@ class JobPosting:
     imported_at: datetime
     text_summary: str
     status: JobPostingStatus
+    version: int
     created_at: datetime
 
     @classmethod
@@ -84,6 +85,7 @@ class JobPosting:
             imported_at=timestamp,
             text_summary=_summarize(normalized_text),
             status=JobPostingStatus.ACTIVE,
+            version=1,
             created_at=timestamp,
         )
 
