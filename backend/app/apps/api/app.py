@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from uuid import uuid4
@@ -9,14 +10,29 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
-from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from app.apps.api.routes.auth import router as auth_router
 from app.apps.api.routes.job_postings import router as job_postings_router
 from app.domain.base.exceptions import NoraError
 from app.infrastructure.config import Settings, get_settings
 from app.infrastructure.database import create_database_engine, create_session_factory
-from app.infrastructure.logging import configure_logging, get_logger
+from app.infrastructure.logging import (
+    bind_log_context,
+    clear_log_context,
+    configure_logging,
+    get_logger,
+)
+
+_CORRELATION_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+
+
+def _resolve_correlation_id(request: Request, header_name: str) -> str:
+    value = request.headers.get(header_name)
+    if value is None:
+        return str(uuid4())
+    if _CORRELATION_ID_PATTERN.fullmatch(value) is None:
+        raise ValueError(header_name)
+    return value
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -54,13 +70,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def request_context(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        request_id = request.headers.get("X-Request-ID") or str(uuid4())
-        bind_contextvars(request_id=request_id)
+        try:
+            request_id = _resolve_correlation_id(request, "X-Request-ID")
+            trace_id = _resolve_correlation_id(request, "X-Trace-ID")
+        except ValueError as exc:
+            header_name = str(exc)
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error_code": "invalid_correlation_id",
+                    "message": (
+                        f"{header_name} must be 1-128 characters using ASCII letters, "
+                        "digits, '.', '_' or '-'"
+                    ),
+                },
+            )
+
+        request.state.request_id = request_id
+        request.state.trace_id = trace_id
+        bind_log_context(request_id=request_id, trace_id=trace_id)
         try:
             response = await call_next(request)
         finally:
-            clear_contextvars()
+            clear_log_context()
         response.headers["X-Request-ID"] = request_id
+        response.headers["X-Trace-ID"] = trace_id
         return response
 
     @app.exception_handler(NoraError)
@@ -79,11 +113,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse(status_code=status_code, content=exc.to_dict(), headers=headers)
 
     @app.exception_handler(Exception)
-    async def unexpected_error_handler(_request: Request, exc: Exception) -> JSONResponse:
-        get_logger("nora.api").exception("Unhandled API exception", exc_info=exc)
+    async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", str(uuid4()))
+        trace_id = getattr(request.state, "trace_id", str(uuid4()))
+        bind_log_context(request_id=request_id, trace_id=trace_id)
+        try:
+            get_logger("nora.api").exception("Unhandled API exception", exc_info=exc)
+        finally:
+            clear_log_context()
         return JSONResponse(
             status_code=500,
             content={"error_code": "internal_error", "message": "Internal server error"},
+            headers={"X-Request-ID": request_id, "X-Trace-ID": trace_id},
         )
 
     @app.get("/health")

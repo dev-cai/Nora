@@ -181,6 +181,20 @@ docker compose logs -f
 docker compose logs -f api
 ```
 
+### 请求与追踪标识
+
+API 为每个请求维护两个结构化日志字段：
+
+- `request_id` 标识一次 HTTP 请求，用于定位单次请求的响应和日志。
+- `trace_id` 标识调用链；客户端重试或后续服务调用可继续传递同一值。
+
+客户端可以分别通过 `X-Request-ID` 和 `X-Trace-ID` 传入标识。缺失时服务端生成 UUID，并通过同名响应头回传。
+传入值必须为 1–128 位，只能包含 ASCII 字母、数字、点、下划线和连字符，且首位必须是字母或数字；非法值返回
+`400` 和稳定错误码 `invalid_correlation_id`。标识不得包含 Token、Cookie、请求正文、邮箱或其他个人数据。
+
+排障时先从响应头取得 `X-Request-ID` 定位单次请求，再用 `X-Trace-ID` 关联同一调用链。请求结束后服务端会清理
+两个字段，避免上下文泄漏到后续请求。
+
 查看容器状态和资源：
 
 ```bash
