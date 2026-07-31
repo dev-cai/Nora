@@ -96,7 +96,7 @@ def validate(payload: dict[str, Any], root: Path) -> list[str]:
     if not title or not CHINESE.search(title):
         errors.append("标题必须包含自然中文")
     if FORBIDDEN_TITLE.search(title):
-        errors.append("标题不得包含固定前缀、流水线编号或 Issue 编号")
+        errors.append("标题不得包含类型方括号、Roadmap/Phase 固定前缀或 Issue 编号")
     if not isinstance(labels, list) or not all(
         isinstance(item, str) for item in labels
     ):

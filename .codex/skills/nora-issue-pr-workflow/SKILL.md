@@ -16,7 +16,8 @@ description: Execute Nora repository delivery through its mandatory Issue, nora-
 
 ## Issue 与分支
 
-Issue 标题直接描述真实问题，不加 Roadmap、Phase、序号或类型方括号前缀。正文包含背景、范围、非目标、验收和验证计划。
+Issue 标题直接描述真实问题，允许可选 `M<n>` 或 `M<n>.<n>` Milestone 前缀；禁止 Roadmap/Phase 固定前缀、
+类型方括号和 Issue 编号前缀。正文包含背景、范围、非目标、验收和验证计划。
 
 从最新 `origin/main` 创建：
 

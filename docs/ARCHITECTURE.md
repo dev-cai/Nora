@@ -8,8 +8,8 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49。
-- 当前代码：M0 工程基础、M1 Identity，以及不可变 JobPosting 领域模型和持久化适配器；岗位 API 与其余目标能力按 Issue 逐项交付。
+- 决策来源：Architecture Issue #3、#49、#59。
+- 当前代码：M0 工程基础与 M1 纵向切片，包括 Identity、不可变 JobPosting 创建/读取、用户范围持久化、幂等和创建审计。
 - 适用范围：M0 架构基础、M1 首个纵向切片、M2 Agentic RAG 基础和 M3 Web Demo。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -52,6 +52,7 @@ Nora 是面向求职决策的可审计多智能体平台。系统将公司背景
 | D-008 | 异步任务 | Task Queue Port；目标 Adapter 为 Celery + Redis | M4 | 业务状态和最终结果不保存在 Celery Result Backend |
 | D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | M3 | 通过公开 HTTP API 使用系统，不导入 Python 内部模块；实现状态为 Planned |
 | D-010 | 对象存储 | Object Storage Port | 分阶段 | 本地开发可用文件系统；集成/部署可用 MinIO/S3 |
+| D-011 | 工程组织 | 前后端分离；后端业务模块优先、模块内分层 | #59 / 后续 Task | `backend/app` 边界 Current；业务模块内聚渐进迁移 |
 
 ## 5. 系统上下文
 
@@ -401,33 +402,106 @@ stateDiagram-v2
 审计与普通日志分离。AuditEvent 记录操作者、动作、目标、前后版本、Approval、幂等键和结果引用；审计记录本身不保存
 密钥或大段敏感正文。
 
-## 16. 目标目录与模块边界
+## 16. 工程目录与模块边界
 
-Python composition 的实际位置是 `src/nora/apps/`；Vue 前端是独立构建边界，计划放在根目录 `frontend/`。
-前端实现前必须遵守 [`FRONTEND.md`](FRONTEND.md) 定义的公开 API、认证、配置和 CI 契约。目标形态如下：
+Issue #59 已将后端工程迁移至 `backend/`：Python 应用包为 `backend/app/`，FastAPI composition 位于
+`backend/app/apps/api/`，测试、Alembic 与 Python 工程清单均由 `backend/` 拥有。仓库根目录只保留跨工程文档、
+Compose、Docker 配置和协作治理文件。
+
+当前后端仍保持全局技术分层，以确保目录迁移不改变业务行为：
+
+```text
+backend/
+├── app/
+│   ├── application/
+│   ├── apps/api/
+│   ├── domain/
+│   ├── infrastructure/
+│   └── ports/
+├── tests/
+├── alembic/
+├── alembic.ini
+├── pyproject.toml
+└── uv.lock
+```
+
+长期目标采用“业务模块优先、模块内部再分层”；下列模块化蓝图仍是 Target，不得描述为 Current：
 
 ```text
 Nora/
-├── frontend/                # M3：Vue 3 + Vite 独立 Web 客户端（Planned）
-├── src/nora/
-│   ├── apps/
-│   │   ├── api/             # Current：HTTP composition、路由与 lifespan
-│   │   └── worker/          # M4：Celery/任务进程 composition（Planned）
-│   ├── domain/              # Context 内领域模型与 Policy
-│   ├── application/         # Use Case、Command、Query、DTO
-│   ├── ports/               # Repository、Gateway、Clock、Queue 等边界
-│   ├── agents/              # M5+：LangGraph Adapter 与受控 Agent State
-│   ├── infrastructure/      # PostgreSQL、Redis、Vector、Storage Adapter
-│   └── integrations/        # Model、地图、天气、企业信息等 Adapter
-├── tests/
-│   ├── unit/
-│   ├── architecture/
-│   ├── contract/
-│   ├── integration/
-│   └── e2e/
+├── backend/
+│   ├── app/
+│   │   ├── main.py                    # FastAPI 入口与 composition
+│   │   ├── api/v1/router.py           # 聚合各业务模块路由
+│   │   ├── core/                      # 进程级配置、安全、数据库和日志组装
+│   │   ├── modules/
+│   │   │   ├── identity/
+│   │   │   │   ├── api/               # Router 与 Pydantic Schema
+│   │   │   │   ├── application/       # Command、Query、Use Case、DTO
+│   │   │   │   ├── domain/            # Entity、Value Object、Policy、Error
+│   │   │   │   ├── ports/             # Repository 与 Gateway Protocol
+│   │   │   │   └── infrastructure/    # ORM 与 Adapter
+│   │   │   ├── opportunity/
+│   │   │   └── governance/
+│   │   └── shared/                    # 严格受控的无业务归属基础类型
+│   ├── tests/                         # unit / architecture / contract / integration
+│   ├── alembic/
+│   ├── pyproject.toml
+│   └── uv.lock
+├── frontend/                          # M3：Vue 3 + Vite（Planned）
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── features/
+│   │   ├── views/
+│   │   ├── composables/
+│   │   ├── stores/
+│   │   └── router/
+│   └── tests/
 ├── docs/
-└── docker/
+└── docker-compose.yml
 ```
+
+### 模块职责
+
+- `api/` 只负责 HTTP 输入、认证上下文、调用 Use Case 和稳定响应/错误映射，不包含业务规则或 SQL。
+- `application/` 负责编排 Use Case 与事务，依赖 Domain 和 Ports，不导入 FastAPI、SQLAlchemy 或具体 Adapter。
+- `domain/` 只包含本模块的领域对象和规则，仅依赖 Python 标准库及本模块领域类型。
+- `ports/` 定义 Repository、Gateway、Clock、Queue 等 Protocol；Infrastructure 实现这些端口。
+- `infrastructure/` 拥有 ORM Model、Repository Adapter 和外部 Provider Adapter，不向内层泄漏框架类型。
+- `core/` 只拥有进程级配置、日志、安全和数据库组装，不作为业务逻辑或通用工具杂物目录。
+- `shared/` 默认禁止新增；只有至少两个模块稳定复用且没有明确领域所有者的最小类型才可进入。
+
+### 依赖规则
+
+```text
+API -> Application -> Domain
+API -> Ports（仅用于类型与 composition）
+Infrastructure -> Ports + Domain
+Core/Composition -> API + Application + Infrastructure
+Domain -X-> FastAPI / Pydantic / SQLAlchemy / Infrastructure
+Application -X-> FastAPI / SQLAlchemy / 具体 Repository
+Module A -X-> Module B 的 ORM、私有 API 或 Infrastructure
+```
+
+API Schema、Application Command/Query/DTO、Domain Entity 与 SQLAlchemy ORM Model 是不同类型。跨模块交互使用稳定 ID、
+显式 DTO、领域事件或 Application Service，不共享 ORM Model。FastAPI `Depends` 只允许出现在 API/Composition 边界；
+本决策不引入第三方依赖注入容器。
+
+### API 版本与兼容性
+
+`/api/v1` 是后续目标版本边界。当前已经发布的 `/auth/*`、`/job-postings/*`、`/health` 和 `/ready` 路由在独立兼容性
+Issue 合并前保持不变；Architecture 文档不能替代路由迁移、兼容期和前端切换测试。
+
+### 后续渐进迁移顺序
+
+后续按下列原子 Task 顺序创建真实 Issue；前一项合并后才开始下一项：
+
+1. **增加模块依赖架构测试。** 在 `backend/app/` 上固化层级、框架和跨 Context 禁止边，不改变业务行为。
+2. **迁移 Identity 业务模块。** 只移动 Identity 的 API/Application/Domain/Ports/Infrastructure，保持认证路由和数据契约。
+3. **迁移 Opportunity 与 Governance。** 在共享事务和审计测试保护下迁移岗位与审计模块，不改幂等语义。
+4. **交付 Vue 工程。** 由既有 Issue #26 和 #53 按 [`FRONTEND.md`](FRONTEND.md) 创建客户端与前端 CI，不伪造未交付 API。
+5. **评审 `/api/v1` 兼容迁移。** 使用独立 Architecture/Implementation Issue 定义旧路由兼容期、OpenAPI 契约和双端测试。
 
 不为目标蓝图批量创建空目录。每个目录只有在对应 Issue 提供真实实现、测试和调用路径时才建立。
 

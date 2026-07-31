@@ -33,7 +33,7 @@
 ```bash
 git clone git@github.com:dev-cai/Nora.git
 cd Nora
-cp .env.example .env
+cp backend/.env.example .env
 docker compose up
 curl http://localhost:8000/health
 ```
@@ -66,6 +66,11 @@ curl http://localhost:8000/health
   area:      architecture | backend | frontend | agent | rag
              data | infra | security | docs
 ```
+
+### Issue 标题
+
+使用自然中文直接描述问题或结果。允许可选 `M<n>` / `M<n>.<n>` Milestone 前缀，例如
+`M2.1 实现简历版本模型`；禁止类型方括号、`[Roadmap]`、`[Phase]` 和 Issue 编号前缀。
 
 ### 分支命名
 
@@ -167,7 +172,7 @@ git config core.hooksPath .githooks
 ### 步骤 4：编码实现
 
 - 只实现当前 Issue 范围的内容
-- 遵循依赖方向：Domain -> Application -> Adapters
+- 遵循依赖方向：Apps/Adapters -> Application/Ports -> Domain
 - Domain 层不导入 FastAPI、SQLAlchemy、LangGraph 等外部框架
 - 新增代码必须有对应测试
 - 源码修改后 uvicorn 自动热重载
@@ -186,7 +191,7 @@ docker compose exec api alembic upgrade head
 ```bash
 docker compose run --rm --no-deps tools ruff check .
 docker compose run --rm --no-deps tools ruff format --check .
-docker compose run --rm --no-deps tools mypy src/
+docker compose run --rm --no-deps tools mypy app/
 docker compose run --rm --no-deps tools pytest tests/unit tests/architecture -q
 docker compose --profile test run --rm test
 ```
@@ -230,7 +235,7 @@ Issue：M1.3 实现岗位快照 API（#18）
 
 已执行验证：
 - ruff check .            通过
-- mypy src/               通过
+- mypy app/               通过
 - pytest tests/           通过（24 passed）
 - alembic upgrade head    通过
 
@@ -309,7 +314,7 @@ docker compose --profile test stop test-db                            # 停止�
 docker compose run --rm --no-deps tools ruff check .          # Lint
 docker compose run --rm --no-deps tools ruff format --check . # 格式检查
 docker compose run --rm --no-deps tools ruff format .         # 自动格式化
-docker compose run --rm --no-deps tools mypy src/             # 类型检查
+docker compose run --rm --no-deps tools mypy app/             # 类型检查
 ```
 
 ### 依赖管理
@@ -321,7 +326,7 @@ docker compose run --rm --no-deps tools uv remove <package>    # 移除
 docker compose run --rm --no-deps tools uv lock                # 更新锁文件
 ```
 
-修改依赖后提交 `pyproject.toml` 和 `uv.lock`。
+修改依赖后提交 `backend/pyproject.toml` 和 `backend/uv.lock`。
 
 ### 数据库
 

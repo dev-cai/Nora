@@ -51,6 +51,9 @@ jobs:
   quality:
     name: Code quality and tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     services:
       postgres:
         image: postgres:16
@@ -89,7 +92,7 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Mypy
-        run: uv run mypy src/
+        run: uv run mypy app/
 
       - name: Unit and integration tests
         env:

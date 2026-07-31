@@ -15,20 +15,28 @@
 
 ## 2. 所有权与目录
 
-计划中的前端工程位于根目录 `frontend/`，与 Python 包 `src/nora/` 分离：
+计划中的前端工程位于根目录 `frontend/`。Issue #59 已将当前后端迁移至 `backend/`，应用包位于
+`backend/app/`；前后端是独立构建、测试和容器边界：
 
 ```text
 frontend/
-├── src/              # 页面、组件、状态和 API client
-├── tests/            # 前端单元与组件测试
-├── package.json      # 脚本与依赖
+├── src/
+│   ├── api/          # HTTP client 与公开 DTO
+│   ├── components/   # 可复用 UI 组件
+│   ├── features/     # 按业务能力组织的前端模块
+│   ├── views/        # 页面级组件
+│   ├── composables/  # Vue Composables
+│   ├── stores/       # Pinia 状态
+│   └── router/       # Vue Router
+├── tests/            # 前端单元、组件与适用 E2E 测试
+├── package.json
 ├── lockfile          # 实现 Issue 选择并提交唯一锁文件
-└── vite.config.*     # 构建与本地代理
+└── vite.config.*
 ```
 
 前端拥有浏览器交互、展示状态和 API client，不拥有领域规则、业务事实、权限判断或数据持久化。它不得导入
-`src/nora/application`、`src/nora/domain`、`src/nora/infrastructure`，也不得直接连接 PostgreSQL、Redis
-或对象存储。
+`backend/app/` 的任何内部模块，也不得直接连接 PostgreSQL、Redis 或对象存储。
+前后端只通过公开、版本化的 HTTP/JSON 契约交互。
 
 ## 3. 进程与网络边界
 
@@ -42,6 +50,7 @@ flowchart LR
 - 本地 Compose 计划新增 `web` 服务；API 继续由 `api` 服务拥有。
 - 浏览器只访问 Web 入口和公开 API，不访问 Compose 内部基础设施端口。
 - 开发代理可以把浏览器的 `/api` 请求转发到 Compose 中的 `api:8000`，但不得改变后端真实路由。
+- `/api/v1` 是 Issue #59 定义的目标版本边界；当前已发布路由保持兼容，切换必须由独立 Issue 提供双端契约测试。
 - 生产静态资源托管、TLS 和同源反向代理属于部署 Issue，不在 M3 前端实现中提前承诺。
 
 ## 4. API 契约
@@ -51,10 +60,12 @@ flowchart LR
 - `POST /auth/register`
 - `POST /auth/login`
 - `GET /auth/me`
+- `POST /job-postings`
+- `GET /job-postings/{id}`
 - `GET /health`
 - `GET /ready`
 
-岗位、简历、分析和报告接口仍为 Planned；只有对应后端 Issue 合并后，前端才能把它们描述为可用能力。
+简历、分析和报告接口仍为 Planned；只有对应后端 Issue 合并后，前端才能把它们描述为可用能力。
 前端不得根据路线图伪造响应或绕过未交付 API。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器

@@ -114,8 +114,8 @@ CandidateProfile
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已实现并有验证证据 | 仓库治理、Issue/PR 工作流、M0 工程基础、本地账号认证、用户范围 Repository，以及不可变 JobPosting 领域模型和持久化适配器 |
-| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M1 岗位快照 API 与审计、M2 RAG、M3 Demo、M4 中间件 |
+| **Current** | 已实现并有验证证据 | 仓库治理、Issue/PR 工作流、M0 工程基础、本地账号认证、用户范围 Repository、不可变 JobPosting 创建/读取、幂等和创建审计 |
+| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M2 简历与 RAG、M3 Demo、M4 中间件 |
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | M5+ Agent Runtime、专项 Agent、Milvus、服务拆分和受控连接器 |
 
 状态以默认分支、已合并 PR 和 GitHub Issue 为证据。本文中的产品示例不能替代实现、测试或发布证明。
@@ -133,16 +133,23 @@ CandidateProfile
 
 ## 9. 文档真源
 
-| 主题 | 真源 | 说明 |
-| :--- | :--- | :--- |
-| 产品目标、用户旅程、能力目录 | 本文 | 描述目标价值，不证明能力已实现 |
-| 用户体验场景与交互目标 | [`USER_EXPERIENCE.md`](USER_EXPERIENCE.md) | 只描述设计目标，不证明功能已交付 |
-| 架构边界、数据所有权、依赖方向 | [`ARCHITECTURE.md`](ARCHITECTURE.md) 与已合并 ADR | 架构变更必须先有 Architecture Issue |
-| 里程碑范围与顺序 | [`ROADMAP.md`](ROADMAP.md) 与 GitHub Milestone | GitHub 中的实际状态优先于静态时间表 |
-| M0 Issue 映射 | [`M0_PLAN.md`](M0_PLAN.md) 与 GitHub Issue #9–#15 | 在线 Issue 承载执行状态和最终验收范围 |
-| 开发与交付操作 | [`DEVELOPMENT.md`](DEVELOPMENT.md)、[`WORKFLOW.md`](WORKFLOW.md) | 规划命令只有在对应文件合并后才可执行 |
-| 安全报告与基础边界 | [`../SECURITY.md`](../SECURITY.md) | 敏感问题不进入公开 Issue |
-| 已实现行为 | 默认分支代码、迁移、契约和测试 | 文档与代码冲突时必须通过 Issue 修正，不能静默选择 |
+| 主题 | 权威真源 | 允许的摘要 | 同步规则 |
+| :--- | :--- | :--- | :--- |
+| 产品目标、用户旅程、能力目录 | 本文 | `README.md` | 摘要只链接本文件，不复制会演化的完整能力契约 |
+| 用户体验场景与交互目标 | [`USER_EXPERIENCE.md`](USER_EXPERIENCE.md) | 产品与前端文档 | 只描述设计目标，不证明功能已交付 |
+| 架构、模块边界、数据所有权、依赖方向 | [`ARCHITECTURE.md`](ARCHITECTURE.md) 与已合并 Architecture Issue | `README.md`、AI 指南 | 边界变更必须先审查 Architecture Issue，摘要不得另立规则 |
+| 前端技术与 HTTP 集成契约 | [`FRONTEND.md`](FRONTEND.md) | 架构与路线图 | 当前/目标目录和 API 必须明确区分，不伪造 Planned 能力 |
+| 里程碑范围与顺序 | [`ROADMAP.md`](ROADMAP.md) 与 GitHub Milestone | `README.md` | 在线 Milestone/Issue 状态优先于静态时间表 |
+| 历史 M0 Issue 映射 | [`M0_PLAN.md`](M0_PLAN.md) 与 GitHub Issue #9–#15 | 路线图 | 保留历史交付路径，不为目标结构改写已发生事实 |
+| 本地环境、配置、迁移和测试命令 | [`DEVELOPMENT.md`](DEVELOPMENT.md) | `README.md`、[`WORKFLOW.md`](WORKFLOW.md) | 命令只有在默认分支文件与容器中可执行后才能标为 Current |
+| Issue 类型、标签、状态和关系 | [`ISSUE_WORKFLOW.md`](ISSUE_WORKFLOW.md) | [`../CONTRIBUTING.md`](../CONTRIBUTING.md)、[`WORKFLOW.md`](WORKFLOW.md)、项目 Skills | 摘要必须与真源一致；自动化校验规则同步修改 |
+| 分支、Commit、验收、PR、CI 和合并步骤 | [`WORKFLOW.md`](WORKFLOW.md) | [`../CONTRIBUTING.md`](../CONTRIBUTING.md)、`AGENTS.md`、项目 Skills | 工作流变更必须同步门禁与自动化，不在多个文件独立设计 |
+| 安全报告与基础边界 | [`../SECURITY.md`](../SECURITY.md) | 贡献与架构文档 | 敏感问题不进入公开 Issue，摘要不包含利用细节 |
+| 领域术语 | [`GLOSSARY.md`](GLOSSARY.md) | 产品、架构和业务文档 | 首次使用可解释，正式定义只维护一处 |
+| 已实现行为 | 默认分支代码、迁移、公开契约和测试 | 所有文档 | 文档与实现冲突时通过 Issue 修正，不能静默选择或把计划写成已实现 |
+
+摘要的职责是帮助目标读者导航，不是复制真源。状态表、目录契约、操作步骤和治理规则发生变化时，必须先修改对应真源，
+再检查引用它的摘要；历史计划文档保留当时事实，不追改为未来目标布局。
 
 ## 10. 非目标
 

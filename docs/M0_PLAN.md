@@ -45,11 +45,11 @@ flowchart LR
 
 ### 允许范围
 
-- 创建 `pyproject.toml`，配置 PEP 621 项目元数据、Python `>=3.11`、Apache-2.0 许可证和 PEP 517 构建后端
+- 创建 `backend/pyproject.toml`，配置 PEP 621 项目元数据、Python `>=3.11`、Apache-2.0 许可证和 PEP 517 构建后端
 - 保持运行时 `dependencies` 为空
 - 创建 `.python-version`，声明 Python 3.11 基线
-- 创建 `src/nora/__init__.py`，只暴露 `0.1.0` 包版本
-- 生成并提交 `uv.lock`
+- 创建 `backend/app/__init__.py`，只暴露 `0.1.0` 包版本
+- 生成并提交 `backend/uv.lock`
 
 ### 非目标
 
@@ -60,9 +60,9 @@ flowchart LR
 ### 验收条件
 
 - [ ] `uv lock --check` 与 `uv sync --frozen` 成功
-- [ ] `uv run python -c "import nora; print(nora.__version__)"` 输出 `0.1.0`
+- [ ] `uv run python -c "import app; print(app.__version__)"` 输出 `0.1.0`
 - [ ] `uv build` 成功生成 wheel 和 sdist，且构建产物不包含未实施模块
-- [ ] `pyproject.toml` 的运行时依赖为空
+- [ ] `backend/pyproject.toml` 的运行时依赖为空
 
 ### 测试计划
 
@@ -86,17 +86,17 @@ flowchart LR
 
 ### 允许范围
 
-**配置模块**（`src/nora/infrastructure/config/`）：
+**配置模块**（`backend/app/infrastructure/config/`）：
 - 配置模型（Pydantic Settings 或等效方案）
 - 支持从环境变量和 `.env` 文件加载
 - 至少包含：`ENV`（dev/staging/prod）、`DEBUG`、`LOG_LEVEL`、`DATABASE_URL`
 
-**异常模块**（`src/nora/domain/base/exceptions.py`）：
+**异常模块**（`backend/app/domain/base/exceptions.py`）：
 - 异常基类 `NoraError`，包含 `error_code: str`
 - 分支异常：`DomainError`、`ApplicationError`、`InfrastructureError`
 - `ErrorCode` 枚举或常量定义
 
-**配置 `pyproject.toml`**：
+**配置 `backend/pyproject.toml`**：
 - 添加 `pydantic-settings`（或所选配置库）到 `dependencies`
 
 ### 非目标
@@ -135,13 +135,13 @@ flowchart LR
 
 ### 允许范围
 
-- 实现 `src/nora/infrastructure/logging/` 模块
+- 实现 `backend/app/infrastructure/logging/` 模块
 - 结构化 JSON 日志格式（时间戳、级别、消息、请求上下文）
 - 通过配置（`LOG_LEVEL`、`LOG_FORMAT`）控制日志级别和输出格式
 - 预留敏感字段脱敏扩展点（拦截器或过滤器机制）
 - 集成 `structlog` 或等效方案
 
-**配置 `pyproject.toml`**：
+**配置 `backend/pyproject.toml`**：
 - 添加 `structlog`（或所选日志库）到 `dependencies`
 
 ### 非目标
@@ -179,7 +179,7 @@ flowchart LR
 
 ### 允许范围
 
-- 实现 `src/nora/apps/api/` 应用工厂函数 `create_app()`
+- 实现 `backend/app/apps/api/` 应用工厂函数 `create_app()`
 - `GET /health` — 返回 `{"status": "healthy"}`（含数据库连接状态占位）
 - `GET /ready` — 返回就绪状态
 - 全局异常处理器，将 `NoraError` 层级映射为稳定 HTTP 错误响应
@@ -189,7 +189,7 @@ flowchart LR
   - 日志上下文注入
 - Lifespan 事件管理（启动/关闭钩子）
 
-**配置 `pyproject.toml`**：
+**配置 `backend/pyproject.toml`**：
 - 添加 `fastapi`、`uvicorn[standard]` 到 `dependencies`
 
 ### 非目标
@@ -229,13 +229,13 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 ### 允许范围
 
-- 实现 `src/nora/infrastructure/database/` 模块：
+- 实现 `backend/app/infrastructure/database/` 模块：
   - 异步 SQLAlchemy `AsyncEngine` 和 `async_sessionmaker` 工厂
   - 连接池配置（池大小、超时、重试）
-- 实现 `src/nora/infrastructure/database/base.py`：
+- 实现 `backend/app/infrastructure/database/base.py`：
   - 声明式基类 `Base`
   - 公共 Mixin 或字段：`id`（UUID）、`created_at`、`updated_at`、`version`（乐观锁）
-- 实现 `src/nora/ports/repository.py`：
+- 实现 `backend/app/ports/repository.py`：
   - `Repository[T]` 抽象基类，定义 CRUD 接口
 - 实现通用 `SqlAlchemyRepository[T]` 基类
 - 配置 Alembic 迁移：
@@ -244,7 +244,7 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
   - 配置 `alembic.ini` 从应用配置读取数据库 URL
 - 将数据库健康检查集成到 `/health` 端点
 
-**配置 `pyproject.toml`**：
+**配置 `backend/pyproject.toml`**：
 - 添加 `sqlalchemy[asyncio]`、`asyncpg`、`alembic` 到 `dependencies`
 - 添加 `pytest-asyncio` 到 `[project.optional-dependencies] dev`
 
@@ -301,7 +301,7 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
   - 端口映射（API 8000、DB 5432、Redis 6379、MinIO 9000）
   - 环境变量传递（`.env` 或内联）
 - 创建 `scripts/dev.sh`（或等效脚本）：一条命令启动开发环境
-- 初始化 `.env.example`（不含密钥的模板）
+- 初始化 `backend/.env.example`（不含密钥的模板）
 
 ### 非目标
 
@@ -323,7 +323,7 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 - `README.md` 添加"本地快速开始"章节：
   - 前置条件：Docker、uv
-  - 命令：`cp .env.example .env` → `docker compose up`
+  - 命令：`cp backend/.env.example .env` → `docker compose up`
   - 验证：`curl http://localhost:8000/health`
 
 ---
@@ -340,7 +340,7 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 ### 允许范围
 
-**工具配置**（写入 `pyproject.toml`）：
+**工具配置**（写入 `backend/pyproject.toml`）：
 - `[tool.ruff]` — lint + format 规则
 - `[tool.pytest.ini_options]` — 测试发现路径、asyncio 模式、覆盖率
 - `[tool.mypy]` 或 `[tool.pyright]` — 类型检查配置
@@ -384,7 +384,7 @@ PostgreSQL 是系统的业务事实源。需要建立安全的数据库连接管
 
 | Issue | 标题 | 前置依赖 | 预计文件变更 |
 |-------|------|---------|-------------|
-| M0.1 | 初始化 Python 包与构建元数据 | 无 | `pyproject.toml`、锁文件、Python 基线、根包 |
+| M0.1 | 初始化 Python 包与构建元数据 | 无 | `backend/pyproject.toml`、锁文件、Python 基线、根包 |
 | M0.2 | 实现配置加载与异常基础设施 | M0.1 | 配置 + 异常模块 |
 | M0.3 | 实现结构化日志系统 | M0.2 | 日志模块 |
 | M0.4 | 搭建 FastAPI 应用工厂与 API 基础 | M0.2、M0.3 | API 应用工厂 |

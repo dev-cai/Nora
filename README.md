@@ -33,7 +33,7 @@ Nora 将公司背景调研、岗位匹配分析、面试准备、出行规划、
 完整的 N.O.R.A. 定义、用户旅程、五类产品能力和 Current/Planned/Evolution 边界见
 [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md)。这些能力是产品目标，不代表均已实现。
 
-> **当前状态：M0 工程基础与 M1 领域基线。** 当前可启动 API、PostgreSQL、Redis 和 MinIO 本地骨架，提供本地账号认证、用户范围 Repository，以及不可变 JobPosting 领域模型和持久化适配器；岗位 API、RAG 和 Agent 能力仍由后续 Issue 交付。
+> **当前状态：M0 工程基础与 M1 纵向切片。** 当前可启动 API、PostgreSQL、Redis 和 MinIO 本地骨架，提供本地账号认证、用户范围 Repository、不可变 JobPosting 创建/读取、幂等和创建审计；RAG、Web 客户端和 Agent 能力仍由后续 Issue 交付。
 
 ---
 
@@ -57,15 +57,17 @@ Nora 将公司背景调研、岗位匹配分析、面试准备、出行规划、
 ### 依赖方向
 
 ```
-  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-  │  Apps        │ ──> │  Application │ ──> │  Domain      │
-  │  API / Worker│     │  Use Cases   │     │  领域模型     │
-  │  Demo        │     │  Ports       │     │  仅 Python   │
-  │  Adapters    │     │              │     │  标准库      │
-  └──────────────┘     └──────────────┘     └──────────────┘
+  ┌───────────────────────────────────────────────────────────┐
+  │ Business Module: API → Application/Ports → Domain        │
+  │                  Infrastructure → Ports + Domain          │
+  └───────────────────────────────────────────────────────────┘
+                  ▲                         ▲
+          FastAPI Composition       PostgreSQL / Providers
 ```
 
-Domain 层只使用 Python 标准库，不导入 FastAPI、SQLAlchemy、LangGraph 等外部框架。违反该方向的代码在架构测试中被阻断。
+后端工程已迁移至 `backend/`，应用包为 `backend/app/`；计划中的 Vue 客户端位于独立 `frontend/` 边界。后端长期采用
+业务模块优先、模块内部再分层的结构，现有技术层将按独立 Issue 渐进内聚；Domain 不导入 FastAPI、SQLAlchemy、
+LangGraph 等外部框架。完整边界以架构文档为准。
 
 ### 目标进程边界
 
@@ -154,7 +156,7 @@ flowchart LR
 
 ```bash
 cd "$HOME/projects/Nora"
-cp .env.example .env
+cp backend/.env.example .env
 docker compose up -d --build
 docker compose exec api alembic upgrade head
 ```
@@ -174,8 +176,8 @@ docker compose down
 
 本地数据库和 MinIO 数据保存在 Docker 命名卷中；执行 `docker compose down -v` 会删除这些数据。
 
-Identity API 的注册、登录和当前用户验证命令见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。当前业务路由
-不包含岗位、简历、分析、投递或面试能力。
+Identity 与岗位快照 API 的验证命令见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。当前业务路由不包含简历、RAG、
+分析、投递或面试能力。
 
 完整的 WSL 本地开发前置条件、Docker 安装、测试、迁移和故障排查见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
 
@@ -195,7 +197,8 @@ Identity API 的注册、登录和当前用户验证命令见 [`docs/DEVELOPMENT
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Docker 优先开发指南 |
 | [`docs/M0_PLAN.md`](docs/M0_PLAN.md) | M0 工程基础 Issue 拆分 |
 | [`SECURITY.md`](SECURITY.md) | 安全策略 |
-| [`CLAUDE.md`](CLAUDE.md) | AI 助手工作指南 |
+| [`AGENTS.md`](AGENTS.md) | AI 助手工作入口与强制门禁 |
+| [`CLAUDE.md`](CLAUDE.md) | 兼容入口，指向项目真源 |
 
 ---
 
