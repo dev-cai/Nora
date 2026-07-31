@@ -1,12 +1,13 @@
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    UV_SYSTEM_PYTHON=1
+    UV_SYSTEM_PYTHON=1 \
+    PYTHONPATH=/workspace/backend
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-WORKDIR /app
-COPY pyproject.toml uv.lock README.md LICENSE ./
-COPY src ./src
+WORKDIR /workspace/backend
+COPY backend/pyproject.toml backend/uv.lock backend/README.md backend/LICENSE ./
+COPY backend/app ./app
 RUN uv sync --frozen --no-dev
 
 CMD ["python", "-c", "print('Nora worker is reserved for M4')"]

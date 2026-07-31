@@ -17,7 +17,7 @@
 
 | 组件 | 说明 |
 |------|------|
-| Python 包结构 | `src/nora/`（含 `src/nora/apps/`）+ `tests/` 目录骨架，`pyproject.toml`，`uv.lock` |
+| Python 包结构 | `backend/app/`（含 `backend/app/apps/`）+ `backend/tests/`，`backend/pyproject.toml`，`backend/uv.lock` |
 | 配置加载 | Pydantic Settings，支持 env/`.env` 文件，环境覆盖 |
 | 异常体系 | `NoraError` 基类，`DomainError`/`ApplicationError`/`InfrastructureError` 分支，稳定 `error_code` |
 | 结构化日志 | JSON 格式，`request_id`/`trace_id` 上下文注入，敏感字段脱敏预留 |

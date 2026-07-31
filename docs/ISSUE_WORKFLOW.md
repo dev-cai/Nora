@@ -33,6 +33,12 @@ Issue 关闭并删除分支，再开始下一项
 - Documentation：只修改文档或协作规范。
 - Security：敏感问题通过 `SECURITY.md` 的私密渠道处理。
 
+## Issue 标题
+
+标题使用自然中文直接描述问题或结果。可以不带阶段信息，也可以选择性添加 `M<n>` 或 `M<n>.<n>` Milestone 前缀，
+例如 `建立岗位快照 API` 或 `M1.4 实现审计日志`。禁止类型方括号、`[Roadmap]`、`[Phase]` 和 `#59` 这类
+Issue 编号前缀。Milestone 前缀只帮助阅读，不替代真实 Milestone 字段，也不表达依赖关系。
+
 ## 标签、状态与 Milestone
 
 - 每个 Issue 必须且只能具有一个 `type:*`、一个 `priority:*` 和至少一个 `area:*`。

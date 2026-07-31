@@ -3,29 +3,29 @@ FROM python:3.11-slim AS base
 ENV PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH=/app/src
+    PYTHONPATH=/workspace/backend
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-WORKDIR /app
-COPY pyproject.toml uv.lock README.md LICENSE ./
-COPY src ./src
+WORKDIR /workspace/backend
+COPY backend/pyproject.toml backend/uv.lock backend/README.md backend/LICENSE ./
+COPY backend/app ./app
 
 FROM base AS development
 RUN uv sync --frozen --extra dev
 
-COPY alembic.ini ./
-COPY alembic ./alembic
-COPY tests ./tests
+COPY backend/alembic.ini ./
+COPY backend/alembic ./alembic
+COPY backend/tests ./tests
 
 EXPOSE 8000
-CMD ["uvicorn", "nora.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM base AS runtime
 RUN uv sync --frozen --no-dev
 
-COPY alembic.ini ./
-COPY alembic ./alembic
+COPY backend/alembic.ini ./
+COPY backend/alembic ./alembic
 
 EXPOSE 8000
-CMD ["uvicorn", "nora.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

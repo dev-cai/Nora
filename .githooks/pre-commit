@@ -8,6 +8,6 @@ echo "Running Nora pre-commit checks in the tools container..."
 docker compose run --rm --no-deps tools sh -c '
   ruff format --check . &&
   ruff check . &&
-  mypy src/ &&
+  mypy app/ &&
   pytest tests/unit tests/architecture -q
 '

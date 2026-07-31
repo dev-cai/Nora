@@ -85,7 +85,7 @@ Windows 访问该目录时使用资源管理器地址：
 
 ```bash
 cd "$HOME/projects/Nora"
-cp .env.example .env
+cp backend/.env.example .env
 docker compose up -d --build
 docker compose exec api alembic upgrade head
 ```
@@ -138,7 +138,7 @@ curl http://localhost:8000/auth/me \
 openssl rand -hex 32
 ```
 
-不要把生成值写回 `.env.example` 或提交包含真实密钥的 `.env`。
+不要把生成值写回 `backend/.env.example` 或提交包含真实密钥的 `.env`。
 
 ### 验证岗位快照 API
 
@@ -188,7 +188,7 @@ docker compose ps
 docker stats
 ```
 
-修改 `src/` 后，开发覆写文件会挂载 WSL 工作区，Uvicorn 会自动重载 API。
+修改 `backend/app/` 后，开发覆写文件会挂载 WSL 工作区，Uvicorn 会自动重载 API。
 
 执行数据库迁移：
 
@@ -213,7 +213,7 @@ bind mount 覆盖。静态检查、单元测试和架构测试不需要启动依
 docker compose build api tools
 docker compose run --rm --no-deps tools ruff check .
 docker compose run --rm --no-deps tools ruff format --check .
-docker compose run --rm --no-deps tools mypy src/
+docker compose run --rm --no-deps tools mypy app/
 docker compose run --rm --no-deps tools pytest tests/unit tests/architecture -q
 ```
 
@@ -229,12 +229,12 @@ docker compose --profile test stop test-db
 
 ### 缓存目录
 
-容器内运行 Python 与质量工具时，所有项目缓存统一写入仓库根目录的 `.cache/`：
+容器内运行 Python 与质量工具时，所有后端项目缓存统一写入 `backend/.cache/`：
 
-- Python 字节码：`.cache/pycache/`
-- pytest：`.cache/pytest/`
-- mypy：`.cache/mypy/`
-- ruff：`.cache/ruff/`
+- Python 字节码：`backend/.cache/pycache/`
+- pytest：`backend/.cache/pytest/`
+- mypy：`backend/.cache/mypy/`
+- ruff：`backend/.cache/ruff/`
 
 `.cache/` 已同时从 Git 和 Docker 构建上下文排除。源码、测试、Alembic 与脚本目录不应再生成
 `__pycache__/`，仓库根目录也不应再出现 `.pytest_cache/`、`.mypy_cache/` 或 `.ruff_cache/`。
@@ -268,14 +268,14 @@ docker compose run --rm --no-deps tools uv lock
 docker compose build api
 ```
 
-提交依赖变更时必须同时提交 `pyproject.toml` 和 `uv.lock`。不要提交 `.env`、`.venv`、`dist` 或其他本地产物。
+提交依赖变更时必须同时提交 `backend/pyproject.toml` 和 `backend/uv.lock`。不要提交 `.env`、`.venv`、`dist` 或其他本地产物。
 
 ## 路径与挂载规则
 
 - 推荐工作区：`/home/<user>/projects/Nora`。
 - Compose bind mount 的源路径来自 WSL 当前目录，不使用 `C:\...` 或 `D:\...`。
 - 不要在 PowerShell 中进入 WSL 工作区后调用另一套 Docker context。
-- `.env` 只在 WSL 工作区创建；模板是仓库中的 `.env.example`。
+- `.env` 只在 WSL 工作区根目录创建；模板是 `backend/.env.example`。
 - Docker 命名卷保存数据库和 MinIO 数据，不写入仓库目录。
 
 ## 故障排查

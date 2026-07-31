@@ -45,6 +45,11 @@
 
 标签真源为 `.github/labels.json`。
 
+### Issue 标题
+
+标题使用自然中文直接描述问题或结果，可选择性添加 `M<n>` 或 `M<n>.<n>` Milestone 前缀，例如
+`M1.4 实现审计日志`。不得使用类型方括号、`[Roadmap]`、`[Phase]` 或 `#59` 这类 Issue 编号前缀。
+
 ### 状态流转
 
 状态记录在 Issue 正文中，不使用 `status:*` 标签：

@@ -16,7 +16,7 @@ services:
         condition: service_healthy
     ports:
       - "${API_PORT:-8000}:8000"
-    command: ["uvicorn", "nora.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["uvicorn", "app.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 
   db:
     image: postgres:16-alpine

@@ -41,7 +41,8 @@ Architecture、Epic 和 Task 必须进入真实 Milestone。Bug 与 Documentatio
 
 ## 标题与正文
 
-标题使用自然中文，直接描述问题或结果；不添加 `[Roadmap]`、`[Phase]`、类型方括号、流水线编号或 Issue 编号。
+标题使用自然中文，直接描述问题或结果。允许可选 `M<n>` 或 `M<n>.<n>` Milestone 前缀；不添加 `[Roadmap]`、
+`[Phase]`、类型方括号或 Issue 编号前缀。Milestone 前缀不替代真实 Milestone 字段。
 
 正文严格使用对应模板的章节。验收条件必须可客观判断；验证部分列出具体检查、预期证据和不可执行项的报告方式。
 
