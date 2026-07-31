@@ -10,7 +10,8 @@ from app.infrastructure.database import (
     SqlAlchemyUserScopedRepository,
     UserRecord,
 )
-from sqlalchemy import String
+from sqlalchemy import String, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +26,44 @@ class OwnedItem(Base, AuditMixin, OwnedByUserMixin):
     __tablename__ = "owned_items"
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+
+
+@pytest.mark.asyncio
+async def test_session_commits_writes_to_multiple_tables(session: AsyncSession) -> None:
+    user = UserRecord(
+        username=f"transaction-owner-{uuid4()}",
+        email=f"transaction-owner-{uuid4()}@example.com",
+        password_hash="hash",
+    )
+    item = Item(name="committed")
+    session.add_all([user, item])
+    await session.commit()
+
+    assert await session.scalar(select(func.count()).select_from(UserRecord)) == 1
+    assert await session.scalar(select(func.count()).select_from(Item)) == 1
+
+
+@pytest.mark.asyncio
+async def test_session_rolls_back_all_tables_when_one_write_fails(session: AsyncSession) -> None:
+    username = f"duplicate-{uuid4()}"
+    session.add_all(
+        [
+            Item(name="must-roll-back"),
+            UserRecord(
+                username=username, email=f"first-{uuid4()}@example.com", password_hash="hash"
+            ),
+            UserRecord(
+                username=username, email=f"second-{uuid4()}@example.com", password_hash="hash"
+            ),
+        ]
+    )
+
+    with pytest.raises(IntegrityError):
+        await session.commit()
+    await session.rollback()
+
+    assert await session.scalar(select(func.count()).select_from(UserRecord)) == 0
+    assert await session.scalar(select(func.count()).select_from(Item)) == 0
 
 
 @pytest.mark.asyncio

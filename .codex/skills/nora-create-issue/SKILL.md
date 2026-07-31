@@ -69,3 +69,11 @@ python .codex/skills/nora-create-issue/scripts/sync_labels.py --check
 - 状态、Parent Epic 和依赖与预览一致。
 
 最终返回 Issue 编号、URL、标签、Milestone、状态和下一步门禁，不自动创建分支或开始实现。
+
+## Windows 正文编码
+
+在 Windows PowerShell 中创建或更新 Issue 时，多行中文 Markdown 必须通过 UTF-8 无 BOM 文件与 `--body-file` 提交。
+不得把 `gh issue view --jq .body` 的输出捕获到普通 PowerShell 变量后直接写回，也不得依赖 PowerShell 管道默认编码传递中文正文。
+
+提交后必须回读线上正文，验证中文无乱码，章节换行、列表、复选框和代码块完整。随后删除临时文件并确认工作树干净；若正文已被
+压成单行，应使用已知正确的完整正文恢复，不得继续基于损坏正文替换。
