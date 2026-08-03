@@ -12,9 +12,11 @@ from app.domain.identity import User
 from app.infrastructure.auth import Argon2PasswordHasher, JwtTokenIssuer
 from app.infrastructure.database import (
     SqlAlchemyAuditEventRepository,
+    SqlAlchemyCandidateProfileRepository,
     SqlAlchemyJobPostingRepository,
     SqlAlchemyUserRepository,
 )
+from app.ports.career import CandidateProfileRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.opportunity import JobPostingRepository
 
@@ -66,6 +68,15 @@ def get_job_posting_repository(
     """组装当前认证用户范围内的岗位快照 Repository。"""
 
     return SqlAlchemyJobPostingRepository(session, user.id)
+
+
+def get_candidate_profile_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> CandidateProfileRepository:
+    """组装当前认证用户范围内的 CandidateProfile Repository。"""
+
+    return SqlAlchemyCandidateProfileRepository(session, user.id)
 
 
 def get_audit_event_repository(
