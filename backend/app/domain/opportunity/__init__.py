@@ -1,5 +1,19 @@
 """Opportunity Intelligence 领域模型。"""
 
-from .job_posting import JobPosting, JobPostingStatus, JobSourceType
+from .job_posting import (
+    UNKNOWN_COMPANY_NAME,
+    UNKNOWN_JOB_TITLE,
+    UNKNOWN_LOCATION,
+    JobPosting,
+    JobPostingStatus,
+    JobSourceType,
+)
 
-__all__ = ("JobPosting", "JobPostingStatus", "JobSourceType")
+__all__ = (
+    "UNKNOWN_COMPANY_NAME",
+    "UNKNOWN_JOB_TITLE",
+    "UNKNOWN_LOCATION",
+    "JobPosting",
+    "JobPostingStatus",
+    "JobSourceType",
+)

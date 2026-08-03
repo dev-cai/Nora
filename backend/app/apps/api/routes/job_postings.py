@@ -1,11 +1,11 @@
 """用户范围内岗位快照创建与读取 API。"""
 
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Response, status
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.application.opportunity import (
     CreateJobPostingCommand,
@@ -21,7 +21,14 @@ from app.apps.api.dependencies import (
     get_job_posting_repository,
 )
 from app.domain.identity import User
-from app.domain.opportunity import JobPosting, JobPostingStatus, JobSourceType
+from app.domain.opportunity import (
+    UNKNOWN_COMPANY_NAME,
+    UNKNOWN_JOB_TITLE,
+    UNKNOWN_LOCATION,
+    JobPosting,
+    JobPostingStatus,
+    JobSourceType,
+)
 from app.ports.governance import AuditEventRepository
 from app.ports.opportunity import JobPostingRepository
 
@@ -38,18 +45,11 @@ class CreateJobPostingRequest(BaseModel):
     """手工或 URL 来源的岗位正文快照输入。"""
 
     jd_text: JdTextField
-    job_title: MetadataField | None = None
-    company_name: MetadataField | None = None
-    location: MetadataField | None = None
+    job_title: MetadataField = UNKNOWN_JOB_TITLE
+    company_name: MetadataField = UNKNOWN_COMPANY_NAME
+    location: MetadataField = UNKNOWN_LOCATION
     source_url: str | None = Field(default=None, max_length=2_048)
     source_type: JobSourceType = JobSourceType.MANUAL
-
-    @model_validator(mode="after")
-    def reject_explicit_null_metadata(self) -> Self:
-        for field_name in ("job_title", "company_name", "location"):
-            if field_name in self.model_fields_set and getattr(self, field_name) is None:
-                raise ValueError(f"{field_name} cannot be null")
-        return self
 
 
 class JobPostingResponse(BaseModel):

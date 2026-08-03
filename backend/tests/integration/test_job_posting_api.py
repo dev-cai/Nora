@@ -314,6 +314,22 @@ def test_job_posting_rejects_blank_and_oversized_metadata(
             assert response.status_code == 422
 
 
+def test_job_posting_openapi_exposes_optional_non_null_metadata_schema() -> None:
+    with TestClient(create_app()) as client:
+        response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    properties = response.json()["components"]["schemas"]["CreateJobPostingRequest"]["properties"]
+    for field_name, default in {
+        "job_title": "未提供职位",
+        "company_name": "未提供公司",
+        "location": "未提供地点",
+    }.items():
+        assert properties[field_name]["type"] == "string"
+        assert properties[field_name]["default"] == default
+        assert "anyOf" not in properties[field_name]
+
+
 @pytest.mark.parametrize(
     "failing_table",
     ["job_postings", "job_posting_idempotency", "audit_events"],
