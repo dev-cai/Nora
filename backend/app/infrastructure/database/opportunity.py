@@ -3,7 +3,16 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, UniqueConstraint, select
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    select,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
@@ -24,12 +33,17 @@ class JobPostingRecord(Base, AuditMixin, OwnedByUserMixin):
         CheckConstraint("length(jd_text) <= 100000", name="ck_job_postings_jd_text_max_length"),
         CheckConstraint("source_type IN ('manual', 'url')", name="ck_job_postings_source_type"),
         CheckConstraint("status IN ('active', 'archived')", name="ck_job_postings_status"),
+        CheckConstraint("length(trim(job_title)) > 0", name="ck_job_postings_job_title_nonempty"),
+        CheckConstraint(
+            "length(trim(company_name)) > 0", name="ck_job_postings_company_name_nonempty"
+        ),
+        CheckConstraint("length(trim(location)) > 0", name="ck_job_postings_location_nonempty"),
     )
 
     jd_text: Mapped[str] = mapped_column(Text, nullable=False)
-    job_title: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    company_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    job_title: Mapped[str] = mapped_column(String(200), nullable=False)
+    company_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    location: Mapped[str] = mapped_column(String(200), nullable=False)
     source_type: Mapped[str] = mapped_column(String(16), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -162,8 +176,22 @@ class SqlAlchemyJobPostingRepository:
         )
 
     async def list(self, *, offset: int = 0, limit: int = 100) -> list[JobPosting]:
-        records = await self._records.list(offset=offset, limit=limit)
+        records = await self.session.scalars(
+            select(JobPostingRecord)
+            .where(JobPostingRecord.owner_id == self.owner_id)
+            .order_by(JobPostingRecord.created_at.desc(), JobPostingRecord.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         return [self._to_domain(record) for record in records]
+
+    async def count(self) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(JobPostingRecord)
+            .where(JobPostingRecord.owner_id == self.owner_id)
+        )
+        return int(total or 0)
 
     async def commit(self) -> None:
         await self.session.commit()

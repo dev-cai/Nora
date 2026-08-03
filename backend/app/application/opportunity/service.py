@@ -19,6 +19,9 @@ class CreateJobPostingCommand:
     owner_id: UUID
     idempotency_key: str
     jd_text: str
+    job_title: str | None = None
+    company_name: str | None = None
+    location: str | None = None
     source_type: JobSourceType = JobSourceType.MANUAL
     source_url: str | None = None
 
@@ -39,6 +42,25 @@ class GetJobPostingQuery:
     job_posting_id: UUID
 
 
+@dataclass(frozen=True, slots=True)
+class ListJobPostingsQuery:
+    """按认证用户范围分页读取岗位快照。"""
+
+    owner_id: UUID
+    page: int = 1
+    page_size: int = 20
+
+
+@dataclass(frozen=True, slots=True)
+class ListJobPostingsResult:
+    """稳定分页的岗位快照及总数。"""
+
+    items: tuple[JobPosting, ...]
+    page: int
+    page_size: int
+    total: int
+
+
 class CreateJobPostingUseCase:
     """创建一次岗位快照，或重放同键同内容的首次结果。"""
 
@@ -55,15 +77,22 @@ class CreateJobPostingUseCase:
         posting = JobPosting.create(
             owner_id=command.owner_id,
             jd_text=command.jd_text,
+            job_title=command.job_title,
+            company_name=command.company_name,
+            location=command.location,
             source_type=command.source_type,
             source_url=command.source_url,
         )
         request_fingerprint = _request_fingerprint(posting)
+        legacy_request_fingerprint = _legacy_request_fingerprint(posting)
 
         existing = await self.repository.get_by_idempotency_key(idempotency_key)
         if existing is not None:
             return _resolve_replay(
-                existing.job_posting, existing.request_fingerprint, request_fingerprint
+                existing.job_posting,
+                existing.request_fingerprint,
+                request_fingerprint,
+                legacy_request_fingerprint,
             )
 
         try:
@@ -94,7 +123,10 @@ class CreateJobPostingUseCase:
                     error_code="job_posting_persistence_failed",
                 ) from exc
             return _resolve_replay(
-                existing.job_posting, existing.request_fingerprint, request_fingerprint
+                existing.job_posting,
+                existing.request_fingerprint,
+                request_fingerprint,
+                legacy_request_fingerprint,
             )
 
         return CreateJobPostingResult(job_posting=stored, replayed=False)
@@ -113,6 +145,29 @@ class GetJobPostingUseCase:
         return posting
 
 
+class ListJobPostingsUseCase:
+    """按创建时间倒序返回当前用户的岗位快照。"""
+
+    def __init__(self, repository: JobPostingRepository) -> None:
+        self.repository = repository
+
+    async def execute(self, query: ListJobPostingsQuery) -> ListJobPostingsResult:
+        if query.page < 1 or not 1 <= query.page_size <= 100:
+            raise ApplicationError(
+                "Page must be at least 1 and page_size must be between 1 and 100",
+                error_code="invalid_pagination",
+            )
+        offset = (query.page - 1) * query.page_size
+        items = await self.repository.list(offset=offset, limit=query.page_size)
+        total = await self.repository.count()
+        return ListJobPostingsResult(
+            items=tuple(items),
+            page=query.page,
+            page_size=query.page_size,
+            total=total,
+        )
+
+
 def _normalize_idempotency_key(value: str) -> str:
     normalized = value.strip()
     if not normalized or len(normalized) > 255:
@@ -124,6 +179,21 @@ def _normalize_idempotency_key(value: str) -> str:
 
 
 def _request_fingerprint(posting: JobPosting) -> str:
+    content = {
+        "company_name": posting.company_name,
+        "jd_text": posting.jd_text,
+        "job_title": posting.job_title,
+        "location": posting.location,
+        "source_type": posting.source_type.value,
+        "source_url": posting.source_url,
+    }
+    serialized = json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _legacy_request_fingerprint(posting: JobPosting) -> str:
+    """计算 M1 指纹，兼容迁移前已持久化的幂等记录。"""
+
     content = {
         "jd_text": posting.jd_text,
         "source_type": posting.source_type.value,
@@ -147,8 +217,9 @@ def _resolve_replay(
     posting: JobPosting,
     stored_fingerprint: str,
     request_fingerprint: str,
+    legacy_request_fingerprint: str,
 ) -> CreateJobPostingResult:
-    if stored_fingerprint != request_fingerprint:
+    if stored_fingerprint not in {request_fingerprint, legacy_request_fingerprint}:
         raise ApplicationError(
             "Idempotency key was already used with different content",
             error_code="idempotency_conflict",

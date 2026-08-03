@@ -135,6 +135,9 @@ def test_job_posting_create_replay_conflict_and_user_scope(database_url: str) ->
         auth_b = {"Authorization": f"Bearer {token_b}"}
         payload = {
             "jd_text": "  Senior Python Engineer\r\nBuild reliable APIs.  ",
+            "job_title": " Senior   Python Engineer ",
+            "company_name": " Example Corp ",
+            "location": " Shanghai ",
             "source_type": "url",
             "source_url": "https://jobs.example.com/roles/123",
         }
@@ -155,8 +158,18 @@ def test_job_posting_create_replay_conflict_and_user_scope(database_url: str) ->
             json=payload,
         )
         assert created.status_code == 201
-        assert created.json()["summary"] == "Senior Python Engineer Build reliable APIs."
-        posting_id = created.json()["id"]
+        created_body = created.json()
+        assert created_body["jd_text"] == "Senior Python Engineer\nBuild reliable APIs."
+        assert created_body["job_title"] == "Senior Python Engineer"
+        assert created_body["company_name"] == "Example Corp"
+        assert created_body["location"] == "Shanghai"
+        assert created_body["summary"] == "Senior Python Engineer Build reliable APIs."
+        assert created_body["source_type"] == "url"
+        assert created_body["source_url"] == "https://jobs.example.com/roles/123"
+        assert created_body["status"] == "active"
+        assert created_body["version"] == 1
+        assert created_body["created_at"]
+        posting_id = created_body["id"]
 
         replayed = client.post(
             "/job-postings",
@@ -210,6 +223,111 @@ def test_job_posting_create_replay_conflict_and_user_scope(database_url: str) ->
         restored_event = SqlAlchemyAuditEventRepository.to_domain(alice_event)
         assert restored_event.target_version == alice_event.target_version
         assert restored_event.to_dict()["target_version"] == 1
+
+
+def test_job_posting_list_is_user_scoped_and_stably_paginated(database_url: str) -> None:
+    reset_database(database_url)
+    settings = Settings(
+        database_url=database_url,
+        auth_secret_key="test-secret-key-32-bytes-long-key!",
+    )
+
+    with TestClient(create_app(settings)) as client:
+        token_a = register_and_login(client, "list-alice")
+        token_b = register_and_login(client, "list-bob")
+        auth_a = {"Authorization": f"Bearer {token_a}"}
+        auth_b = {"Authorization": f"Bearer {token_b}"}
+
+        created_items = []
+        for index in range(3):
+            response = client.post(
+                "/job-postings",
+                headers={**auth_a, "Idempotency-Key": f"alice-job-{index}"},
+                json={
+                    "jd_text": f"Role number {index}",
+                    "job_title": f"Engineer {index}",
+                    "company_name": "Example Corp",
+                    "location": "Shanghai",
+                },
+            )
+            assert response.status_code == 201
+            created_items.append(response.json())
+
+        bob_created = client.post(
+            "/job-postings",
+            headers={**auth_b, "Idempotency-Key": "bob-job-1"},
+            json={"jd_text": "Bob role"},
+        )
+        assert bob_created.status_code == 201
+
+        first_page = client.get("/job-postings?page=1&page_size=2", headers=auth_a)
+        assert first_page.status_code == 200
+        expected_items = sorted(
+            created_items,
+            key=lambda item: (item["created_at"], item["id"]),
+            reverse=True,
+        )
+        assert first_page.json() == {
+            "items": expected_items[:2],
+            "page": 1,
+            "page_size": 2,
+            "total": 3,
+        }
+
+        second_page = client.get("/job-postings?page=2&page_size=2", headers=auth_a)
+        assert second_page.status_code == 200
+        assert second_page.json()["items"] == expected_items[2:]
+        assert second_page.json()["total"] == 3
+
+        bob_page = client.get("/job-postings", headers=auth_b)
+        assert bob_page.status_code == 200
+        assert bob_page.json()["total"] == 1
+        assert bob_page.json()["items"][0]["id"] == bob_created.json()["id"]
+
+        assert client.get("/job-postings").status_code == 401
+        assert client.get("/job-postings?page=0", headers=auth_a).status_code == 422
+        assert client.get("/job-postings?page_size=101", headers=auth_a).status_code == 422
+
+
+@pytest.mark.parametrize("field_name", ["job_title", "company_name", "location"])
+def test_job_posting_rejects_blank_and_oversized_metadata(
+    database_url: str, field_name: str
+) -> None:
+    reset_database(database_url)
+    settings = Settings(
+        database_url=database_url,
+        auth_secret_key="test-secret-key-32-bytes-long-key!",
+    )
+
+    with TestClient(create_app(settings)) as client:
+        token = register_and_login(client, f"metadata-{field_name.replace('_', '-')}")
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Idempotency-Key": f"metadata-{field_name}",
+        }
+        for invalid_value in (None, "   ", "x" * 201):
+            response = client.post(
+                "/job-postings",
+                headers=headers,
+                json={"jd_text": "Build APIs.", field_name: invalid_value},
+            )
+            assert response.status_code == 422
+
+
+def test_job_posting_openapi_exposes_optional_non_null_metadata_schema() -> None:
+    with TestClient(create_app()) as client:
+        response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    properties = response.json()["components"]["schemas"]["CreateJobPostingRequest"]["properties"]
+    for field_name, default in {
+        "job_title": "未提供职位",
+        "company_name": "未提供公司",
+        "location": "未提供地点",
+    }.items():
+        assert properties[field_name]["type"] == "string"
+        assert properties[field_name]["default"] == default
+        assert "anyOf" not in properties[field_name]
 
 
 @pytest.mark.parametrize(

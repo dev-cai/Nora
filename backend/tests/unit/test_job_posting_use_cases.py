@@ -9,6 +9,8 @@ from app.application.opportunity import (
     CreateJobPostingUseCase,
     GetJobPostingQuery,
     GetJobPostingUseCase,
+    ListJobPostingsQuery,
+    ListJobPostingsUseCase,
 )
 from app.domain.base.exceptions import ApplicationError, InfrastructureError
 from app.domain.governance import AuditEvent
@@ -52,6 +54,9 @@ class FakeJobPostingRepository:
 
     async def list(self, *, offset: int = 0, limit: int = 100) -> list[JobPosting]:
         return list(self.postings.values())[offset : offset + limit]
+
+    async def count(self) -> int:
+        return len(self.postings)
 
     async def commit(self) -> None:
         self.commit_count += 1
@@ -158,6 +163,37 @@ async def test_create_rejects_same_key_with_different_content() -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_includes_public_metadata_in_idempotency_fingerprint() -> None:
+    repository = FakeJobPostingRepository()
+    use_case = CreateJobPostingUseCase(repository, FakeAuditEventRepository())
+    owner_id = uuid4()
+    await use_case.execute(
+        CreateJobPostingCommand(
+            owner_id=owner_id,
+            idempotency_key="import-metadata",
+            jd_text="Build APIs.",
+            job_title="Backend Engineer",
+            company_name="Example Corp",
+            location="Shanghai",
+        )
+    )
+
+    with pytest.raises(ApplicationError) as error:
+        await use_case.execute(
+            CreateJobPostingCommand(
+                owner_id=owner_id,
+                idempotency_key="import-metadata",
+                jd_text="Build APIs.",
+                job_title="Platform Engineer",
+                company_name="Example Corp",
+                location="Shanghai",
+            )
+        )
+
+    assert error.value.error_code == "idempotency_conflict"
+
+
+@pytest.mark.asyncio
 async def test_create_recovers_result_after_concurrent_key_claim() -> None:
     repository = RacingJobPostingRepository()
     audit_repository = FakeAuditEventRepository()
@@ -202,3 +238,32 @@ async def test_get_missing_posting_returns_stable_not_found() -> None:
         await use_case.execute(GetJobPostingQuery(owner_id=uuid4(), job_posting_id=uuid4()))
 
     assert error.value.error_code == "entity_not_found"
+
+
+@pytest.mark.asyncio
+async def test_list_returns_requested_page_and_total() -> None:
+    repository = FakeJobPostingRepository()
+    owner_id = uuid4()
+    postings = [JobPosting.create(owner_id=owner_id, jd_text=f"Role {index}") for index in range(3)]
+    for posting in postings:
+        await repository.add(posting)
+
+    result = await ListJobPostingsUseCase(repository).execute(
+        ListJobPostingsQuery(owner_id=owner_id, page=2, page_size=2)
+    )
+
+    assert result.items == (postings[2],)
+    assert result.page == 2
+    assert result.page_size == 2
+    assert result.total == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("page", "page_size"), [(0, 20), (1, 0), (1, 101)])
+async def test_list_rejects_invalid_pagination(page: int, page_size: int) -> None:
+    with pytest.raises(ApplicationError) as error:
+        await ListJobPostingsUseCase(FakeJobPostingRepository()).execute(
+            ListJobPostingsQuery(owner_id=uuid4(), page=page, page_size=page_size)
+        )
+
+    assert error.value.error_code == "invalid_pagination"
