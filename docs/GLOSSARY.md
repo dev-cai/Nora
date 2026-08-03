@@ -1,6 +1,8 @@
 # Nora 术语表
 
 > 按类别组织。括号中的 **En** 为英文对应词，便于代码和配置中统一使用。
+> 本文是术语**索引**；每个术语的权威定义以对应真源文档为准（`ARCHITECTURE.md`、`PRODUCT_VISION.md`、
+> `BUSINESS_FLOW.md`、`ISSUE_WORKFLOW.md` 等）。出现冲突时以真源文档为准。
 
 ---
 
@@ -47,13 +49,15 @@ Domain + Application + Port 的统称。不依赖任何外部框架、数据库�
 
 ## 领域上下文（Domain Context）
 
-业务能力的逻辑分区。Nora 包含 7 个 Context：
+业务能力的逻辑分区。权威定义与职责以 [`ARCHITECTURE.md`](ARCHITECTURE.md) §7 领域上下文为唯一真源。
+Nora 包含 8 个 Context：
 
-| Context | 职责 |
+| Context | 职责（索引） |
 |---------|------|
 | **Identity & Preferences** | 用户身份、租户映射、时区、语言、隐私与出行偏好 |
 | **Career Profile** | 简历版本、已确认经历、技能和能力证据 |
 | **Opportunity Intelligence** | 公司与岗位快照、风险证据、人岗分析 |
+| **Application & Follow-up** | 用户对机会的决定、投递产物和投递进度 |
 | **Interview Journey** | 面试计划、准备材料、出行方案和复盘 |
 | **Decision & Reporting** | 汇总经校验的分析结果，生成版本化决策报告 |
 | **Knowledge & Evidence** | 来源快照、文档版本、Chunk、检索索引 |
@@ -89,10 +93,10 @@ Provider 无关的模型访问层。负责请求路由、Prompt 版本管理、�
 对 Source Snapshot 进行解析和分片后得到的版本化文本片段。每个 Chunk 引用其来源的 Artifact 版本。
 
 ### Embedding
-将 Chunk 转化为向量表示的过程。M2 使用 BGE-M3 模型，向量存储于 pgvector。
+将 Chunk 转化为向量表示的过程。M4 计划通过独立 Issue 选择并接入 Embedding 实现，向量存储于 pgvector。
 
 ### pgvector
-PostgreSQL 的向量检索扩展。M0/M1 作为向量索引的主要存储，是可重建的派生数据。
+PostgreSQL 的向量检索扩展。M4 计划启用并作为向量索引存储，是可重建的派生数据。
 
 ### Hybrid Retrieve（混合检索）
 同时使用向量相似度（语义）和关键词匹配（BM25 等）进行检索，再融合结果。比单一检索方式更全面。
@@ -117,6 +121,8 @@ Evidence Pack 中的最小单元，包含：
 ---
 
 ## 外部写与审批
+
+> 状态机与执行规则的权威定义以 [`ARCHITECTURE.md`](ARCHITECTURE.md) §12 为真源，本节是术语索引。
 
 ### ProposedAction（提议动作）
 外部写操作前的不可变快照。包含用户、Run、Tool、目标、预览、内容摘要、风险等级、版本和失效时间。修改内容必须生成新的 ProposedAction，不能复用旧批准。
@@ -185,10 +191,10 @@ GitHub 的代码所有者机制。Nora 的 CODEOWNERS 指向 `@dev-cai`，所有
 | **FastAPI** | Python Web 框架，用于构建 API Process |
 | **SQLAlchemy** | Python ORM，使用异步模式访问 PostgreSQL |
 | **Alembic** | 数据库 Schema 迁移管理工具 |
-| **Celery** | 分布式任务队列，用于 Worker Process 的异步任务（M4 引入） |
+| **Celery** | 分布式任务队列，M5 仅在长任务、重试与并发指标成立时评估引入 |
 | **Redis** | 缓存、任务队列 Broker、锁和限流 |
 | **MinIO / S3** | 对象存储，用于保存原始简历、附件等不可变文件（开发可用文件系统替代） |
-| **pgvector** | PostgreSQL 向量检索扩展，M0/M1 的向量存储方案 |
+| **pgvector** | PostgreSQL 向量检索扩展，M4 计划启用的向量存储方案（可重建派生数据） |
 | **Milvus / Zilliz** | 专用向量数据库，作为 pgvector 的演进选项（达到触发条件后评估） |
 | **LangGraph** | LLM Agent 编排框架，用于构建和管理多智能体运行图 |
 | **BGE-M3** | 嵌入模型，用于将 Chunk 向量化 |
@@ -199,6 +205,8 @@ GitHub 的代码所有者机制。Nora 的 CODEOWNERS 指向 `@dev-cai`，所有
 ---
 
 ## 测试
+
+> 测试层级与执行策略以 [`ARCHITECTURE.md`](ARCHITECTURE.md) §17 为真源，下表是术语索引。
 
 | 术语 | 说明 |
 |------|------|
