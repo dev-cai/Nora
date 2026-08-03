@@ -63,6 +63,8 @@ async def test_job_posting_repository_round_trip_and_user_scope(
         assert restored.source_type is JobSourceType.URL
         assert restored.created_at == posting.created_at
         assert [item.id for item in await repository_a.list()] == [posting_id]
+        assert await repository_a.count() == 1
 
         assert await repository_b.get_by_id(posting_id) is None
         assert await repository_b.list() == []
+        assert await repository_b.count() == 0

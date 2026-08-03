@@ -7,7 +7,13 @@ from uuid import uuid4
 import pytest
 from app.domain.base.exceptions import DomainError
 from app.domain.opportunity import JobPosting, JobPostingStatus, JobSourceType
-from app.domain.opportunity.job_posting import MAX_JD_TEXT_LENGTH, SUMMARY_MAX_LENGTH
+from app.domain.opportunity.job_posting import (
+    MAX_JD_TEXT_LENGTH,
+    SUMMARY_MAX_LENGTH,
+    UNKNOWN_COMPANY_NAME,
+    UNKNOWN_JOB_TITLE,
+    UNKNOWN_LOCATION,
+)
 
 
 def test_job_posting_normalizes_fields_and_builds_summary() -> None:
@@ -44,6 +50,29 @@ def test_job_posting_summary_has_a_stable_maximum_length() -> None:
 
     assert len(posting.text_summary) <= SUMMARY_MAX_LENGTH
     assert posting.text_summary.endswith("...")
+
+
+def test_job_posting_uses_deterministic_metadata_for_legacy_requests() -> None:
+    posting = JobPosting.create(owner_id=uuid4(), jd_text="Build APIs.")
+
+    assert posting.job_title == UNKNOWN_JOB_TITLE
+    assert posting.company_name == UNKNOWN_COMPANY_NAME
+    assert posting.location == UNKNOWN_LOCATION
+
+
+@pytest.mark.parametrize(
+    ("field_name", "error_code"),
+    [
+        ("job_title", "invalid_job_title"),
+        ("company_name", "invalid_company_name"),
+        ("location", "invalid_location"),
+    ],
+)
+def test_job_posting_rejects_blank_explicit_metadata(field_name: str, error_code: str) -> None:
+    with pytest.raises(DomainError) as error:
+        JobPosting.create(owner_id=uuid4(), jd_text="JD", **{field_name: " \t "})
+
+    assert error.value.error_code == error_code
 
 
 @pytest.mark.parametrize("jd_text", ["", "  \r\n  "])

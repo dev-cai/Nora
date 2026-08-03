@@ -12,6 +12,9 @@ MAX_JD_TEXT_LENGTH = 100_000
 MAX_METADATA_LENGTH = 200
 MAX_SOURCE_URL_LENGTH = 2_048
 SUMMARY_MAX_LENGTH = 240
+UNKNOWN_JOB_TITLE = "未提供职位"
+UNKNOWN_COMPANY_NAME = "未提供公司"
+UNKNOWN_LOCATION = "未提供地点"
 
 
 class JobPostingStatus(StrEnum):
@@ -35,9 +38,9 @@ class JobPosting:
     id: UUID
     owner_id: UUID
     jd_text: str
-    job_title: str | None
-    company_name: str | None
-    location: str | None
+    job_title: str
+    company_name: str
+    location: str
     source_type: JobSourceType
     source_url: str | None
     imported_at: datetime
@@ -77,9 +80,11 @@ class JobPosting:
             id=uuid4(),
             owner_id=owner_id,
             jd_text=normalized_text,
-            job_title=_normalize_metadata(job_title, "invalid_job_title"),
-            company_name=_normalize_metadata(company_name, "invalid_company_name"),
-            location=_normalize_metadata(location, "invalid_location"),
+            job_title=_normalize_metadata(job_title, "invalid_job_title", UNKNOWN_JOB_TITLE),
+            company_name=_normalize_metadata(
+                company_name, "invalid_company_name", UNKNOWN_COMPANY_NAME
+            ),
+            location=_normalize_metadata(location, "invalid_location", UNKNOWN_LOCATION),
             source_type=source_type,
             source_url=normalized_source_url,
             imported_at=timestamp,
@@ -102,12 +107,12 @@ def _normalize_jd_text(value: str) -> str:
     return normalized
 
 
-def _normalize_metadata(value: str | None, error_code: str) -> str | None:
+def _normalize_metadata(value: str | None, error_code: str, fallback: str) -> str:
     if value is None:
-        return None
+        return fallback
     normalized = " ".join(value.split())
     if not normalized:
-        return None
+        raise DomainError("Metadata cannot be blank", error_code=error_code)
     if len(normalized) > MAX_METADATA_LENGTH:
         raise DomainError(
             f"Metadata cannot exceed {MAX_METADATA_LENGTH} characters",

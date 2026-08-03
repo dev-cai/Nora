@@ -226,13 +226,18 @@ curl -i -X POST http://localhost:8000/job-postings \
   -H 'Authorization: Bearer <access_token>' \
   -H 'Idempotency-Key: local-job-001' \
   -H 'Content-Type: application/json' \
-  -d '{"jd_text":"Senior Python Engineer - Build reliable APIs.","source_type":"manual"}'
+  -d '{"jd_text":"Senior Python Engineer - Build reliable APIs.","job_title":"Backend Engineer","company_name":"Example Corp","location":"Shanghai","source_type":"manual"}'
+
+curl 'http://localhost:8000/job-postings?page=1&page_size=20' \
+  -H 'Authorization: Bearer <access_token>'
 
 curl http://localhost:8000/job-postings/<job_posting_id> \
   -H 'Authorization: Bearer <access_token>'
 ```
 
 首次创建返回 `201`；同一用户使用同键和同内容重试返回首次结果及 `200`；同键但内容不同返回 `409`。
+旧客户端可以省略标题、公司和地点，服务端会分别回填“未提供职位”“未提供公司”“未提供地点”；显式传入空值、
+空白字符串或超过 200 个字符时返回 `422`。列表按创建时间倒序返回，`page` 从 `1` 开始，`page_size` 范围为 `1`–`100`。
 岗位 ID 只能由所属用户读取，不存在或属于其他用户时统一返回 `404`。
 首次创建还会在同一数据库事务中追加一条不含 JD 正文的审计事件；幂等重放不会重复记录事件。审计摘要只保存
 `source_type` 和 `status`，目标创建版本单独保存为结构化 `target_version`。该字段必须是大于等于 `1` 的非空整数，
