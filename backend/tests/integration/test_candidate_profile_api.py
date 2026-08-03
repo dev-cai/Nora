@@ -1,6 +1,7 @@
 """CandidateProfile API 用户隔离与版本契约测试。"""
 
 import asyncio
+from uuid import uuid4
 
 from app.apps.api import create_app
 from app.infrastructure.config import Settings
@@ -82,3 +83,26 @@ def test_profile_versions_are_user_scoped(database_url: str) -> None:
             }
         ]
         assert client.put("/profile", headers=auth_a, json=invalid_dates).status_code == 422
+
+        missing_id = _payload()
+        missing_id["skills"] = [
+            {
+                "name": {"value": "Python"},
+                "proficiency": {"value": "advanced"},
+                "years": {"value": 5},
+            }
+        ]
+        assert client.put("/profile", headers=auth_a, json=missing_id).status_code == 422
+
+        duplicate_id = str(uuid4())
+        duplicate_ids = _payload()
+        duplicate_ids["skills"] = [
+            {
+                "id": duplicate_id,
+                "name": {"value": name},
+                "proficiency": {"value": "advanced"},
+                "years": {"value": 5},
+            }
+            for name in ("Python", "Go")
+        ]
+        assert client.put("/profile", headers=auth_a, json=duplicate_ids).status_code == 422

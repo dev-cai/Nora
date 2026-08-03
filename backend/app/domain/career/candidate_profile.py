@@ -62,11 +62,13 @@ class CandidateProfile:
         """创建主档首个版本。"""
 
         timestamp = _utc_timestamp(now)
+        enriched = _enrich_facts(content, timestamp)
+        _fact_path_items(enriched)
         return cls(
             id=uuid4(),
             owner_id=owner_id,
             version=1,
-            _content_json=_canonical_content(_enrich_facts(content, timestamp)),
+            _content_json=_canonical_content(enriched),
             created_at=timestamp,
             updated_at=timestamp,
         )
@@ -81,7 +83,9 @@ class CandidateProfile:
 
         timestamp = _utc_timestamp(now)
         enriched = _enrich_facts(content, timestamp)
-        _validate_transitions(self.content, enriched)
+        previous = self.content
+        _validate_transitions(previous, enriched)
+        _preserve_unchanged_timestamps(previous, enriched)
         return CandidateProfile(
             id=self.id,
             owner_id=self.owner_id,
@@ -177,8 +181,20 @@ def _fact_path_items(
         return result
     if isinstance(value, list):
         result = {}
+        identifiers: set[str] = set()
         for index, item in enumerate(value):
-            identifier = str(item.get("id", index)) if isinstance(item, dict) else str(index)
+            if not isinstance(item, dict) or "id" not in item:
+                raise DomainError(
+                    f"Profile collection item at index {index} must have an id",
+                    error_code="invalid_profile_item_id",
+                )
+            identifier = str(item["id"])
+            if identifier in identifiers:
+                raise DomainError(
+                    "Profile collection item ids must be unique",
+                    error_code="invalid_profile_item_id",
+                )
+            identifiers.add(identifier)
             result.update(_fact_path_items(item, (*path, identifier)))
         return result
     return {}
@@ -198,6 +214,18 @@ def _validate_transitions(previous: dict[str, Any], current: dict[str, Any]) -> 
                 f"Confirmation status cannot transition from {previous_status} to {current_status}",
                 error_code="invalid_confirmation_transition",
             )
+
+
+def _preserve_unchanged_timestamps(previous: dict[str, Any], current: dict[str, Any]) -> None:
+    previous_facts = _fact_path_items(previous)
+    current_facts = _fact_path_items(current)
+    compared_keys = ("value", "confirmation_status", "source_type")
+    for path, current_fact in current_facts.items():
+        previous_fact = previous_facts.get(path)
+        if previous_fact is not None and all(
+            current_fact.get(key) == previous_fact.get(key) for key in compared_keys
+        ):
+            current_fact["updated_at"] = previous_fact["updated_at"]
 
 
 def _filter_confirmed(value: Any) -> Any:

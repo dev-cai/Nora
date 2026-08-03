@@ -60,6 +60,26 @@ def test_profile_updates_append_version_and_preserve_creation_time() -> None:
     assert next_profile.updated_at == updated
 
 
+def test_profile_only_refreshes_changed_fact_timestamps() -> None:
+    created = datetime(2026, 8, 3, 1, 2, tzinfo=timezone.utc)
+    updated = datetime(2026, 8, 4, 1, 2, tzinfo=timezone.utc)
+    profile = CandidateProfile.create(owner_id=uuid4(), content=profile_content(), now=created)
+    changed = profile_content("confirmed")
+    next_profile = profile.next_version(content=changed, now=updated)
+
+    previous_content = profile.content
+    next_content = next_profile.content
+    assert next_content["basic_information"]["display_name"]["updated_at"] == updated.isoformat()
+    assert (
+        next_content["basic_information"]["current_location"]["updated_at"]
+        == previous_content["basic_information"]["current_location"]["updated_at"]
+    )
+    assert (
+        next_content["skills"][0]["name"]["updated_at"]
+        == previous_content["skills"][0]["name"]["updated_at"]
+    )
+
+
 def test_superseded_fact_cannot_be_restored() -> None:
     profile = CandidateProfile.create(owner_id=uuid4(), content=profile_content("superseded"))
 
@@ -67,6 +87,28 @@ def test_superseded_fact_cannot_be_restored() -> None:
         profile.next_version(content=profile_content("confirmed"))
 
     assert error.value.error_code == "invalid_confirmation_transition"
+
+
+@pytest.mark.parametrize(
+    "items",
+    [
+        [{"name": {"value": "Python", "confirmation_status": "confirmed"}}],
+        [
+            {"id": "same", "name": {"value": "Python", "confirmation_status": "confirmed"}},
+            {"id": "same", "name": {"value": "Go", "confirmation_status": "confirmed"}},
+        ],
+    ],
+)
+def test_profile_rejects_missing_or_duplicate_collection_item_ids(
+    items: list[dict[str, object]],
+) -> None:
+    content = profile_content()
+    content["skills"] = items
+
+    with pytest.raises(DomainError) as error:
+        CandidateProfile.create(owner_id=uuid4(), content=content)
+
+    assert error.value.error_code == "invalid_profile_item_id"
 
 
 class MemoryProfileRepository:

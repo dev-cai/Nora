@@ -1,7 +1,7 @@
 """当前认证用户的 CandidateProfile 读写 API。"""
 
 from datetime import date, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field, StringConstraints, model_validator
@@ -70,7 +70,7 @@ class JobPreferencesInput(BaseModel):
 
 
 class EducationInput(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID
     school: StringFactInput
     degree: StringFactInput
     major: StringFactInput
@@ -89,7 +89,7 @@ class EducationInput(BaseModel):
 
 
 class ExperienceInput(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID
     company: StringFactInput
     job_title: StringFactInput
     start_date: DateFactInput
@@ -109,7 +109,7 @@ class ExperienceInput(BaseModel):
 
 
 class SkillInput(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID
     name: StringFactInput
     proficiency: OptionalStringFactInput
     years: YearsFactInput
@@ -121,6 +121,14 @@ class CandidateProfileContentInput(BaseModel):
     education: list[EducationInput] = Field(default_factory=list, max_length=50)
     experiences: list[ExperienceInput] = Field(default_factory=list, max_length=50)
     skills: list[SkillInput] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_unique_item_ids(self) -> Self:
+        for collection in (self.education, self.experiences, self.skills):
+            identifiers = [item.id for item in collection]
+            if len(identifiers) != len(set(identifiers)):
+                raise ValueError("profile item ids must be unique within each collection")
+        return self
 
 
 class ProfileFactResponse(BaseModel):

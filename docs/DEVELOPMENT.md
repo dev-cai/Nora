@@ -268,6 +268,7 @@ curl -X PUT http://localhost:8000/profile \
     "education": [],
     "experiences": [],
     "skills": [{
+      "id": "75c9697d-a4a0-4e54-8ee8-9f4df51489ec",
       "name": {"value": "Python", "confirmation_status": "confirmed"},
       "proficiency": {"value": "advanced", "confirmation_status": "unconfirmed"},
       "years": {"value": 5, "confirmation_status": "confirmed"}
