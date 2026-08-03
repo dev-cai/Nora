@@ -282,8 +282,29 @@ curl 'http://localhost:8000/profile?version=1' \
   -H 'Authorization: Bearer <access_token>'
 ```
 
-跨用户访问不会暴露主档存在性，统一返回 `404 entity_not_found`。本 Issue 不包含简历文件解析、
-对象存储或 `ResumeVersion`。
+跨用户访问不会暴露主档存在性，统一返回 `404 entity_not_found`。教育、经历和技能条目的 UUID 必须由客户端生成并在后续
+完整 `PUT` 中保持稳定，同一集合内不得重复。
+
+### 验证 ResumeVersion API
+
+从明确的 CandidateProfile 版本发布简历快照。发布只复制 confirmed 基本信息、教育、经历和技能；求职偏好及未确认字段
+不会进入简历。主档后续变化不会改写已经发布的历史版本。
+
+```bash
+curl -X POST http://localhost:8000/resumes \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Backend Resume","profile_version":1}'
+
+curl 'http://localhost:8000/resumes?page=1&page_size=20' \
+  -H 'Authorization: Bearer <access_token>'
+
+curl http://localhost:8000/resumes/<resume_version_id> \
+  -H 'Authorization: Bearer <access_token>'
+```
+
+每次发布返回 `201` 并生成新的用户范围版本号。指定主档版本不存在或属于其他用户时返回 `404 entity_not_found`；主档没有
+可发布的 confirmed 简历事实时返回 `400 profile_has_no_confirmed_data`。本阶段不包含简历文件导入、模板、PDF 生成或岗位定制。
 
 停止服务但保留数据卷：
 
