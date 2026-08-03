@@ -5,5 +5,12 @@ from .candidate_profile import (
     ConfirmationStatus,
     ProfileSourceType,
 )
+from .resume_version import MAX_RESUME_TITLE_LENGTH, ResumeVersion
 
-__all__ = ("CandidateProfile", "ConfirmationStatus", "ProfileSourceType")
+__all__ = (
+    "MAX_RESUME_TITLE_LENGTH",
+    "CandidateProfile",
+    "ConfirmationStatus",
+    "ProfileSourceType",
+    "ResumeVersion",
+)

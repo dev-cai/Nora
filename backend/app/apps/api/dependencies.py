@@ -14,9 +14,10 @@ from app.infrastructure.database import (
     SqlAlchemyAuditEventRepository,
     SqlAlchemyCandidateProfileRepository,
     SqlAlchemyJobPostingRepository,
+    SqlAlchemyResumeVersionRepository,
     SqlAlchemyUserRepository,
 )
-from app.ports.career import CandidateProfileRepository
+from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.opportunity import JobPostingRepository
 
@@ -77,6 +78,15 @@ def get_candidate_profile_repository(
     """组装当前认证用户范围内的 CandidateProfile Repository。"""
 
     return SqlAlchemyCandidateProfileRepository(session, user.id)
+
+
+def get_resume_version_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ResumeVersionRepository:
+    """组装当前认证用户范围内的 ResumeVersion Repository。"""
+
+    return SqlAlchemyResumeVersionRepository(session, user.id)
 
 
 def get_audit_event_repository(
