@@ -3,7 +3,11 @@
 > 完整定义 Nora 从工程基础到生产可用的里程碑规划。每个里程碑包含交付组件、验收条件和范围边界。
 >
 > 产品愿景：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)。架构边界：[`ARCHITECTURE.md`](ARCHITECTURE.md)。
+> 目标用户：软件工程专业应届生（以校招为主），产品范围与能力重心以 [`PRODUCT_VISION.md`](PRODUCT_VISION.md) 为准。
 > 本文定义里程碑范围；实际执行状态以 GitHub Milestone 与 Issue 为准。
+>
+> M2 及之后的范围已按 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) 重排：**确定性 Demo 先于 AI 增强**，
+> RAG/LLM 移至 M4，中间件移至 M5。原子交付细节以该执行计划为准，本文只保留里程碑范围与验收。
 
 ---
 
@@ -52,7 +56,7 @@
 
 ### Issue 拆分
 
-详见 [`M0_PLAN.md`](M0_PLAN.md)，拆为 7 个 Task Issue（GitHub #9–#15）。
+历史 M0 交付路径以 GitHub Issue #9–#15 与 M0 [Milestone](https://github.com/dev-cai/Nora/milestone/1) 为准。
 
 ---
 
@@ -79,7 +83,7 @@
 - 不实现岗位评分、公司背调、简历匹配
 - 不实现 Agent、报告生成、浏览器采集或自动投递
 - 不依赖 LLM、RAG、Redis、Celery、Milvus 或外部 API
-- 不实现 Web 客户端（M3 做）
+- 不实现 Web 客户端（M2 做）
 - 不实现简历管理（M2 做）
 - 不实现更新/删除岗位（只创建和读取）
 
@@ -107,215 +111,229 @@
 
 ---
 
-## M2：简历管理与 RAG 基础
+## M2：Demo-ready 数据与前端基础
 
-**目标**：建立个人主档、简历事实和 RAG 检索管道，使系统具备"存储可信画像 → 向量化 → 混合检索 → Evidence Pack"的基础能力。
+**目标**：建立 M3 所需的真实输入契约与可运行 Web 基础。用户可在浏览器完成注册、登录、岗位录入（文本/截图/链接契约）、岗位列表与详情、主档（CandidateProfile）与简历版本（ResumeVersion）录入读取。
 
-**截止**：2026-08-07（6 天）
+**截止**：2026-08-22（按详细计划 §20 估算）
 
 ### 交付组件
 
 | 组件 | 上下文 | 说明 |
 |------|--------|------|
-| ResumeVersion 模型 | Career Profile | 简历版本管理，已确认经历和技能 |
-| CandidateProfile 模型 | Career Profile | 基本信息、项目、经历、教育、偏好和确认状态 |
-| CapabilityEvidence | Career Profile | 技能/经历的来源定位与可信级别 |
-| SourceDocument 模型 | Knowledge & Evidence | 来源文档快照，含对象存储引用 |
-| Chunk 模型 | Knowledge & Evidence | 版本化文档切片，引用 Source 版本 |
-| BGE-M3 Embedding | Knowledge & Evidence | 将 Chunk 向量化，写入 pgvector |
-| Hybrid Retrieve | Knowledge & Evidence | 向量相似度 + 关键词混合检索 |
-| Reranker | Knowledge & Evidence | 对检索候选进行精排 |
-| Evidence Pack | Knowledge & Evidence | 组装检索结果为不可变证据包，包含来源版本和生成器版本 |
-| Model Gateway | 跨上下文 | Provider-neutral 网关，管理 Prompt 版本和模型调用 |
+| 岗位公开契约补齐 | Opportunity Intelligence | 创建请求支持标题/公司/地点，响应返回完整 JD、来源、状态与版本；用户范围分页列表 |
+| CandidateProfile | Career Profile | 用户确认事实主档：基本信息、教育、经历、技能、偏好与字段级确认状态 |
+| ResumeVersion | Career Profile | 从已确认主档发布的不可变简历事实版本 |
+| Vue 3 + Vite 工程 | Frontend | 路由/布局/错误边界、API client、注册登录与岗位页面 |
+| 前端 CI | Frontend | lint / type / test / build 门禁 |
+| 画像与简历页面 | Frontend | 主档表单、简历发布与列表 |
+| JD 输入 Port | Opportunity Intelligence | 文本 / 截图（OCR）/ 链接（受控抓取）契约与安全边界（仅定义，实现放 M3） |
 
 ### 范围边界
 
-- 不实现 Agent Runtime（M5+）
-- 不实现决策报告（M3 做）
-- 不实现浏览器采集（延后）
-- 不实现 Milvus（保持 pgvector）
-- 不涉及 PDF/Word/OCR 自动简历解析（先由用户手工录入并确认事实）
+- 不实现 RAG、Embedding、Reranker、Model Gateway 或 LLM（移至 M4）
+- 不实现 DecisionCase 与决策报告（M3 做）
+- 不实现 JD 截图 OCR 或链接抓取执行（M2 仅定义 Port 与契约）
+- 不引入 pgvector
+- 不实现自动投递
 
 ### 验收条件
 
-- [ ] 用户可创建和管理简历版本
-- [ ] Source Document → Chunk → Embedding 管道可执行
-- [ ] 混合检索返回带相关性分数的结果
-- [ ] Reranker 可提升顶部结果的准确性
-- [ ] Evidence Pack 包含完整的来源追踪信息
-- [ ] Model Gateway 可调用至少一个 Provider 并返回结构化响应
+- [ ] Web 可注册、登录并读取当前用户
+- [ ] Web 可创建、列表和读取用户自己的岗位
+- [ ] Web 可维护 CandidateProfile 并发布 ResumeVersion
+- [ ] 用户 A 无法访问用户 B 的岗位、画像和简历
+- [ ] `docker compose up --build` 可访问 Web 与 API
+- [ ] JD 输入 Port（文本/截图/链接）契约已定义并通过契约测试
+- [ ] 未引入 RAG、模型或外部 Provider 硬依赖
 
 ### 前置依赖
 
 - M1 全部合并
-- Model Provider 配置（DeepSeek 或其他）需在 M2 Architecture Issue 中决定
+- Vue 3 + Vite 架构决策已合并（Issue #49 边界）
 
-### 决策待办（需独立 Architecture Issue）
+### 原子交付
 
-- BGE-M3 部署方式（本地模型 / API 调用）
-- Reranker 选型与部署
-- Model Gateway Provider 选择、Prompt 版本管理策略
-- 向量索引参数（距离算法、索引类型）
+原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §10（M2.1–M2.7）为准。
 
 ---
 
-## M3：最小化 Demo
+## M3：最小确定性决策 Demo
 
-**目标**：整合 M0-M2 已有能力，交付一个可运行的求职决策 Demo。用户可录入岗位、个人主档和简历，系统生成附带 Evidence 引用的基础决策分析。**这是第一个可向用户演示的分析版本，不代表完整投递闭环。**
+**目标**：交付第一个由用户从浏览器完整操作的确定性决策 Demo，**无外部模型密钥也能完整运行**。报告以确定性规则为核心，RAG、LLM、Agent 均不属于本里程碑。
 
-**截止**：2026-08-15（8 天）
+**截止**：2026-09-12（按详细计划 §20 估算）
 
 ### 交付组件
 
 | 组件 | 上下文 | 说明 |
 |------|--------|------|
-| DecisionCase 模型 | Decision & Reporting | 组合用户画像与岗位快照的分析案例 |
-| 确定性规则引擎 | Decision & Reporting | 基于岗位/简历字段的匹配规则（无需 LLM 的部分） |
-| Decision Report | Decision & Reporting | 版本化决策报告，含 Evidence 引用链 |
-| Vue 3 + Vite Web 客户端 | Frontend | 独立 Web 界面：登录 → 输入岗位 → 管理主档/简历 → 查看分析 |
-| LLM 增强分析 | 跨上下文 | 基于 Evidence Pack 的 LLM 生成分析（经 Schema 校验） |
-| M0-M2 集成测试 | — | 跨越所有 Context 的 E2E 测试 |
+| DecisionCase 输入契约 | Decision & Reporting | 不可变分析输入快照（岗位/主档/简历版本 + 规则集版本） |
+| 确定性规则引擎 | Decision & Reporting | 技能/技术栈、经验年限、地点、学历四类规则 + 公司情报 |
+| 版本化基础报告 | Decision & Reporting | 不依赖 LLM 的 DecisionReport，含事实/规则/未知/建议分区 |
+| JD 截图 OCR 与链接抓取 | Opportunity Intelligence | 真实 JD 输入获取，带来源定位与失败降级 |
+| 公司情报最小化 | Opportunity Intelligence | 网评/规模/来源 + 时效标签，不做聚合分数 |
+| 最小投不投决定 | Application & Follow-up | `analyzed → skip/apply` 最小状态机，skip 沉淀历史相似记录 |
+| 分析与报告 API/页面 | Backend + Frontend | `POST /decisions`、`GET /reports/{id}`、报告页 + DecisionBar |
+| Compose E2E | — | 真实 Web → API → PostgreSQL 主流程验证 |
 
 ### 范围边界
 
-- 不依赖 Redis/Celery（M4 引入）
-- 不包含 Agent 编排（M5+）
-- 不包含浏览器采集或自动投递
-- 不包含投递决定、定制简历、模板/PDF、消息发送或面试工作流；这些属于 M3 后的独立交付
-- 不包含审批流程（M5+）
-- 不包含生产级部署配置（M4 做）
+- 不调用 LLM，不要求 Provider API Key
+- 不实现 RAG / pgvector（M4）
+- 不生成定制简历、PDF 或消息草稿（M6+）
+- 不引入 Redis/Celery（M5）
+- 不实现 Agent Runtime（M6+）
+- JD 截图 OCR 与链接抓取属于输入获取，不属于 JD 自动抽取
 
 ### 验收条件
 
-- [ ] 用户通过 Vue Web 界面完成完整流程：注册 → 录入岗位 → 导入简历 → 查看分析报告
-- [ ] 报告明确区分"事实"、"推断"和"建议"
-- [ ] 报告中的每个结论可追溯到 Evidence
-- [ ] 无模型输出时（Model Gateway 不可用），确定性规则仍可生成基础分析
-- [ ] Demo 可在本地 `docker compose up` 后直接使用
+- [ ] 用户通过 Vue Web 完成完整主流程：录入 → 分析 → 查看报告 → 投/不投
+- [ ] 报告完全由真实 API 和 PostgreSQL 数据生成，无模型可运行
+- [ ] 每条规则可追溯到输入字段；缺输入返回 unknown
+- [ ] 支持 JD 文本 / 截图 / 链接三种输入方式
+- [ ] 报告包含公司情报摘要或明确 unknown
+- [ ] 跨用户访问被阻止；相同输入重试不产生重复报告
+- [ ] `docker compose up --build` 后新环境可直接验收
 
 ### 前置依赖
 
 - M2 全部合并
-- M0 Docker Compose 基线已合并；Issue #49 定义前端边界，M3 客户端 Issue 负责补充 Web 入口
+- 规则输入 Schema 通过独立 Issue 确认
 
-### 风险与假设
+### 原子交付
 
-- Vue 工程、Compose Web 服务与前端 CI 尚未实现，必须按 Issue #49 的边界拆成可独立验收的后续 Issue
-- Demo 的"分析"质量取决于 M2 的 RAG 管道质量
+原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §11（M3.1–M3.9）为准。
 
 ---
 
-## M3 后：个人投递闭环（待拆分 Issue）
+## M4：Evidence、RAG 与 AI 增强
 
-M3 报告稳定后，按以下依赖顺序补齐用户真正需要的投递闭环。每一项都必须是独立、可验收的 Issue，不提前引入 Agent Runtime：
+**目标**：在 M3 确定性闭环之上增加可定位来源、检索与可选模型增强。不改变 M3 的核心事实、规则与报告可用性。
 
-1. `ApplicationDecision`：按 `analyzed → skip|apply` 建立状态机；`skip` 可由新报告重新进入 `analyzed`，并按同岗位族和至少两个技术栈标签提示最多 3 条历史相似记录。
-2. 公司与 JD 输入增强：受控 URL 抓取、截图/OCR、来源许可、时效标签（fresh/aging/stale）和四级来源分类；初版只展示原文，不做网评聚合分数。
-3. `ResumeVariant` 与模板：`CandidateProfile → ResumeVersion → ResumeVariant` 关系固定；模板采用声明式 JSON Schema、字段占位和不可变版本，不执行任意模板代码。
-4. PDF 与消息草稿：使用 WeasyPrint Adapter 确定性渲染 PDF，保存对象存储、SHA-256 和版本元数据；`MessageDraft` 初版只输出一段可编辑纯文本，不自动发送。
-5. `ApplicationRecord` 与面试：按 `message_drafted → applied → interviewing → offer_received/rejected/withdrawn` 记录用户确认的投递结果，录入面试通知、轮次、准备材料和复盘。
-6. 结果学习：将跳过原因、投递结果和面试复盘整理为待确认 `MemoryCandidate`，确认后才影响主档。
-
-这些交付完成后，才评估是否需要把部分流程编排为 Agent；业务事实仍由既有 Context 和 PostgreSQL 管理。
-
-## M4：可选中间件与生产准备
-
-**目标**：引入 Redis/Celery 等可选中间件优化异步处理能力，补充生产级非功能需求。**不改变 M3 Demo 已验证的领域边界。**
-
-**截止**：2026-08-23（8 天）
+**截止**：2026-10-24（按详细计划 §20 估算）
 
 ### 交付组件
 
-| 组件 | 说明 |
-|------|------|
-| Redis 缓存 | 热点数据缓存、Session 存储、API 限流 |
-| Celery 任务队列 | 异步任务编排：Embedding 批量处理、报告生成、定时任务 |
-| Worker Process | Celery Worker 容器、任务定义、重试策略 |
-| 幂等任务执行 | 任务级幂等键，防止重复执行 |
-| 性能基准测试 | 接口延迟、吞吐量、检索延迟 Benchmark |
-| 安全扫描 | SBOM 生成、依赖审查（`uv audit`）、secret scan |
-| 日志聚合 | 结构化日志输出到 stdout（对接 Docker 日志驱动） |
-| 部署文档 | 生产部署指南、环境变量清单、架构图 |
+| 组件 | 上下文 | 说明 |
+|------|--------|------|
+| SourceDocument / Artifact | Knowledge & Evidence | 来源元数据存 PostgreSQL，原始内容存对象存储 |
+| Chunk | Knowledge & Evidence | 版本化分片，引用 Source 版本，稳定 locator |
+| pgvector | Knowledge & Evidence | 启用扩展、向量维度与索引策略（独立 Architecture Issue） |
+| Embedding 适配器 | Knowledge & Evidence | Provider-neutral Port，BGE-M3 候选，批量/重试/版本 |
+| 混合检索 | Knowledge & Evidence | 关键词 + 向量相似度，用户与版本过滤 |
+| Evidence Pack | Knowledge & Evidence | 不可变检索结果包，供报告引用 |
+| Reranker（条件交付） | Knowledge & Evidence | 仅当基准证明收益时引入 |
+| Model Gateway | 跨上下文 | Provider-neutral Chat/Completion Port，Schema 校验，Prompt 版本 |
+| LLM 报告增强 | Decision & Reporting | 基于报告事实 + Evidence Pack，输出分 fact/rule/inferred/suggestion |
+| JobPlatform Port 预留 | Automation & Governance | 批量导入/投递/打招呼三类 Port，半自动 Disabled/Manual |
 
 ### 范围边界
 
-- 不修改 M0-M3 已交付的领域模型和 API 契约
-- 不引入 Milvus（延后评估）
-- 不引入 Kubernetes（延后）
-- 不实现服务拆分
-- 不实现浏览器或飞书集成
+- 不引入 Agent Runtime（M6+）
+- 不实现平台登录与自动投递（仅定义 Port）
+- 不让模型直接更新 CandidateProfile
+- 不将向量库作为业务事实源
+- 不要求 Reranker 成为固定组件
 
 ### 验收条件
 
-- [ ] Celery Worker 可消费 Embedding 任务并写回 pgvector
-- [ ] 相同幂等任务重放不产生重复数据
-- [ ] 缓存命中时 API 响应时间降低 ≥50%（相对未缓存）
-- [ ] SBOM 可生成，依赖审查无高危漏洞
-- [ ] 部署文档可指导新环境搭建
+- [ ] Source → Chunk → Embedding → Retrieve → Evidence Pack 可执行
+- [ ] 每条增强结论引用稳定 Evidence locator
+- [ ] Provider 不可用时确定性报告保持可用
+- [ ] 模型输出经过 Schema 校验
+- [ ] 数据与向量均按用户隔离；Embedding 和索引可重建
 
 ### 前置依赖
 
 - M3 全部合并
+- pgvector、Source/Artifact 数据所有权、Provider 策略通过独立 Architecture Issue
 
-### 决策待办（需独立 Architecture Issue）
+### 原子交付
 
-- Celery Broker、重试、取消和可靠事件发布策略
-- 缓存失效策略与 TTL 规则
-- 对象存储生产配置（MinIO → S3 兼容服务）
+原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §12（M4.1–M4.10）为准。
 
 ---
 
-## M5+：专项 Agent 与服务拆分评估
+## M5：生产准备与异步能力
 
-**目标**：引入 LangGraph Agent Runtime，逐个交付求职决策各环节的专项 Agent。在生产负载达到触发条件时评估服务拆分和 Milvus 迁移。
+**目标**：把已验证的 Demo 与 AI 增强提升到可部署、可观察、可恢复的水平。中间件由指标触发，不预先成为架构事实。
 
-**截止**：待定（按需启动）
-
-这里的五类 Agent 是产品能力角色，定义见 [`PRODUCT_VISION.md`](PRODUCT_VISION.md)。实现时可以根据状态和调用边界拆分或组合，
-不要求一类角色对应一个进程、服务或 LangGraph 节点。
+**截止**：2026-11-20（按详细计划 §20 估算）
 
 ### 交付组件
 
 | 组件 | 说明 |
 |------|------|
-| Agent Runtime | LangGraph Adapter：运行图、状态管理、暂停/恢复、Checkpoint |
-| Tool Registry | 受控 Tool 注册表，READ/COMPUTE/WRITE 分类，Pydantic Schema 校验 |
-| Approval 流程 | ProposedAction → Approved/Rejected → Executed 状态机，幂等执行 |
-| 投递决策 Agent | 分析岗位匹配度，给出投递建议 |
-| 面试准备 Agent | 基于 JD 和简历生成面试题目和准备材料 |
-| 出行规划 Agent | 根据面试时间和地点规划出行方案 |
-| 复盘 Agent | 面试后自动生成复盘报告 |
-| 报告汇总 Agent | 合并多个决策报告为综合看板 |
-| Milvus 评估 | 达到触发条件后 Benchmark 驱动迁移决策 |
-| 服务拆分评估 | 达到触发条件后评估 API/Worker/Agent 拆分 |
+| 性能基准与容量目标 | 延迟、吞吐、检索延迟、任务耗时与失败率基线 |
+| 安全供应链 | SBOM、依赖审查（`uv audit`）、secret scan |
+| 部署配置 | 生产部署指南、环境变量清单、备份恢复演练 |
+| 可观测性 | 日志、指标、追踪 |
+| Redis（条件引入） | 仅当热点缓存/限流证据成立时 |
+| Celery/Worker（条件引入） | 仅当长任务、重试与并发需求成立时；任务幂等、取消、重试和死信策略 |
 
 ### 范围边界
 
-- 不实现自动投递、自动发送招聘消息或无人值守浏览器写操作
-- 不保存模型私有 chain-of-thought
-- 不引入多租户、计费或生产级高可用（除非有独立 Architecture Issue）
-- 不将飞书 Base、向量数据库或 Agent State 作为业务事实源
+- 不因"将来可能需要"引入 Kubernetes
+- 不立即拆微服务
+- 不修改既有领域事实所有权
+- 不以缓存命中率替代用户体验指标
 
 ### 验收条件
 
-- [ ] Agent Runtime 可加载运行图、暂停、恢复
-- [ ] Tool 调用经过 Schema 校验和 Approval 审批
-- [ ] 每个 Agent 可通过独立 Demo 验证其输出
-- [ ] Agent 输出明确区分"模型推断"和"规则结果"
-- [ ] 外部写操作完整记录审计日志
+- [ ] 性能和容量目标有可复验基准
+- [ ] 无高危未处置依赖漏洞
+- [ ] 备份恢复演练成功
+- [ ] 部署文档可由新环境执行
+- [ ] Redis/Celery 未达触发条件时可明确不引入并关闭评估
 
 ### 前置依赖
 
-- M4 全部合并
-- Model Gateway 已稳定运行
+- M3 已关闭（含 AI 能力则 M4 已稳定）
+- 已采集性能与可靠性基线
+- Redis/Celery 引入条件通过 Architecture Issue
 
-### 决策待办（需独立 Architecture Issue）
+### 原子交付
 
-- LangGraph Checkpoint 持久化策略
-- Agent 间通信和数据共享边界
-- Browser/Connector Runtime 安全模型
-- Milvus 引入阈值与迁移方案
-- 服务拆分触发条件的具体指标
+原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §13 为准。
+
+---
+
+## M6+：投递闭环与专项 Agent
+
+**目标**：在稳定事实、报告与 Evidence 之上构建投递决定、简历变体、消息草稿、投递记录、面试与出行推荐，以及受控 Agent 工作流。外部写默认关闭。
+
+**截止**：待定（按业务切片启动）
+
+### 推荐业务顺序
+
+0. JobPlatform Port 预留与 Approval 接线（半自动，接 M4.10）；
+1. `ApplicationDecision`：`analyzed → skip|apply` 状态机，skip 沉淀历史相似记录；
+2. `CompanySnapshot` 与受控 JD 输入增强：受控 URL 抓取、截图/OCR、来源许可与时效标签；
+3. `ResumeVariant` 与声明式模板：`CandidateProfile → ResumeVersion → ResumeVariant`，模板不可变版本，不执行任意模板代码；
+4. 确定性 PDF：WeasyPrint 渲染，对象存储 + SHA-256 + 版本元数据；
+5. `MessageDraft`：可编辑纯文本，不自动发送；
+6. `ApplicationRecord` 与面试：`message_drafted → applied → interviewing → offer_received/rejected/withdrawn`；
+7. `InterviewCase`、`InterviewReview` 与出行推荐（`TravelPlan`）；
+8. 结果学习：待确认 `MemoryCandidate`，确认后才影响主档；
+9. 在稳定业务 API 之上评估 Agent Runtime。
+
+### Agent 边界
+
+- Agent 只编排 Application 层用例，不直接访问 ORM、数据库或秘密（权威定义见 [`ARCHITECTURE.md`](ARCHITECTURE.md) §11/§12）；
+- 外部写默认关闭；ProposedAction 必须经用户批准；执行具有幂等键和审计事件；
+- 不保存模型私有思维链；Agent 失败不破坏已有业务事实；
+- 半自动投递：系统生成打招呼语与定制简历，用户在确认后手动或经 Approval 执行，不自动登录平台；
+- 投递决策 / 技术面试准备 / 出行规划 / 复盘 / 报告汇总五类 Agent 是产品能力角色，定义见 [`PRODUCT_VISION.md`](PRODUCT_VISION.md) §4。
+
+### 前置依赖
+
+- M4 全部合并（Evidence 与 Model Gateway 稳定）
+- JobPlatform Port 安全边界通过独立 Architecture Issue
+
+### 原子交付
+
+原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §14 为准。
 
 ---
 
@@ -329,20 +347,18 @@ flowchart LR
     M1 --> M2
     M2 --> M3
     M3 --> M4
-    M3 --> M5p["M5+"]
-    M4 --> M5p
+    M4 --> M5
+    M5 --> M6["M6+"]
 ```
 
-### 时间线
+### 时间线（估算，以 GitHub Milestone 为准）
 
 ```text
-2026-07-23                             2026-08-23
-├──────┬──────┬──────┬──────┬──────┬─────┤
-│  M0  │  M1  │  M2  │  M3  │  M4  │缓冲 │
-│ 5 天 │ 5 天 │ 6 天 │ 8 天 │ 8 天 │ 2天 │
-│工程   │岗位   │RAG   │Demo  │中间件 │     │
-│基础   │切片   │简历   │展示   │生产   │     │
-└──────┴──────┴──────┴──────┴──────┴─────┘
+M2 Demo-ready 数据与前端基础   2026-08-22
+M3 最小确定性决策 Demo         2026-09-12
+M4 Evidence、RAG 与 AI 增强    2026-10-24
+M5 生产准备与异步能力           2026-11-20
+M6+ 投递闭环与专项 Agent        待定（按业务切片）
 ```
 
 ### 不变原则（贯穿所有里程碑）

@@ -8,7 +8,7 @@
 
 > **Nora — Navigate · Observe · Review · Agent**
 >
-> 基于 Agentic RAG 的求职决策智能体
+> 面向软件工程应届生的 Agentic RAG 求职决策智能体
 
 | 字母 | 单词 | 中文 | 产品含义 |
 | :--- | :--- | :--- | :--- |
@@ -21,24 +21,31 @@ N.O.R.A. 是产品叙事，不是代码模块或固定 Agent 数量。领域上�
 
 ## 2. 产品问题
 
-求职决策的信息分散在职位描述、公司公开信息、个人简历、面试邀请、交通天气和历次复盘中。用户通常难以同时判断：
+软件工程应届求职者的信息分散在技术岗位 JD、公司公开信息、个人简历与项目、在线评测（OA）、算法与系统设计题库、面试邀请、交通天气和历次复盘中。用户通常难以同时判断：
 
-- 岗位是否值得投入时间；
-- 简历与岗位的真实差距是什么；
+- 岗位是否值得投入时间，技能缺口是什么；
+- 简历技术栈与岗位 JD 技能项的真实差距；
+- 技术面试（算法、系统设计、CS 基础）该准备什么；
 - 公司信息和风险结论是否有可追溯依据；
 - 面试前应该准备什么、何时出发；
-- 一次面试如何转化为下一次可复用的经验。
+- 一次技术面试如何转化为下一次可复用的经验。
 
 Nora 将这些输入组织为版本化的 **Decision Report**。报告必须说明证据来源、规则结果、模型推断、不确定性和建议动作，
 而不是只给出不可解释的结论。
 
 ## 3. 目标用户旅程
 
-1. 用户录入或导入岗位信息，并选择一份已确认的简历版本。
-2. Nora 建立岗位、公司、简历和来源 Evidence 的版本化快照。
+初版目标用户是**软件工程专业应届生（以校招为主）**，产品围绕校招流程：在线评测（OA）、技术面
+（算法 / 系统设计 / CS 基础）、HR 面与 Offer 决策。社招、管理岗或跨行业求职不是初版重点。
+
+> 操作流程（JD 输入 → 适配分析 → 投不投 → 投递产物 → 面试出行）的权威定义见
+> [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) §2；本章描述产品级用户旅程，不重述操作细节。
+
+1. 用户录入或导入技术岗位信息，并选择一份已确认的简历版本。
+2. Nora 建立岗位、公司、简历和来源 Evidence 的版本化快照，并把 JD 技能项映射到简历技术栈。
 3. 规则与检索先形成可重复的分析基础，模型只能在受控 Evidence Pack 上增强表达和推理。
-4. 用户查看包含“事实、推断、建议、未知项”的 Decision Report，决定是否投递以及如何准备。
-5. 收到面试邀请后，Nora 生成准备清单、练习题和出行方案。
+4. 用户查看包含“事实、推断、建议、未知项”的 Decision Report，决定是否投递以及如何准备技术面试。
+5. 收到面试邀请后，Nora 针对算法题、系统设计题和项目深挖生成准备清单、练习和出行方案。
 6. 面试结束后，用户确认复盘内容；系统更新能力证据和长期记忆候选，供后续决策检索。
 
 自动投递、自动发送招聘消息和无人值守浏览器写操作不属于初版目标。未来任何外部写都必须经过审批、幂等和审计。
@@ -58,7 +65,7 @@ CandidateProfile
                -> InterviewCase -> InterviewReview
 ```
 
-`CandidateProfile` 包含基本信息、项目、经历、教育、技能、求职偏好和确认状态。`ResumeVersion` 是用户确认的简历事实版本，`ResumeVariant` 是针对某个岗位生成的输出版本；二者都不能替代主档。
+`CandidateProfile` 包含基本信息、项目、经历、教育、技能、求职偏好和确认状态；初版优先维护技术栈、项目经历和 GitHub 等 SWE 求职资产。`ResumeVersion` 是用户确认的简历事实版本，`ResumeVariant` 是针对某个岗位生成的输出版本；二者都不能替代主档。
 
 `ApplicationDecision` 至少记录 `undecided`、`apply`、`skip`、决策原因、时间、关联报告版本和使用的简历版本。用户决定不投递时，原因和报告仍可用于后续复盘；用户决定投递时，Nora 只生成简历与打招呼草稿，不自动执行外部投递。
 
@@ -66,13 +73,13 @@ CandidateProfile
 
 ## 4. 产品能力目录
 
-以下五类角色是稳定的产品能力分类，不承诺“一类角色等于一个 LangGraph 节点、进程或服务”。M5+ 实现时可根据
+以下五类角色是稳定的产品能力分类，不承诺“一类角色等于一个 LangGraph 节点、进程或服务”。M6+ 实现时可根据
 调用路径、状态边界和评测结果拆分或组合。
 
 | 能力角色 | 用户触发 | 目标输出 | 关键输入 |
 | :--- | :--- | :--- | :--- |
-| 投递决策 Agent | 录入职位链接、截图或 JD | 公司与岗位洞察、匹配差距、投递建议、简历修改建议 | 岗位快照、公司 Evidence、简历版本 |
-| 面试准备 Agent | 收到面试邀请 | 高概率问题、回答要点、模拟反馈和薄弱点 | JD、简历、题库 Evidence、历史复盘 |
+| 投递决策 Agent | 录入职位链接、截图或 JD | 公司与岗位洞察、JD 技能映射、匹配差距、投递建议、简历修改建议 | 岗位快照、公司 Evidence、简历版本 |
+| 面试准备 Agent | 收到面试邀请 | 算法题与系统设计题、CS 基础问答、模拟反馈和薄弱点 | JD、简历、技术题库 Evidence、历史复盘 |
 | 面试出行 Agent | 确定时间与地点 | 多模式路线、出门时间、天气建议和物品清单 | 地点、时间、交通天气、用户偏好 |
 | 面试复盘 Agent | 面试结束 | 问题与回答复盘、能力证据候选、改进计划 | 用户记录、面试计划、历史能力画像 |
 | 报告与记忆 Agent | 一次分析或复盘完成 | 版本化 Decision Report、引用链和待确认记忆候选 | 各能力结果、Evidence Pack、用户确认 |
@@ -82,7 +89,7 @@ CandidateProfile
 | 能力角色 | 计划能力 | 用户收益 | Evidence / RAG 要求 |
 | :--- | :--- | :--- | :--- |
 | 投递决策 | 公司公开信息与风险摘要、人岗匹配、差距清单、简历 bullet 建议、投递结论 | 判断是否值得投入以及应如何定制简历 | 公司、JD、简历按来源和版本隔离检索；风险与匹配结论必须引用原文，不能把匿名评价直接升级为事实 |
-| 面试准备 | 高概率问题、STAR 回答要点、模拟追问、薄弱点诊断 | 围绕岗位与个人经历定向准备 | 题库按岗位、公司类型和技术栈检索；诊断必须关联具体问题、用户回答和可解释评分依据 |
+| 面试准备 | 算法题、系统设计题、CS 基础问答、模拟反馈与薄弱点诊断 | 围绕岗位与个人技术栈定向准备 | 技术题库按岗位、公司类型和技术栈检索；诊断必须关联具体题目、用户回答和可解释评分依据 |
 | 面试出行 | 公交/地铁/打车对比、出门时间、天气建议、物品清单 | 降低迟到和遗漏材料风险 | 实时交通天气与历史偏好分开标注来源和时效；过期或不可用时明确降级，不伪造实时结果 |
 | 面试复盘 | 问题记录、回答分析、改进范例、能力证据候选 | 将单次面试转化为后续准备材料 | 保留用户原始记录的版本引用；模型总结先作为候选，经确认后再影响长期画像 |
 | 报告与记忆 | 报告汇总、投递状态、历史复盘检索、简历版本演进和风险提醒 | 获得跨岗位、跨面试的连续决策支持 | 报告引用不可变 Evidence Pack；记忆检索按用户、权限、版本和保留策略过滤 |
@@ -115,32 +122,33 @@ CandidateProfile
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
 | **Current** | 已实现并有验证证据 | 仓库治理、Issue/PR 工作流、M0 工程基础、本地账号认证、用户范围 Repository、不可变 JobPosting 创建/读取、幂等和创建审计 |
-| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M2 简历与 RAG、M3 Demo、M4 中间件 |
-| **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | M5+ Agent Runtime、专项 Agent、Milvus、服务拆分和受控连接器 |
+| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M2 数据与前端基础、M3 确定性 Demo、M4 Evidence/RAG/AI 增强、M5 生产准备、M6+ 投递闭环 |
+| **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | M6+ Agent Runtime、专项 Agent、Milvus、服务拆分和受控连接器 |
 
 状态以默认分支、已合并 PR 和 GitHub Issue 为证据。本文中的产品示例不能替代实现、测试或发布证明。
 
 ## 8. 技术与 Provider 边界
 
-- M2 的初期向量能力是 PostgreSQL + pgvector；Milvus/Zilliz 仅为 Benchmark 和规模触发后的演进选项。
-- BGE-M3 是 M2 的候选 Embedding 方向，部署方式、版本和 Reranker 必须在实施前固化并评测。
+- M4 的初期向量能力是 PostgreSQL + pgvector；Milvus/Zilliz 仅为 Benchmark 和规模触发后的演进选项。
+- BGE-M3 是 M4 的候选 Embedding 方向，部署方式、版本和 Reranker 必须在实施前固化并评测。
 - 模型通过 Provider-neutral Model Gateway 访问；DeepSeek、GLM、OpenAI 兼容 Provider 等均为候选配置，不在产品愿景中锁定
   尚未验证的具体版本。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应
   Architecture/Implementation Issue 验收。
-- LangGraph Agent Runtime 属于 M5+，M3 的首个 Demo 使用确定性规则、RAG、经校验的模型增强和版本化报告，不依赖多 Agent。
-- Redis/Celery 在 M4 作为可选中间件引入，不拥有业务事实。
+- LangGraph Agent Runtime 属于 M6+；M3 的首个 Demo 使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。
+- Redis/Celery 在 M5 仅按指标评估，不拥有业务事实。
 
 ## 9. 文档真源
 
 | 主题 | 权威真源 | 允许的摘要 | 同步规则 |
 | :--- | :--- | :--- | :--- |
 | 产品目标、用户旅程、能力目录 | 本文 | `README.md` | 摘要只链接本文件，不复制会演化的完整能力契约 |
+| 已确认业务流程、技术决策基线、缺口分析 | [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) | `PRODUCT_VISION.md`、`USER_EXPERIENCE.md`、里程碑文档 | 操作流程与决策基线以本文为真源，其他文档只链接不重述 |
 | 用户体验场景与交互目标 | [`USER_EXPERIENCE.md`](USER_EXPERIENCE.md) | 产品与前端文档 | 只描述设计目标，不证明功能已交付 |
 | 架构、模块边界、数据所有权、依赖方向 | [`ARCHITECTURE.md`](ARCHITECTURE.md) 与已合并 Architecture Issue | `README.md`、AI 指南 | 边界变更必须先审查 Architecture Issue，摘要不得另立规则 |
 | 前端技术与 HTTP 集成契约 | [`FRONTEND.md`](FRONTEND.md) | 架构与路线图 | 当前/目标目录和 API 必须明确区分，不伪造 Planned 能力 |
 | 里程碑范围与顺序 | [`ROADMAP.md`](ROADMAP.md) 与 GitHub Milestone | `README.md` | 在线 Milestone/Issue 状态优先于静态时间表 |
-| 历史 M0 Issue 映射 | [`M0_PLAN.md`](M0_PLAN.md) 与 GitHub Issue #9–#15 | 路线图 | 保留历史交付路径，不为目标结构改写已发生事实 |
+| 历史 M0 Issue 映射 | GitHub Issue #9–#15 与 M0 [Milestone](https://github.com/dev-cai/Nora/milestone/1) | 路线图 | 保留历史交付路径，不为目标结构改写已发生事实 |
 | 本地环境、配置、迁移和测试命令 | [`DEVELOPMENT.md`](DEVELOPMENT.md) | `README.md`、[`WORKFLOW.md`](WORKFLOW.md) | 命令只有在默认分支文件与容器中可执行后才能标为 Current |
 | Issue 类型、标签、状态和关系 | [`ISSUE_WORKFLOW.md`](ISSUE_WORKFLOW.md) | [`../CONTRIBUTING.md`](../CONTRIBUTING.md)、[`WORKFLOW.md`](WORKFLOW.md)、项目 Skills | 摘要必须与真源一致；自动化校验规则同步修改 |
 | 分支、Commit、验收、PR、CI 和合并步骤 | [`WORKFLOW.md`](WORKFLOW.md) | [`../CONTRIBUTING.md`](../CONTRIBUTING.md)、`AGENTS.md`、项目 Skills | 工作流变更必须同步门禁与自动化，不在多个文件独立设计 |
@@ -153,6 +161,7 @@ CandidateProfile
 
 ## 10. 非目标
 
+- 不以社招、管理岗或跨行业求职为主要场景（初版聚焦软件工程校招应届生）；
 - 用 Agent 数量替代领域边界或把模型输出当作业务事实；
 - 在没有合法来源、许可说明和时效信息时宣称公司风险结论；
 - 保存模型私有 chain-of-thought；

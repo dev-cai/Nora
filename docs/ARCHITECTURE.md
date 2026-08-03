@@ -8,9 +8,9 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59。
+- 决策来源：Architecture Issue #3、#49、#59、#98。
 - 当前代码：M0 工程基础与 M1 纵向切片，包括 Identity、不可变 JobPosting 创建/读取、用户范围持久化、幂等和创建审计。
-- 适用范围：M0 架构基础、M1 首个纵向切片、M2 Agentic RAG 基础和 M3 Web Demo。
+- 适用范围：M0/M1 已交付基础、M2 Demo-ready 数据与前端基础、M3 确定性 Demo，以及 M4–M6+ 增强能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
 文档中的“当前决策”是后续实现必须遵守的边界；“目标能力”需要独立 Issue 验收；“演进选项”只有达到触发条件后
@@ -42,15 +42,15 @@ Nora 是面向求职决策的可审计多智能体平台。系统将公司背景
 
 | 编号 | 决策 | 当前选择 | 交付阶段 | 说明 |
 | :--- | :--- | :--- | :--- | :--- |
-| D-001 | 架构形态 | 模块化单体，按需启用 API/Worker 进程 | M0–M4 | 单仓库、共享领域模型；进程按职责隔离 |
+| D-001 | 架构形态 | 模块化单体，按需启用 API/Worker 进程 | M0–M5 | 单仓库、共享领域模型；进程按职责隔离 |
 | D-002 | 依赖方向 | Apps/Adapters → Application → Domain | M0 起 | 内层不导入 Web、ORM、Agent 或 SDK 类型 |
 | D-003 | 业务事实源 | PostgreSQL | M0 起 | 领域状态、版本、审批、运行和审计均以 PostgreSQL 为准 |
-| D-004 | 初期向量能力 | PostgreSQL + pgvector | M2 | 降低部署成本；索引是可重建派生数据 |
-| D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | M5+ 评估 | 达到规模或检索隔离触发条件后再引入 |
-| D-006 | Agent 编排 | LangGraph Adapter | M5+ | 只管理运行图、暂停和恢复，不拥有领域事实 |
-| D-007 | 模型访问 | Provider-neutral Model Gateway | M2 | Provider 由配置选择，不绑定未验证版本 |
-| D-008 | 异步任务 | Task Queue Port；目标 Adapter 为 Celery + Redis | M4 | 业务状态和最终结果不保存在 Celery Result Backend |
-| D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | M3 | 通过公开 HTTP API 使用系统，不导入 Python 内部模块；实现状态为 Planned |
+| D-004 | 初期向量能力 | PostgreSQL + pgvector | M4 | 降低部署成本；索引是可重建派生数据；M3 不依赖向量能力 |
+| D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | 规模触发后评估 | 达到规模或检索隔离触发条件后再引入 |
+| D-006 | Agent 编排 | LangGraph Adapter | M6+ | 只管理运行图、暂停和恢复，不拥有领域事实 |
+| D-007 | 模型访问 | Provider-neutral Model Gateway | M4 | Provider 由配置选择，不绑定未验证版本；M3 无模型也可完成 |
+| D-008 | 异步任务 | Task Queue Port；候选 Adapter 为 Celery + Redis | M5 条件评估 | 仅在指标成立时引入；最终结果不保存在 Celery Result Backend |
+| D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | M2 | 通过公开 HTTP API 使用系统，不导入 Python 内部模块；实现状态为 Planned |
 | D-010 | 对象存储 | Object Storage Port | 分阶段 | 本地开发可用文件系统；集成/部署可用 MinIO/S3 |
 | D-011 | 工程组织 | 前后端分离；后端业务模块优先、模块内分层 | #59 / 后续 Task | `backend/app` 边界 Current；业务模块内聚渐进迁移 |
 
@@ -202,7 +202,7 @@ stateDiagram-v2
 
 ## 8. 目标进程与运行时边界
 
-下图描述 M4 可选中间件交付后的目标边界。M0–M3 不得因为目标图中出现 Worker、Redis 或 Agent Runtime 就提前引入它们。
+下图描述 M5 按指标引入异步中间件后的目标边界。M0–M4 不得因为目标图中出现 Worker、Redis 或 Agent Runtime 就提前引入它们。
 
 ```mermaid
 flowchart LR
@@ -230,7 +230,7 @@ flowchart LR
 
 ### Agent Runtime
 
-- M5+ 引入后先作为 Worker 内的逻辑模块运行，使用 LangGraph 管理条件边、暂停、恢复和 Checkpoint。
+- M6+ 引入后先作为 Worker 内的逻辑模块运行，使用 LangGraph 管理条件边、暂停、恢复和 Checkpoint。
 - State 只保存业务 ID、输入版本、步骤状态和 Artifact 引用。
 - 不保存数据库 Session、SDK Client、浏览器 Page、密钥或完整敏感文档。
 - 独立扩展或部署只有在 Agent 负载、资源隔离或发布节奏确有需要时进行。
@@ -257,7 +257,7 @@ flowchart LR
 
 ### 向量数据库演进
 
-M1/M2 先使用 pgvector，避免在领域尚未稳定时维护额外分布式组件。满足以下任一条件后，才通过独立 Architecture
+M4 计划先使用 pgvector，避免在领域尚未稳定时维护额外分布式组件。满足以下任一条件后，才通过独立 Architecture
 Issue 评估 Milvus/Zilliz：
 
 - 向量规模、召回延迟或索引构建明显超出 PostgreSQL 目标；
@@ -448,7 +448,7 @@ Nora/
 │   ├── alembic/
 │   ├── pyproject.toml
 │   └── uv.lock
-├── frontend/                          # M3：Vue 3 + Vite（Planned）
+├── frontend/                          # M2：Vue 3 + Vite（Planned）
 │   ├── src/
 │   │   ├── api/
 │   │   ├── components/
@@ -521,27 +521,27 @@ Live 结果。
 
 ## 18. 部署演进
 
-### M1/M2 本地开发边界
+### M1–M3 核心开发与 Demo 边界
 
 ```text
-Client → API → PostgreSQL
-                 ↘ pgvector（M2）
-                 ↘ Model Gateway（M2，显式配置）
+M1: Client      → API → PostgreSQL
+M2: Vue Web     → API → PostgreSQL
+M3: Vue Web     → API → PostgreSQL（确定性报告）
 ```
 
-- M0 的 Docker Compose 可提供 API、PostgreSQL 以及 Redis/MinIO 骨架，但 M1/M2 业务路径不依赖 Redis/Celery。
+- M0 的 Docker Compose 可提供 API、PostgreSQL 以及 Redis/MinIO 骨架，但 M1–M3 业务路径不依赖 Redis/Celery。
 - 只发布 API 端口，数据库和其他基础设施保持内部可见。
-- M2 Model Provider 使用显式配置；无配置时使用 Disabled Adapter 并明确失败。
+- M3 的最小 Demo 不配置 Model Provider，不依赖 pgvector、Embedding、Reranker 或 LLM。
 
-### M3/M4 演示与异步边界
+### M4/M5 AI 增强与异步边界
 
 ```text
-M3: Vue Web → API → PostgreSQL + pgvector → Model Gateway
-M4: Client  → API → Redis/Task Queue → Worker → PostgreSQL / Object Storage / Providers
+M4: Vue Web → API → PostgreSQL + pgvector / Object Storage / Model Gateway（可选增强）
+M5: Client  → API → Redis/Task Queue → Worker → PostgreSQL / Object Storage / Providers（指标触发）
 ```
 
-- M3 的首个 Demo 不依赖 Agent Runtime、Redis 或 Celery。
-- M4 才把长任务迁移到 Worker，并引入 Redis/Celery、重试、任务幂等和生产准备能力。
+- M4 的 AI 增强失败时必须回退到 M3 确定性报告，不覆盖业务事实。
+- M5 只有在长任务、重试、吞吐或故障隔离指标成立时才引入 Redis/Celery；允许评估结论为不引入。
 
 ### 服务拆分触发条件
 
@@ -576,12 +576,12 @@ M4: Client  → API → Redis/Task Queue → Worker → PostgreSQL / Object Stor
 2. **数据库基础。** PostgreSQL Engine、事务、Schema 管理策略和 Repository 测试基线。
 3. **Identity 最小上下文。** 认证主体和用户范围数据隔离。
 4. **岗位快照纵向切片。** 手工导入、幂等、读取和审计。
-5. **Career Profile 与 Evidence。** 简历版本、已确认事实和来源定位。
-6. **Decision Case。** 组合用户画像与岗位快照，先实现确定性规则。
-7. **RAG 基础。** Source、Chunk、BGE-M3、pgvector、Reranker 和 Evidence Pack。
-8. **Agent Runtime。** LangGraph、Run、Checkpoint、Tool Executor 和 Approval。
-9. **专项 Agent。** 背调、匹配、面试、出行、报告和复盘逐个交付。
-10. **Milvus/服务拆分。** 只有 Benchmark 和负载达到触发条件后评估。
+5. **Demo-ready 输入与前端基础。** 补齐岗位契约、CandidateProfile、ResumeVersion、Vue 工程与前端 CI。
+6. **确定性 Decision Demo。** DecisionCase、规则、版本化基础报告、真实页面和 Compose E2E。
+7. **Evidence 与 AI 增强。** Source、Chunk、pgvector、Embedding、检索、Evidence Pack、条件 Reranker 和 Model Gateway。
+8. **生产准备。** 基于指标评估 Redis/Celery，补充性能、安全供应链、恢复和可观测性。
+9. **投递闭环。** ApplicationDecision、ResumeVariant、PDF、MessageDraft、投递与面试记录逐个交付。
+10. **Agent Runtime/服务拆分。** 只有稳定业务边界、Benchmark 和负载达到触发条件后评估。
 
 该顺序是依赖建议，不是批量创建 Issue 的授权。每一步只在前置 PR 合并后创建下一个真实 Issue。
 

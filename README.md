@@ -14,7 +14,7 @@
 <h3 align="center"><strong>N</strong>avigate · <strong>O</strong>bserve · <strong>R</strong>eview · <strong>A</strong>gent</h3>
 
 <p align="center">
-  面向求职决策的可审计多智能体平台。<br>
+  面向软件工程应届求职的可审计多智能体平台。<br>
   Agentic RAG 驱动的求职决策报告系统。
 </p>
 
@@ -71,7 +71,7 @@ LangGraph 等外部框架。完整边界以架构文档为准。
 
 ### 目标进程边界
 
-下图是 M4 引入可选异步中间件后的目标形态，不是当前仓库的运行状态。M0–M3 的逐步交付边界见路线图。
+下图是 M5 按指标引入异步中间件后的目标形态，不是当前仓库的运行状态。M0–M4 的逐步交付边界见路线图。
 
 ```mermaid
 flowchart LR
@@ -111,14 +111,14 @@ flowchart LR
 | 语言 | Python >=3.11 | Current |
 | 包管理 | uv | Current |
 | Web 框架 | FastAPI + Uvicorn（异步） | Current |
-| Web 客户端 | [Vue 3 + Vite](docs/FRONTEND.md) | M3 Planned |
-| 数据库 | PostgreSQL 16；M2 增加 pgvector | PostgreSQL Current / pgvector Planned |
+| Web 客户端 | [Vue 3 + Vite](docs/FRONTEND.md) | M2 Planned |
+| 数据库 | PostgreSQL 16；M4 增加 pgvector | PostgreSQL Current / pgvector M4 Planned |
 | ORM | SQLAlchemy（异步，Repository 模式） | Current |
-| 异步队列 | Celery + Redis | M4 可选中间件 |
+| 异步队列 | Celery + Redis | M5 按指标评估 |
 | 对象存储 | Object Storage Port；MinIO / S3 为 Adapter | MinIO Compose 骨架 Current / 业务 Adapter Planned |
-| Agent 框架 | LangGraph Adapter | M5+ 演进能力 |
-| 模型网关 | Provider-neutral，不锁定未验证模型版本 | M2 计划 |
-| 专用向量库 | Milvus / Zilliz | M5+ Benchmark 驱动评估 |
+| Agent 框架 | LangGraph Adapter | M6+ 演进能力 |
+| 模型网关 | Provider-neutral，不锁定未验证模型版本 | M4 Planned |
+| 专用向量库 | Milvus / Zilliz | 规模触发后评估 |
 | 代码质量 | ruff（lint + format）+ mypy | Current |
 | 测试 | pytest（单元、集成、架构测试） | Current，按里程碑扩展 |
 
@@ -126,25 +126,18 @@ flowchart LR
 
 ## 里程碑路线图
 
-```
-  2026-07-23 ──────────────────────────────────────────────────────── 2026-08-23
-  ├─────────┬─────────┬──────────┬──────────┬──────────┬────────┤
-  │   M0    │   M1    │    M2    │    M3    │    M4    │ 缓冲   │
-  │  5 天   │  5 天   │  6 天    │  8 天    │  8 天    │ 2 天   │
-  │ 工程基础 │ Identity│  简历    │  Demo    │ 中间件   │        │
-  │         │ + 岗位  │ + RAG    │  (Vue)   │ + 安全   │        │
-  └─────────┴─────────┴──────────┴──────────┴──────────┴────────┘
-                         M5+: 专项 Agent（按需启动）
-```
-
 | 里程碑 | 交付物 |
 |--------|--------|
 | **M0** | Python 骨架、配置/日志/异常、FastAPI 工厂、PostgreSQL + Alembic、Docker Compose、CI 门禁 |
 | **M1** | 用户认证（注册/登录/Token）、岗位快照 CRUD（幂等）、审计日志 |
-| **M2** | 简历管理、SourceDocument -> Chunk -> Embedding -> 混合检索 -> Evidence Pack、Model Gateway |
-| **M3** | 确定性规则引擎、LLM 增强分析、版本化 Decision Report、Vue Web 客户端 |
-| **M4** | Redis 缓存、Celery 任务队列、性能基准、安全扫描（SBOM）、部署文档 |
-| **M5+** | LangGraph Agent Runtime、专项 Agent、审批流程、Milvus / 服务拆分评估 |
+| **M2** | Demo-ready 岗位契约、候选人主档、简历版本、Vue Web 客户端与前端 CI |
+| **M3** | 文本 JD 输入、确定性规则引擎、版本化 Decision Report、可运行最小 Demo |
+| **M4** | Evidence、RAG、Embedding、pgvector、条件模型增强与 Model Gateway |
+| **M5** | 基于指标评估异步任务，补齐性能、安全供应链、恢复、可观测性与部署准备 |
+| **M6+** | 投递闭环、简历定制、沟通与面试记录、专项 Agent 和规模化演进 |
+
+详细范围、日期、依赖和退出门禁见 [`docs/ROADMAP.md`](docs/ROADMAP.md) 与
+[`docs/MILESTONE_PLAN_DRAFT.md`](docs/MILESTONE_PLAN_DRAFT.md)。
 
 ---
 
@@ -195,7 +188,7 @@ Identity 与岗位快照 API 的验证命令见 [`docs/DEVELOPMENT.md`](docs/DEV
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | 里程碑详情与验收条件 |
 | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | 领域术语全表 |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Docker 优先开发指南 |
-| [`docs/M0_PLAN.md`](docs/M0_PLAN.md) | M0 工程基础 Issue 拆分 |
+| [`docs/BUSINESS_FLOW.md`](docs/BUSINESS_FLOW.md) | 已确认业务流程、技术决策基线 |
 | [`SECURITY.md`](SECURITY.md) | 安全策略 |
 | [`AGENTS.md`](AGENTS.md) | AI 助手工作入口与强制门禁 |
 | [`CLAUDE.md`](CLAUDE.md) | 兼容入口，指向项目真源 |
