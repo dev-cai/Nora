@@ -246,6 +246,44 @@ curl http://localhost:8000/job-postings/<job_posting_id> \
 岗位、幂等记录和审计事件构成同一事务：任一写入失败时三者均不提交。同一用户和幂等键的并发请求最多创建一条岗位、
 一条幂等记录和一条审计事件；同键不同内容仍返回 `409 idempotency_conflict`，不会追加第二条审计事件。
 
+### 验证 CandidateProfile API
+
+主档接口要求先完成注册并携带登录返回的 Bearer Token。首次 `PUT` 创建版本 1，后续完整提交会追加版本；
+`GET` 默认读取最新版本，也可以通过 `version` 查询历史快照。字段确认状态和 `user_input` 来源由服务端保存。
+
+```bash
+curl -X PUT http://localhost:8000/profile \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "basic_information": {
+      "display_name": {"value": "Alice", "confirmation_status": "confirmed"},
+      "current_location": {"value": "Shanghai", "confirmation_status": "confirmed"}
+    },
+    "preferences": {
+      "target_locations": {"value": ["Shanghai", "Remote"], "confirmation_status": "confirmed"},
+      "accepts_remote": {"value": true, "confirmation_status": "confirmed"},
+      "target_roles": {"value": ["Backend Engineer"], "confirmation_status": "unconfirmed"}
+    },
+    "education": [],
+    "experiences": [],
+    "skills": [{
+      "name": {"value": "Python", "confirmation_status": "confirmed"},
+      "proficiency": {"value": "advanced", "confirmation_status": "unconfirmed"},
+      "years": {"value": 5, "confirmation_status": "confirmed"}
+    }]
+  }'
+
+curl http://localhost:8000/profile \
+  -H 'Authorization: Bearer <access_token>'
+
+curl 'http://localhost:8000/profile?version=1' \
+  -H 'Authorization: Bearer <access_token>'
+```
+
+跨用户访问不会暴露主档存在性，统一返回 `404 entity_not_found`。本 Issue 不包含简历文件解析、
+对象存储或 `ResumeVersion`。
+
 停止服务但保留数据卷：
 
 ```bash
