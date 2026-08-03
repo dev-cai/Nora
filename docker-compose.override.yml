@@ -1,4 +1,12 @@
 services:
+  web:
+    build:
+      target: development
+    environment:
+      VITE_NORA_PROXY_TARGET: http://api:8000
+    volumes:
+      - ./frontend:/workspace/frontend
+      - web_node_modules:/workspace/frontend/node_modules
   api:
     build:
       target: development
@@ -57,3 +65,6 @@ services:
       interval: 2s
       timeout: 5s
       retries: 15
+
+volumes:
+  web_node_modules:
