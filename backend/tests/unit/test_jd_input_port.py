@@ -119,6 +119,19 @@ def test_url_contract_rejects_local_and_private_targets(url: str) -> None:
     assert_error_code(error, JdInputErrorCode.UNSAFE_URL)
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://ｌｏｃａｌｈｏｓｔ/admin",
+        "http://１２７。０。０。１/admin",
+    ],
+)
+def test_url_contract_rechecks_hosts_after_idna_normalization(url: str) -> None:
+    with pytest.raises(JdInputError) as error:
+        JdUrlInput(url)
+    assert_error_code(error, JdInputErrorCode.UNSAFE_URL)
+
+
 def test_url_contract_normalizes_public_url_without_losing_query() -> None:
     request = JdUrlInput(" HTTPS://Jobs.Example.COM:443/roles/1?from=nora ")
     assert request.url == "https://jobs.example.com/roles/1?from=nora"
@@ -166,6 +179,18 @@ def test_fetch_policy_can_be_tightened_but_not_weakened(policy: dict[str, object
     assert tightened.max_response_bytes == 1024
 
 
+def test_fetch_policy_copies_a_mutable_scheme_collection() -> None:
+    schemes = {"https"}
+    policy = JdUrlFetchPolicy(allowed_schemes=schemes)  # type: ignore[arg-type]
+
+    schemes.add("file")
+
+    assert policy.allowed_schemes == frozenset({"https"})
+    with pytest.raises(JdInputError) as error:
+        JdUrlInput("file://public.example/path", policy=policy)
+    assert_error_code(error, JdInputErrorCode.INVALID_URL)
+
+
 def test_result_requires_text_and_url_provenance() -> None:
     with pytest.raises(JdInputError) as empty:
         JdInputResult(jd_text="  ", kind=JdInputKind.IMAGE)
@@ -174,6 +199,22 @@ def test_result_requires_text_and_url_provenance() -> None:
     with pytest.raises(JdInputError) as source:
         JdInputResult(jd_text="Role", kind=JdInputKind.URL)
     assert_error_code(source, JdInputErrorCode.INVALID_URL)
+
+    with pytest.raises(JdInputError) as string_url:
+        JdInputResult(jd_text="Role", kind="url")  # type: ignore[arg-type]
+    assert_error_code(string_url, JdInputErrorCode.INVALID_URL)
+
+    with pytest.raises(JdInputError) as string_image:
+        JdInputResult(
+            jd_text="Role",
+            kind="image",  # type: ignore[arg-type]
+            source_url="https://jobs.example.com/role",
+        )
+    assert_error_code(string_image, JdInputErrorCode.INVALID_URL)
+
+    with pytest.raises(JdInputError) as invalid_kind:
+        JdInputResult(jd_text="Role", kind="document")  # type: ignore[arg-type]
+    assert_error_code(invalid_kind, JdInputErrorCode.INVALID_INPUT_KIND)
 
     url_result = JdInputResult(
         jd_text="Role",

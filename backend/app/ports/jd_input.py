@@ -40,6 +40,7 @@ class JdInputErrorCode(StrEnum):
     OCR_FAILED = "ocr_failed"
     EMPTY_CONTENT = "empty_content"
     CONTENT_TOO_LARGE = "content_too_large"
+    INVALID_INPUT_KIND = "invalid_input_kind"
 
 
 class JdInputError(NoraError):
@@ -84,7 +85,9 @@ class JdUrlFetchPolicy:
     read_timeout_seconds: float = 10.0
 
     def __post_init__(self) -> None:
-        if not self.allowed_schemes or not self.allowed_schemes <= {"http", "https"}:
+        allowed_schemes = frozenset(self.allowed_schemes)
+        object.__setattr__(self, "allowed_schemes", allowed_schemes)
+        if not allowed_schemes or not allowed_schemes <= {"http", "https"}:
             raise ValueError("allowed_schemes can only contain http and https")
         if not 0 <= self.max_redirects <= 3:
             raise ValueError("max_redirects must be between 0 and 3")
@@ -150,6 +153,14 @@ class JdInputResult:
     source_url: str | None = None
 
     def __post_init__(self) -> None:
+        try:
+            kind = JdInputKind(self.kind)
+        except ValueError as exc:
+            raise JdInputError(
+                "JD input result kind is invalid",
+                JdInputErrorCode.INVALID_INPUT_KIND,
+            ) from exc
+        object.__setattr__(self, "kind", kind)
         normalized = "\n".join(line.rstrip() for line in self.jd_text.strip().splitlines())
         if not normalized:
             raise JdInputError("JD input produced no text", JdInputErrorCode.EMPTY_CONTENT)
@@ -158,14 +169,14 @@ class JdInputResult:
                 "JD input produced too much text",
                 JdInputErrorCode.CONTENT_TOO_LARGE,
             )
-        if self.kind is JdInputKind.URL:
+        if kind is JdInputKind.URL:
             if not self.source_url:
                 raise JdInputError(
                     "URL input result must retain its source URL",
                     JdInputErrorCode.INVALID_URL,
                 )
             object.__setattr__(self, "source_url", JdUrlInput(self.source_url).url)
-        if self.kind is JdInputKind.IMAGE and self.source_url is not None:
+        if kind is JdInputKind.IMAGE and self.source_url is not None:
             raise JdInputError(
                 "Image input result cannot declare a source URL",
                 JdInputErrorCode.INVALID_URL,
@@ -216,6 +227,13 @@ def _validated_url(value: str, policy: JdUrlFetchPolicy) -> str:
     except ValueError:
         literal_address = None
     hostname = literal_address.compressed if literal_address else _validated_hostname(raw_hostname)
+    if literal_address is None:
+        try:
+            literal_address = ip_address(hostname)
+        except ValueError:
+            literal_address = None
+        else:
+            hostname = literal_address.compressed
     if literal_address is not None and not literal_address.is_global:
         raise JdInputError(
             "JD URL cannot target a non-public address",
@@ -229,12 +247,12 @@ def _validated_url(value: str, policy: JdUrlFetchPolicy) -> str:
 
 def _validated_hostname(hostname: str) -> str:
     normalized = hostname.rstrip(".").lower()
-    if normalized == "localhost" or normalized.endswith(_FORBIDDEN_HOST_SUFFIXES):
-        raise JdInputError("JD URL host is not public", JdInputErrorCode.UNSAFE_URL)
     try:
         ascii_hostname = normalized.encode("idna").decode("ascii")
     except UnicodeError as exc:
         raise JdInputError("JD URL host is malformed", JdInputErrorCode.INVALID_URL) from exc
+    if ascii_hostname == "localhost" or ascii_hostname.endswith(_FORBIDDEN_HOST_SUFFIXES):
+        raise JdInputError("JD URL host is not public", JdInputErrorCode.UNSAFE_URL)
     if len(ascii_hostname) > 253 or any(
         not fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label)
         for label in ascii_hostname.split(".")

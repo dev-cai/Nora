@@ -44,6 +44,7 @@ M2 只定义 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OC
 | `ocr_failed` | OCR Provider 明确失败 |
 | `empty_content` | OCR/抓取未产生可用文本 |
 | `content_too_large` | 提取文本超过岗位正文上限 |
+| `invalid_input_kind` | Adapter 返回了契约以外的输入类型 |
 
 ## M3.7 审查与测试要求
 
