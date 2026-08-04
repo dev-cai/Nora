@@ -73,12 +73,12 @@ M1 可以作为后端纵向切片保留，但从 M2 开始，“纵向切片”�
 | 岗位快照 | 部分满足 Demo | 可创建/按 ID 读取，但公开 DTO 只返回 ID、摘要和时间 |
 | 用户隔离 | 已完成 | Repository 和 API 集成测试覆盖 |
 | 幂等与审计 | 已完成 | 岗位创建幂等、审计事务和不可变保护 |
-| CandidateProfile | 未实现 | 当前开放 Issue 只部分描述 ResumeVersion |
-| ResumeVersion API | 未实现 | 无创建、列表和读取入口 |
+| CandidateProfile | 已完成 | Web 主档页面可读取、编辑并保存版本 |
+| ResumeVersion API | 已完成 | Web 可从已确认主档发布、列表和读取不可变版本 |
 | DecisionCase | 未实现 | 当前 Issue 依赖范围过大且输入契约不完整 |
 | Versioned DecisionReport | 未实现 | 当前与 LLM 增强绑定，不利于无模型 Demo |
-| Vue 前端 | 未实现 | 无 `frontend/`、`package.json`、Vite 或 Vue 文件 |
-| 前端 CI | 未实现 | 当前 Issue 被完整前端实现阻塞 |
+| Vue 前端 | 已完成 | Vue 3/Vite 工作台支持认证、岗位、主档和简历页面 |
+| 前端 CI | 已完成 | PR 门禁执行 lint、typecheck、Vitest 与 production build |
 | pgvector | 未实现 | Compose 使用普通 `postgres:16-alpine`，不能视为已预留可用 |
 | RAG/Model Gateway/LLM | 未实现 | 应从 M3 硬依赖链中移除 |
 | JD 截图（OCR）输入 | 未实现 | 目前只有 `jd_text` 文本字段，无图像解析 |
@@ -92,7 +92,7 @@ M1 可以作为后端纵向切片保留，但从 M2 开始，“纵向切片”�
 |---|---|---|---|---|
 | M0 | 工程基础与质量门禁 | 已完成 | API 和数据库可运行 | 是，已满足 |
 | M1 | 认证与岗位快照后端切片 | 已完成 | 后端可认证并保存 JD | 是，已满足 |
-| M2 | Demo-ready 数据与前端基础 | 待实施 | 用户可在 Web 注册、登录、录入岗位与画像 | 是 |
+| M2 | Demo-ready 数据与前端基础 | 已完成 | 用户可在 Web 注册、登录、录入岗位与画像，并管理简历 | 是，已满足 |
 | M3 | 最小确定性决策 Demo | 待实施 | 用户可完成录入、分析、查看报告全过程 | 最终目标 |
 | M4 | Evidence、RAG 与 AI 增强 | 待实施 | 报告获得来源检索和可选模型增强 | 否 |
 | M5 | 生产准备与异步能力 | 待实施 | 性能、安全、可运维能力达到部署要求 | 否 |
@@ -382,17 +382,17 @@ Vue 工程基础与前端 CI 可以在 CandidateProfile 后端实现之前开始
 
 ### 10.6 M2 退出条件
 
-- [ ] `frontend/` 可锁文件安装、测试和生产构建；
-- [ ] 前端 CI 已进入 PR 门禁；
-- [ ] Web 可通过真实 API 注册、登录和读取当前用户；
-- [ ] Web 可创建、列表和读取用户自己的岗位；
-- [ ] Web 可维护 CandidateProfile；
-- [ ] Web 可发布、列表和读取 ResumeVersion；
-- [ ] 用户 A 无法访问用户 B 的岗位、画像和简历；
-- [ ] `docker compose up --build` 可访问 Web 与 API；
-- [ ] M2 主流程具有至少一个前后端集成验证；
-- [ ] JD 输入 Port（文本/截图/链接）契约已定义并通过契约测试；
-- [ ] 未引入 RAG、模型或外部 Provider 硬依赖。
+- [x] `frontend/` 可锁文件安装、测试和生产构建；
+- [x] 前端 CI 已进入 PR 门禁；
+- [x] Web 可通过真实 API 注册、登录和读取当前用户；
+- [x] Web 可创建、列表和读取用户自己的岗位；
+- [x] Web 可维护 CandidateProfile；
+- [x] Web 可发布、列表和读取 ResumeVersion；
+- [x] 用户 A 无法访问用户 B 的岗位、画像和简历；
+- [x] `docker compose up --build` 可访问 Web 与 API；
+- [x] M2 主流程具有 `node scripts/web-api-smoke.mjs` 前后端集成验证；
+- [x] JD 输入 Port（文本/截图/链接）契约已定义并通过契约测试；
+- [x] 未引入 RAG、模型或外部 Provider 硬依赖。
 
 ### 10.7 M2 风险
 

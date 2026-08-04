@@ -41,7 +41,7 @@ onMounted(async () => {
         <span class="metric-icon orange"><CircleDashed :size="18" /></span><span class="metric-label">分析报告</span><strong>—</strong><small>将在 M3 开放</small>
       </article>
       <article class="metric">
-        <span class="metric-icon blue"><Sparkles :size="18" /></span><span class="metric-label">主档与简历</span><strong>准备中</strong><small>下一阶段开放</small>
+        <span class="metric-icon blue"><Sparkles :size="18" /></span><span class="metric-label">主档与简历</span><strong>可管理</strong><small>维护你的求职资产</small>
       </article>
     </section>
     <section class="content-section">
@@ -90,7 +90,25 @@ onMounted(async () => {
       </div>
     </section>
     <section class="locked-band">
-      <LockKeyhole :size="18" /><div><strong>更多求职资产即将开放</strong><p>主档、简历版本和确定性分析会在后续里程碑接入当前工作台。</p></div>
+      <LockKeyhole :size="18" />
+      <div>
+        <strong>管理你的求职资产</strong>
+        <p>主档与简历版本已经可用，确定性分析将在 M3 开放。</p>
+        <div class="asset-links">
+          <RouterLink
+            class="inline-link"
+            to="/profile"
+          >
+            编辑主档 <ArrowUpRight :size="15" />
+          </RouterLink>
+          <RouterLink
+            class="inline-link"
+            to="/resumes"
+          >
+            查看简历版本 <ArrowUpRight :size="15" />
+          </RouterLink>
+        </div>
+      </div>
     </section>
   </AppShell>
 </template>

@@ -23,3 +23,4 @@ setUnauthorizedHandler(() => {
 app.use(pinia)
 app.use(router)
 app.mount("#app")
+void auth.restoreSession()
