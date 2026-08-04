@@ -6,16 +6,19 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
-  LockKeyhole,
   Plus,
   UserRound,
 } from "lucide-vue-next"
 
 import { useAuthStore } from "@/stores/auth"
 import { useJobsStore } from "@/stores/jobs"
+import { useProfileStore } from "@/stores/profile"
+import { useResumesStore } from "@/stores/resumes"
 
 const auth = useAuthStore()
 const jobs = useJobsStore()
+const profile = useProfileStore()
+const resumes = useResumesStore()
 const route = useRoute()
 const router = useRouter()
 const initials = computed(() => auth.user?.username.slice(0, 2).toUpperCase() || "N")
@@ -23,6 +26,8 @@ const initials = computed(() => auth.user?.username.slice(0, 2).toUpperCase() ||
 function logout(): void {
   auth.logout()
   jobs.reset()
+  profile.reset()
+  resumes.reset()
   void router.push({ name: "login" })
 }
 </script>
@@ -71,28 +76,22 @@ function logout(): void {
           <span>录入岗位</span>
         </RouterLink>
         <span class="nav-divider">工作资产</span>
-        <span
-          class="nav-item disabled"
-          title="M2.6 开放"
+        <RouterLink
+          class="nav-item"
+          :class="{ active: route.name === 'profile' }"
+          to="/profile"
         >
           <UserRound :size="18" />
           <span>我的主档</span>
-          <LockKeyhole
-            class="nav-lock"
-            :size="14"
-          />
-        </span>
-        <span
-          class="nav-item disabled"
-          title="M2.6 开放"
+        </RouterLink>
+        <RouterLink
+          class="nav-item"
+          :class="{ active: route.name === 'resumes' || route.name === 'resume-new' || route.name === 'resume-detail' }"
+          to="/resumes"
         >
           <FileText :size="18" />
           <span>简历版本</span>
-          <LockKeyhole
-            class="nav-lock"
-            :size="14"
-          />
-        </span>
+        </RouterLink>
       </nav>
 
       <div class="sidebar-footer">

@@ -43,3 +43,100 @@ export interface ApiProblem {
   message?: string
   detail?: unknown
 }
+
+export type ConfirmationStatus = "unconfirmed" | "confirmed" | "rejected" | "superseded"
+
+export interface ProfileFact<T> {
+  value: T
+  confirmation_status: ConfirmationStatus
+  source_type: "user_input"
+  updated_at: string
+}
+
+export interface ProfileFactInput<T> {
+  value: T
+  confirmation_status: ConfirmationStatus
+}
+
+export interface EducationInput {
+  id: string
+  school: ProfileFactInput<string>
+  degree: ProfileFactInput<string>
+  major: ProfileFactInput<string>
+  start_date: ProfileFactInput<string | null>
+  end_date: ProfileFactInput<string | null>
+}
+
+export interface ExperienceInput {
+  id: string
+  company: ProfileFactInput<string>
+  job_title: ProfileFactInput<string>
+  start_date: ProfileFactInput<string | null>
+  end_date: ProfileFactInput<string | null>
+  responsibilities: ProfileFactInput<string[]>
+  achievements: ProfileFactInput<string[]>
+}
+
+export interface SkillInput {
+  id: string
+  name: ProfileFactInput<string>
+  proficiency: ProfileFactInput<string | null>
+  years: ProfileFactInput<number | null>
+}
+
+export interface CandidateProfileInput {
+  basic_information: {
+    display_name: ProfileFactInput<string>
+    current_location: ProfileFactInput<string>
+  }
+  preferences: {
+    target_locations: ProfileFactInput<string[]>
+    accepts_remote: ProfileFactInput<boolean>
+    target_roles: ProfileFactInput<string[]>
+  }
+  education: EducationInput[]
+  experiences: ExperienceInput[]
+  skills: SkillInput[]
+}
+
+export type CandidateProfileContent = {
+  basic_information: {
+    display_name: ProfileFact<string>
+    current_location: ProfileFact<string>
+  }
+  preferences: {
+    target_locations: ProfileFact<string[]>
+    accepts_remote: ProfileFact<boolean>
+    target_roles: ProfileFact<string[]>
+  }
+  education: Array<{ id: string } & { [K in Exclude<keyof EducationInput, "id">]: ProfileFact<EducationInput[K]["value"]> }>
+  experiences: Array<{ id: string } & { [K in Exclude<keyof ExperienceInput, "id">]: ProfileFact<ExperienceInput[K]["value"]> }>
+  skills: Array<{ id: string } & { [K in Exclude<keyof SkillInput, "id">]: ProfileFact<SkillInput[K]["value"]> }>
+}
+
+export interface CandidateProfile {
+  id: string
+  owner_id: string
+  version: number
+  content: CandidateProfileContent
+  created_at: string
+  updated_at: string
+}
+
+export interface ResumeVersion {
+  id: string
+  owner_id: string
+  version: number
+  candidate_profile_id: string
+  profile_version: number
+  title: string
+  content: Record<string, unknown>
+  published_at: string
+}
+
+export interface ResumeVersionList {
+  items: ResumeVersion[]
+  page: number
+  page_size: number
+  total: number
+}
