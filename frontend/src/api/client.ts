@@ -14,6 +14,7 @@ import type {
 const apiBaseUrl = (import.meta.env.VITE_NORA_API_BASE_URL || "/api").replace(/\/$/, "")
 let accessToken: string | null = null
 let unauthorizedHandler: (() => void) | null = null
+export const API_REQUEST_TIMEOUT_MS = 10_000
 
 const fallbackMessages: Record<number, string> = {
   401: "登录状态已失效，请重新登录",
@@ -30,6 +31,7 @@ const errorCodeMessages: Record<string, string> = {
   idempotency_conflict: "本次请求与已有操作冲突",
   entity_not_found: "对象不存在或无权访问",
   database_unavailable: "服务暂时不可用，请稍后重试",
+  network_timeout: "请求超时，请检查网络后重试",
 }
 
 export class ApiError extends Error {
@@ -64,11 +66,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body !== undefined) headers.set("Content-Type", "application/json")
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`)
 
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS)
+  const abortCaller = () => controller.abort()
+  init.signal?.addEventListener("abort", abortCaller, { once: true })
   let response: Response
   try {
-    response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers })
+    response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers, signal: controller.signal })
   } catch {
+    if (controller.signal.aborted && !init.signal?.aborted) {
+      throw new ApiError("请求超时，请检查网络后重试", 0, "network_timeout")
+    }
     throw new ApiError("无法连接 Nora 服务，请检查网络后重试")
+  } finally {
+    window.clearTimeout(timeout)
+    init.signal?.removeEventListener("abort", abortCaller)
   }
 
   const requestId = response.headers.get("X-Request-ID")

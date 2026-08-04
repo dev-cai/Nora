@@ -139,13 +139,14 @@
 
 ### 验收条件
 
-- [ ] Web 可注册、登录并读取当前用户
-- [ ] Web 可创建、列表和读取用户自己的岗位
-- [ ] Web 可维护 CandidateProfile 并发布 ResumeVersion
-- [ ] 用户 A 无法访问用户 B 的岗位、画像和简历
-- [ ] `docker compose up --build` 可访问 Web 与 API
-- [ ] JD 输入 Port（文本/截图/链接）契约已定义并通过契约测试
-- [ ] 未引入 RAG、模型或外部 Provider 硬依赖
+- [x] Web 可注册、登录并读取当前用户
+- [x] Web 可创建、列表和读取用户自己的岗位
+- [x] Web 可维护 CandidateProfile 并发布 ResumeVersion
+- [x] 用户 A 无法访问用户 B 的岗位、画像和简历
+- [x] `docker compose up --build` 可访问 Web 与 API
+- [x] M2 主流程包含 `node scripts/web-api-smoke.mjs` 前后端集成冒烟
+- [x] JD 输入 Port（文本/截图/链接）契约已定义并通过契约测试
+- [x] 未引入 RAG、模型或外部 Provider 硬依赖
 
 ### 前置依赖
 

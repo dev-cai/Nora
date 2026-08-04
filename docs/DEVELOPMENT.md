@@ -349,7 +349,7 @@ npm run test
 npm run build
 ```
 
-登录 Token 只保存在页面运行时内存中；刷新页面后需要重新登录。前端只通过公开 HTTP API 访问 Nora，
+登录 Token 与当前用户只在标签页级 `sessionStorage` 中受控保存；刷新后通过 `/auth/me` 校验恢复，登出、`401` 或校验失败会彻底清除。前端只通过公开 HTTP API 访问 Nora，
 不得连接数据库、导入后端模块或读取后端内部文件。
 
 查看服务日志：

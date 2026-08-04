@@ -13,7 +13,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "lint": "eslint .",
     "typecheck": "vue-tsc -b --pretty false",
-    "test": "vitest run"
+    "test": "vitest run",
+    "integration:smoke": "node ../scripts/web-api-smoke.mjs"
   },
   "dependencies": {
     "lucide-vue-next": "^0.468.0",

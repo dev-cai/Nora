@@ -74,7 +74,8 @@ flowchart LR
 ## 5. 认证与安全
 
 - 当前认证契约是 `Authorization: Bearer <access_token>`。
-- M3 默认只在运行时内存中保存 Token；页面刷新后允许用户重新登录，不把 Token 写入日志、URL 或构建产物。
+- Token 与当前用户仅在标签页级 `sessionStorage` 中受控保存，使刷新可恢复登录态；关闭标签页后会话消失，不扩展为跨标签页或浏览器重启的长期会话。
+- 登出、`401` 或恢复校验失败时同时清除内存与 `sessionStorage`；Token 不写入日志、URL、`localStorage` 或构建产物。
 - 收到 `401` 时清除前端会话并返回登录状态；`403` 不得被解释为未登录。
 - 改用 HttpOnly Cookie、刷新令牌或持久会话需要独立的 Identity/Security Issue，不由前端单方面实现。
 - 当前开发 CORS 配置不是生产安全承诺；生产来源白名单由部署与安全 Issue 明确。
@@ -169,7 +170,7 @@ Vue 前端实现 Issue 负责：
 - 功能：注册（用户名/邮箱 + 密码 + 确认密码）、登录、登出。
 - 表单校验：非空、邮箱格式、密码强度、两次密码一致。
 - API：`POST /auth/register`、`POST /auth/login`、`GET /auth/me`。
-- Token：运行时内存保存，刷新后重新登录（见 §5）。
+- Token：标签页级 `sessionStorage` 受控保存，刷新后通过 `/auth/me` 校验恢复（见 §5）。
 - 错误：`401` 页内提示；`409`（已注册）明确提示。
 
 ### 10.2 主档编辑 `/profile`（M2，M2.2）

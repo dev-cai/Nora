@@ -1,4 +1,4 @@
-import { ApiError, api, setAccessToken, setUnauthorizedHandler } from "@/api/client"
+import { API_REQUEST_TIMEOUT_MS, ApiError, api, setAccessToken, setUnauthorizedHandler } from "@/api/client"
 
 function response(body: unknown, status = 200, requestId = "request-123"): Response {
   return new Response(JSON.stringify(body), {
@@ -13,7 +13,7 @@ describe("API client", () => {
     setUnauthorizedHandler(null)
   })
 
-  it("injects the bearer token without persisting it", async () => {
+  it("injects the bearer token", async () => {
     setAccessToken("secret-token")
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response({ id: "1" }))
 
@@ -21,8 +21,17 @@ describe("API client", () => {
 
     const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
     expect(headers.get("Authorization")).toBe("Bearer secret-token")
-    expect(localStorage.length).toBe(0)
-    expect(sessionStorage.length).toBe(0)
+  })
+
+  it("maps an aborted request caused by the timeout to a stable error", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true })
+    }))
+    vi.useFakeTimers()
+    const pending = api.me().catch((reason: unknown) => reason)
+    await vi.advanceTimersByTimeAsync(API_REQUEST_TIMEOUT_MS)
+    await expect(pending).resolves.toMatchObject({ errorCode: "network_timeout" })
+    vi.useRealTimers()
   })
 
   it("captures request IDs and maps stable API errors", async () => {
