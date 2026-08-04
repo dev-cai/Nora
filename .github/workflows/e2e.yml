@@ -38,6 +38,26 @@ jobs:
             echo "Frontend changes detected; running the browser E2E gate."
           fi
 
+      # 先安装依赖与浏览器：在干净 checkout 上以 runner 用户创建 node_modules，
+      # 避免 compose override 的 bind mount 容器以 root 改写工作区后 npm ci 报 EACCES。
+      - name: Set up Node.js
+        if: steps.changes.outputs.frontend == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+        # 不使用 npm cache：与 frontend-ci.yml 同 PR 并发会共享同一 cache key，
+        # 出现 EACCES / 半损坏缓存；E2E 门禁宁可慢一点也要稳定。
+
+      - name: Install locked dependencies
+        if: steps.changes.outputs.frontend == 'true'
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browser
+        if: steps.changes.outputs.frontend == 'true'
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
       - name: Start compose stack
         if: steps.changes.outputs.frontend == 'true'
         run: |
@@ -61,24 +81,6 @@ jobs:
           echo "Services did not become ready in time." >&2
           docker compose ps
           exit 1
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.frontend == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: frontend/.nvmrc
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install locked dependencies
-        if: steps.changes.outputs.frontend == 'true'
-        working-directory: frontend
-        run: npm ci
-
-      - name: Install Playwright browser
-        if: steps.changes.outputs.frontend == 'true'
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
 
       - name: Run browser E2E
         if: steps.changes.outputs.frontend == 'true'
