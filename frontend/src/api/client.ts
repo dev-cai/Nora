@@ -1,8 +1,12 @@
 import type {
   ApiProblem,
+  CandidateProfile,
+  CandidateProfileInput,
   CreateJobPostingInput,
   JobPosting,
   JobPostingList,
+  ResumeVersion,
+  ResumeVersionList,
   TokenResponse,
   User,
 } from "./types"
@@ -105,5 +109,17 @@ export const api = {
       method: "POST",
       headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(input),
+    }),
+  getProfile: (version?: number) =>
+    request<CandidateProfile>(`/profile${version ? `?version=${version}` : ""}`),
+  saveProfile: (input: CandidateProfileInput) =>
+    request<CandidateProfile>("/profile", { method: "PUT", body: JSON.stringify(input) }),
+  listResumes: (page = 1, pageSize = 20) =>
+    request<ResumeVersionList>(`/resumes?page=${page}&page_size=${pageSize}`),
+  getResume: (id: string) => request<ResumeVersion>(`/resumes/${encodeURIComponent(id)}`),
+  publishResume: (title: string, profileVersion: number) =>
+    request<ResumeVersion>("/resumes", {
+      method: "POST",
+      body: JSON.stringify({ title, profile_version: profileVersion }),
     }),
 }

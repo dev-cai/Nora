@@ -49,4 +49,22 @@ describe("API client", () => {
 
     await expect(api.me()).rejects.toMatchObject({ status: 0, errorCode: "network_error" })
   })
+
+  it("uses the profile and resume resource contracts", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({})))
+
+    await api.getProfile()
+    await api.saveProfile({} as never)
+    await api.listResumes()
+    await api.getResume("resume-1")
+    await api.publishResume("Backend", 2)
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
+      ["/api/profile", "GET"],
+      ["/api/profile", "PUT"],
+      ["/api/resumes?page=1&page_size=20", "GET"],
+      ["/api/resumes/resume-1", "GET"],
+      ["/api/resumes", "POST"],
+    ])
+  })
 })
