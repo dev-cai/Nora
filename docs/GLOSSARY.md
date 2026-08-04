@@ -154,7 +154,8 @@ Nora 所有变更的驱动单元。共 5 种类型：
 ### 门禁（Gate）
 流程中的强制检查点，未通过则禁止进入下一步。Nora 定义了两道核心门禁：
 
-**人工验收门禁**：本地实现完成后，必须向用户提交验收清单，**用户明确授权后**才能推送。授权只对当前待验收版本有效，后续修改使授权自动失效。
+**自动审核门禁**：本地验证完成后自动推送并创建 PR，随后由 Codex 自动审核（`.codex/skills/nora-pr-review`）发布结论。
+结论只有「通过 / 不通过」：通过 = APPROVE；不通过 = REQUEST_CHANGES + 修改建议；合并前必须通过自动审核。
 
 ### Milestone（里程碑）
 一组 Issue 的集合，代表一个可交付的阶段。Architecture、Epic 和 Implementation 必须归入 Milestone。Nora 的里程碑规划：M0 → M1 → M2 → M3 → M4 → M5+。
@@ -164,8 +165,7 @@ Issue 的生命周期状态，记录在 Issue 正文中（不使用 `status:*` �
 - `ready` — 可开始实施
 - `blocked` — 等待前置依赖
 - `in-progress` — 已创建分支，正在实施
-- `acceptance` — 本地待验收版本完成，等待用户确认
-- `review` — 已推送并创建 PR，等待 CI 和审查
+- `review` — 已推送并创建 PR，等待 CI 和自动审核
 
 ### nora/ 分支
 所有工作分支统一前缀。格式：`nora/<type>-<subject>`，如 `nora/feat-job-posting-api`。禁止使用 `codex/`、`agent/`、`roadmap`、`phase` 等前缀。

@@ -480,6 +480,37 @@ git config core.hooksPath .githooks
 
 检查失败时 Git 会中止 Commit。修复问题后重新提交；不要使用 `--no-verify` 绕过项目门禁。
 
+### Codex 自动审核（宿主工具）
+
+PR 的 Codex 自动审核（`.codex/skills/nora-pr-review`）是本仓库唯一的**宿主侧 Python 例外**：它需要访问本地浏览器中已登录的
+ChatGPT 会话，无法在 Docker 容器内运行。浏览器 profile、Cookie 与审核 prompt 只保存在宿主临时目录，不进入仓库工作树。
+
+一次性安装：
+
+```bash
+python -m venv "$HOME/.nora-review/venv"
+"$HOME/.nora-review/venv/Scripts/pip" install -r .codex/skills/nora-pr-review/scripts/requirements.txt
+"$HOME/.nora-review/venv/Scripts/python" -m playwright install chromium
+```
+
+初始化登录会话（专用 profile，只执行一次）：
+
+```bash
+"$HOME/.nora-review/venv/Scripts/python" .codex/skills/nora-pr-review/scripts/nora_review.py --login \
+  --profile-dir "$HOME/.nora-review/chatgpt-profile"
+```
+
+运行自动审核：
+
+```bash
+export NORA_CHATGPT_PROFILE="$HOME/.nora-review/chatgpt-profile"
+"$HOME/.nora-review/venv/Scripts/python" .codex/skills/nora-pr-review/scripts/nora_review.py --pr <PR 编号>
+```
+
+降级与调试开关：`--dry-run`（只收集上下文与生成 prompt，不访问 ChatGPT、不发布）、`--no-post`（走完 ChatGPT 但解析后
+不发布 Review）、`--manual`（生成 prompt 等人工粘贴回复，选择器失效时使用）、`--headed`/`--headless`、`--force`
+（覆盖已存在同作者 Review）。
+
 ## 依赖管理
 
 运行时依赖和开发依赖均通过 development 容器内的 uv 管理：

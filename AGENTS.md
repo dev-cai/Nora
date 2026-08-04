@@ -4,6 +4,7 @@
 
 - `.codex/skills/nora-create-issue/SKILL.md`（创建、拆分、标记或规划 Issue 时）
 - `.codex/skills/nora-issue-pr-workflow/SKILL.md`
+- `.codex/skills/nora-pr-review/SKILL.md`（触发或处理 PR 自动审核时）
 - `CONTRIBUTING.md`
 - `docs/ISSUE_WORKFLOW.md`
 
@@ -12,5 +13,5 @@
 Issue 标题使用自然中文，可选择性添加 `M<n>` 或 `M<n>.<n>` Milestone 前缀；不得使用类型方括号、
 `Roadmap`/`Phase` 固定前缀或 Issue 编号前缀。
 
-实现与本地验证完成后，必须先提交给用户手动验收。未经用户针对当前待验收版本明确授权，不得执行 `git push`、
-创建 PR 或进行任何依赖远端分支的操作；发生实质修改后，之前的推送授权自动失效，必须重新验收。
+实现与本地验证完成后，直接推送分支、创建唯一 PR 并触发自动审核（`.codex/skills/nora-pr-review`）。自动审核不通过时
+按建议修改并重新推送重审；自动审核通过不代表合并授权，PR 合并仍需用户显式授权。

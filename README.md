@@ -182,7 +182,7 @@ Identity 与岗位快照 API 的验证命令见 [`docs/DEVELOPMENT.md`](docs/DEV
 |------|------|
 | [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md) | 产品愿景、用户旅程、能力状态与文档真源 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 贡献指南与协作规则 |
-| [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | 完整交付操作手册（12 步） |
+| [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | 完整交付操作手册（11 步） |
 | [`docs/ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) | Issue 类型、标签、状态流转 |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 系统架构（22 章节） |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | 里程碑详情与验收条件 |
@@ -200,8 +200,8 @@ Identity 与岗位快照 API 的验证命令见 [`docs/DEVELOPMENT.md`](docs/DEV
 1. 阅读 [架构文档](docs/ARCHITECTURE.md) 和 [工作流](docs/WORKFLOW.md)
 2. 创建或认领一个范围明确、可独立验收的 [Issue](https://github.com/dev-cai/Nora/issues)
 3. 从最新 `main` 创建 `nora/<type>-<subject>` 分支
-4. 实现、测试，提交人工验收
-5. PR -> CI -> 审查 -> Squash Merge
+4. 实现、测试，通过本地门禁并提交 Commit
+5. 推送 + 创建 PR -> 自动审核 -> CI -> Squash Merge
 
 ---
 

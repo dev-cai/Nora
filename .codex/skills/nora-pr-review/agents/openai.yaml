@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nora PR 自动审核"
+  short_description: "用 ChatGPT Web 会话自动审核 Nora PR 并发布正式 Review"
+  default_prompt: "Use $nora-pr-review to automatically review a Nora Pull Request with the logged-in ChatGPT web session and publish the verdict as a formal GitHub review (approve or request-changes with a fixed template)."
