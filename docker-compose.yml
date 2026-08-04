@@ -1,4 +1,16 @@
 services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      target: runtime
+    depends_on:
+      - api
+    environment:
+      VITE_NORA_PROXY_TARGET: http://api:8000
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+
   api:
     build:
       context: .

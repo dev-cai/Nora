@@ -14,7 +14,7 @@ Windows
   └─ WSL2 Ubuntu
       ├─ 项目代码：~/projects/Nora
       ├─ Git + Docker CLI
-      └─ Compose 容器：Python/uv、API、PostgreSQL、Redis、MinIO
+      └─ Compose 容器：Node.js、Web、Python/uv、API、PostgreSQL、Redis、MinIO
 ```
 
 宿主不安装项目 Python、uv、pytest、ruff、mypy 或 Alembic。Docker Desktop 必须启用目标 WSL 发行版集成；
@@ -92,6 +92,7 @@ docker compose exec api alembic upgrade head
 
 Compose 会启动：
 
+- `web`：Vue 3 工作台，监听 `localhost:5173`，浏览器内的 `/api` 请求代理到 API
 - `api`：FastAPI API，监听 `localhost:8000`
 - `db`：PostgreSQL 16
 - `redis`：Redis 7 骨架，M4 才进入业务路径
@@ -103,6 +104,7 @@ Compose 会启动：
 cd "$HOME/projects/Nora"
 curl http://localhost:8000/health
 curl http://localhost:8000/ready
+curl http://localhost:5173
 docker compose ps
 ```
 
@@ -131,6 +133,7 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `DEBUG` | 模板和开发 Compose 为 `true`；Settings 独立默认 `false` | API / Settings | 非开发环境应为 `false` |
 | `LOG_LEVEL` | 模板和开发 Compose 为 `DEBUG`；基础 Compose 与 Settings 默认 `INFO` | API / Settings | 不得通过调高日志级别记录 Token、密码或正文 |
 | `API_PORT` | `8000` | 仅 Compose 宿主端口；映射到 API 容器固定端口 `8000` | 端口冲突时可修改，不进入 Settings |
+| `WEB_PORT` | `5173` | 仅 Compose 宿主端口；映射到 Web 容器固定端口 `5173` | 端口冲突时可修改，不进入后端 Settings |
 | `AUTH_SECRET_KEY` | `development-only-change-this-secret` | Compose 注入 API；Settings 要求至少 32 个字符 | 公开值仅限本地；`staging`/`prod` 必须替换且不得提交 |
 | `AUTH_ACCESS_TOKEN_MINUTES` | `30` | Compose 注入 API；Settings 允许 `1`–`1440` | 控制访问令牌有效期，不是密钥 |
 | `POSTGRES_USER` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 生产环境不得沿用公开示例凭据 |
@@ -321,11 +324,40 @@ docker compose down -v
 
 ## 日常操作
 
+### 前端开发与质量检查
+
+前端使用 Node.js 24、npm、Vue 3、Vite、TypeScript、Vue Router 和 Pinia。使用 Compose 启动时，Vite 将
+`/api` 代理到 `http://api:8000`；直接在宿主运行时默认代理到 `http://localhost:8000`。可在
+`frontend/.env` 中通过 `VITE_NORA_API_BASE_URL` 覆盖浏览器 API 基础路径，或通过
+`VITE_NORA_PROXY_TARGET` 覆盖 Vite 开发代理目标。不要在这些变量中写入 Token 或其他秘密。
+
+在 WSL 仓库根目录使用 Compose 开发：
+
+```bash
+docker compose up -d --build db api web
+docker compose exec api alembic upgrade head
+```
+
+如需直接运行前端工具，进入 `frontend/` 后执行：
+
+```bash
+npm ci
+npm run dev
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+登录 Token 只保存在页面运行时内存中；刷新页面后需要重新登录。前端只通过公开 HTTP API 访问 Nora，
+不得连接数据库、导入后端模块或读取后端内部文件。
+
 查看服务日志：
 
 ```bash
 docker compose logs -f
 docker compose logs -f api
+docker compose logs -f web
 ```
 
 ### 请求与追踪标识
