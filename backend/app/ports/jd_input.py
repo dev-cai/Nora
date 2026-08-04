@@ -58,15 +58,17 @@ class JdImageInput:
     media_type: str
 
     def __post_init__(self) -> None:
+        content = bytes(self.content)
+        object.__setattr__(self, "content", content)
         media_type = self.media_type.strip().lower()
         object.__setattr__(self, "media_type", media_type)
-        if len(self.content) > MAX_JD_IMAGE_BYTES:
+        if len(content) > MAX_JD_IMAGE_BYTES:
             raise JdInputError(
                 "JD image exceeds the 10 MiB limit",
                 JdInputErrorCode.IMAGE_TOO_LARGE,
             )
         if media_type not in ALLOWED_JD_IMAGE_MEDIA_TYPES or not _matches_media_type(
-            self.content, media_type
+            content, media_type
         ):
             raise JdInputError(
                 "JD image must be a non-empty PNG or JPEG with matching content",
@@ -126,7 +128,7 @@ class JdUrlFetchPolicy:
                     "JD URL host resolved to an invalid address",
                     JdInputErrorCode.FETCH_FAILED,
                 ) from exc
-            if not address.is_global:
+            if not address.is_global or address.is_multicast:
                 raise JdInputError(
                     "JD URL must resolve only to public addresses",
                     JdInputErrorCode.UNSAFE_URL,

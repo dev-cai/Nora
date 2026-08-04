@@ -87,6 +87,17 @@ def test_image_contract_rejects_payload_above_ten_mib() -> None:
     assert_error_code(error, JdInputErrorCode.IMAGE_TOO_LARGE)
 
 
+def test_image_contract_copies_mutable_content_before_validation() -> None:
+    original = bytearray(b"\x89PNG\r\n\x1a\ncontent")
+    request = JdImageInput(content=original, media_type="image/png")  # type: ignore[arg-type]
+
+    original.clear()
+    original.extend(b"not-an-image")
+
+    assert isinstance(request.content, bytes)
+    assert request.content == b"\x89PNG\r\n\x1a\ncontent"
+
+
 @pytest.mark.parametrize(
     "url",
     [
@@ -143,6 +154,13 @@ def test_fetch_policy_rejects_any_non_public_dns_answer() -> None:
 
     with pytest.raises(JdInputError) as error:
         policy.ensure_public_addresses(["93.184.216.34", "10.0.0.7"])
+    assert_error_code(error, JdInputErrorCode.UNSAFE_URL)
+
+
+@pytest.mark.parametrize("address", ["224.0.0.1", "239.255.255.250", "ff02::1"])
+def test_fetch_policy_rejects_multicast_dns_answers(address: str) -> None:
+    with pytest.raises(JdInputError) as error:
+        JdUrlFetchPolicy().ensure_public_addresses([address])
     assert_error_code(error, JdInputErrorCode.UNSAFE_URL)
 
 

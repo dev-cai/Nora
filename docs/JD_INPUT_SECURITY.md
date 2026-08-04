@@ -20,7 +20,7 @@ M2 只定义 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OC
 
 1. 仅允许 `http`/`https`，拒绝 URL 凭据、fragment、空主机、无效端口和超过 2,048 字符的 URL。
 2. 规范化 IDNA 主机名，拒绝 `localhost`、本地域名后缀和非全局 IP literal。
-3. 使用受控 DNS resolver 解析全部 A/AAAA 结果；只要任一结果不是公网地址就返回 `unsafe_url`。
+3. 使用受控 DNS resolver 解析全部 A/AAAA 结果；只要任一结果不是公网单播地址（包括组播地址）就返回 `unsafe_url`。
 4. 将实际连接固定到已经校验的地址，同时保持正确的 Host/SNI；不得在校验后再次进行未受控解析，以避免 DNS rebinding 和 TOCTOU。
 5. 不自动跟随重定向。每次跳转都重新执行 URL、DNS 和 IP 校验，最多 3 次；超限返回 `too_many_redirects`。
 6. 连接超时 5 秒、读取超时 10 秒；超时返回 `fetch_timeout`，其他网络失败返回 `fetch_failed`。
@@ -49,7 +49,7 @@ M2 只定义 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OC
 ## M3.7 审查与测试要求
 
 - Fake/contract tests：OCR 与抓取 Adapter 均满足 `JdInputPort`，错误码保持稳定。
-- SSRF tests：IPv4/IPv6 私网、loopback、link-local、保留地址、混合 DNS 结果和 DNS rebinding。
+- SSRF tests：IPv4/IPv6 私网、loopback、link-local、组播、保留地址、混合 DNS 结果和 DNS rebinding。
 - Redirect tests：每一跳重新解析与校验，协议切换、私网跳转和第 4 次跳转均失败。
 - Resource tests：声明长度和流式实际长度分别超限，压缩膨胀、连接超时和读取超时可中止。
 - API tests：认证、上传 MIME/大小、URL DTO、稳定错误响应以及成功结果进入既有 JobPosting 创建路径。
