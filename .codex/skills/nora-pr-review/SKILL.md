@@ -1,19 +1,20 @@
 ---
 name: nora-pr-review
-description: Review one Nora Pull Request with the OpenAI ChatGPT web session via local Playwright automation, and publish the verdict as a formal GitHub PR review (approve or request-changes with suggestions) using a fixed template. Use whenever a PR for a Nora delivery branch needs automated review, or a REQUEST_CHANGES review requires re-review after fixes.
+description: Review one Nora Pull Request by having Codex itself read the rendered review instruction and produce a verdict, then publish it as a formal GitHub PR review (approve or request-changes with suggestions) using a fixed template. Requires no browser, no API key, and no session token. Use whenever a PR for a Nora delivery branch needs automated review, or a REQUEST_CHANGES review requires re-review after fixes.
 ---
 
 # Nora PR 自动审核流程
 
-一次审核一个 PR。读取 `docs/ARCHITECTURE.md`、Issue 验收条件与 PR diff，给出「通过 / 不通过」结论，并通过 GitHub
-**PR Review 正式审核**发布（通过 = APPROVE；不通过 = REQUEST_CHANGES + 修改建议）。结论只有两种，review body 使用固定模板。
+一次审核一个 PR。审核智能由 **Codex 应用自身**提供（不启动浏览器、不需要 API Key 或 session token）：脚本只负责渲染
+审核指令、解析结论并发布。结论只有「通过 / 不通过」两种，通过 GitHub **PR Review 正式审核**发布（通过 = APPROVE；
+不通过 = REQUEST_CHANGES + 修改建议），review body 使用固定模板。
 
 ## 审核门禁
 
 1. 确认 `gh auth status` 已登录，仓库远端可访问。
 2. 确认目标 PR 存在，来源分支为 `nora/`，且正文包含唯一 `Closes #<Issue>`。
-3. 确认 Playwright 与 Chromium 已按 `docs/DEVELOPMENT.md` 安装；ChatGPT 登录会话可用（否则先执行 `--login`）。
-4. 不把浏览器 profile、Cookie、ChatGPT 回复原文或 prompt 写入仓库工作树（一律走系统临时目录）。
+3. 审核由 Codex 自身完成，不依赖浏览器、API Key 或 session token。
+4. 不把 prompt、回复原文或 review body 写入仓库工作树（一律走系统临时目录）。
 
 ## 读取范围
 
@@ -26,9 +27,11 @@ description: Review one Nora Pull Request with the OpenAI ChatGPT web session vi
 ## 审核步骤
 
 1. 推导 PR 编号：显式 `--pr <n>`，或 `gh pr list --head <当前分支> --json number --jq '.[0].number'`。
-2. 收集上下文，组装固定 prompt（`scripts/review_prompt_template.md` + 上下文 + diff）。
-3. 调用 `python .codex/skills/nora-pr-review/scripts/nora_review.py`（参数见脚本 CLI）。
-4. 解析结论：通过 → `gh pr review --approve`；不通过 → `--request-changes`，建议填入 `scripts/review_template.md`。
+2. 运行 `python .codex/skills/nora-pr-review/scripts/nora_review.py --prepare --pr <n>`，生成审核指令文件
+   （含 PR 上下文、diff、判定标准与输出格式），路径会打印到输出。
+3. 阅读该指令文件，按其「输出格式」严格产出结论（首行「审核结论：通过/不通过」+ `<!-- review-json -->` 包裹的 JSON 块），
+   保存到 `<输出目录>/reply-<n>.md`。
+4. 运行 `python .codex/skills/nora-pr-review/scripts/nora_review.py --submit --pr <n>`，解析结论并发布 PR Review。
 5. 发布后回读 `gh pr view <n> --json reviews` 确认结论与正文完整；删除临时文件。
 
 ## 判定标准（不通过至少满足其一）
@@ -41,5 +44,5 @@ description: Review one Nora Pull Request with the OpenAI ChatGPT web session vi
 
 ## 失败降级
 
-- ChatGPT 选择器失效或未登录 → `--manual` 模式：生成 prompt 文件，等用户粘贴回复后解析发布。
-- 审核结论无法解析 → 报错并给出 `--manual` 指引，不猜测结论，不发布 Review。
+- 结论无法解析（reply 未按格式输出）→ 修正 reply 文件后重跑 `--submit`；不猜测结论、不发布 Review。
+- `gh` 命令失败或网络不可用 → 先解决环境问题再重试；必要时改用 `--no-post` 只生成 review body 供人工发布。

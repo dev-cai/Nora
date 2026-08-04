@@ -482,34 +482,21 @@ git config core.hooksPath .githooks
 
 ### Codex 自动审核（宿主工具）
 
-PR 的 Codex 自动审核（`.codex/skills/nora-pr-review`）是本仓库唯一的**宿主侧 Python 例外**：它需要访问本地浏览器中已登录的
-ChatGPT 会话，无法在 Docker 容器内运行。浏览器 profile、Cookie 与审核 prompt 只保存在宿主临时目录，不进入仓库工作树。
+PR 的 Codex 自动审核（`.codex/skills/nora-pr-review`）由 **Codex 应用自身**完成审核，**不启动浏览器、不需要 API Key 或
+session token**，只依赖宿主 Python 标准库与 `gh` CLI。审核 prompt 与回复只保存在宿主临时目录，不进入仓库工作树。
 
-一次性安装：
-
-```bash
-python -m venv "$HOME/.nora-review/venv"
-"$HOME/.nora-review/venv/Scripts/pip" install -r .codex/skills/nora-pr-review/scripts/requirements.txt
-"$HOME/.nora-review/venv/Scripts/python" -m playwright install chromium
-```
-
-初始化登录会话（专用 profile，只执行一次）：
+运行自动审核（两阶段）：
 
 ```bash
-"$HOME/.nora-review/venv/Scripts/python" .codex/skills/nora-pr-review/scripts/nora_review.py --login \
-  --profile-dir "$HOME/.nora-review/chatgpt-profile"
+# 阶段 1：生成审核指令（含 PR diff、判定标准、输出格式）
+python .codex/skills/nora-pr-review/scripts/nora_review.py --prepare --pr <PR 编号>
+
+# 阶段 2：Codex 阅读指令并产出结论（保存为 reply-<PR>.md）后，解析并发布 PR Review
+python .codex/skills/nora-pr-review/scripts/nora_review.py --submit --pr <PR 编号>
 ```
 
-运行自动审核：
-
-```bash
-export NORA_CHATGPT_PROFILE="$HOME/.nora-review/chatgpt-profile"
-"$HOME/.nora-review/venv/Scripts/python" .codex/skills/nora-pr-review/scripts/nora_review.py --pr <PR 编号>
-```
-
-降级与调试开关：`--dry-run`（只收集上下文与生成 prompt，不访问 ChatGPT、不发布）、`--no-post`（走完 ChatGPT 但解析后
-不发布 Review）、`--manual`（生成 prompt 等人工粘贴回复，选择器失效时使用）、`--headed`/`--headless`、`--force`
-（覆盖已存在同作者 Review）。
+调试开关：`--no-post`（submit 时渲染 review body 但不发布）、`--force`（覆盖已存在同作者 Review）、`--reply-file`
+（指定回复文件位置）、`--output-dir`（指定中间产物目录）。
 
 ## 依赖管理
 

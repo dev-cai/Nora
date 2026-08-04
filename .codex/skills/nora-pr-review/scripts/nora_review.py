@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""Nora PR 自动审核：本地 Playwright 驱动 chatgpt.com 审核 PR，并以正式 GitHub Review 发布结论。
+"""Nora PR 自动审核助手：渲染审核指令、解析 Codex 结论并发布正式 GitHub Review。
 
-结论只有「通过 / 不通过」两种：
-- 通过   → `gh pr review <n> --approve`
-- 不通过 → `gh pr review <n> --request-changes`（必须带修改建议）
+审核智能由 Codex 应用提供（不启动浏览器、不需要 API Key 或 session cookie）。本脚本只做三件事：
 
-浏览器 profile、Cookie、ChatGPT 回复与 prompt 只写系统临时目录，绝不写入仓库工作树。
+1. `--prepare`：收集 PR 上下文（diff、标题、CI、Issue 验收条件），渲染成审核指令文件供 Codex 阅读；
+2. `--submit`：读取 Codex 按指令格式产出的回复文件，解析「通过/不通过」结论；
+3. 发布：渲染固定模板并 `gh pr review --approve / --request-changes`。
+
+结论只有「通过 / 不通过」两种；不通过必须带修改建议。中间产物只写系统临时目录，不写入仓库工作树。
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import subprocess
 import sys
 import tempfile
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
@@ -27,21 +27,6 @@ PROMPT_TEMPLATE_PATH = SCRIPT_DIR / "review_prompt_template.md"
 REVIEW_TEMPLATE_PATH = SCRIPT_DIR / "review_template.md"
 DIFF_TRUNCATE_CHARS = 120_000
 VALID_SEVERITIES = frozenset({"blocker", "major", "minor", "nit"})
-
-# ChatGPT web 页面选择器（多版本兜底，易变的 DOM）
-PROMPT_SELECTORS = (
-    "#prompt-textarea",
-    "textarea[data-testid='prompt-textarea']",
-    "div[contenteditable='true'].ProseMirror",
-    "[id*='prompt'] textarea",
-)
-STOP_SELECTORS = (
-    "button[data-testid='stop-button']",
-    "[data-testid='stop']",
-    "button[aria-label*='Stop' i]",
-    "button[aria-label*='停止']",
-)
-ASSISTANT_SELECTOR = "div[data-message-author-role='assistant']"
 
 
 class ReviewError(Exception):
@@ -104,11 +89,11 @@ def _run_soft(cmd: Sequence[str]) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
-# ---------- 结论解析（纯函数，可单测） ----------
+# ---------- 结论解析（纯函数） ----------
 
 
 def parse_reply(reply: str) -> Verdict:
-    """从 ChatGPT 回复解析审核结论。
+    """从 Codex 回复解析审核结论。
 
     优先解析 HTML 注释包裹的 JSON 块；兜底解析首行「审核结论」与建议表格。
     无法确定结论时抛 ReviewError，绝不猜测。
@@ -123,7 +108,7 @@ def parse_reply(reply: str) -> Verdict:
 
     head = re.search(r"审核结论\s*[:：]\s*(通过|不通过)", reply)
     if head is None:
-        raise ReviewError("无法解析审核结论，请使用 --manual 人工复核")
+        raise ReviewError("无法解析审核结论，请检查 reply 文件是否按指令格式输出")
     conclusion = "pass" if head.group(1) == "通过" else "fail"
     return Verdict(conclusion=conclusion, suggestions=_parse_suggestion_rows(reply))
 
@@ -177,7 +162,7 @@ def _parse_suggestion_rows(reply: str) -> tuple[Suggestion, ...]:
     return tuple(rows)
 
 
-# ---------- 模板渲染（纯函数，可单测） ----------
+# ---------- 模板渲染（纯函数） ----------
 
 
 def render_template(template: str, context: dict[str, str]) -> str:
@@ -294,141 +279,6 @@ def _load_issue_acceptance(pr_body: str) -> str:
     return section.group(1).strip() if section else issue_body[:2000]
 
 
-# ---------- ChatGPT Web（Playwright 延迟导入） ----------
-
-
-def _launch_context(playwright_module: Any, profile_dir: str, headed: bool) -> Any:
-    channels = _channel_sequence()
-    last_error: Exception | None = None
-    for channel in channels:
-        try:
-            kwargs: dict[str, Any] = {"user_data_dir": profile_dir, "headless": not headed}
-            if channel:
-                kwargs["channel"] = channel
-            return playwright_module.chromium.launch_persistent_context(**kwargs)
-        except Exception as exc:  # noqa: BLE001 - 逐个通道尝试
-            last_error = exc
-    raise ReviewError(f"无法启动浏览器（尝试 {channels}）：{last_error}")
-
-
-def _channel_sequence() -> tuple[str | None, ...]:
-    env_channel = os.environ.get("NORA_CHATGPT_CHANNEL", "").strip()
-    channels: list[str | None] = []
-    if env_channel:
-        channels.append(env_channel)
-    channels.append("msedge")
-    channels.append("chrome")
-    channels.append(None)  # 默认 Chromium
-    return tuple(channels)
-
-
-def _fill_and_send(page: Any, prompt: str) -> None:
-    box = None
-    for selector in PROMPT_SELECTORS:
-        locator = page.locator(selector).first
-        if locator.count() > 0:
-            box = locator
-            break
-    if box is None:
-        raise ReviewError("未找到 ChatGPT 输入框（DOM 可能已变化），请使用 --manual 模式")
-    try:
-        box.fill(prompt)
-    except Exception:  # noqa: BLE001 - contenteditable 元素 fill 不可用
-        box.click()
-        page.keyboard.insert_text(prompt)
-    page.keyboard.press("Enter")
-
-
-def _wait_for_completion(page: Any, timeout: int) -> str:
-    deadline = time.monotonic() + timeout
-    stop_waited = _wait_stop_button(page, timeout)
-    last_text = ""
-    stable_ticks = 0
-    while time.monotonic() < deadline:
-        texts = page.locator(ASSISTANT_SELECTOR).all_inner_texts()
-        current = texts[-1] if texts else ""
-        if current and current == last_text:
-            stable_ticks += 1
-            if stable_ticks >= 5 or stop_waited:
-                last_text = current
-                break
-        else:
-            stable_ticks = 0
-            last_text = current
-        time.sleep(1)
-    if not last_text:
-        raise ReviewError("未获取到 ChatGPT 回复，请使用 --manual 模式")
-    if time.monotonic() >= deadline:
-        print("[warn] 到达超时上限，使用当前已生成文本继续", file=sys.stderr)
-    return last_text
-
-
-def _wait_stop_button(page: Any, timeout: int) -> bool:
-    stop = None
-    for selector in STOP_SELECTORS:
-        locator = page.locator(selector).first
-        if locator.count() > 0:
-            stop = locator
-            break
-    if stop is None:
-        return False
-    try:
-        stop.wait_for(state="visible", timeout=timeout * 1000)
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        stop.wait_for(state="detached", timeout=timeout * 1000)
-        return True
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def _assert_logged_in(page: Any) -> None:
-    if "/auth" in page.url:
-        raise ReviewError("ChatGPT 未登录或登录态过期，请先执行 --login")
-    try:
-        if page.get_by_text("Sign in", exact=True).count() > 0:
-            raise ReviewError("ChatGPT 页面要求登录，请先执行 --login")
-    except Exception:  # noqa: BLE001 - 选择器兼容
-        pass
-
-
-def chatgpt_review(prompt: str, profile_dir: str, headed: bool, timeout: int) -> str:
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as exc:
-        raise ReviewError(
-            "未安装 playwright，请按 docs/DEVELOPMENT.md「Codex 自动审核」章节安装"
-        ) from exc
-    with sync_playwright() as playwright:
-        context = _launch_context(playwright, profile_dir, headed)
-        try:
-            page = context.pages[0] if context.pages else context.new_page()
-            page.goto("https://chatgpt.com/", wait_until="domcontentloaded")
-            _assert_logged_in(page)
-            _fill_and_send(page, prompt)
-            return _wait_for_completion(page, timeout)
-        finally:
-            context.close()
-
-
-def login(profile_dir: str) -> None:
-    """一次性初始化专用浏览器 profile：打开 chatgpt.com 引导手动登录。"""
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as exc:
-        raise ReviewError(
-            "未安装 playwright，请按 docs/DEVELOPMENT.md「Codex 自动审核」章节安装"
-        ) from exc
-    with sync_playwright() as playwright:
-        context = _launch_context(playwright, profile_dir, headed=True)
-        page = context.pages[0] if context.pages else context.new_page()
-        page.goto("https://chatgpt.com/", wait_until="domcontentloaded")
-        print("请在浏览器中登录 chatgpt.com；登录完成后回到本终端按 Enter 结束并保存会话。")
-        input()
-        context.close()
-
-
 # ---------- 发布 ----------
 
 
@@ -454,35 +304,22 @@ def post_review(pr: int, verdict: Verdict, review_path: Path, force: bool) -> st
     return event
 
 
-# ---------- 手动降级 ----------
-
-
-def _read_reply_manual(pr: int, output_dir: Path) -> str:
-    reply_path = output_dir / f"reply-{pr}.txt"
-    if reply_path.exists():
-        return reply_path.read_text(encoding="utf-8")
-    print(f"请将 ChatGPT 回复保存到 {reply_path}，或直接粘贴回复内容（Windows 下粘贴后按 Ctrl+Z 回车结束）")
-    return sys.stdin.read()
-
-
 # ---------- CLI ----------
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Nora PR 自动审核（Playwright + ChatGPT Web）")
+    parser = argparse.ArgumentParser(
+        description="Nora PR 自动审核助手（模板渲染 + GitHub Review 发布；审核智能由 Codex 提供）"
+    )
     target = parser.add_mutually_exclusive_group()
     target.add_argument("--pr", type=int, help="PR 编号")
     target.add_argument("--head", type=str, help="来源分支（默认当前分支）")
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--dry-run", action="store_true", help="只收集上下文并生成 prompt，不访问 ChatGPT、不发布")
-    mode.add_argument("--no-post", action="store_true", help="完整走 ChatGPT，但解析后只打印，不发布 Review")
-    mode.add_argument("--manual", action="store_true", help="降级：生成 prompt，等用户粘贴回复后解析发布")
-    parser.add_argument("--login", action="store_true", help="打开浏览器引导登录 chatgpt.com 后退出（初始化专用 profile）")
-    parser.add_argument("--profile-dir", type=str, default=os.environ.get("NORA_CHATGPT_PROFILE"), help="已登录 ChatGPT 的浏览器 profile（缺省读 $NORA_CHATGPT_PROFILE）")
-    parser.add_argument("--headed", action="store_true", help="web 模式显示浏览器窗口（默认）")
-    parser.add_argument("--headless", action="store_true", help="web 模式无头运行")
-    parser.add_argument("--output-dir", type=str, help="prompt/模板/回复输出目录（默认系统临时目录）")
-    parser.add_argument("--timeout", type=int, default=600, help="生成等待上限（秒）")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--prepare", action="store_true", help="收集上下文并生成审核指令文件（供 Codex 阅读产出结论）")
+    mode.add_argument("--submit", action="store_true", help="读取 Codex 的回复文件，解析并发布 PR Review")
+    parser.add_argument("--no-post", action="store_true", help="submit 时渲染 review body 但不发布")
+    parser.add_argument("--output-dir", type=str, help="prompt/回复/模板输出目录（默认系统临时目录）")
+    parser.add_argument("--reply-file", type=str, help="submit 时使用的回复文件（默认 <output-dir>/reply-<PR>.md）")
     parser.add_argument("--force", action="store_true", help="已存在同作者 Review 时仍重新发布")
     return parser
 
@@ -491,46 +328,36 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    if args.login:
-        if not args.profile_dir:
-            parser.error("--login 需要 --profile-dir 或 NORA_CHATGPT_PROFILE")
-        login(args.profile_dir)
-        print(f"[login] 会话已保存：{args.profile_dir}")
-        return 0
-
-    if args.headed and args.headless:
-        parser.error("--headed 与 --headless 不能同时指定")
-
     pr = resolve_pr_number(args.pr, args.head)
-    context = collect_context(pr)
-    prompt = build_prompt(context)
-
     output_dir = Path(args.output_dir) if args.output_dir else Path(tempfile.gettempdir())
     output_dir.mkdir(parents=True, exist_ok=True)
-    prompt_path = output_dir / f"prompt-{pr}.md"
-    prompt_path.write_text(prompt, encoding="utf-8")
 
-    if args.dry_run:
-        print(f"[dry-run] PR #{pr}：{context.title}")
-        print(f"[dry-run] 变更 +{context.additions}/-{context.deletions}，{context.changed_files} 文件，CI: {context.checks or 'n/a'}")
-        print(f"[dry-run] prompt 已生成：{prompt_path}")
+    if args.prepare:
+        context = collect_context(pr)
+        prompt = build_prompt(context)
+        prompt_path = output_dir / f"prompt-{pr}.md"
+        prompt_path.write_text(prompt, encoding="utf-8")
+        reply_path = output_dir / f"reply-{pr}.md"
+        print(f"[prepare] PR #{pr}：{context.title}")
+        print(f"[prepare] 审核指令已生成：{prompt_path}")
+        print(f"[prepare] 请让 Codex 阅读该文件并按其中「输出格式」产出结论，保存为：{reply_path}")
+        print(f"[prepare] 然后运行：nora_review.py --submit --pr {pr}")
         return 0
 
-    if args.manual:
-        reply = _read_reply_manual(pr, output_dir)
-    else:
-        if not args.profile_dir:
-            parser.error("web 模式需要 --profile-dir 或 NORA_CHATGPT_PROFILE")
-        headed = not args.headless
-        reply = chatgpt_review(prompt, args.profile_dir, headed, args.timeout)
-        (output_dir / f"reply-{pr}.txt").write_text(reply, encoding="utf-8")
+    context = collect_context(pr)
+    reply_path = (
+        Path(args.reply_file) if args.reply_file else output_dir / f"reply-{pr}.md"
+    )
+    if not reply_path.exists():
+        raise ReviewError(f"未找到回复文件：{reply_path}，请先运行 --prepare 并让 Codex 产出结论")
 
+    reply = reply_path.read_text(encoding="utf-8")
     verdict = parse_reply(reply)
     review_body = render_review(verdict, context)
     review_path = output_dir / f"review-{pr}.md"
     review_path.write_text(review_body, encoding="utf-8")
-    print(f"[review] 结论：{verdict.conclusion}（{len(verdict.suggestions)} 条建议）")
-    print(f"[review] review body 已生成：{review_path}")
+    print(f"[submit] 结论：{verdict.conclusion}（{len(verdict.suggestions)} 条建议）")
+    print(f"[submit] review body 已生成：{review_path}")
 
     if args.no_post:
         print("[no-post] 未发布 Review")
