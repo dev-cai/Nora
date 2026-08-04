@@ -6,8 +6,8 @@
 ## 1. 状态
 
 - 技术选择：Vue 3 + Vite 独立 Web 客户端。
-- 交付阶段：M3。
-- 实现状态：Planned。默认分支当前没有 `frontend/`、Node 依赖、Web 容器或前端 CI。
+- 交付阶段：M2（工程与基础页面）；M3 起扩展分析与报告页面。
+- 实现状态：Current（M2 已交付）。默认分支已包含 `frontend/`、Node 依赖、Web 容器与前端 CI。
 - 替代方案：不采用 Gradio；不维护 Gradio 与 Vue 两套客户端。
 
 选择 Vue 是为了支持长期的多步骤工作流、状态管理、Evidence 展示和可测试交互。代价是增加 Node 工具链、
@@ -65,7 +65,7 @@ flowchart LR
 - `GET /health`
 - `GET /ready`
 
-简历、分析和报告接口仍为 Planned；只有对应后端 Issue 合并后，前端才能把它们描述为可用能力。
+简历接口已在 M2 交付（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）；分析与报告接口仍为 M3 Planned。
 前端不得根据路线图伪造响应或绕过未交付 API。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
@@ -177,7 +177,7 @@ Vue 前端实现 Issue 负责：
 
 - 功能：维护 `CandidateProfile` 基本信息、求职偏好、教育、经历、技能；展示字段级确认状态（`unconfirmed` / `confirmed` / `rejected` / `superseded`）。
 - 表单：分区表单 + 经历/技能动态增删列表。
-- API：CandidateProfile CRUD（Planned，M2.2）。
+- API：CandidateProfile CRUD（已有，M2.2 交付）。
 - 状态：`profileStore` 持有草稿与已确认快照；有未保存修改时离开需确认。
 - 校验：必填字段、经历时间范围可排序、技能用规范化名称。
 
@@ -185,7 +185,7 @@ Vue 前端实现 Issue 负责：
 
 - 功能：从已确认主档发布不可变 `ResumeVersion`；查看历史版本。
 - 发布：选择主档版本 → 预览 → 发布（发布后不可变，不因主档后续修改重写）。
-- API：`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`（Planned，M2.3）。
+- API：`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`（已有，M2.3 交付）。
 - 状态：`resumeStore`；发布成功进入详情，显示版本号与发布时间。
 
 ### 10.4 岗位输入 `/jobs/new`（M2 文本 / M3.7 截图与链接）

@@ -369,6 +369,19 @@ Vue 工程基础与前端 CI 可以在 CandidateProfile 后端实现之前开始
 - 截图上传契约明确大小、格式和错误码；
 - 抓取安全边界有审查与测试占位。
 
+#### M2.8 前端收尾与前后端集成验证
+
+主要交付物：M2 前端收尾与前后端集成验证（Issue #107，PR #108）。
+
+范围：
+- Token 持久化、请求超时与 Dashboard 文案收尾；
+- 建立 `scripts/web-api-smoke.mjs` 前后端集成冒烟。
+
+验收：
+- Web 可通过真实 API 完成注册、登录、岗位、画像与简历基础流程；
+- `docker compose up --build` 可访问 Web 与 API；
+- 主流程冒烟脚本可重复执行。
+
 ### 10.5 M2 非目标
 
 - 不实现 DecisionCase；
@@ -823,13 +836,13 @@ Agent 边界与外部写约束以 [`ARCHITECTURE.md`](ARCHITECTURE.md) §11（�
 | `POST /auth/register` | 已有 | M1 | 保持 |
 | `POST /auth/login` | 已有 | M1 | 保持 |
 | `GET /auth/me` | 已有 | M1 | 保持 |
-| `POST /job-postings` | 部分满足 | M2 | 增加结构化元数据 |
-| `GET /job-postings/{id}` | 部分满足 | M2 | 返回完整公开快照 |
-| `GET /job-postings` | 缺失 | M2 | 用户范围分页列表 |
-| CandidateProfile CRUD | 缺失 | M2 | 最小字段和确认状态 |
-| `POST /resumes` | 缺失 | M2 | 发布不可变版本 |
-| `GET /resumes` | 缺失 | M2 | 用户范围分页列表 |
-| `GET /resumes/{id}` | 缺失 | M2 | 读取历史版本 |
+| `POST /job-postings` | 已有 | M2 | 结构化元数据已交付 |
+| `GET /job-postings/{id}` | 已有 | M2 | 返回完整公开快照 |
+| `GET /job-postings` | 已有 | M2 | 用户范围分页列表 |
+| CandidateProfile CRUD | 已有 | M2 | 最小字段和确认状态 |
+| `POST /resumes` | 已有 | M2 | 发布不可变版本 |
+| `GET /resumes` | 已有 | M2 | 用户范围分页列表 |
+| `GET /resumes/{id}` | 已有 | M2 | 读取历史版本 |
 | `POST /decisions` | 缺失 | M3 | 创建不可变分析案例 |
 | `GET /decisions/{id}` | 缺失 | M3 | 读取规则结果 |
 | `POST /decisions/{id}/reports` | 缺失 | M3 | 生成确定性报告 |
@@ -934,18 +947,22 @@ M2/M3 若超过上述范围，应优先删除非退出条件能力，不能把 R
 
 每个 Milestone 关闭前必须回答：
 
-- [ ] 所有强制 Issue 已合并，开放项为 0；
-- [ ] Milestone 描述与真实交付一致；
-- [ ] ROADMAP 和详细计划的验收项已更新；
-- [ ] 对外 API 与文档一致；
-- [ ] Schema 迁移可升级、降级和重新升级；
-- [ ] 静态、类型、单元、架构和适用集成测试通过；
-- [ ] 用户隔离、安全和敏感信息边界已检查；
-- [ ] 未执行检查及原因有真实记录；
-- [ ] Demo/动态路径由新环境执行；
-- [ ] 没有 Mock、占位或目录骨架冒充完成；
-- [ ] 后续 Milestone 的依赖不引用未交付能力；
-- [ ] 历史 Issue、PR、Milestone 和文档证据可追溯。
+- [x] 所有强制 Issue 已合并，开放项为 0；
+- [x] Milestone 描述与真实交付一致；
+- [x] ROADMAP 和详细计划的验收项已更新；
+- [x] 对外 API 与文档一致；
+- [x] Schema 迁移可升级、降级和重新升级；
+- [x] 静态、类型、单元、架构和适用集成测试通过；
+- [x] 用户隔离、安全和敏感信息边界已检查；
+- [x] 未执行检查及原因有真实记录；
+- [x] Demo/动态路径由新环境执行；
+- [x] 没有 Mock、占位或目录骨架冒充完成；
+- [x] 后续 Milestone 的依赖不引用未交付能力；
+- [x] 历史 Issue、PR、Milestone 和文档证据可追溯。
+
+> **M2 关闭证据（2026-08-04）**：Milestone #4 的 9 个强制 Issue 全部关闭、开放项为 0；前后端质量门禁在合并 PR
+> （#100–#106、#108）的 CI 中通过；`docker compose up --build` 与 `scripts/web-api-smoke.mjs` 可在新环境
+> 重复执行；浏览器级基础 E2E 缺口记录于 Issue #112，不阻塞 M2 关闭。
 
 ## 22. 风险登记表
 
