@@ -27,6 +27,12 @@ tmp/
 *.db
 *.sqlite*
 
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Editors and operating systems
 .idea/
 .vscode/

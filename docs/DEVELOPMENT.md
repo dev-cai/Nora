@@ -360,6 +360,29 @@ docker compose logs -f api
 docker compose logs -f web
 ```
 
+### 浏览器级基础 E2E
+
+M2 质量门禁要求在真实浏览器中验证基础流程。E2E 使用 Playwright（用例位于 `frontend/e2e/`），在 compose 栈
+就绪后运行：
+
+```bash
+docker compose up -d --build db api web
+docker compose exec api alembic upgrade head
+
+# 等待 web(:5173) 与 api(:8000) 就绪后，在 frontend/ 下执行：
+cd frontend
+npm ci
+npx playwright install chromium
+npm run e2e
+```
+
+- 用例 `frontend/e2e/main-flow.spec.ts` 覆盖：注册/登录 → 刷新保持登录 → 创建岗位 → 主档保存 → 简历列表 →
+  登出后受保护路由跳转登录。
+- 失败时在 `frontend/test-results/` 与 `frontend/playwright-report/` 生成截图与 trace；可执行
+  `npm run e2e:report` 查看。
+- 每次运行使用隔离随机账号，不在业务数据中制造冲突。
+- CI：`.github/workflows/e2e.yml` 在 PR 改动前端路径时起 compose 栈并执行同一套用例。
+
 ### 请求与追踪标识
 
 API 为每个请求维护两个结构化日志字段：
