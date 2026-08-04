@@ -12,14 +12,17 @@ import {
 } from "lucide-vue-next"
 
 import { useAuthStore } from "@/stores/auth"
+import { useJobsStore } from "@/stores/jobs"
 
 const auth = useAuthStore()
+const jobs = useJobsStore()
 const route = useRoute()
 const router = useRouter()
 const initials = computed(() => auth.user?.username.slice(0, 2).toUpperCase() || "N")
 
 function logout(): void {
   auth.logout()
+  jobs.reset()
   void router.push({ name: "login" })
 }
 </script>
