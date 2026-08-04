@@ -148,6 +148,15 @@
 - [x] JD 输入 Port（文本/截图/链接）契约已定义并通过契约测试
 - [x] 未引入 RAG、模型或外部 Provider 硬依赖
 
+### 完成证据
+
+M2 交付清单与前端收尾见 Issue [#107](https://github.com/dev-cai/Nora/issues/107)；岗位公开契约、主档与简历版本见
+PR [#100](https://github.com/dev-cai/Nora/pull/100)–[#102](https://github.com/dev-cai/Nora/pull/102)；Vue 工程、
+前端 CI 与画像/简历页面见 [#103](https://github.com/dev-cai/Nora/pull/103)–[#105](https://github.com/dev-cai/Nora/pull/105)；
+JD 输入契约见 [#106](https://github.com/dev-cai/Nora/pull/106)；前端收尾与集成冒烟见
+[#108](https://github.com/dev-cai/Nora/pull/108)。浏览器级基础 E2E 由 Issue
+[#112](https://github.com/dev-cai/Nora/issues/112) 补齐。
+
 ### 前置依赖
 
 - M1 全部合并
@@ -155,7 +164,7 @@
 
 ### 原子交付
 
-原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §10（M2.1–M2.7）为准。
+原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §10（M2.1–M2.8）为准。
 
 ---
 

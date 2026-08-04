@@ -50,7 +50,7 @@ Nora 是面向求职决策的可审计多智能体平台。系统将公司背景
 | D-006 | Agent 编排 | LangGraph Adapter | M6+ | 只管理运行图、暂停和恢复，不拥有领域事实 |
 | D-007 | 模型访问 | Provider-neutral Model Gateway | M4 | Provider 由配置选择，不绑定未验证版本；M3 无模型也可完成 |
 | D-008 | 异步任务 | Task Queue Port；候选 Adapter 为 Celery + Redis | M5 条件评估 | 仅在指标成立时引入；最终结果不保存在 Celery Result Backend |
-| D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | M2 | 通过公开 HTTP API 使用系统，不导入 Python 内部模块；实现状态为 Planned |
+| D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | M2 | 通过公开 HTTP API 使用系统，不导入 Python 内部模块；M2 已交付 |
 | D-010 | 对象存储 | Object Storage Port | 分阶段 | 本地开发可用文件系统；集成/部署可用 MinIO/S3 |
 | D-011 | 工程组织 | 前后端分离；后端业务模块优先、模块内分层 | #59 / 后续 Task | `backend/app` 边界 Current；业务模块内聚渐进迁移 |
 
@@ -448,7 +448,7 @@ Nora/
 │   ├── alembic/
 │   ├── pyproject.toml
 │   └── uv.lock
-├── frontend/                          # M2：Vue 3 + Vite（Planned）
+├── frontend/                          # M2：Vue 3 + Vite（Current）
 │   ├── src/
 │   │   ├── api/
 │   │   ├── components/
