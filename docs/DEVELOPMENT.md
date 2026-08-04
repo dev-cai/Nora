@@ -480,6 +480,24 @@ git config core.hooksPath .githooks
 
 检查失败时 Git 会中止 Commit。修复问题后重新提交；不要使用 `--no-verify` 绕过项目门禁。
 
+### Codex 自动审核（宿主工具）
+
+PR 的 Codex 自动审核（`.codex/skills/nora-pr-review`）由 **Codex 应用自身**完成审核，**不启动浏览器、不需要 API Key 或
+session token**，只依赖宿主 Python 标准库与 `gh` CLI。审核 prompt 与回复只保存在宿主临时目录，不进入仓库工作树。
+
+运行自动审核（两阶段）：
+
+```bash
+# 阶段 1：生成审核指令（含 PR diff、判定标准、输出格式）
+python .codex/skills/nora-pr-review/scripts/nora_review.py --prepare --pr <PR 编号>
+
+# 阶段 2：Codex 阅读指令并产出结论（保存为 reply-<PR>.md）后，解析并发布 PR Review
+python .codex/skills/nora-pr-review/scripts/nora_review.py --submit --pr <PR 编号>
+```
+
+调试开关：`--no-post`（submit 时渲染 review body 但不发布）、`--force`（覆盖已存在同作者 Review）、`--reply-file`
+（指定回复文件位置）、`--output-dir`（指定中间产物目录）。
+
 ## 依赖管理
 
 运行时依赖和开发依赖均通过 development 容器内的 uv 管理：

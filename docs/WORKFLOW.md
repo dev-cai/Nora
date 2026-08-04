@@ -12,10 +12,13 @@
   认领 Issue ──> 创建 nora/ 分支 ──> 编码 + 测试 + Commit
         │
         v
-  提交验收清单 ──> 用户授权? ──否──> 返回修改
+  本地验证通过 ──> 推送 + 创建 PR + 触发自动审核
+        │
+        v
+  自动审核通过? ──否──> 返回修改
         │ 是
         v
-  推送分支 + 创建 PR ──> CI 通过 ──> 用户合并 ──> 关闭 Issue
+  CI 通过 ──> 用户合并授权 ──> 关闭 Issue
 ```
 
 ---
@@ -52,9 +55,8 @@ curl http://localhost:8000/health
 |------|------|---------|
 | `ready` | 可开始实施 | Issue 创建时（无阻塞依赖） |
 | `blocked` | 等待前置依赖 | Issue 创建时（有阻塞依赖） |
-| `in-progress` | 正在实施 | 创建分支并产生实质修改后 |
-| `acceptance` | 待用户验收 | 本地待验收版本完成后 |
-| `review` | 等待 CI 和审查 | PR 创建后 |
+| `in-progress` | 正在实施 | 创建分支并产生实质修改后；自动审核要求修改且 PR 未合并时返回 |
+| `review` | 等待 CI 和自动审核 | PR 创建后 |
 
 ### Issue 标签
 
@@ -102,20 +104,12 @@ curl http://localhost:8000/health
 
 Commit 正文按需解释原因，引用 Issue：`Refs #<编号>`。
 
-### 人工验收门禁（强制）
+### 自动审核门禁
 
-本地实现完成 **不等于** 可以推送。推送前必须提交验收清单：
+本地实现完成并通过本地门禁后，直接推送并创建唯一 PR，随后触发 Codex 自动审核。自动审核结论只有「通过 / 不通过」：
+通过 → APPROVE；不通过 → REQUEST_CHANGES + 修改建议。自动审核不通过时返回修改并重新推送重审。
 
-```
-  Issue 编号与链接
-  当前分支名与本地 Commit
-  基于真实 diff 的变更摘要
-  已执行验证及其实际结果
-  未执行检查及原因
-  用户可直接操作的验收步骤
-```
-
-只有用户明确说"可以推送"后才能执行 `git push`。授权只对当前版本有效，修改后自动失效。推送授权不包含合并授权。
+自动审核通过不代表合并授权。PR 合并前必须通过 CI 与自动审核，合并仍由用户显式授权。
 
 ### 本地 Git hook
 
@@ -216,37 +210,9 @@ feat(api): 实现岗位快照创建接口
 Refs #18
 ```
 
-### 步骤 8：提交人工验收
+### 步骤 8：推送、创建 PR 并触发自动审核
 
-推送前停止，向用户提交验收清单。
-
-验收清单示例：
-
-```
-## 验收清单
-
-Issue：M1.3 实现岗位快照 API（#18）
-分支：nora/feat-job-posting-api
-本地 Commit：a1b2c3d4
-
-变更摘要：
-- 新增 4 个文件
-- 修改 2 个文件
-
-已执行验证：
-- ruff check .            通过
-- mypy app/               通过
-- pytest tests/           通过（24 passed）
-- alembic upgrade head    通过
-
-验收步骤：
-1. curl -X POST localhost:8000/job-postings ...
-2. curl -X GET localhost:8000/job-postings/{id} ...
-```
-
-在用户明确授权前，不得执行 `git push`。
-
-### 步骤 9：推送与创建 PR
+本地验证通过后，不再请求人工验收，直接：
 
 ```bash
 git push origin nora/<type>-<subject>
@@ -255,22 +221,26 @@ gh pr create \
   --base main \
   --head nora/<type>-<subject> \
   --title "<type>(<scope>): <中文 subject>" \
-  --body "Closes #<编号>
-...
-"
+  --body-file pr-body.md    # 正文以 Closes #<编号> 开头，UTF-8 无 BOM
 ```
 
-更新 Issue 正文状态为 `review`。
+PR 正文必须包含唯一 `Closes #<编号>`，并写明背景、实际变更、非目标、影响分析、验证结果、未执行检查及原因、审查重点。
 
-### 步骤 10：等待 CI 与审查
+更新 Issue 正文状态为 `review`，随后触发自动审核：
+
+```bash
+python .codex/skills/nora-pr-review/scripts/nora_review.py --pr <PR 编号>
+```
+
+### 步骤 9：等待 CI 与自动审核
 
 - CI 自动执行：ruff -> mypy -> pytest -> 架构测试
-- PR 正文必须包含 `Closes #<Issue>`，否则 CI 拒绝
-- CI 失败时修正后重新推送
+- 自动审核通过 GitHub PR Review 正式发布结论：通过 = APPROVE；不通过 = REQUEST_CHANGES + 修改建议
+- CI 或自动审核不通过时，修正后重新推送并再次触发自动审核
 
-### 步骤 11：合并
+### 步骤 10：合并
 
-- 用户审查通过后 Squash Merge
+- 自动审核通过且用户审查同意后 Squash Merge
 - PR 合并后自动关闭 Issue
 - 删除远程分支
 
@@ -278,7 +248,7 @@ gh pr create \
 git branch -d nora/<type>-<subject>
 ```
 
-### 步骤 12：开始下一个 Issue
+### 步骤 11：开始下一个 Issue
 
 回到步骤 1，从最新 `main` 开始。
 
@@ -344,7 +314,7 @@ docker compose exec db psql -U nora -d nora               # 连接 PostgreSQL
 1. main 直接推送。所有变更必须通过 PR 合并
 2. Force push 到 main。main 分支受保护
 3. 无 Issue 的提交。所有变更必须关联 Issue（仓库初始化除外）
-4. 验收前推送。必须先提交验收清单并获得用户明确授权
+4. 无本地验证结果的推送。推送前必须跑完本地门禁；PR 合并前必须通过自动审核
 5. 使用 `[Roadmap]`、`[Phase]` 等固定标题前缀
 6. 提交 `.env`、密钥、Token、Cookie、浏览器会话、真实简历等敏感信息
 7. 不经过 Architecture Issue 新增依赖、数据所有权或外部写能力

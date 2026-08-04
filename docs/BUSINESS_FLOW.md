@@ -2,7 +2,7 @@
 
 > **文档定位**：本文是已确认业务流程与产品决策的基线真源，记录**已确认的业务流程**、**已确认的技术决策**、
 > 与当前项目实现的**差距分析**（缺少 / 越界）以及调整方向。本文不独立定义技术实现边界；任何落地都必须按
-> `ARCHITECTURE.md` 变更规则（架构改动先 Architecture Issue）与本仓库验收门禁执行。
+> `ARCHITECTURE.md` 变更规则（架构改动先 Architecture Issue）与本仓库交付与审核门禁执行。
 >
 > 相关真源：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)、[`ROADMAP.md`](ROADMAP.md)、[`ARCHITECTURE.md`](ARCHITECTURE.md)。
 > 建立基线：2026-08-02。

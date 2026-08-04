@@ -1,6 +1,6 @@
 ---
 name: nora-issue-pr-workflow
-description: Execute Nora repository delivery through its mandatory Issue, nora-prefixed branch, Chinese-first Conventional Commit, user acceptance before push, Pull Request, CI, review, and merge gates. Use whenever selecting, implementing, fixing, documenting, testing, committing, requesting user acceptance, pushing, opening a PR, or reporting completion for work in the Nora repository.
+description: Execute Nora repository delivery through its mandatory Issue, nora-prefixed branch, Chinese-first Conventional Commit, local verification, automatic push and Pull Request, automated review, CI, and merge gates. Use whenever selecting, implementing, fixing, documenting, testing, committing, pushing, opening a PR, triggering automated review, or reporting completion for work in the Nora repository.
 ---
 
 # Nora Issue 与 PR 流程
@@ -60,31 +60,26 @@ Refs #<Issue>
 - 按 Issue 执行集成测试；外部服务不可用时完成其余检查并记录跳过原因。
 - 不把未执行的检查写成通过，不用构建通过替代行为与安全审查。
 
-## 推送前人工验收
+## 推送与自动审核
 
-本地实现、验证和 Commit 完成后，将 Issue 正文状态更新为 `acceptance`，然后停止在本地并请求用户手动验收。请求必须包含：
+本地实现、验证和 Commit 完成后，不请求人工验收，直接：
 
-- Issue 编号与 URL；
-- 当前 `nora/` 分支与本地 Commit；
-- 基于真实 diff 的变更摘要；
-- 已执行验证及实际结果；
-- 未执行检查及原因；
-- 用户可直接执行的验收步骤。
+1. 将 Issue 正文状态更新为 `review`；
+2. 推送唯一 `nora/` 分支；
+3. 创建唯一 PR（正文包含唯一 `Closes #<Issue>`，使用 UTF-8 无 BOM 文件 + `--body-file`，见下方「GitHub 正文写入安全」）；
+4. 调用 `.codex/skills/nora-pr-review/scripts/nora_review.py --pr <N>` 触发自动审核，结论通过 `gh pr review` 正式发布。
 
-人工验收是 `git push` 前的强制门禁。未经用户针对当前待验收版本明确回复可以推送，不得执行 `git push`、创建 PR 或进行
-任何依赖远端分支的操作。不得把最初的实现请求、Issue 确认、一般性的“继续”或历史授权解释为推送授权。
-
-用户要求修改时，将 Issue 状态改回 `in-progress`，继续在同一 Issue 和分支本地修正、验证并 Commit，再次请求验收。用户授权
-只对当次展示的 Commit 和工作树状态有效；授权后发生任何实质修改，原授权自动失效，必须重新验收。
+自动审核不通过（REQUEST_CHANGES）时：将 Issue 状态改回 `in-progress`，按审核建议修改、验证、Commit 并重新推送，再次
+触发自动审核。审核通过（APPROVE）不代表合并授权，PR 合并仍需用户显式授权。
 
 ## Pull Request
 
-- 仅在用户明确验收并授权当前版本后，推送唯一 `nora/` 分支并创建唯一 PR。
+- 本地验证完成后，推送唯一 `nora/` 分支并创建唯一 PR。
 - 标题使用 `<type>(<optional-scope>): <中文 subject>`。
 - 正文恰好包含一个 `Closes #<Issue>`，并写明背景、实际变更、非目标、风险、验证和审查提示。
-- 等待 CI 最终结果。除非用户明确授权，不擅自合并。
+- 等待 CI 与自动审核。除非用户明确授权，不擅自合并。
 
-PR 未合并时只报告 PR 和 CI 状态，不称 Issue 或功能已完成。合并关闭 Issue 后才开始下一项。
+PR 未合并时只报告 PR、CI 和自动审核状态，不称 Issue 或功能已完成。合并关闭 Issue 后才开始下一项。
 
 ## GitHub 正文写入安全
 

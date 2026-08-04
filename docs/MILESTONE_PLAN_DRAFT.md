@@ -172,7 +172,7 @@ Vue 工程基础与前端 CI 可以在 CandidateProfile 后端实现之前开始
 - PostgreSQL、SQLAlchemy、Repository 和 Alembic；
 - Docker Compose 开发环境；
 - Ruff、格式、Mypy、pytest、架构测试和容器构建门禁；
-- 推送前人工验收、Issue/PR 工作流和本地提交门禁。
+- 自动审核、Issue/PR 工作流和本地提交门禁。
 
 ### 8.3 对后续里程碑的约束
 
@@ -918,7 +918,7 @@ Agent 边界与外部写约束以 [`ARCHITECTURE.md`](ARCHITECTURE.md) §11（�
 
 ## 20. 相对工期建议
 
-以下仅用于识别规模，不是承诺日期。假设单人顺序交付、一 Issue 一 PR、CI 和人工验收正常：
+以下仅用于识别规模，不是承诺日期。假设单人顺序交付、一 Issue 一 PR、CI 和自动审核正常：
 
 | Milestone | 预计有效工作日 | 主要不确定性 |
 |---|---:|---|

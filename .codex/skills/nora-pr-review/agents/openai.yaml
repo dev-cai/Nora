@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nora PR 自动审核"
+  short_description: "Codex 自行审核 Nora PR 并发布正式 Review（无浏览器、无 API Key）"
+  default_prompt: "Use $nora-pr-review to review a Nora Pull Request yourself (no browser, no API key): read the rendered review instruction, produce the verdict, and publish it as a formal GitHub review (approve or request-changes with a fixed template)."
