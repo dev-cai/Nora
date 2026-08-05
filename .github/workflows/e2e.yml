@@ -22,6 +22,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      # 先以 runner 用户安装依赖与浏览器，再启动 compose：
+      # 避免 compose override 的 bind mount 以 root 改写 node_modules 后 npm ci 报 EACCES。
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
