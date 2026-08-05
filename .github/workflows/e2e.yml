@@ -3,6 +3,8 @@ name: Browser E2E
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -19,29 +21,10 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Detect frontend changes
-        id: changes
-        shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- frontend .github/workflows/e2e.yml; then
-            echo "frontend=false" >> "$GITHUB_OUTPUT"
-            echo "No frontend or E2E workflow changes; E2E will be skipped."
-          else
-            echo "frontend=true" >> "$GITHUB_OUTPUT"
-            echo "Frontend changes detected; running the browser E2E gate."
-          fi
-
-      # 先安装依赖与浏览器：在干净 checkout 上以 runner 用户创建 node_modules，
-      # 避免 compose override 的 bind mount 容器以 root 改写工作区后 npm ci 报 EACCES。
+      # 先以 runner 用户安装依赖与浏览器，再启动 compose：
+      # 避免 compose override 的 bind mount 以 root 改写 node_modules 后 npm ci 报 EACCES。
       - name: Set up Node.js
-        if: steps.changes.outputs.frontend == 'true'
         uses: actions/setup-node@v4
         with:
           node-version-file: frontend/.nvmrc
@@ -49,27 +32,22 @@ jobs:
         # 出现 EACCES / 半损坏缓存；E2E 门禁宁可慢一点也要稳定。
 
       - name: Install locked dependencies
-        if: steps.changes.outputs.frontend == 'true'
         working-directory: frontend
         run: npm ci
 
       - name: Install Playwright browser
-        if: steps.changes.outputs.frontend == 'true'
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
       - name: Start compose stack
-        if: steps.changes.outputs.frontend == 'true'
         run: |
           cp backend/.env.example .env
           docker compose up -d --build db api web
 
       - name: Apply database migrations
-        if: steps.changes.outputs.frontend == 'true'
         run: docker compose exec api alembic upgrade head
 
       - name: Wait for services
-        if: steps.changes.outputs.frontend == 'true'
         run: |
           for i in $(seq 1 60); do
             if curl -sf http://localhost:8000/ready >/dev/null 2>&1 && curl -sf http://localhost:5173 >/dev/null 2>&1; then
@@ -82,21 +60,22 @@ jobs:
           docker compose ps
           exit 1
 
+      - name: Run web-to-API smoke
+        working-directory: frontend
+        run: npm run integration:smoke
+        env:
+          NORA_WEB_URL: http://localhost:5173
+
       - name: Run browser E2E
-        if: steps.changes.outputs.frontend == 'true'
         working-directory: frontend
         run: npm run e2e
         env:
           NORA_WEB_URL: http://localhost:5173
 
       - name: Upload Playwright report
-        if: ${{ failure() && steps.changes.outputs.frontend == 'true' }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
-
-      - name: Confirm skip
-        if: steps.changes.outputs.frontend != 'true'
-        run: echo "Browser E2E skipped because no frontend paths changed."
