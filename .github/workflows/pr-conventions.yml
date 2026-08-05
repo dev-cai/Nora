@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   validate:
-    name: Validate branch and title
+    name: Validate branch, title, and Issue link
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
