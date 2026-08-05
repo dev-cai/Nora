@@ -1,6 +1,6 @@
 # Nora 初版架构
 
-本文定义 Nora 新架构周期的第一版系统边界。它是后续 Architecture、Epic 和 Implementation Issue 的共同基线，
+本文定义 Nora 新架构周期的第一版系统边界。它是后续 Architecture、Epic 和 Task Issue 的共同基线，
 不代表文中所有目标能力已经实现。
 
 产品目标、用户旅程和能力状态由 [`PRODUCT_VISION.md`](PRODUCT_VISION.md) 定义；本文只定义实现必须遵守的架构边界。
@@ -408,16 +408,37 @@ Issue #59 已将后端工程迁移至 `backend/`：Python 应用包为 `backend/
 `backend/app/apps/api/`，测试、Alembic 与 Python 工程清单均由 `backend/` 拥有。仓库根目录只保留跨工程文档、
 Compose、Docker 配置和协作治理文件。
 
-当前后端仍保持全局技术分层，以确保目录迁移不改变业务行为：
+当前后端采用技术层 + 业务子模块的过渡形态：`application/`、`domain/`、`ports/` 下按业务上下文（`career`、
+`identity`、`opportunity`、`governance`）组织子模块，`apps/api/` 承载路由与 composition。该形态是模块化蓝图
+的渐进迁移中间态，以确保目录迁移不改变业务行为：
 
 ```text
 backend/
 ├── app/
-│   ├── application/
-│   ├── apps/api/
-│   ├── domain/
-│   ├── infrastructure/
-│   └── ports/
+│   ├── application/          # Use Case 编排（按业务子模块）
+│   │   ├── career/
+│   │   ├── identity/
+│   │   └── opportunity/
+│   ├── apps/
+│   │   └── api/              # FastAPI 路由与 composition
+│   ├── domain/               # 领域对象与规则（按业务子模块）
+│   │   ├── base/
+│   │   ├── career/
+│   │   ├── governance/
+│   │   ├── identity/
+│   │   └── opportunity/
+│   ├── infrastructure/       # ORM、Repository 与 Adapter
+│   │   ├── auth.py
+│   │   ├── config/
+│   │   ├── database/
+│   │   └── logging/
+│   └── ports/                # Repository 与 Gateway Protocol
+│       ├── career.py
+│       ├── governance.py
+│       ├── identity.py
+│       ├── jd_input.py
+│       ├── opportunity.py
+│       └── repository.py
 ├── tests/
 ├── alembic/
 ├── alembic.ini
@@ -501,7 +522,7 @@ Issue 合并前保持不变；Architecture 文档不能替代路由迁移、兼�
 2. **迁移 Identity 业务模块。** 只移动 Identity 的 API/Application/Domain/Ports/Infrastructure，保持认证路由和数据契约。
 3. **迁移 Opportunity 与 Governance。** 在共享事务和审计测试保护下迁移岗位与审计模块，不改幂等语义。
 4. **保持 Vue 工程边界。** Issue #26 和 #53 已交付客户端与前端 CI；后续页面继续按 [`FRONTEND.md`](FRONTEND.md) 只调用已发布 API，不伪造未交付能力。
-5. **评审 `/api/v1` 兼容迁移。** 使用独立 Architecture/Implementation Issue 定义旧路由兼容期、OpenAPI 契约和双端测试。
+5. **评审 `/api/v1` 兼容迁移。** 使用独立 Architecture/Task Issue 定义旧路由兼容期、OpenAPI 契约和双端测试。
 
 不为目标蓝图批量创建空目录。每个目录只有在对应 Issue 提供真实实现、测试和调用路径时才建立。
 

@@ -28,10 +28,11 @@ Issue 关闭并删除分支，再开始下一项
 
 - Architecture：修改系统边界、数据所有权、依赖方向或技术决策。
 - Epic：包含多个原子 Task 的父级目标，不直接承载生产实现。
-- Implementation：交付一个进入真实调用路径、可运行且可测试的纵向切片。
+- Task：交付一个进入真实调用路径、可运行且可测试的纵向切片。
 - Bug：修复已经存在并可复现的错误行为。
 - Documentation：只修改文档或协作规范。
-- Security：敏感问题通过 `SECURITY.md` 的私密渠道处理。
+
+安全漏洞等敏感问题通过 `SECURITY.md` 的私密渠道处理，不创建公开 Issue。
 
 ## Issue 标题
 
@@ -45,7 +46,7 @@ Issue 编号前缀。Milestone 前缀只帮助阅读，不替代真实 Milestone
 - 创建状态只允许 `ready` 或 `blocked`；产生实质修改后为 `in-progress`；创建 PR 后为 `review`；自动审核要求修改且 PR 未合并时返回 `in-progress`。
 - 状态只记录在正文中，不使用 `status:*` 标签。
 - Parent Epic 表示层级，依赖表示真正阻塞执行的条件，两者不得混用。
-- Architecture、Epic 和 Implementation 必须进入真实 Milestone；Bug 和 Documentation 按影响范围决定。
+- Architecture、Epic 和 Task 必须进入真实 Milestone；Bug 和 Documentation 按影响范围决定。
 - 标签定义以 `.github/labels.json` 为准，创建 Issue 时使用项目 Skill `nora-create-issue`。
 
 ## Issue 最低信息

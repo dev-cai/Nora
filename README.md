@@ -117,9 +117,17 @@ curl http://localhost:8000/health   # {"status":"healthy"}
 | 文档 | 说明 |
 |------|------|
 | [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md) | 产品愿景、用户旅程与能力状态 |
+| [`docs/BUSINESS_FLOW.md`](docs/BUSINESS_FLOW.md) | 已确认业务流程与技术决策基线 |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 架构边界、数据所有权与依赖方向 |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | 里程碑范围与验收条件 |
+| [`docs/MILESTONE_PLAN_DRAFT.md`](docs/MILESTONE_PLAN_DRAFT.md) | 里程碑原子交付执行计划 |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | 环境、测试、迁移与排障 |
+| [`docs/FRONTEND.md`](docs/FRONTEND.md) | 前端技术与 HTTP 集成契约 |
+| [`docs/USER_EXPERIENCE.md`](docs/USER_EXPERIENCE.md) | 用户体验场景与交互目标 |
+| [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | 领域术语索引 |
+| [`docs/ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) | Issue 类型、标签、状态与关系 |
+| [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | 开发交付工作流 |
+| [`docs/JD_INPUT_SECURITY.md`](docs/JD_INPUT_SECURITY.md) | JD 输入安全边界与 Adapter 审查清单 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 贡献规则与协作约定 |
 
 ## 许可证
