@@ -12,7 +12,7 @@
     {"name": "priority:p3", "color": "cfd3d7", "description": "候选项或后续优化"},
     {"name": "area:architecture", "color": "5319e7", "description": "架构、ADR、上下文和边界"},
     {"name": "area:backend", "color": "62199f", "description": "API、应用服务和服务端"},
-    {"name": "area:frontend", "color": "1f6feb", "description": "Web、Gradio 和交互界面"},
+    {"name": "area:frontend", "color": "1f6feb", "description": "Web、Vue 客户端与交互界面"},
     {"name": "area:agent", "color": "7057ff", "description": "LangGraph、Agent 和 Tool 编排"},
     {"name": "area:rag", "color": "bf8700", "description": "Embedding、检索、重排和向量库"},
     {"name": "area:data", "color": "8250df", "description": "数据模型、数据库和长期记忆"},

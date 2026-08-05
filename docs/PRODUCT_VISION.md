@@ -105,7 +105,7 @@ CandidateProfile
 - **未知（Unknown）**：证据缺失、冲突、过期或当前不可验证；
 - **引用（Citation）**：定位到来源版本、片段或字段路径。
 
-具体 Schema、版本兼容性和渲染形式由 M3 的独立契约与 Implementation Issue 定义。
+具体 Schema、版本兼容性和渲染形式由 M3 的独立契约与 Task Issue 定义。
 
 ## 6. 长期记忆原则
 
@@ -134,7 +134,7 @@ CandidateProfile
 - 模型通过 Provider-neutral Model Gateway 访问；DeepSeek、GLM、OpenAI 兼容 Provider 等均为候选配置，不在产品愿景中锁定
   尚未验证的具体版本。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应
-  Architecture/Implementation Issue 验收。
+  Architecture/Task Issue 验收。
 - LangGraph Agent Runtime 属于 M6+；M3 的首个 Demo 使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。
 - Redis/Celery 在 M5 仅按指标评估，不拥有业务事实。
 

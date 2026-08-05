@@ -147,7 +147,7 @@ Nora 所有变更的驱动单元。共 5 种类型：
 |------|------|
 | **Architecture** | 修改系统边界、数据所有权、依赖方向或技术决策 |
 | **Epic** | 包含多个原子 Task 的父级目标，不直接承载实现 |
-| **Implementation** | 交付进入真实调用路径、可运行且可测试的纵向切片 |
+| **Task** | 交付进入真实调用路径、可运行且可测试的纵向切片 |
 | **Bug** | 修复已存在且可复现的错误行为 |
 | **Documentation** | 只修改文档或协作规范 |
 
@@ -158,7 +158,7 @@ Nora 所有变更的驱动单元。共 5 种类型：
 结论只有「通过 / 不通过」：通过 = APPROVE；不通过 = REQUEST_CHANGES + 修改建议；合并前必须通过自动审核。
 
 ### Milestone（里程碑）
-一组 Issue 的集合，代表一个可交付的阶段。Architecture、Epic 和 Implementation 必须归入 Milestone。Nora 的里程碑规划：M0 → M1 → M2 → M3 → M4 → M5+。
+一组 Issue 的集合，代表一个可交付的阶段。Architecture、Epic 和 Task 必须归入 Milestone。Nora 的里程碑规划：M0 → M1 → M2 → M3 → M4 → M5+。
 
 ### 状态（Status）
 Issue 的生命周期状态，记录在 Issue 正文中（不使用 `status:*` 标签）：

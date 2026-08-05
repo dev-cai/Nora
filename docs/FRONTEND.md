@@ -25,7 +25,6 @@ frontend/
 │   ├── components/   # 可复用 UI 组件
 │   ├── features/     # 按业务能力组织的前端模块
 │   ├── views/        # 页面级组件
-│   ├── composables/  # Vue Composables
 │   ├── stores/       # Pinia 状态
 │   └── router/       # Vue Router
 ├── tests/            # 前端单元、组件与适用 E2E 测试
@@ -138,27 +137,29 @@ Vue 前端实现 Issue 负责：
 
 ## 9. 路由表
 
+下表标注交付状态：M2 路由已交付；标注「〔M3 Planned〕/〔M6+ Planned〕」的路由尚未实现，不得按已交付处理。
+
 ```text
-/login                      登录
-/register                   注册
-/                           工作台概览（最近岗位、分析入口）
-/jobs/new                   新建岗位（文本 / 截图 / 链接）
-/jobs                       岗位列表（分页）
-/jobs/:id                   岗位详情
-/profile                    主档编辑（字段级确认状态）
-/resumes                    简历版本列表
-/resumes/new                发布新版本
-/resumes/:id                简历版本详情
-/analysis/new               发起分析（选岗位 + 主档 + 简历版本）
-/analysis/:id               分析进度 / 失败重试
-/reports                    报告历史列表（分页）
-/reports/:id                报告详情（含投/不投）
-/decisions                  投递决定记录（skip/apply）
-/templates                  模板管理（M6+）
-/resumes/:id/customize      定制简历（M6+）
-/messages/:id               打招呼语草稿（M6+）
-/applications               投递记录（M6+）
-/interviews/:id/travel      出行推荐（M6+）
+/login                      登录（M2 已交付）
+/register                   注册（M2 已交付）
+/                           工作台概览（最近岗位、分析入口）（M2 已交付）
+/jobs/new                   新建岗位（文本 / 截图 / 链接）（M2 文本）
+/jobs                       岗位列表（分页）（M2 已交付）
+/jobs/:id                   岗位详情（M2 已交付）
+/profile                    主档编辑（字段级确认状态）（M2 已交付）
+/resumes                    简历版本列表（M2 已交付）
+/resumes/new                发布新版本（M2 已交付）
+/resumes/:id                简历版本详情（M2 已交付）
+/analysis/new               发起分析（选岗位 + 主档 + 简历版本）〔M3 Planned〕
+/analysis/:id               分析进度 / 失败重试〔M3 Planned〕
+/reports                    报告历史列表（分页）〔M3 Planned〕
+/reports/:id                报告详情（含投/不投）〔M3 Planned〕
+/decisions                  投递决定记录（skip/apply）〔M3 Planned〕
+/templates                  模板管理〔M6+ Planned〕
+/resumes/:id/customize      定制简历〔M6+ Planned〕
+/messages/:id               打招呼语草稿〔M6+ Planned〕
+/applications               投递记录〔M6+ Planned〕
+/interviews/:id/travel      出行推荐〔M6+ Planned〕
 ```
 
 路由守卫：未登录访问受保护路由跳 `/login`；收到 `401` 统一清除会话；`403` 不做登出。
@@ -270,16 +271,18 @@ Vue 前端实现 Issue 负责：
 
 ## 13. 组件划分
 
-| 组件 | 用途 |
-| :--- | :--- |
-| `AppShell` | 布局、导航、认证态 |
-| `AuthForm` | 注册/登录表单 |
-| `JobForm` / `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 三模式输入 |
-| `ProfileForm` / `FieldGroup` / `ConfirmationBadge` | 主档分区与字段确认状态 |
-| `ResumeVersionCard` | 简历版本卡片 |
-| `ReportSection` / `RuleRow` / `UnknownBadge` / `EvidenceLink` | 报告分区 |
-| `DecisionBar` | 投/不投 |
-| `ErrorState` / `LoadingState` / `EmptyState` | 通用状态 |
+下表为组件设计划分，里程碑列表示计划交付阶段：M2 行的页面功能已随 M2 页面交付（部分组件可能内联在页面中，并非全部以独立文件存在）；M3 及之后均为 Planned，尚未实现。
+
+| 组件 | 用途 | 里程碑 |
+| :--- | :--- | :--- |
+| `AppShell` | 布局、导航、认证态 | M2 |
+| `AuthForm` | 注册/登录表单 | M2 |
+| `JobForm` / `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 三模式输入 | M2 文本 / M3.7 Planned |
+| `ProfileForm` / `FieldGroup` / `ConfirmationBadge` | 主档分区与字段确认状态 | M2 |
+| `ResumeVersionCard` | 简历版本卡片 | M2 |
+| `ReportSection` / `RuleRow` / `UnknownBadge` / `EvidenceLink` | 报告分区 | M3 Planned |
+| `DecisionBar` | 投/不投 | M3 Planned |
+| `ErrorState` / `LoadingState` / `EmptyState` | 通用状态 | M3 Planned |
 
 ## 14. 里程碑前端交付映射
 

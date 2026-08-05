@@ -97,10 +97,14 @@ curl http://localhost:8000/health
 | `feat` | 新功能、新接口、新模块 |
 | `fix` | 修复缺陷 |
 | `docs` | 文档、注释变更 |
+| `style` | 格式调整（不影响逻辑） |
 | `refactor` | 重构（不新增功能也不修 Bug） |
+| `perf` | 性能优化 |
 | `test` | 新增或修改测试 |
 | `chore` | 工具配置、依赖维护 |
+| `build` | 构建系统或外部依赖变更 |
 | `ci` | CI 配置变更 |
+| `revert` | 回滚提交 |
 
 Commit 正文按需解释原因，引用 Issue：`Refs #<编号>`。
 
