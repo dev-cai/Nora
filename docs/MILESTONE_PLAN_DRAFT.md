@@ -960,9 +960,10 @@ M2/M3 若超过上述范围，应优先删除非退出条件能力，不能把 R
 - [x] 后续 Milestone 的依赖不引用未交付能力；
 - [x] 历史 Issue、PR、Milestone 和文档证据可追溯。
 
-> **M2 关闭证据（2026-08-04）**：Milestone #4 的 9 个强制 Issue 全部关闭、开放项为 0；前后端质量门禁在合并 PR
-> （#100–#106、#108）的 CI 中通过；`docker compose up --build` 与 `scripts/web-api-smoke.mjs` 可在新环境
-> 重复执行；浏览器级基础 E2E 缺口记录于 Issue #112，不阻塞 M2 关闭。
+> **M2 关闭证据（2026-08-04）**：Milestone #4 的交付 Issue 已全部合并关闭；前后端质量门禁在 PR
+> #100–#108 的 CI 中通过，文档证据由 #111/#115 与 #117 同步；`docker compose up --build` 和
+> `scripts/web-api-smoke.mjs` 可在新环境重复执行；Issue #112、PR #116 已交付 Playwright 基础浏览器 E2E，
+> `Browser E2E (basic flow)` CI 通过。M3 完整分析与投递主流程 E2E 仍由 #77 交付。
 
 ## 22. 风险登记表
 

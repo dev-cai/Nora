@@ -121,8 +121,8 @@ CandidateProfile
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已实现并有验证证据 | 仓库治理、Issue/PR 工作流、M0 工程基础、本地账号认证、用户范围 Repository、不可变 JobPosting 创建/读取、幂等和创建审计 |
-| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M2 数据与前端基础、M3 确定性 Demo、M4 Evidence/RAG/AI 增强、M5 生产准备、M6+ 投递闭环 |
+| **Current** | 已实现并有验证证据 | 仓库治理与 Issue/PR 工作流、M0 工程基础、M1 认证与岗位快照、M2 CandidateProfile、ResumeVersion、Vue 工作台、前端 CI、JD 输入契约与基础浏览器 E2E |
+| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M3 确定性 Demo、M4 Evidence/RAG/AI 增强、M5 生产准备、M6+ 投递闭环 |
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | M6+ Agent Runtime、专项 Agent、Milvus、服务拆分和受控连接器 |
 
 状态以默认分支、已合并 PR 和 GitHub Issue 为证据。本文中的产品示例不能替代实现、测试或发布证明。
