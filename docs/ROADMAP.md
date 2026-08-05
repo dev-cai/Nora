@@ -4,9 +4,9 @@
 >
 > 产品愿景：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)。架构边界：[`ARCHITECTURE.md`](ARCHITECTURE.md)。
 > 目标用户：软件工程专业应届生（以校招为主），产品范围与能力重心以 [`PRODUCT_VISION.md`](PRODUCT_VISION.md) 为准。
-> 本文定义里程碑范围；实际执行状态以 GitHub Milestone 与 Issue 为准。
+> **范围真源：本文**，定义各里程碑范围与验收；实际执行状态以 GitHub Milestone 与 Issue 为准。
 >
-> M2 及之后的范围已按 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) 重排：**确定性 Demo 先于 AI 增强**，
+> M2 及之后的范围已按 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) 重排：**确定性 Demo 先于 AI 增强**，
 > RAG/LLM 移至 M4，中间件移至 M5。原子交付细节以该执行计划为准，本文只保留里程碑范围与验收。
 
 ---
@@ -164,7 +164,7 @@ JD 输入契约见 [#106](https://github.com/dev-cai/Nora/pull/106)；前端收�
 
 ### 原子交付
 
-原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §10（M2.1–M2.8）为准。
+原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §10（M2.1–M2.8）为准。
 
 ---
 
@@ -213,7 +213,7 @@ JD 输入契约见 [#106](https://github.com/dev-cai/Nora/pull/106)；前端收�
 
 ### 原子交付
 
-原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §11（M3.1–M3.9）为准。
+原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §11（M3.1–M3.9）为准。
 
 ---
 
@@ -261,7 +261,7 @@ JD 输入契约见 [#106](https://github.com/dev-cai/Nora/pull/106)；前端收�
 
 ### 原子交付
 
-原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §12（M4.1–M4.10）为准。
+原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §12（M4.1–M4.10）为准。
 
 ---
 
@@ -305,7 +305,7 @@ JD 输入契约见 [#106](https://github.com/dev-cai/Nora/pull/106)；前端收�
 
 ### 原子交付
 
-原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §13 为准。
+原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §13 为准。
 
 ---
 
@@ -343,7 +343,7 @@ JD 输入契约见 [#106](https://github.com/dev-cai/Nora/pull/106)；前端收�
 
 ### 原子交付
 
-原子交付顺序与验收以 [`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §14 为准。
+原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §14 为准。
 
 ---
 
