@@ -12,7 +12,7 @@ description: Review one Nora Pull Request by having Codex itself read the render
 ## 审核门禁
 
 1. 确认 `gh auth status` 已登录，仓库远端可访问。
-2. 确认目标 PR 存在，来源分支为 `nora/`，且正文包含唯一 `Closes #<Issue>`。
+2. 确认目标 PR 存在，来源分支为 `nora/`；如正文含 `Closes #<Issue>` 则必须唯一（Issue 可选，无则直接审 diff）。
 3. 审核由 Codex 自身完成，不依赖浏览器、API Key 或 session token。
 4. 不把 prompt、回复原文或 review body 写入仓库工作树（一律走系统临时目录）。
 

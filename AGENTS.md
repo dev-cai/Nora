@@ -8,8 +8,9 @@
 - `CONTRIBUTING.md`
 - `docs/ISSUE_WORKFLOW.md`
 
-仓库初始化提交之后，严格执行“一 Issue、一分支、一 PR；合并后再开始下一项”。新分支统一使用
-`nora/<type>-<subject>`。未经 Architecture Issue 和审查，不得提前创建应用目录、选择运行时依赖或实现业务代码。
+仓库初始化提交之后，严格执行“一分支、一 PR；合并后再开始下一项”。Issue 可选：关联时 PR 用
+`Closes #<编号>` 关闭，一个 PR 最多关闭一个 Issue。新分支统一使用 `nora/<type>-<subject>`。
+未经 Architecture Issue 和审查，不得提前创建应用目录、选择运行时依赖或实现业务代码。
 Issue 标题使用自然中文，可选择性添加 `M<n>` 或 `M<n>.<n>` Milestone 前缀；不得使用类型方括号、
 `Roadmap`/`Phase` 固定前缀或 Issue 编号前缀。
 

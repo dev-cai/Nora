@@ -9,7 +9,7 @@
 ## 工作流全景
 
 ```
-  认领 Issue ──> 创建 nora/ 分支 ──> 编码 + 测试 + Commit
+  从 main 建分支（Issue 可选）──> 编码 + 测试 + Commit
         │
         v
   本地验证通过 ──> 推送 + 创建 PR + 触发自动审核
@@ -18,7 +18,7 @@
   自动审核通过? ──否──> 返回修改
         │ 是
         v
-  CI 通过 ──> 用户合并授权 ──> 关闭 Issue
+  CI 通过 ──> 用户合并授权 ──> 关闭关联 Issue（如有）+ 删除分支
 ```
 
 ---
@@ -106,7 +106,7 @@ curl http://localhost:8000/health
 | `ci` | CI 配置变更 |
 | `revert` | 回滚提交 |
 
-Commit 正文按需解释原因，引用 Issue：`Refs #<编号>`。
+Commit 正文按需解释原因，如有关联 Issue 用 `Refs #<编号>` 引用。
 
 ### 自动审核门禁
 
@@ -142,7 +142,7 @@ git config core.hooksPath .githooks
 ```bash
 git checkout main
 git pull origin main
-# 确认前置依赖 Issue 已合并
+# 如有关联前置依赖 Issue，确认已合并
 ```
 
 ### 步骤 2：创建分支
@@ -152,7 +152,7 @@ git checkout -b nora/<type>-<subject>
 # 示例：git checkout -b nora/feat-user-identity
 ```
 
-更新 Issue 正文状态为 `in-progress`。
+如有关联 Issue，更新其正文状态为 `in-progress`。
 
 ### 步骤 3：启动开发环境
 
@@ -225,12 +225,12 @@ gh pr create \
   --base main \
   --head nora/<type>-<subject> \
   --title "<type>(<scope>): <中文 subject>" \
-  --body-file pr-body.md    # 正文以 Closes #<编号> 开头，UTF-8 无 BOM
+  --body-file pr-body.md    # 正文可含 Closes #<编号>（可选），UTF-8 无 BOM
 ```
 
-PR 正文必须包含唯一 `Closes #<编号>`，并写明背景、实际变更、非目标、影响分析、验证结果、未执行检查及原因、审查重点。
+PR 正文如含 `Closes #<编号>` 必须唯一，并写明背景、实际变更、非目标、影响分析、验证结果、未执行检查及原因、审查重点。
 
-更新 Issue 正文状态为 `review`，随后触发自动审核：
+如有关联 Issue，更新其正文状态为 `review`，随后触发自动审核：
 
 ```bash
 python .codex/skills/nora-pr-review/scripts/nora_review.py --pr <PR 编号>
@@ -317,7 +317,7 @@ docker compose exec db psql -U nora -d nora               # 连接 PostgreSQL
 
 1. main 直接推送。所有变更必须通过 PR 合并
 2. Force push 到 main。main 分支受保护
-3. 无 Issue 的提交。所有变更必须关联 Issue（仓库初始化除外）
+3. 无分支的提交。每个 PR 必须对应一个独立分支
 4. 无本地验证结果的推送。推送前必须跑完本地门禁；PR 合并前必须通过自动审核
 5. 使用 `[Roadmap]`、`[Phase]` 等固定标题前缀
 6. 提交 `.env`、密钥、Token、Cookie、浏览器会话、真实简历等敏感信息

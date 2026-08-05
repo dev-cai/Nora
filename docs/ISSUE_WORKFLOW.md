@@ -1,27 +1,25 @@
-# Issue 驱动实施流程
+# Issue 与 PR 实施流程
 
 ## 基本规则
 
-仓库治理初始化提交是唯一可以没有 Issue 的提交。此后所有代码、文档、配置和模板变更都必须关联一个 Issue。
+仓库治理初始化提交是唯一例外。此后所有代码、文档、配置和模板变更通过**一个 PR、一个分支**交付；Issue 可选，关联时 PR 用 `Closes #<编号>` 关闭。
 
 ```text
-创建或认领 Issue
+从最新 main 创建 nora/<type>-<subject>（Issue 可选）
         ↓
-确认范围、非目标、验收与前置依赖
-        ↓
-从最新 main 创建 nora/<type>-<subject>
+确认范围、非目标与前置依赖
         ↓
 实现、测试、文档与本地验证
         ↓
 中文优先 Commit
         ↓
-推送唯一分支并自动创建唯一 PR，正文使用 Closes #<Issue>
+推送唯一分支并自动创建唯一 PR，正文可含 Closes #<Issue>
         ↓
 自动审核（通过 = APPROVE / 不通过 = REQUEST_CHANGES + 修改建议）
         ↓
 CI 通过后用户显式合并授权，Squash Merge
         ↓
-Issue 关闭并删除分支，再开始下一项
+关闭关联 Issue（如有）并删除分支，再开始下一项
 ```
 
 ## Issue 类型
