@@ -5,13 +5,13 @@ description: Execute Nora repository delivery through its mandatory Issue, nora-
 
 # Nora Issue 与 PR 流程
 
-始终保持“一 Issue、一分支、一 PR；合并后再开始下一项”。仓库首次治理初始化提交是唯一例外。
+始终保持“一分支、一 PR；合并后再开始下一项”。Issue 可选：关联时 PR 用 `Closes #<编号>` 关闭。仓库首次治理初始化提交是唯一例外。
 
 ## 开始门禁
 
 1. 读取 `AGENTS.md`、`CONTRIBUTING.md` 和 `docs/ISSUE_WORKFLOW.md`。
 2. 检查工作树、当前分支、远端、已有 Issue 和 PR；不得覆盖用户修改或混入其他 Issue。
-3. 实现前必须存在真实、可验收且前置依赖已合并的 Issue。
+3. 实现前范围必须明确；如有关联前置依赖 Issue，需已合并（Issue 可选）。
 4. 已有尚未合并的交付项时继续该项，不开始下一个依赖项。
 
 ## Issue 与分支

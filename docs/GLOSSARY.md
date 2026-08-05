@@ -143,7 +143,7 @@ Evidence Pack 中的最小单元，包含：
 > 本节是治理术语索引；规则、状态与格式的权威定义见各真源文档，出现冲突时以真源为准。
 
 ### Issue（问题/任务）
-Nora 所有变更的驱动单元。类型包括 `type:architecture`、`type:epic`、`type:task`、`type:bug`、`type:docs`。
+Nora 的可选变更单元；交付载体是 PR。类型包括 `type:architecture`、`type:epic`、`type:task`、`type:bug`、`type:docs`。
 权威定义见 [`ISSUE_WORKFLOW.md`](ISSUE_WORKFLOW.md)「Issue 类型」。
 
 ### 门禁（Gate）

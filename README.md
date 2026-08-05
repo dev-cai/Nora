@@ -67,7 +67,7 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 | 前端 | Vue 3 · Vite · TypeScript · Pinia |
 | 数据 | PostgreSQL 16 · pgvector（M4 引入） |
 | 工程 | Docker Compose · ruff · mypy · pytest · GitHub Actions |
-| 治理 | 一 Issue 一 PR · Codex 自动审核门禁 |
+| 治理 | 一 PR 一分支 · Issue 可选 · Codex 自动审核门禁 |
 
 分层遵循 `Apps/Adapters → Application → Domain`，Domain 不依赖任何外部框架。模块边界、数据所有权与依赖方向的权威定义见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
 
