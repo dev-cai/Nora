@@ -140,44 +140,37 @@ Evidence Pack 中的最小单元，包含：
 
 ## 治理与工作流
 
-### Issue（问题/任务）
-Nora 所有变更的驱动单元。共 5 种类型：
+> 本节是治理术语索引；规则、状态与格式的权威定义见各真源文档，出现冲突时以真源为准。
 
-| 类型 | 用途 |
-|------|------|
-| **Architecture** | 修改系统边界、数据所有权、依赖方向或技术决策 |
-| **Epic** | 包含多个原子 Task 的父级目标，不直接承载实现 |
-| **Task** | 交付进入真实调用路径、可运行且可测试的纵向切片 |
-| **Bug** | 修复已存在且可复现的错误行为 |
-| **Documentation** | 只修改文档或协作规范 |
+### Issue（问题/任务）
+Nora 所有变更的驱动单元。类型包括 `type:architecture`、`type:epic`、`type:task`、`type:bug`、`type:docs`。
+权威定义见 [`ISSUE_WORKFLOW.md`](ISSUE_WORKFLOW.md)「Issue 类型」。
 
 ### 门禁（Gate）
-流程中的强制检查点，未通过则禁止进入下一步。Nora 定义了两道核心门禁：
-
-**自动审核门禁**：本地验证完成后自动推送并创建 PR，随后由 Codex 自动审核（`.codex/skills/nora-pr-review`）发布结论。
-结论只有「通过 / 不通过」：通过 = APPROVE；不通过 = REQUEST_CHANGES + 修改建议；合并前必须通过自动审核。
+PR 合并前必须通过的强制检查点，结论只有「通过 / 不通过」。
+权威定义见 [`WORKFLOW.md`](WORKFLOW.md)「自动审核门禁」。
 
 ### Milestone（里程碑）
-一组 Issue 的集合，代表一个可交付的阶段。Architecture、Epic 和 Task 必须归入 Milestone。Nora 的里程碑规划：M0 → M1 → M2 → M3 → M4 → M5+。
+一组 Issue 的集合，代表一个可交付的阶段。范围与验收见 [`ROADMAP.md`](ROADMAP.md)。
 
 ### 状态（Status）
-Issue 的生命周期状态，记录在 Issue 正文中（不使用 `status:*` 标签）：
-- `ready` — 可开始实施
-- `blocked` — 等待前置依赖
-- `in-progress` — 已创建分支，正在实施
-- `review` — 已推送并创建 PR，等待 CI 和自动审核
+Issue 的生命周期状态，记录在正文中（`ready` / `blocked` / `in-progress` / `review`）。
+权威定义见 [`ISSUE_WORKFLOW.md`](ISSUE_WORKFLOW.md)「标签、状态与 Milestone」。
 
 ### nora/ 分支
-所有工作分支统一前缀。格式：`nora/<type>-<subject>`，如 `nora/feat-job-posting-api`。禁止使用 `codex/`、`agent/`、`roadmap`、`phase` 等前缀。
+所有工作分支统一前缀，格式 `nora/<type>-<subject>`。
+权威定义见 [`WORKFLOW.md`](WORKFLOW.md)「分支命名」。
 
 ### Conventional Commit（约定式提交）
-Nora 使用中文化版本：`<type>(<scope>): <中文 subject>`。scope 可选。类型包括 feat、fix、docs、refactor、test、chore、ci 等。
+Nora 使用中文化格式 `<type>(<scope>): <中文 subject>`。
+权威定义与类型表见 [`WORKFLOW.md`](WORKFLOW.md)「Commit 格式」。
 
 ### Squash Merge
-Nora 推荐的 GitHub 合并策略。将一个 PR 的所有 Commit 压缩为一条 Commit 合并到 main，以 PR 标题作为 Commit 标题。
+Nora 推荐的 GitHub 合并策略：PR 压缩为一条 Commit 合并到 main。
+权威定义见 [`WORKFLOW.md`](WORKFLOW.md)「步骤 10：合并」。
 
 ### Skill（技能）
-位于 `.codex/skills/` 下的可执行工作流定义，指导 LLM Agent 完成特定任务（如创建 Issue、交付 PR）。
+位于 `.codex/skills/` 下的可执行工作流定义，指导 AI 助手完成特定任务（如创建 Issue、交付 PR）。
 
 ### CODEOWNERS
 GitHub 的代码所有者机制。Nora 的 CODEOWNERS 指向 `@dev-cai`，所有 PR 必须经其审查。
@@ -221,13 +214,13 @@ GitHub 的代码所有者机制。Nora 的 CODEOWNERS 指向 `@dev-cai`，所有
 
 ## 标签体系
 
-Nora 使用三层标签分类（真源为 `.github/labels.json`）：
+Nora 使用 `type` / `priority` / `area` 三层标签分类，标签真源为 [`.github/labels.json`](../.github/labels.json)：
 
-| 类别 | 标签 | 说明 |
-|------|------|------|
-| **type** | `type:architecture`、`type:epic`、`type:task`、`type:bug`、`type:docs` | Issue 类型，每 Issue 必选且唯一 |
-| **priority** | `priority:p0` ~ `priority:p3` | 优先级，每 Issue 必选且唯一 |
-| **area** | `area:architecture`、`area:backend`、`area:frontend`、`area:agent`、`area:rag`、`area:data`、`area:infra`、`area:security`、`area:docs` | 所属领域，每 Issue 至少选一个 |
+- `type`：Issue 类型（`type:architecture`、`type:epic`、`type:task`、`type:bug`、`type:docs`），每 Issue 必选且唯一；
+- `priority`：优先级（`priority:p0` ~ `priority:p3`），每 Issue 必选且唯一；
+- `area`：所属领域（`area:architecture`、`area:backend`、`area:frontend`、`area:agent`、`area:rag`、`area:data`、`area:infra`、`area:security`、`area:docs`），每 Issue 至少选一个。
+
+使用规则见 [`ISSUE_WORKFLOW.md`](ISSUE_WORKFLOW.md)「标签、状态与 Milestone」。
 
 ---
 
