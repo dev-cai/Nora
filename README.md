@@ -107,7 +107,7 @@ curl http://localhost:8000/health   # {"status":"healthy"}
 ## 协作流程
 
 1. 阅读 [架构文档](docs/ARCHITECTURE.md) 与 [工作流](docs/WORKFLOW.md)
-2. 创建或认领一个范围明确、可独立验收的 [Issue](https://github.com/dev-cai/Nora/issues)
+2. 确定一个范围明确、可独立验收的交付项，按需创建或关联 [Issue](https://github.com/dev-cai/Nora/issues)
 3. 从最新 `main` 创建 `nora/<type>-<subject>` 分支
 4. 实现并测试，通过本地门禁
 5. 推送 → 创建 PR → Codex 自动审核 → CI → Squash Merge
@@ -140,6 +140,8 @@ curl http://localhost:8000/health   # {"status":"healthy"}
 | [`docs/ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) | Issue 类型、标签、状态与关系 |
 | [`docs/WORKFLOW.md`](docs/WORKFLOW.md) | 开发交付工作流 |
 | [`docs/JD_INPUT_SECURITY.md`](docs/JD_INPUT_SECURITY.md) | JD 输入安全边界与 Adapter 审查清单 |
+| [`docs/docs-contract.toml`](docs/docs-contract.toml) | 文档分类、事实所有权与代码路径影响规则 |
+| [`docs/current-capabilities.toml`](docs/current-capabilities.toml) | 当前已交付能力、代码路径与 PR 证据 |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | 贡献规则与协作约定 |
 
 ## 许可证

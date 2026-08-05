@@ -117,12 +117,17 @@ body:
   实际变更                    #  基于真实 diff
   明确未包含                  #  非目标
   影响分析                    #  配置、数据、兼容性、安全、外部写
+  文档影响                    #  影响事实、更新事实源或具体豁免理由
   验证结果                    #  执行的命令与实际结果
   未执行检查及原因             #  跳过项
   审查重点                    #  需要关注的边界或决策
 ```
 
 **禁止使用：** `[Roadmap]`、`[Phase]`、`[Implementation]` 等固定方括号前缀。
+
+代码、配置或工作流变化时，以 [`docs/docs-contract.toml`](docs/docs-contract.toml) 计算受影响的规范文档。推送前运行
+`python scripts/docs/check_impact.py --base origin/main`；事实未变化时可不修改文档，但必须在 PR 的“文档影响”章节给出具体理由。
+当前已交付能力和证据以 [`docs/current-capabilities.toml`](docs/current-capabilities.toml) 为唯一台账。
 
 ---
 

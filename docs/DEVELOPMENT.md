@@ -609,6 +609,7 @@ docker compose up --build
 
 ## 当前边界
 
-当前已提供 M0 基线、Identity 本地账号认证，以及不可变 JobPosting 的创建/读取 API、持久化幂等请求、用户
-数据隔离和创建审计。审计查询 API 尚未交付；OAuth、邮箱验证、密码重置、角色权限、
-RAG、Agent、Celery 和生产部署也尚不可用。不要把路线图内容当作当前可用能力。
+当前已提供 M0 工程与容器基线、Identity 本地账号认证、不可变 JobPosting、CandidateProfile、ResumeVersion、Vue 工作台、
+JD 输入安全契约及全量质量和浏览器门禁。逐项代码路径与合并证据以
+[`current-capabilities.toml`](current-capabilities.toml) 为准。审计查询 API、OCR/链接抓取执行、OAuth、邮箱验证、密码重置、
+角色权限、RAG、Agent、Celery 和生产部署尚不可用；不要把路线图内容当作当前能力。

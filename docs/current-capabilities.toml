@@ -1,0 +1,162 @@
+version = 1
+status = "current-only"
+
+[[capabilities]]
+id = "engineering-baseline"
+name = "工程与容器基线"
+milestone = "M0"
+status = "current"
+summary = "Python/FastAPI 工程、配置、结构化日志、PostgreSQL/Alembic、Compose 与基础 CI 已进入默认分支。"
+code_paths = [
+  "backend/pyproject.toml",
+  "backend/app/apps/api/app.py",
+  "backend/app/infrastructure/config/settings.py",
+  "backend/app/infrastructure/logging/configure.py",
+  "backend/app/infrastructure/database/engine.py",
+  "docker-compose.yml",
+]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/36",
+  "https://github.com/dev-cai/Nora/pull/37",
+  "https://github.com/dev-cai/Nora/pull/38",
+  "https://github.com/dev-cai/Nora/pull/39",
+  "https://github.com/dev-cai/Nora/pull/40",
+  "https://github.com/dev-cai/Nora/pull/41",
+  "https://github.com/dev-cai/Nora/pull/42",
+]
+
+[[capabilities]]
+id = "local-identity"
+name = "本地身份与数据隔离"
+milestone = "M1"
+status = "current"
+summary = "支持本地账号注册、登录、Bearer Token，以及按认证主体隔离用户数据。"
+code_paths = [
+  "backend/app/apps/api/routes/auth.py",
+  "backend/app/application/identity/service.py",
+  "backend/app/domain/identity/user.py",
+  "backend/app/infrastructure/auth.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/47"]
+
+[[capabilities]]
+id = "job-posting-snapshots"
+name = "不可变岗位快照"
+milestone = "M1-M2"
+status = "current"
+summary = "支持认证后的岗位快照创建、列表、详情、幂等请求、创建审计和 M2 公开字段契约。"
+code_paths = [
+  "backend/app/apps/api/routes/job_postings.py",
+  "backend/app/application/opportunity/service.py",
+  "backend/app/domain/opportunity/job_posting.py",
+  "frontend/src/views/JobsView.vue",
+  "frontend/src/views/JobCreateView.vue",
+  "frontend/src/views/JobDetailView.vue",
+]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/48",
+  "https://github.com/dev-cai/Nora/pull/57",
+  "https://github.com/dev-cai/Nora/pull/58",
+  "https://github.com/dev-cai/Nora/pull/100",
+]
+
+[[capabilities]]
+id = "candidate-profile"
+name = "用户确认主档"
+milestone = "M2"
+status = "current"
+summary = "支持 CandidateProfile 的读取、版本化更新和用户确认状态。"
+code_paths = [
+  "backend/app/apps/api/routes/profile.py",
+  "backend/app/application/career/service.py",
+  "backend/app/domain/career/candidate_profile.py",
+  "frontend/src/views/ProfileView.vue",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/101"]
+
+[[capabilities]]
+id = "resume-versions"
+name = "不可变简历版本"
+milestone = "M2"
+status = "current"
+summary = "支持发布、列表和读取不可变 ResumeVersion；不包含自动解析、模板或 PDF 生成。"
+code_paths = [
+  "backend/app/apps/api/routes/resumes.py",
+  "backend/app/application/career/resume_service.py",
+  "backend/app/domain/career/resume_version.py",
+  "frontend/src/views/ResumesView.vue",
+  "frontend/src/views/ResumeNewView.vue",
+  "frontend/src/views/ResumeDetailView.vue",
+]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/102",
+  "https://github.com/dev-cai/Nora/pull/105",
+]
+
+[[capabilities]]
+id = "vue-workbench"
+name = "Vue 浏览器工作台"
+milestone = "M2"
+status = "current"
+summary = "Vue 3 工作台已接入认证、岗位、主档和简历页面，包含 Token 持久化、请求超时和错误状态。"
+code_paths = [
+  "frontend/src/router/index.ts",
+  "frontend/src/api/client.ts",
+  "frontend/src/stores/auth.ts",
+  "frontend/src/views/DashboardView.vue",
+]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/103",
+  "https://github.com/dev-cai/Nora/pull/105",
+  "https://github.com/dev-cai/Nora/pull/108",
+]
+
+[[capabilities]]
+id = "jd-input-contract"
+name = "JD 输入安全契约"
+milestone = "M2"
+status = "current"
+summary = "已定义文本、OCR 和 URL 输入的 Port/DTO 与安全边界；OCR、HTTP 抓取和上传路由尚未实现。"
+code_paths = [
+  "backend/app/ports/jd_input.py",
+  "docs/JD_INPUT_SECURITY.md",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/106"]
+
+[[capabilities]]
+id = "quality-gates"
+name = "全量质量与浏览器门禁"
+milestone = "M0-M2"
+status = "current"
+summary = "PR 和 main push 运行后端质量/测试、前端 lint/type/test/build、容器构建、集成冒烟、Playwright E2E 与文档检查。"
+code_paths = [
+  ".github/workflows/pr-conventions.yml",
+  ".github/workflows/frontend-ci.yml",
+  ".github/workflows/e2e.yml",
+  "frontend/e2e/main-flow.spec.ts",
+  "scripts/docs/check_links.py",
+]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/66",
+  "https://github.com/dev-cai/Nora/pull/104",
+  "https://github.com/dev-cai/Nora/pull/116",
+  "https://github.com/dev-cai/Nora/pull/128",
+  "https://github.com/dev-cai/Nora/pull/130",
+]
+
+[[capabilities]]
+id = "pr-governance"
+name = "PR 交付与自动审核"
+milestone = "M2-M3"
+status = "current"
+summary = "交付使用独立 nora/ 分支和唯一 PR，Issue 可选；PR 需通过 CI、Codex 正式审核和用户显式合并授权。"
+code_paths = [
+  "AGENTS.md",
+  "docs/WORKFLOW.md",
+  ".codex/skills/nora-issue-pr-workflow/SKILL.md",
+  ".codex/skills/nora-pr-review/SKILL.md",
+]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/110",
+  "https://github.com/dev-cai/Nora/pull/132",
+]
