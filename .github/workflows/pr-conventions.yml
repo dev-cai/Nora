@@ -124,3 +124,30 @@ jobs:
 
       - name: Build isolated test image
         run: docker compose --profile test build test
+
+  docs:
+    name: Documentation quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check relative Markdown links
+        run: python scripts/docs/check_links.py
+
+      - name: Check document source-of-truth consistency
+        run: python scripts/docs/check_consistency.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+
+      - name: Markdown lint
+        run: npx --yes markdownlint-cli2@0.23.2 "docs/**/*.md" "*.md"

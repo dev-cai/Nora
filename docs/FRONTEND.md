@@ -111,7 +111,7 @@ Nora 可预期错误使用稳定结构：
 
 ---
 
-# 第二部分：前端详细设计（基于已确认业务流程）
+## 第二部分：前端详细设计（基于已确认业务流程）
 
 > 本章把已确认的业务流程（[`BUSINESS_FLOW.md`](BUSINESS_FLOW.md)）与里程碑计划
 > （[`MILESTONE_PLAN.md`](MILESTONE_PLAN.md)）翻译为 Vue 前端的页面、路由、状态、组件与 API
