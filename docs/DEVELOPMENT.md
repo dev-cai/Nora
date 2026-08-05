@@ -326,7 +326,9 @@ docker compose down -v
 
 ### 前端开发与质量检查
 
-前端使用 Node.js 24、npm、Vue 3、Vite、TypeScript、Vue Router 和 Pinia。使用 Compose 启动时，Vite 将
+前端使用 Node.js 24、npm、Vue 3、Vite、TypeScript、Vue Router 和 Pinia。Node 版本单一真源为
+`frontend/.nvmrc`（当前 24.18.1），配合 `frontend/.npmrc` 的 `engine-strict=true` 作为硬门禁；CI 通过
+`node-version-file: frontend/.nvmrc` 读取同一版本。使用 Compose 启动时，Vite 将
 `/api` 代理到 `http://api:8000`；直接在宿主运行时默认代理到 `http://localhost:8000`。可在
 `frontend/.env` 中通过 `VITE_NORA_API_BASE_URL` 覆盖浏览器 API 基础路径，或通过
 `VITE_NORA_PROXY_TARGET` 覆盖 Vite 开发代理目标。不要在这些变量中写入 Token 或其他秘密。
@@ -446,7 +448,9 @@ docker compose --profile test stop test-db
 ### 镜像版本升级与回滚
 
 Dockerfile 和 Compose 中的 Python、uv、PostgreSQL、Redis 与 MinIO 镜像均固定到 manifest digest；Python、uv、
-PostgreSQL 和 Redis 同时保留可读版本标签。CI 只依赖 Docker 构建上下文，不要求 Runner 或开发宿主预装 Python、uv。
+PostgreSQL 和 Redis 同时保留可读版本标签。容器构建门禁（CI `containers` job）只依赖 Docker 构建上下文，不要求
+Runner 或开发宿主预装 Python、uv；后端 `quality` job 则通过 `actions/setup-python` 与 `astral-sh/setup-uv`
+在运行时按需安装，同样不依赖预装环境。
 
 升级镜像时，先选择上游明确版本标签并查询多架构 manifest digest：
 
@@ -455,7 +459,8 @@ docker buildx imagetools inspect <image>:<version> --format '{{json .Manifest.Di
 ```
 
 在同一个 PR 中更新全部重复引用，尤其是 PostgreSQL 在 `docker-compose.yml`、`docker-compose.override.yml` 和
-`.github/workflows/pr-conventions.yml` 中的 digest。然后从仓库根目录执行完整解析和重建：
+`.github/workflows/pr-conventions.yml` 中的 digest，以及 uv 在 `docker/Dockerfile.api`、`docker/Dockerfile.worker`
+和 `.github/workflows/pr-conventions.yml` 中的版本标签与 digest。然后从仓库根目录执行完整解析和重建：
 
 ```bash
 docker compose --profile test config --quiet
