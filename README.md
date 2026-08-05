@@ -83,7 +83,7 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 | **M5** | 生产准备 · 可观测性 · 异步能力评估 | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
 | **M6+** | 投递闭环 · 专项 Agent · 受控连接器 | ![演进中](https://img.shields.io/badge/-evolution-818cf8?style=flat-square&labelColor=0d1117) |
 
-> 当前边界：RAG、Agent、自动投递与生产部署尚未交付，不要把路线图内容当作已实现能力。里程碑详情与验收条件见 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+> 当前边界：RAG、Agent、自动投递与生产部署尚未交付，不要把路线图内容当作已实现能力。各里程碑状态与完成证据以 GitHub Milestone 与 [`docs/ROADMAP.md`](docs/ROADMAP.md) 为准。
 
 ## 快速开始
 

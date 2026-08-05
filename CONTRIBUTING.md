@@ -7,7 +7,7 @@
 
 > **Issue 驱动开发。** 所有变更从 Issue 开始 — 一个 Issue、一个分支、一个 PR。
 >
-> 详细操作步骤见 [`docs/WORKFLOW.md`](docs/WORKFLOW.md)。<br>
+> 详细操作步骤见 [`docs/WORKFLOW.md`](docs/WORKFLOW.md)；Issue 类型、标签、状态见 [`docs/ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md)。<br>
 > 环境搭建见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
 
 ---
