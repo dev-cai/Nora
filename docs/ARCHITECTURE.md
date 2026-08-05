@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3、#49、#59、#98。
-- 当前代码：M0 工程基础与 M1 纵向切片，包括 Identity、不可变 JobPosting 创建/读取、用户范围持久化、幂等和创建审计。
+- 当前代码：M0–M2 已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、Vue Web、前端 CI、JD 输入契约与基础浏览器 E2E。
 - 适用范围：M0/M1 已交付基础、M2 Demo-ready 数据与前端基础、M3 确定性 Demo，以及 M4–M6+ 增强能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -500,7 +500,7 @@ Issue 合并前保持不变；Architecture 文档不能替代路由迁移、兼�
 1. **增加模块依赖架构测试。** 在 `backend/app/` 上固化层级、框架和跨 Context 禁止边，不改变业务行为。
 2. **迁移 Identity 业务模块。** 只移动 Identity 的 API/Application/Domain/Ports/Infrastructure，保持认证路由和数据契约。
 3. **迁移 Opportunity 与 Governance。** 在共享事务和审计测试保护下迁移岗位与审计模块，不改幂等语义。
-4. **交付 Vue 工程。** 由既有 Issue #26 和 #53 按 [`FRONTEND.md`](FRONTEND.md) 创建客户端与前端 CI，不伪造未交付 API。
+4. **保持 Vue 工程边界。** Issue #26 和 #53 已交付客户端与前端 CI；后续页面继续按 [`FRONTEND.md`](FRONTEND.md) 只调用已发布 API，不伪造未交付能力。
 5. **评审 `/api/v1` 兼容迁移。** 使用独立 Architecture/Implementation Issue 定义旧路由兼容期、OpenAPI 契约和双端测试。
 
 不为目标蓝图批量创建空目录。每个目录只有在对应 Issue 提供真实实现、测试和调用路径时才建立。

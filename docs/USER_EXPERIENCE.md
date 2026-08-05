@@ -1,7 +1,7 @@
 # Nora 用户体验目标
 
-本文描述个人定制求职助手的目标交互，不代表所有功能均已实现。当前代码包含 M0 工程基础和 Identity
-纵向切片；实际交付状态以代码、测试、已合并 PR 和 GitHub Issue 为准。
+本文描述个人定制求职助手的目标交互，不代表所有功能均已实现。当前代码包含 M0–M2 工程、Identity、岗位、
+用户主档、简历版本与 Vue Web 基础；实际交付状态以代码、测试、已合并 PR 和 GitHub Issue 为准。
 
 ## 1. 主线流程
 
@@ -46,7 +46,8 @@ Nora 不自动提交招聘网站表单、不自动发送消息，也不把模型
 | --- | --- | --- |
 | 本地账号注册、登录、Token | Current，M1 | 不含 OAuth、邮箱验证、密码重置和角色权限 |
 | 岗位文本快照 | Current，M1 | 支持认证后的创建/读取、幂等和创建审计；不含评分、公司研究和报告 |
-| 主档、简历事实、Evidence 检索 | Planned，M2 | 先手工确认，不承诺 PDF/Word 自动解析 |
+| 主档与简历事实 | Current，M2 | 支持手工确认主档与发布不可变简历版本；不承诺 PDF/Word 自动解析 |
+| Evidence 检索 | Planned，M4 | 依赖 SourceDocument、Chunk、Embedding 与检索契约 |
 | 决策报告 | Planned，M3 | 事实、规则、推断、建议、未知和引用均需区分 |
 | 投递/不投递记录 | Planned，M3 后 | 独立 `ApplicationDecision` 交付 |
 | 定制简历、模板和 PDF | Planned，M3 后 | 模板受限 Schema，PDF 版本化并存入对象存储 |
