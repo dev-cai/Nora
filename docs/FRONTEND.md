@@ -104,7 +104,7 @@ Nora 可预期错误使用稳定结构：
 
 ### M3 起 Planned
 
-- M3 分析与报告页面的真实调用路径（对应 `MILESTONE_PLAN_DRAFT.md` §11.4）；
+- M3 分析与报告页面的真实调用路径（对应 `MILESTONE_PLAN.md` §11.4）；
 - 报告等跨 API 流程的端到端检查随 M3 交付补充。
 
 前端不得把构建通过描述为完整用户流程已经通过；跨 API 的真实流程必须有独立集成或 E2E 证据。
@@ -114,7 +114,7 @@ Nora 可预期错误使用稳定结构：
 # 第二部分：前端详细设计（基于已确认业务流程）
 
 > 本章把已确认的业务流程（[`BUSINESS_FLOW.md`](BUSINESS_FLOW.md)）与里程碑计划
-> （[`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md)）翻译为 Vue 前端的页面、路由、状态、组件与 API
+> （[`MILESTONE_PLAN.md`](MILESTONE_PLAN.md)）翻译为 Vue 前端的页面、路由、状态、组件与 API
 > 映射。目标用户为软件工程专业应届生（以校招为主）。本章均为 **Planned/设计**，不代表已实现。
 
 ## 8. 用户旅程 → 页面映射

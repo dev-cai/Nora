@@ -126,7 +126,7 @@ CandidateProfile
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | M6+ Agent Runtime、专项 Agent、Milvus、服务拆分和受控连接器 |
 
 状态以默认分支、已合并 PR 和 GitHub Issue 为证据；逐项交付证据与限制见
-[`MILESTONE_PLAN_DRAFT.md`](MILESTONE_PLAN_DRAFT.md) §4 当前能力基线。本文中的产品示例不能替代实现、测试或发布证明。
+[`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §4 当前能力基线。本文中的产品示例不能替代实现、测试或发布证明。
 
 ## 8. 技术与 Provider 边界
 

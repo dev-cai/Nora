@@ -114,13 +114,25 @@ curl http://localhost:8000/health   # {"status":"healthy"}
 
 ## 文档
 
+### 按角色快速定位
+
+| 角色 | 必读 |
+| :--- | :--- |
+| 产品 / 用户 | [`PRODUCT_VISION.md`](docs/PRODUCT_VISION.md) · [`BUSINESS_FLOW.md`](docs/BUSINESS_FLOW.md) · [`USER_EXPERIENCE.md`](docs/USER_EXPERIENCE.md) |
+| 后端开发 | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`DEVELOPMENT.md`](docs/DEVELOPMENT.md) · [`WORKFLOW.md`](docs/WORKFLOW.md) · [`ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) |
+| 前端开发 | [`FRONTEND.md`](docs/FRONTEND.md) · [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`DEVELOPMENT.md`](docs/DEVELOPMENT.md) |
+| 规划与治理 | [`ROADMAP.md`](docs/ROADMAP.md) · [`MILESTONE_PLAN.md`](docs/MILESTONE_PLAN.md) · [`ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) · [`WORKFLOW.md`](docs/WORKFLOW.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| 安全 | [`SECURITY.md`](SECURITY.md) · [`JD_INPUT_SECURITY.md`](docs/JD_INPUT_SECURITY.md) |
+
+### 完整文档索引
+
 | 文档 | 说明 |
 |------|------|
 | [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md) | 产品愿景、用户旅程与能力状态 |
 | [`docs/BUSINESS_FLOW.md`](docs/BUSINESS_FLOW.md) | 已确认业务流程与技术决策基线 |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 架构边界、数据所有权与依赖方向 |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | 里程碑范围与验收条件 |
-| [`docs/MILESTONE_PLAN_DRAFT.md`](docs/MILESTONE_PLAN_DRAFT.md) | 里程碑原子交付执行计划 |
+| [`docs/MILESTONE_PLAN.md`](docs/MILESTONE_PLAN.md) | 里程碑原子交付执行计划 |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | 环境、测试、迁移与排障 |
 | [`docs/FRONTEND.md`](docs/FRONTEND.md) | 前端技术与 HTTP 集成契约 |
 | [`docs/USER_EXPERIENCE.md`](docs/USER_EXPERIENCE.md) | 用户体验场景与交互目标 |
