@@ -1,25 +1,34 @@
 """Opportunity ORM 模型和 Repository 适配器。"""
 
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
     func,
     select,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.types import Uuid
 
 from app.domain.base.exceptions import InfrastructureError
-from app.domain.opportunity import JobPosting, JobPostingStatus, JobSourceType
+from app.domain.opportunity import (
+    JobPosting,
+    JobPostingStatus,
+    JobRequirementSnapshot,
+    JobSourceType,
+)
 from app.infrastructure.database.base import AuditMixin, Base, OwnedByUserMixin
+from app.infrastructure.database.identity import UserRecord
 from app.infrastructure.database.repository import SqlAlchemyUserScopedRepository
 from app.ports.opportunity import StoredIdempotentJobPosting
 
@@ -201,3 +210,163 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+class JobRequirementSnapshotRecord(Base):
+    """一条不可变岗位要求快照版本记录。"""
+
+    __tablename__ = "job_requirement_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "owner_id",
+            "job_posting_id",
+            "version",
+            name="uq_job_requirement_owner_posting_version",
+        ),
+        CheckConstraint("version >= 1", name="ck_job_requirement_version_positive"),
+        CheckConstraint(
+            "job_posting_version >= 1", name="ck_job_requirement_posting_version_positive"
+        ),
+    )
+
+    record_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    snapshot_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    job_posting_id: Mapped[UUID] = mapped_column(
+        ForeignKey("job_postings.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    job_posting_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    snapshot_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SqlAlchemyJobRequirementSnapshotRepository:
+    """通过用户行锁串行化岗位要求快照版本追加。"""
+
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(record: JobRequirementSnapshotRecord) -> JobRequirementSnapshot:
+        return JobRequirementSnapshot.restore(
+            snapshot_id=record.snapshot_id,
+            owner_id=record.owner_id,
+            version=record.version,
+            job_posting_id=record.job_posting_id,
+            job_posting_version=record.job_posting_version,
+            content=record.content,
+            created_at=_as_utc(record.snapshot_created_at),
+            updated_at=_as_utc(record.updated_at),
+        )
+
+    async def add(self, snapshot: JobRequirementSnapshot) -> JobRequirementSnapshot:
+        if snapshot.owner_id != self.owner_id:
+            raise InfrastructureError(
+                "Job requirement snapshot is outside user scope",
+                error_code="entity_not_found",
+            )
+
+        await self.session.scalar(
+            select(UserRecord.id).where(UserRecord.id == self.owner_id).with_for_update()
+        )
+        latest = await self.get_latest(snapshot.job_posting_id)
+        if latest is None:
+            valid_next_version = snapshot.version == 1
+        else:
+            valid_next_version = latest.id == snapshot.id and snapshot.version == latest.version + 1
+        if not valid_next_version:
+            raise InfrastructureError(
+                "Job requirement snapshot version conflict",
+                error_code="job_requirement_version_conflict",
+            )
+
+        record = JobRequirementSnapshotRecord(
+            snapshot_id=snapshot.id,
+            owner_id=snapshot.owner_id,
+            version=snapshot.version,
+            job_posting_id=snapshot.job_posting_id,
+            job_posting_version=snapshot.job_posting_version,
+            content=snapshot.content,
+            snapshot_created_at=snapshot.created_at,
+            updated_at=snapshot.updated_at,
+        )
+        self.session.add(record)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise InfrastructureError(
+                "Job requirement snapshot version conflict",
+                error_code="job_requirement_version_conflict",
+            ) from exc
+        return self._to_domain(record)
+
+    async def get_by_id(self, snapshot_id: UUID) -> JobRequirementSnapshot | None:
+        record = await self.session.scalar(
+            select(JobRequirementSnapshotRecord).where(
+                JobRequirementSnapshotRecord.snapshot_id == snapshot_id,
+                JobRequirementSnapshotRecord.owner_id == self.owner_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_latest(self, job_posting_id: UUID) -> JobRequirementSnapshot | None:
+        record = await self.session.scalar(
+            select(JobRequirementSnapshotRecord)
+            .where(
+                JobRequirementSnapshotRecord.owner_id == self.owner_id,
+                JobRequirementSnapshotRecord.job_posting_id == job_posting_id,
+            )
+            .order_by(JobRequirementSnapshotRecord.version.desc())
+            .limit(1)
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_version(
+        self, job_posting_id: UUID, version: int
+    ) -> JobRequirementSnapshot | None:
+        record = await self.session.scalar(
+            select(JobRequirementSnapshotRecord).where(
+                JobRequirementSnapshotRecord.owner_id == self.owner_id,
+                JobRequirementSnapshotRecord.job_posting_id == job_posting_id,
+                JobRequirementSnapshotRecord.version == version,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def list(
+        self, job_posting_id: UUID, *, offset: int = 0, limit: int = 100
+    ) -> list[JobRequirementSnapshot]:
+        records = await self.session.scalars(
+            select(JobRequirementSnapshotRecord)
+            .where(
+                JobRequirementSnapshotRecord.owner_id == self.owner_id,
+                JobRequirementSnapshotRecord.job_posting_id == job_posting_id,
+            )
+            .order_by(
+                JobRequirementSnapshotRecord.version.desc(),
+                JobRequirementSnapshotRecord.snapshot_id.desc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return [self._to_domain(record) for record in records]
+
+    async def count(self, job_posting_id: UUID) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(JobRequirementSnapshotRecord)
+            .where(
+                JobRequirementSnapshotRecord.owner_id == self.owner_id,
+                JobRequirementSnapshotRecord.job_posting_id == job_posting_id,
+            )
+        )
+        return int(total or 0)
+
+    async def commit(self) -> None:
+        await self.session.commit()

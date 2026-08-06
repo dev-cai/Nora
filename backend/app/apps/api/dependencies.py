@@ -14,12 +14,13 @@ from app.infrastructure.database import (
     SqlAlchemyAuditEventRepository,
     SqlAlchemyCandidateProfileRepository,
     SqlAlchemyJobPostingRepository,
+    SqlAlchemyJobRequirementSnapshotRepository,
     SqlAlchemyResumeVersionRepository,
     SqlAlchemyUserRepository,
 )
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.governance import AuditEventRepository
-from app.ports.opportunity import JobPostingRepository
+from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -87,6 +88,15 @@ def get_resume_version_repository(
     """组装当前认证用户范围内的 ResumeVersion Repository。"""
 
     return SqlAlchemyResumeVersionRepository(session, user.id)
+
+
+def get_job_requirement_snapshot_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> JobRequirementSnapshotRepository:
+    """组装当前认证用户范围内的岗位要求快照 Repository。"""
+
+    return SqlAlchemyJobRequirementSnapshotRepository(session, user.id)
 
 
 def get_audit_event_repository(

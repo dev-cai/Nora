@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse, Response
 
 from app.apps.api.routes.auth import router as auth_router
 from app.apps.api.routes.job_postings import router as job_postings_router
+from app.apps.api.routes.job_requirements import router as job_requirements_router
 from app.apps.api.routes.profile import router as profile_router
 from app.apps.api.routes.resumes import router as resumes_router
 from app.domain.base.exceptions import NoraError
@@ -60,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Nora API", lifespan=lifespan)
     app.include_router(auth_router)
     app.include_router(job_postings_router)
+    app.include_router(job_requirements_router)
     app.include_router(profile_router)
     app.include_router(resumes_router)
     app.add_middleware(
@@ -114,6 +116,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "job_posting_persistence_failed": 503,
             "profile_version_conflict": 409,
             "resume_version_conflict": 409,
+            "job_requirement_version_conflict": 409,
         }.get(exc.error_code, 400)
         headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
         return JSONResponse(status_code=status_code, content=exc.to_dict(), headers=headers)
