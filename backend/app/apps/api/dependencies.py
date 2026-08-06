@@ -18,8 +18,10 @@ from app.infrastructure.database import (
     SqlAlchemyResumeVersionRepository,
     SqlAlchemyUserRepository,
 )
+from app.infrastructure.jd_fetch import JdFetchAdapter
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.governance import AuditEventRepository
+from app.ports.jd_input import JdInputPort
 from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -97,6 +99,12 @@ def get_job_requirement_snapshot_repository(
     """组装当前认证用户范围内的岗位要求快照 Repository。"""
 
     return SqlAlchemyJobRequirementSnapshotRepository(session, user.id)
+
+
+def get_jd_input_adapter() -> JdInputPort:
+    """组装 SSRF 安全的 JD 输入 Adapter。"""
+
+    return JdFetchAdapter()
 
 
 def get_audit_event_repository(
