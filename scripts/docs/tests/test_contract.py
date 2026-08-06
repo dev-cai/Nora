@@ -30,8 +30,31 @@ def sample_contract() -> dict[str, object]:
                 "reviewer": "area:docs",
                 "owns": ["current facts"],
                 "allowed_summaries": [],
-            }
+            },
+            {
+                "id": "roadmap",
+                "path": "docs/roadmap.md",
+                "category": "reference",
+                "reviewer": "area:docs",
+                "owns": ["planning"],
+                "allowed_summaries": [],
+            },
         ],
+        "planning_baseline": {
+            "active_milestones": ["M2", "M3", "M4", "M5"],
+            "retired_milestones": ["M6", "M6+"],
+            "documents": [
+                {
+                    "id": "roadmap",
+                    "level2_headings": [
+                        "M2：Inputs",
+                        "M3：Decision",
+                        "M4：Beta",
+                        "M5：AI",
+                    ],
+                }
+            ],
+        },
         "impact_rules": [
             {
                 "id": "api",
@@ -61,7 +84,36 @@ class ContractValidationTests(unittest.TestCase):
             root = Path(directory)
             (root / "docs").mkdir()
             (root / "docs" / "ledger.toml").write_text("version = 1\n", encoding="utf-8")
+            (root / "docs" / "roadmap.md").write_text(
+                "# Plan\n\n## M2：Inputs\n\n## M3：Decision\n\n## M4：Beta\n\n## M5：AI\n",
+                encoding="utf-8",
+            )
             self.assertEqual(validate_contract(root, sample_contract()), [])
+
+    def test_contract_rejects_retired_milestone_heading(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs" / "ledger.toml").write_text("version = 1\n", encoding="utf-8")
+            (root / "docs" / "roadmap.md").write_text(
+                "# Plan\n\n## M2：Inputs\n\n## M3：Decision\n\n"
+                "## M4：Beta\n\n## M5：AI\n\n## M6+：Later\n",
+                encoding="utf-8",
+            )
+            errors = validate_contract(root, sample_contract())
+        self.assertTrue(any("retired milestone" in error for error in errors))
+
+    def test_contract_rejects_changed_planning_heading(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs" / "ledger.toml").write_text("version = 1\n", encoding="utf-8")
+            (root / "docs" / "roadmap.md").write_text(
+                "# Plan\n\n## M2：Changed\n\n## M3：Decision\n\n## M4：Beta\n\n## M5：AI\n",
+                encoding="utf-8",
+            )
+            errors = validate_contract(root, sample_contract())
+        self.assertTrue(any("expected level-two heading exactly once" in error for error in errors))
 
     def test_capability_rejects_missing_code_evidence(self) -> None:
         ledger = {

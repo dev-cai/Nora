@@ -71,10 +71,12 @@ Nora 包含 8 个 Context：
 Nora 的 HTTP 服务进程。负责认证、输入校验、Use Case 编排和稳定错误映射。不执行长时间模型调用或浏览器动作。
 
 ### Worker Process
-异步任务执行进程。负责数据导入、Embedding、检索构建、分析生成等后台任务。通过 Celery 接收任务消息。
+按指标选择性引入的异步任务执行进程。负责确有长耗时、重试或故障隔离需求的任务；候选实现通过 Celery 接收任务消息，
+不拥有业务事实。
 
 ### Agent Runtime
-LangGraph 管理的多智能体运行环境。初期作为 Worker 内的逻辑模块运行。管理运行图、暂停、恢复和 Checkpoint，不拥有业务事实。
+满足稳定 Use Case、多 Tool、条件分支和暂停/恢复需求后才评估的编排环境。候选实现可用 LangGraph 管理运行图和
+Checkpoint，但不拥有业务事实，也不是 M2-M5 的默认组件。
 
 ### Browser/Connector Runtime（延后引入）
 独立受限进程，负责浏览器自动化或外部连接器。只读采集与外部写动作分离；遇到验证码或不确定状态立即转人工。
@@ -93,10 +95,10 @@ Provider 无关的模型访问层。负责请求路由、Prompt 版本管理、�
 对 Source Snapshot 进行解析和分片后得到的版本化文本片段。每个 Chunk 引用其来源的 Artifact 版本。
 
 ### Embedding
-将 Chunk 转化为向量表示的过程。M4 计划通过独立 Issue 选择并接入 Embedding 实现，向量存储于 pgvector。
+将 Chunk 转化为向量表示的过程。M5 在独立 Issue 中先确定模型、版本、维度和归一化契约，再决定持久化 Schema。
 
 ### pgvector
-PostgreSQL 的向量检索扩展。M4 计划启用并作为向量索引存储，是可重建的派生数据。
+PostgreSQL 的向量检索扩展。M5 计划在 Embedding 契约确定后评估并启用，是可重建的派生索引存储。
 
 ### Hybrid Retrieve（混合检索）
 同时使用向量相似度（语义）和关键词匹配（BM25 等）进行检索，再融合结果。比单一检索方式更全面。
@@ -185,12 +187,12 @@ GitHub 的代码所有者机制。Nora 的 CODEOWNERS 指向 `@dev-cai`，所有
 | **SQLAlchemy** | Python ORM，使用异步模式访问 PostgreSQL |
 | **Alembic** | 数据库 Schema 迁移管理工具 |
 | **Celery** | 分布式任务队列，M5 仅在长任务、重试与并发指标成立时评估引入 |
-| **Redis** | 缓存、任务队列 Broker、锁和限流 |
+| **Redis** | 缓存、任务队列 Broker、锁和限流；M5 仅在指标成立时评估接入业务路径 |
 | **MinIO / S3** | 对象存储，用于保存原始简历、附件等不可变文件（开发可用文件系统替代） |
-| **pgvector** | PostgreSQL 向量检索扩展，M4 计划启用的向量存储方案（可重建派生数据） |
+| **pgvector** | PostgreSQL 向量检索扩展，M5 在 Embedding 契约确定后计划启用的派生索引方案 |
 | **Milvus / Zilliz** | 专用向量数据库，作为 pgvector 的演进选项（达到触发条件后评估） |
-| **LangGraph** | LLM Agent 编排框架，用于构建和管理多智能体运行图 |
-| **BGE-M3** | 嵌入模型，用于将 Chunk 向量化 |
+| **LangGraph** | LLM Agent 编排框架；仅在 Agent Runtime 触发条件成立后评估 |
+| **BGE-M3** | 候选嵌入模型；是否采用须由 M5 Embedding 契约和评测决定 |
 | **pytest** | Python 测试框架 |
 | **ruff** | Python 代码检查和格式化工具 |
 | **uv** | Python 包管理器，替代 pip/poetry |

@@ -1,381 +1,329 @@
 # 里程碑路线图
 
-> 完整定义 Nora 从工程基础到生产可用的里程碑规划。每个里程碑包含交付组件、验收条件和范围边界。
+> 本文定义 Nora 的里程碑结果、范围和退出边界。原子交付顺序见
+> [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md)，实际执行状态以 GitHub Milestone 与 Issue 为准。
 >
-> 产品愿景：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)。架构边界：[`ARCHITECTURE.md`](ARCHITECTURE.md)。
-> 目标用户：软件工程专业应届生（以校招为主），产品范围与能力重心以 [`PRODUCT_VISION.md`](PRODUCT_VISION.md) 为准。
-> **范围真源：本文**，定义各里程碑范围与验收；实际执行状态以 GitHub Milestone 与 Issue 为准。
->
-> M2 及之后的范围已按 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) 重排：**确定性 Demo 先于 AI 增强**，
-> RAG/LLM 移至 M4，中间件移至 M5。原子交付细节以该执行计划为准，本文只保留里程碑范围与验收。
-
----
-
-## M0：工程基础与 CI 门禁
-
-**目标**：完成 Python 工程骨架、基础基础设施和 CI 门禁，为 M1 首个业务切片做好准备。
-
-**截止**：2026-07-27（5 天）
-
-### 交付组件
-
-| 组件 | 说明 |
-|------|------|
-| Python 包结构 | `backend/app/`（含 `backend/app/apps/`）+ `backend/tests/`，`backend/pyproject.toml`，`backend/uv.lock` |
-| 配置加载 | Pydantic Settings，支持 env/`.env` 文件，环境覆盖 |
-| 异常体系 | `NoraError` 基类，`DomainError`/`ApplicationError`/`InfrastructureError` 分支，稳定 `error_code` |
-| 结构化日志 | JSON 格式，`request_id`/`trace_id` 上下文注入，敏感字段脱敏预留 |
-| FastAPI 工厂 | `create_app()` 工厂模式，`/health`、`/ready`、全局异常处理器、CORS、lifespan |
-| PostgreSQL 基线 | 异步 SQLAlchemy 引擎、连接池、Alembic 迁移、`Repository[T]` 抽象基类与通用实现 |
-| Docker Compose | API + PostgreSQL + Redis（骨架）+ MinIO（骨架）编排，`Dockerfile.api`，`docker-compose.override.yml` 开发覆写 |
-| CI 扩展 | ruff（lint + format）、mypy（type check）、pytest（含架构测试），PostgreSQL service container |
-
-### 范围边界
-
-- 不实现任何业务功能（无领域模型、无业务路由）
-- 不引入 Redis/Celery 作为运行时依赖（docker-compose 中预留骨架即可）
-- 不引入 LLM/Agent/RAG 相关依赖
-- 不引入 Web 客户端
-- 不设置覆盖率门禁（仅执行和报告）
-
-### 验收条件
-
-- [x] `docker compose up` 后 API 在 `localhost:8000` 可访问
-- [x] `curl localhost:8000/health` 返回 `{"status": "healthy"}`
-- [x] CI 中 ruff、mypy、pytest 全部通过
-- [x] 架构测试验证 domain 层不导入 FastAPI/SQLAlchemy
-- [x] Alembic 空迁移可正常执行和回滚
-
-完成证据：M0 [Milestone](https://github.com/dev-cai/Nora/milestone/1) 已关闭；容器与健康检查见
-[#14](https://github.com/dev-cai/Nora/issues/14)，CI 与架构门禁见 [#15](https://github.com/dev-cai/Nora/issues/15) 和
-[#65](https://github.com/dev-cai/Nora/issues/65)，迁移与 Repository 基线见 [#13](https://github.com/dev-cai/Nora/issues/13)。
-
-### 前置依赖
-
-无。M0 是起点。
-
-### Issue 拆分
-
-历史 M0 交付路径以 GitHub Issue #9–#15 与 M0 [Milestone](https://github.com/dev-cai/Nora/milestone/1) 为准。
-
----
-
-## M1：Identity 与岗位快照纵向切片
-
-**目标**：交付第一个可运行的业务切片 — 用户认证 + 手工导入不可变岗位快照。验证整个依赖方向（API → Use Case → Domain → Repository → DB）正确可用。
-
-**截止**：2026-08-01（5 天）
-
-### 交付组件
-
-| 组件 | 上下文 | 说明 |
-|------|--------|------|
-| 认证主体 | Identity & Preferences | 用户注册/登录、Token 颁发与验证、密码哈希 |
-| 用户范围隔离 | Identity & Preferences | 所有 Repository 查询自动注入用户归属，跨用户数据不可见 |
-| JobPosting 领域模型 | Opportunity Intelligence | `JobPosting` 聚合，含 JD 正文、来源元数据、内容摘要、状态 |
-| 岗位创建 API | Opportunity Intelligence | `POST /job-postings` — 提交 JD 文本 + 可选来源，返回稳定 ID，支持幂等 |
-| 岗位读取 API | Opportunity Intelligence | `GET /job-postings/{id}` — 返回用户范围内的岗位快照 |
-| 审计记录 | Automation & Governance | `AuditEvent` 记录创建操作：操作者、动作、目标、版本、时间 |
-| 测试覆盖 | — | 单元测试（领域规则）、契约测试（Repository）、集成测试（API + DB） |
-
-### 范围边界
-
-- 不实现岗位评分、公司背调、简历匹配
-- 不实现 Agent、报告生成、浏览器采集或自动投递
-- 不依赖 LLM、RAG、Redis、Celery、Milvus 或外部 API
-- 不实现 Web 客户端（M2 做）
-- 不实现简历管理（M2 做）
-- 不实现更新/删除岗位（只创建和读取）
-
-### 验收条件
-
-- [x] API 认证通过后可创建和读取岗位快照
-- [x] 相同幂等键重复提交返回首次结果（HTTP 200，而非 409）
-- [x] 用户 A 无法查看用户 B 的岗位
-- [x] 审计记录包含操作者、动作、目标 ID 和时间
-- [x] 单元/契约/集成测试全部通过
-
-完成证据：M1 [Milestone](https://github.com/dev-cai/Nora/milestone/3) 已关闭；认证与隔离见
-[#16](https://github.com/dev-cai/Nora/issues/16)，岗位快照与幂等见 [#17](https://github.com/dev-cai/Nora/issues/17) 和
-[#18](https://github.com/dev-cai/Nora/issues/18)，审计与事务一致性见 [#19](https://github.com/dev-cai/Nora/issues/19)，
-最终回归门禁见 [#65](https://github.com/dev-cai/Nora/issues/65)。
-
-### 前置依赖
-
-- M0 全部合并
-
-### 风险与假设
-
-- Identity Task #16 使用自建短时效 JWT；改为 Session、OAuth 或第三方身份 Provider 前需独立 Architecture Issue
-- 假设 M0 的 PostgreSQL Repository 基类已可用
-
----
-
-## M2：Demo-ready 数据与前端基础
-
-**目标**：建立 M3 所需的真实输入契约与可运行 Web 基础。用户可在浏览器完成注册、登录、岗位录入（文本/截图/链接契约）、岗位列表与详情、主档（CandidateProfile）与简历版本（ResumeVersion）录入读取。
-
-**截止**：2026-08-22（按详细计划 §20 估算）
-
-### 交付组件
-
-| 组件 | 上下文 | 说明 |
-|------|--------|------|
-| 岗位公开契约补齐 | Opportunity Intelligence | 创建请求支持标题/公司/地点，响应返回完整 JD、来源、状态与版本；用户范围分页列表 |
-| CandidateProfile | Career Profile | 用户确认事实主档：基本信息、教育、经历、技能、偏好与字段级确认状态 |
-| ResumeVersion | Career Profile | 从已确认主档发布的不可变简历事实版本 |
-| Vue 3 + Vite 工程 | Frontend | 路由/布局/错误边界、API client、注册登录与岗位页面 |
-| 前端 CI | Frontend | lint / type / test / build 门禁 |
-| 画像与简历页面 | Frontend | 主档表单、简历发布与列表 |
-| JD 输入 Port | Opportunity Intelligence | 文本 / 截图（OCR）/ 链接（受控抓取）契约与安全边界（仅定义，实现放 M3） |
-
-### 范围边界
-
-- 不实现 RAG、Embedding、Reranker、Model Gateway 或 LLM（移至 M4）
-- 不实现 DecisionCase 与决策报告（M3 做）
-- 不实现 JD 截图 OCR 或链接抓取执行（M2 仅定义 Port 与契约）
-- 不引入 pgvector
-- 不实现自动投递
-
-### 验收条件
-
-- [x] Web 可注册、登录并读取当前用户
-- [x] Web 可创建、列表和读取用户自己的岗位
-- [x] Web 可维护 CandidateProfile 并发布 ResumeVersion
-- [x] 用户 A 无法访问用户 B 的岗位、画像和简历
-- [x] `docker compose up --build` 可访问 Web 与 API
-- [x] M2 主流程包含 `node scripts/web-api-smoke.mjs` 前后端集成冒烟
-- [x] JD 输入 Port（文本/截图/链接）契约已定义并通过契约测试
-- [x] 未引入 RAG、模型或外部 Provider 硬依赖
-
-### 完成证据
-
-M2 交付清单与前端收尾见 Issue [#107](https://github.com/dev-cai/Nora/issues/107)；岗位公开契约、主档与简历版本见
-PR [#100](https://github.com/dev-cai/Nora/pull/100)–[#102](https://github.com/dev-cai/Nora/pull/102)；Vue 工程、
-前端 CI 与画像/简历页面见 [#103](https://github.com/dev-cai/Nora/pull/103)–[#105](https://github.com/dev-cai/Nora/pull/105)；
-JD 输入契约见 [#106](https://github.com/dev-cai/Nora/pull/106)；前端收尾与集成冒烟见
-[#108](https://github.com/dev-cai/Nora/pull/108)。浏览器级基础 E2E 由 Issue
-[#112](https://github.com/dev-cai/Nora/issues/112) 补齐。
-
-### 前置依赖
-
-- M1 全部合并
-- Vue 3 + Vite 架构决策已合并（Issue #49 边界）
-
-### 原子交付
-
-原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §10（M2.1–M2.8）为准。
-
----
-
-## M3：最小确定性决策 Demo
-
-**目标**：交付第一个由用户从浏览器完整操作的确定性决策 Demo，**无外部模型密钥也能完整运行**。报告以确定性规则为核心，RAG、LLM、Agent 均不属于本里程碑。
-
-**截止**：2026-09-12（按详细计划 §20 估算）
-
-### 交付组件
-
-| 组件 | 上下文 | 说明 |
-|------|--------|------|
-| DecisionCase 输入契约 | Decision & Reporting | 不可变分析输入快照（岗位/主档/简历版本 + 规则集版本） |
-| 确定性规则引擎 | Decision & Reporting | 技能/技术栈、经验年限、地点、学历四类规则 + 公司情报 |
-| 版本化基础报告 | Decision & Reporting | 不依赖 LLM 的 DecisionReport，含事实/规则/未知/建议分区 |
-| JD 截图 OCR 与链接抓取 | Opportunity Intelligence | 真实 JD 输入获取，带来源定位与失败降级 |
-| 公司情报最小化 | Opportunity Intelligence | 网评/规模/来源 + 时效标签，不做聚合分数 |
-| 最小投不投决定 | Application & Follow-up | `analyzed → skip/apply` 最小状态机，skip 沉淀历史相似记录 |
-| 分析与报告 API/页面 | Backend + Frontend | `POST /decisions`、`GET /reports/{id}`、报告页 + DecisionBar |
-| Compose E2E | — | 真实 Web → API → PostgreSQL 主流程验证 |
-
-### 范围边界
-
-- 不调用 LLM，不要求 Provider API Key
-- 不实现 RAG / pgvector（M4）
-- 不生成定制简历、PDF 或消息草稿（M6+）
-- 不引入 Redis/Celery（M5）
-- 不实现 Agent Runtime（M6+）
-- JD 截图 OCR 与链接抓取属于输入获取，不属于 JD 自动抽取
-
-### 验收条件
-
-- [ ] 用户通过 Vue Web 完成完整主流程：录入 → 分析 → 查看报告 → 投/不投
-- [ ] 报告完全由真实 API 和 PostgreSQL 数据生成，无模型可运行
-- [ ] 每条规则可追溯到输入字段；缺输入返回 unknown
-- [ ] 支持 JD 文本 / 截图 / 链接三种输入方式
-- [ ] 报告包含公司情报摘要或明确 unknown
-- [ ] 跨用户访问被阻止；相同输入重试不产生重复报告
-- [ ] `docker compose up --build` 后新环境可直接验收
-
-### 前置依赖
-
-- M2 全部合并
-- 规则输入 Schema 通过独立 Issue 确认
-
-### 原子交付
-
-原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §11（M3.1–M3.9）为准。
-
----
-
-## M4：Evidence、RAG 与 AI 增强
-
-**目标**：在 M3 确定性闭环之上增加可定位来源、检索与可选模型增强。不改变 M3 的核心事实、规则与报告可用性。
-
-**截止**：2026-10-24（按详细计划 §20 估算）
-
-### 交付组件
-
-| 组件 | 上下文 | 说明 |
-|------|--------|------|
-| SourceDocument / Artifact | Knowledge & Evidence | 来源元数据存 PostgreSQL，原始内容存对象存储 |
-| Chunk | Knowledge & Evidence | 版本化分片，引用 Source 版本，稳定 locator |
-| pgvector | Knowledge & Evidence | 启用扩展、向量维度与索引策略（独立 Architecture Issue） |
-| Embedding 适配器 | Knowledge & Evidence | Provider-neutral Port，BGE-M3 候选，批量/重试/版本 |
-| 混合检索 | Knowledge & Evidence | 关键词 + 向量相似度，用户与版本过滤 |
-| Evidence Pack | Knowledge & Evidence | 不可变检索结果包，供报告引用 |
-| Reranker（条件交付） | Knowledge & Evidence | 仅当基准证明收益时引入 |
-| Model Gateway | 跨上下文 | Provider-neutral Chat/Completion Port，Schema 校验，Prompt 版本 |
-| LLM 报告增强 | Decision & Reporting | 基于报告事实 + Evidence Pack，输出分 fact/rule/inferred/suggestion |
-| JobPlatform Port 预留 | Automation & Governance | 批量导入/投递/打招呼三类 Port，半自动 Disabled/Manual |
-
-### 范围边界
-
-- 不引入 Agent Runtime（M6+）
-- 不实现平台登录与自动投递（仅定义 Port）
-- 不让模型直接更新 CandidateProfile
-- 不将向量库作为业务事实源
-- 不要求 Reranker 成为固定组件
-
-### 验收条件
-
-- [ ] Source → Chunk → Embedding → Retrieve → Evidence Pack 可执行
-- [ ] 每条增强结论引用稳定 Evidence locator
-- [ ] Provider 不可用时确定性报告保持可用
-- [ ] 模型输出经过 Schema 校验
-- [ ] 数据与向量均按用户隔离；Embedding 和索引可重建
-
-### 前置依赖
-
-- M3 全部合并
-- pgvector、Source/Artifact 数据所有权、Provider 策略通过独立 Architecture Issue
-
-### 原子交付
-
-原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §12（M4.1–M4.10）为准。
-
----
-
-## M5：生产准备与异步能力
-
-**目标**：把已验证的 Demo 与 AI 增强提升到可部署、可观察、可恢复的水平。中间件由指标触发，不预先成为架构事实。
-
-**截止**：2026-11-20（按详细计划 §20 估算）
-
-### 交付组件
-
-| 组件 | 说明 |
-|------|------|
-| 性能基准与容量目标 | 延迟、吞吐、检索延迟、任务耗时与失败率基线 |
-| 安全供应链 | SBOM、依赖审查（`uv audit`）、secret scan |
-| 部署配置 | 生产部署指南、环境变量清单、备份恢复演练 |
-| 可观测性 | 日志、指标、追踪 |
-| Redis（条件引入） | 仅当热点缓存/限流证据成立时 |
-| Celery/Worker（条件引入） | 仅当长任务、重试与并发需求成立时；任务幂等、取消、重试和死信策略 |
-
-### 范围边界
-
-- 不因"将来可能需要"引入 Kubernetes
-- 不立即拆微服务
-- 不修改既有领域事实所有权
-- 不以缓存命中率替代用户体验指标
-
-### 验收条件
-
-- [ ] 性能和容量目标有可复验基准
-- [ ] 无高危未处置依赖漏洞
-- [ ] 备份恢复演练成功
-- [ ] 部署文档可由新环境执行
-- [ ] Redis/Celery 未达触发条件时可明确不引入并关闭评估
-
-### 前置依赖
-
-- M3 已关闭（含 AI 能力则 M4 已稳定）
-- 已采集性能与可靠性基线
-- Redis/Celery 引入条件通过 Architecture Issue
-
-### 原子交付
-
-原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §13 为准。
-
----
-
-## M6+：投递闭环与专项 Agent
-
-**目标**：在稳定事实、报告与 Evidence 之上构建投递决定、简历变体、消息草稿、投递记录、面试与出行推荐，以及受控 Agent 工作流。外部写默认关闭。
-
-**截止**：待定（按业务切片启动）
-
-### 推荐业务顺序
-
-0. JobPlatform Port 预留与 Approval 接线（半自动，接 M4.10）；
-1. `ApplicationDecision`：`analyzed → skip|apply` 状态机，skip 沉淀历史相似记录；
-2. `CompanySnapshot` 与受控 JD 输入增强：受控 URL 抓取、截图/OCR、来源许可与时效标签；
-3. `ResumeVariant` 与声明式模板：`CandidateProfile → ResumeVersion → ResumeVariant`，模板不可变版本，不执行任意模板代码；
-4. 确定性 PDF：WeasyPrint 渲染，对象存储 + SHA-256 + 版本元数据；
-5. `MessageDraft`：可编辑纯文本，不自动发送；
-6. `ApplicationRecord` 与面试：`message_drafted → applied → interviewing → offer_received/rejected/withdrawn`；
-7. `InterviewCase`、`InterviewReview` 与出行推荐（`TravelPlan`）；
-8. 结果学习：待确认 `MemoryCandidate`，确认后才影响主档；
-9. 在稳定业务 API 之上评估 Agent Runtime。
-
-### Agent 边界
-
-- Agent 只编排 Application 层用例，不直接访问 ORM、数据库或秘密（权威定义见 [`ARCHITECTURE.md`](ARCHITECTURE.md) §11/§12）；
-- 外部写默认关闭；ProposedAction 必须经用户批准；执行具有幂等键和审计事件；
-- 不保存模型私有思维链；Agent 失败不破坏已有业务事实；
-- 半自动投递：系统生成打招呼语与定制简历，用户在确认后手动或经 Approval 执行，不自动登录平台；
-- 投递决策 / 技术面试准备 / 出行规划 / 复盘 / 报告汇总五类 Agent 是产品能力角色，定义见 [`PRODUCT_VISION.md`](PRODUCT_VISION.md) §4。
-
-### 前置依赖
-
-- M4 全部合并（Evidence 与 Model Gateway 稳定）
-- JobPlatform Port 安全边界通过独立 Architecture Issue
-
-### 原子交付
-
-原子交付顺序与验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §14 为准。
-
----
-
-## 汇总
-
-### 依赖关系
+> 已交付能力及证据只维护在 [`current-capabilities.toml`](current-capabilities.toml)，本文不建立并行的
+> Current 台账。
+
+## 总体方向
+
+Nora 的主动路线图最多到 M5，并按用户结果而不是技术组件划分：
+
+| 里程碑 | 用户结果 | 当前状态 |
+| :--- | :--- | :--- |
+| M0 | 工程、数据库、容器和质量门禁可运行 | 已关闭 |
+| M1 | 用户可认证并保存隔离、不可变的岗位快照 | 已关闭 |
+| M2 | 用户可建立版本化、可确认、足以分析的岗位/主档/简历输入 | 进行中 |
+| M3 | 用户可获得确定性报告并记录投或不投 | 规划中 |
+| M4 | 用户可生成投递材料、手工记录投递和面试通知，并部署单用户 Beta | 规划中 |
+| M5 | 报告可使用 Evidence、检索和可选模型增强，规模化组件按指标引入 | 规划中 |
+
+M6+ 不再作为主动 Milestone。外部平台写入、深度面试复盘、实时出行、长期记忆和 Agent Runtime
+进入触发式候选池；满足真实业务、数据、许可和架构准入条件后再重新立项。
 
 ```mermaid
 flowchart LR
-    M0 --> M1
-    M1 --> M2
-    M2 --> M3
-    M3 --> M4
-    M4 --> M5
-    M5 --> M6["M6+"]
+    M0["M0 工程基础"] --> M1["M1 认证与岗位快照"]
+    M1 --> M2["M2 分析就绪输入"]
+    M2 --> M3["M3 确定性决策 MVP"]
+    M3 --> M4["M4 投递闭环 Beta"]
+    M4 --> M5["M5 Evidence 与 AI 增强"]
+    M5 -.准入触发.-> E["缓存 / Worker / Agent 等候选能力"]
 ```
 
-### 时间线（估算，以 GitHub Milestone 为准）
+## M0：工程基础与 CI 门禁
+
+### 结果
+
+建立模块化单体工程、FastAPI 应用、PostgreSQL/Alembic、Docker Compose、配置、日志和质量门禁，为业务切片提供可重复运行基础。
+
+### 边界
+
+- 不实现业务功能；
+- Redis 和 MinIO 只允许作为 Compose 骨架，不进入业务事实路径；
+- 不引入 LLM、RAG、Agent 或 Web 客户端。
+
+### 状态
+
+M0 已关闭。当前能力和合并证据见 [`current-capabilities.toml`](current-capabilities.toml)。
+
+## M1：Identity 与岗位快照纵向切片
+
+### 结果
+
+用户可以注册、登录，并通过公开 API 创建和读取自己范围内的不可变岗位快照；创建行为具备幂等、审计和事务一致性。
+
+### 边界
+
+- 不做岗位分析、公司情报、简历、报告或投递；
+- 不依赖 LLM、RAG、Redis 或 Worker；
+- 不实现自动抓取或外部写。
+
+### 状态
+
+M1 已关闭。当前能力和合并证据见 [`current-capabilities.toml`](current-capabilities.toml)。
+
+## M2：分析就绪的输入基线
+
+### 目标
+
+用户可以通过浏览器建立足以直接执行确定性分析的版本化输入：
+
+- 原始 `JobPosting`；
+- 用户确认的结构化 `JobRequirementSnapshot`；
+- `CandidateProfile`；
+- `ResumeVersion`。
+
+M2 保留此前已经交付的岗位、主档、简历、Vue 工作台和 JD 输入契约；此次调整是基线扩展，不撤销或改写历史交付。
+
+### 交付组件
+
+| 组件 | 说明 |
+| :--- | :--- |
+| JobRequirementSnapshot 决策 | 独立于 JobPosting 原文，定义所有权、版本、来源定位和确认状态 |
+| 结构化岗位要求 | 技能、最低经验、学历、地点和工作方式；缺失保持 unknown |
+| 岗位要求确认 UI | 用户可以人工补充、修正和确认候选字段 |
+| 截图 OCR 输入 | 上传、资源限制、OCR、预览修正、确认后保存 |
+| 链接受控抓取 | SSRF 防护、正文预览、确认后保存 |
+| 分析就绪状态 | 页面明确岗位、主档和简历是否具备可分析输入 |
+| 浏览器 E2E | 覆盖结构化确认、截图/链接预览和用户隔离 |
+
+### 数据边界
+
+- `JobPosting` 保存用户实际看到的原文和基本来源元数据；
+- `JobRequirementSnapshot` 保存用户确认的结构化解释；
+- 修改岗位要求必须创建新版本，不覆盖历史；
+- OCR、规则或模型抽取只能产生候选，未经确认不得成为确定性规则事实；
+- `DecisionCase` 必须引用具体岗位要求版本；
+- Embedding、缓存和临时解析结果不是业务事实源。
+
+### 安全边界
+
+- OCR 前限制字节数、格式、像素和解码资源；传入内容复制为不可变字节；
+- URL 必须验证协议、主机、IDNA、DNS/IP、重定向、组播、大小、类型和超时；
+- 每次重定向重新验证目标，连接目标与已验证解析结果保持一致或重新校验；
+- 不执行网页脚本，不携带浏览器 Cookie，不登录招聘平台；
+- OCR 和网页正文均视为不可信输入；
+- 失败返回稳定错误码，不猜测内容。
+
+### 非目标
+
+- 不创建 DecisionCase；
+- 不执行匹配规则或生成报告；
+- 不调用 LLM，不启用 pgvector；
+- 不生成 ResumeVariant、PDF 或 MessageDraft；
+- 不执行外部投递。
+
+### 退出条件
+
+- [ ] JobRequirementSnapshot 所有权和版本边界完成 Architecture Review；
+- [ ] 用户能通过真实 API 和 Web 创建、读取并确认结构化岗位要求；
+- [ ] 修改确认结果产生新版本，历史输入不被覆盖；
+- [ ] 截图和链接结果必须先预览确认再保存；
+- [ ] SSRF、DNS Rebinding、重定向、组播、大小、超时和图片资源限制测试通过；
+- [ ] 分析就绪输入具有真实浏览器 E2E；
+- [ ] 无模型密钥时全部 M2 流程可运行；
+- [ ] 当前能力台账仍只记录已经合并的能力。
+
+### 当前交付项
+
+- #135：岗位要求快照所有权与版本边界；
+- #136：岗位截图 OCR 输入适配器，等待 #135；
+- #137：岗位链接受控抓取输入适配器，等待 #135。
+
+JobRequirementSnapshot 实现、确认页面和完整 M2 E2E 在 #135 决策合并后按一个主要交付物逐项创建或直接通过独立 PR 交付，不提前锁定未经审查的 Schema。
+
+## M3：确定性求职决策 MVP
+
+### 目标
+
+用户选择分析就绪的岗位、主档和简历后，系统创建不可变 DecisionCase，执行确定性规则，生成版本化 Decision Report，并记录 apply 或 skip。
+
+M3 必须在无 LLM、无 Embedding、无 pgvector、无 Redis、无 Worker 和无 Agent Runtime 的环境中完整运行。
+
+### 核心流程
 
 ```text
-M2 Demo-ready 数据与前端基础   2026-08-22
-M3 最小确定性决策 Demo         2026-09-12
-M4 Evidence、RAG 与 AI 增强    2026-10-24
-M5 生产准备与异步能力           2026-11-20
-M6+ 投递闭环与专项 Agent        待定（按业务切片）
+JobPosting + JobRequirementSnapshot
+  + CandidateProfile + ResumeVersion
+  -> DecisionCase
+  -> deterministic rules
+  -> DecisionReport
+  -> ApplicationDecision(apply | skip)
 ```
 
-### 不变原则（贯穿所有里程碑）
+### 交付组件
 
-1. **一 Issue、一分支、一 PR、一自动审核**
-2. **自动审核门禁**：PR 合并前必须通过 Codex 自动审核（通过 = APPROVE；不通过 = REQUEST_CHANGES + 建议）
-3. **Docker 优先开发**：无宿主机环境依赖
-4. **依赖方向**：Apps/Adapters → Application → Domain
-5. **模型输出不可信**：必须经过校验
-6. **外部写默认关闭**：需审批
+| 组件 | Issue | 说明 |
+| :--- | :--- | :--- |
+| DecisionCase 契约 | #24 | 固定输入引用、版本、归属和幂等，不拥有公开路由 |
+| 确定性规则 | #73 | 技能、经验、地点/工作方式、学历 |
+| 版本化基础报告 | #74 | Fact、Rule Result、Unknown、Recommendation、Citation |
+| 分析与报告 API | #75 | 唯一拥有公开 HTTP 契约和错误映射 |
+| 分析与报告页面 | #76 | 创建、加载、失败、报告历史和刷新恢复 |
+| 真实 Compose E2E | #77 | 主流程、刷新恢复和双用户隔离 |
+| 最小投不投决定 | #80 | analyzed -> apply/skip，引用报告版本 |
+
+### 执行边界
+
+- 默认同步执行确定性规则，不伪造队列、进度百分比或 Worker 状态；
+- 规则是纯逻辑，不执行网络调用、模型调用或数据库写入；
+- 缺失输入返回 unknown，不返回 500，不从自由文本猜测；
+- 报告生成按 DecisionCase、规则集和生成器版本幂等；
+- apply 只记录意图，不生成材料或执行外部写。
+
+### 非目标
+
+- 不实现 RAG、LLM、pgvector 或 Reranker；
+- 不生成定制简历、PDF 或消息草稿；
+- 不实现公司全网采集；
+- 不引入 Redis、任务队列或 Agent Runtime；
+- 不自动投递或发送消息。
+
+### 退出条件
+
+- [ ] DecisionCase 固定引用全部输入版本且验证同一用户；
+- [ ] 四类规则覆盖正常、边界和 unknown；
+- [ ] 每条规则可定位输入字段和版本；
+- [ ] 报告结构、版本和幂等行为通过验证；
+- [ ] 用户可记录 apply 或 skip；
+- [ ] 页面刷新和重新登录后可恢复案例、报告和决定；
+- [ ] API 覆盖 401、404、409、422 和 503；
+- [ ] 浏览器 E2E 覆盖主流程和双用户隔离；
+- [ ] 无模型、无向量扩展的 Compose 新环境可以直接验收。
+
+## M4：可部署的投递闭环 Beta
+
+### 目标
+
+把“决定要投”扩展为可用的个人求职流程：生成岗位定制简历、PDF 和消息草稿，由用户手工投递并记录结果和最小面试通知，同时达到单用户 Beta 的部署、安全、备份和可观测基线。
+
+### 核心流程
+
+```text
+DecisionReport
+  -> ApplicationDecision(apply)
+  -> ResumeVariant + TemplateDefinition
+  -> PDF Artifact + MessageDraft
+  -> 用户手工投递
+  -> ApplicationRecord
+  -> InterviewCase
+```
+
+### 交付组件
+
+| 组件 | Issue | 说明 |
+| :--- | :--- | :--- |
+| Artifact 与 Source 基础 | #21 | 元数据入 PostgreSQL，二进制入对象存储 |
+| 公司情报最小化 | #79 | 规模、行业、来源、摘要和时效；缺失 unknown |
+| 可观测性指标增强 | #87 | 在既有日志和追踪上增加指标，不重复实现 |
+| ResumeVariant 与模板 | #91 | 声明式、不可变、不执行任意模板代码 |
+| 确定性 PDF | #92 | 固定渲染环境、版本和哈希，写入 Artifact Storage |
+| 确定性 MessageDraft | #93 | 可编辑纯文本，不依赖 LLM，不自动发送 |
+| ApplicationRecord | #94 | 用户确认的手工投递状态、幂等和审计 |
+| Beta 运行基线 | #138 | 部署、供应链、秘密扫描、SBOM、备份恢复 |
+| 最小 InterviewCase | #140 | 时间、地点、轮次、备注和用户隔离 |
+
+### 边界
+
+- 模板不得执行任意 Python、JavaScript、Jinja 或用户提供的活动 HTML；
+- PDF 的字节级确定性只在锁定字体、渲染器、元数据和运行环境内承诺；
+- MessageDraft 基础版本不依赖公司 Evidence Pack 或 LLM；
+- ApplicationRecord 记录用户确认事实，不代表 Nora 自动完成外部操作；
+- 外部写保持关闭；
+- 不实现深度面试准备、复盘、实时出行或长期记忆。
+
+### 退出条件
+
+- [ ] apply 可以生成可编辑 ResumeVariant；
+- [ ] 模板不可变且不能执行任意代码；
+- [ ] PDF 在锁定环境中可重复生成并保存哈希；
+- [ ] MessageDraft 无模型时可生成和编辑；
+- [ ] 用户可手工记录投递状态和最小面试通知；
+- [ ] 公司情报缺失、冲突或过期时明确标记；
+- [ ] 所有新增对象和 Artifact 按用户隔离；
+- [ ] 部署、安全扫描、备份恢复和可观测门禁通过；
+- [ ] 浏览器 E2E 覆盖 apply 到投递记录；
+- [ ] 外部写保持关闭。
+
+## M5：Evidence、AI 与规模化增强
+
+### 目标
+
+在 M3/M4 可独立运行的基础上增加 Source、Chunk、Embedding、混合检索、Evidence Pack 和可选模型增强，并根据真实指标决定是否引入 Reranker、Redis 或 Worker。
+
+### 推荐顺序
+
+1. #21 提供稳定 Artifact/Source 基础；
+2. #81 实现确定性 Chunk；
+3. #141 确认 Embedding 契约、模型、版本、维度和归一化；
+4. #22 在模型维度确认后启用 pgvector Schema 和索引；
+5. #82 实现 Embedding Adapter；
+6. #83 建立关键词/向量检索、融合和固定评测集；
+7. #23 生成不可变 Evidence Pack；
+8. #85 实现 Model Gateway；
+9. #25 生成不覆盖确定性报告的 LLM 增强版本；
+10. #84 根据固定评测集决定是否引入 Reranker；
+11. #139 建立性能和容量基线；
+12. #27/#28 根据 #139 结果决定是否引入 Redis 或 Worker。
+
+### 关键约束
+
+- Embedding 模型、版本和维度决策先于 pgvector 列和索引设计；
+- Source、Chunk、Embedding 和索引均版本化，向量可重建；
+- 检索先定义评测集和指标，不以“Provider 已接通”作为完成；
+- Evidence Pack 在无 Reranker、无 LLM 时仍成立；
+- LLM 只读取版本化事实、规则结果和 Evidence Pack；
+- 模型输出经过 Schema 校验并区分 fact、rule、llm_inferred、suggestion、unknown 和 citation；
+- Provider 不可用或 Schema 无效时返回确定性报告；
+- 增强版本不覆盖历史确定性报告；
+- Redis、Worker 和 Reranker 的结论允许为不引入。
+
+### 非目标
+
+- 不自动更新 CandidateProfile；
+- 不执行外部投递或消息发送；
+- 不把向量、缓存或 Agent State 作为事实源；
+- 不并行维护 pgvector 与 Milvus；
+- 不因未来可能需要而拆微服务或引入 Kubernetes；
+- 不为了产品叙事强行引入 LangGraph。
+
+### 退出条件
+
+- [ ] Source -> Chunk -> Embed -> Retrieve -> Evidence Pack 可执行；
+- [ ] 检索有固定评测集、质量基线、延迟和成本记录；
+- [ ] 每个增强结论具有稳定引用；
+- [ ] Provider 不可用时 M3/M4 仍可完整运行；
+- [ ] 用户、来源和版本过滤通过安全测试；
+- [ ] Embedding 和索引可重建；
+- [ ] Reranker 若引入，具有量化收益；
+- [ ] Redis/Worker 若引入，具有触发证据、幂等和故障降级；
+- [ ] 未引入的条件能力具有正式结论；
+- [ ] 部署、备份、安全和数据保留门禁继续通过。
+
+## 触发式候选池
+
+以下能力不是 M2-M5 的默认退出条件：
+
+| 能力 | 重新立项的最低条件 |
+| :--- | :--- |
+| 外部平台写入 | 明确具体平台和动作、许可、账号安全、Approval、幂等、审计和人工接管 |
+| 深度面试准备/复盘 | 已有 InterviewCase 与真实用户数据，候选内容必须经用户确认 |
+| 实时出行 | 地图/天气 Provider、许可、时效、成本和失败降级已审查 |
+| MemoryCandidate | 已有足够 outcome 数据，确认、拒绝、删除和过期规则明确 |
+| Agent Runtime | 稳定 Application Use Case、多个真实 Tool、分支/暂停/恢复需求和量化收益 |
+| Milvus/服务拆分/Kubernetes | pgvector 或模块化单体存在可复验容量与隔离瓶颈 |
+
+外部写始终遵循 ProposedAction -> Approval -> Execution，并具备幂等、审计和不确定结果人工处理。
+
+## 不变原则
+
+1. 一个分支、一个 PR；Issue 可选，关联时一个 PR 最多关闭一个 Issue；
+2. 依赖方向保持 Apps/Adapters -> Application -> Domain；
+3. 当前能力与证据只维护在 `current-capabilities.toml`；
+4. 模型输出不是事实，外部内容视为不可信；
+5. 外部写默认关闭；
+6. 可选能力不能成为较早里程碑的硬依赖；
+7. Milestone 关闭前必须完成真实调用路径和新环境动态验收；
+8. 路线图内容不能替代代码、测试、PR、审核和合并证据。

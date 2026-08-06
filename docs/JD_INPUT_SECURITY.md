@@ -2,7 +2,9 @@
 
 ## 范围
 
-M2 只定义 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OCR、HTTP Client、Provider Adapter 或公开上传/抓取路由。M3.7（#78）实现 Adapter 与 API 时必须复用此契约；既有文本粘贴继续走 `POST /job-postings` 的 `jd_text` 路径。
+默认分支当前只提供 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OCR、HTTP Client、Provider Adapter
+或公开上传/抓取路由。重新开放的 M2 由 #136/#137 在 #135 决策后实现 Adapter、预览确认和 API；既有文本粘贴继续走
+`POST /job-postings` 的 `jd_text` 路径。
 
 ## 图片边界
 
@@ -12,7 +14,7 @@ M2 只定义 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OC
 - OCR Adapter 失败返回 `ocr_failed`，不得猜测或生成 JD 正文。
 - OCR 结果为空返回 `empty_content`，超过 `100,000` 字符返回 `content_too_large`。
 
-图片解码器仍需在隔离资源限制内运行。像素尺寸、解压膨胀和解码器漏洞防护属于 M3.7 Adapter 的实现审查项，不能用当前字节大小检查替代。
+图片解码器仍需在隔离资源限制内运行。像素尺寸、解压膨胀和解码器漏洞防护属于 M2 Adapter 的实现审查项，不能用当前字节大小检查替代。
 
 ## URL 与 SSRF 边界
 
@@ -46,7 +48,7 @@ M2 只定义 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OC
 | `content_too_large` | 提取文本超过岗位正文上限 |
 | `invalid_input_kind` | Adapter 返回了契约以外的输入类型 |
 
-## M3.7 审查与测试要求
+## M2 实现审查与测试要求
 
 - Fake/contract tests：OCR 与抓取 Adapter 均满足 `JdInputPort`，错误码保持稳定。
 - SSRF tests：IPv4/IPv6 私网、loopback、link-local、组播、保留地址、混合 DNS 结果和 DNS rebinding。
@@ -54,4 +56,4 @@ M2 只定义 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OC
 - Resource tests：声明长度和流式实际长度分别超限，压缩膨胀、连接超时和读取超时可中止。
 - API tests：认证、上传 MIME/大小、URL DTO、稳定错误响应以及成功结果进入既有 JobPosting 创建路径。
 
-这些是 M3.7 的强制验收项，不表示 OCR 或链接抓取已经在 M2 可用。
+这些是 M2 Adapter 与公开调用路径的强制验收项，不表示 OCR 或链接抓取当前已经可用。

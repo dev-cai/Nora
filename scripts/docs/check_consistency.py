@@ -9,6 +9,7 @@ Verifies:
 
 3. docs/docs-contract.toml has valid ownership and impact declarations.
 4. docs/current-capabilities.toml contains only locally evidenced Current facts.
+5. Canonical planning documents retain the declared M2-M5 headings and no retired milestone heading.
 
 This complements check_links.py by giving targeted diagnostics for the
 document index and machine-readable contract. Uses only the Python standard library.
@@ -61,7 +62,7 @@ def extract_section_links(path: Path, section: str) -> list[str]:
     urls: list[str] = []
     for line in lines[start:]:
         for url in LINK.findall(line):
-            if EXTERNAL.match(url) or url.startswith("#") or url.startswith("!"):
+            if EXTERNAL.match(url) or url.startswith(("#", "!")):
                 continue
             urls.append(url.split("#")[0])
     return urls

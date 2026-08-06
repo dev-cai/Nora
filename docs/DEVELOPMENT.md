@@ -95,7 +95,7 @@ Compose 会启动：
 - `web`：Vue 3 工作台，监听 `localhost:5173`，浏览器内的 `/api` 请求代理到 API
 - `api`：FastAPI API，监听 `localhost:8000`
 - `db`：PostgreSQL 16
-- `redis`：Redis 7 骨架，M4 才进入业务路径
+- `redis`：Redis 7 骨架；M5 仅在性能、重试或故障隔离指标成立时评估进入业务路径
 - `storage`：MinIO 骨架，后续对象存储能力按 Issue 交付
 
 另开一个 WSL 终端验证：
@@ -364,7 +364,7 @@ docker compose logs -f web
 
 ### 浏览器级基础 E2E
 
-M2 质量门禁要求在真实浏览器中验证基础流程。E2E 使用 Playwright（用例位于 `frontend/e2e/`），在 compose 栈
+当前质量门禁在真实浏览器中验证既有基础流程。E2E 使用 Playwright（用例位于 `frontend/e2e/`），在 compose 栈
 就绪后运行：
 
 ```bash

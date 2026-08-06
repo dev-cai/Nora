@@ -11,6 +11,28 @@ categories = [
   "reference",
 ]
 
+[planning_baseline]
+active_milestones = ["M2", "M3", "M4", "M5"]
+retired_milestones = ["M6", "M6+"]
+
+[[planning_baseline.documents]]
+id = "roadmap"
+level2_headings = [
+  "M2：分析就绪的输入基线",
+  "M3：确定性求职决策 MVP",
+  "M4：可部署的投递闭环 Beta",
+  "M5：Evidence、AI 与规模化增强",
+]
+
+[[planning_baseline.documents]]
+id = "milestone-plan"
+level2_headings = [
+  "5. M2：分析就绪的输入基线",
+  "6. M3：确定性求职决策 MVP",
+  "7. M4：可部署的投递闭环 Beta",
+  "8. M5：Evidence、AI 与规模化增强",
+]
+
 [[documents]]
 id = "readme"
 path = "README.md"
