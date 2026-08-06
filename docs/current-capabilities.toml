@@ -187,3 +187,16 @@ code_paths = [
   "backend/app/apps/api/routes/job_inputs.py",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/147"]
+
+[[capabilities]]
+id = "jd-image-ocr"
+name = "截图 OCR 输入"
+milestone = "M2"
+status = "current"
+summary = "提供截图 OCR 输入：PIL 受限解码（像素与解压膨胀防护）后经百度智能云 OCR 识别为 JD 文本，返回正文预览，错误返回稳定错误码。"
+code_paths = [
+  "backend/app/infrastructure/jd_ocr.py",
+  "backend/app/apps/api/routes/job_inputs.py",
+  "backend/app/ports/jd_input.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/148"]

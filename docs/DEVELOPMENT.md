@@ -136,6 +136,9 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `WEB_PORT` | `5173` | 仅 Compose 宿主端口；映射到 Web 容器固定端口 `5173` | 端口冲突时可修改，不进入后端 Settings |
 | `AUTH_SECRET_KEY` | `development-only-change-this-secret` | Compose 注入 API；Settings 要求至少 32 个字符 | 公开值仅限本地；`staging`/`prod` 必须替换且不得提交 |
 | `AUTH_ACCESS_TOKEN_MINUTES` | `30` | Compose 注入 API；Settings 允许 `1`–`1440` | 控制访问令牌有效期，不是密钥 |
+| `BAIDU_OCR_API_KEY` | 空 | API / Settings（百度智能云 OCR 应用凭据） | 生产环境必须配置且不得提交；未配置时 OCR 接口返回稳定 `ocr_failed` |
+| `BAIDU_OCR_SECRET_KEY` | 空 | API / Settings（百度智能云 OCR 应用凭据） | 生产环境必须配置且不得提交；与 API Key 成对 |
+| `BAIDU_OCR_ENDPOINT` | `accurate_basic` | API / Settings | 百度 OCR 接口名，如 `general_basic` / `accurate_basic` |
 | `POSTGRES_USER` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 生产环境不得沿用公开示例凭据 |
 | `POSTGRES_PASSWORD` | `change-me-local` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 仅限本地示例；真实值不得提交或输出到日志 |
 | `POSTGRES_DB` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 数据库名称，不是宿主地址 |
