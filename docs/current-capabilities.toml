@@ -175,3 +175,15 @@ code_paths = [
   "backend/alembic/versions/0010_job_requirement_snapshots.py",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/146"]
+
+[[capabilities]]
+id = "jd-url-fetch"
+name = "受控链接抓取输入"
+milestone = "M2"
+status = "current"
+summary = "提供 SSRF 安全的受控链接抓取：连接前验证公网单播地址并固定解析结果（防 DNS Rebinding），限制重定向、响应大小、超时与 Content-Type，返回 HTML 正文预览。"
+code_paths = [
+  "backend/app/infrastructure/jd_fetch.py",
+  "backend/app/apps/api/routes/job_inputs.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/147"]
