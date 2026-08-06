@@ -2,19 +2,20 @@
 
 ## 范围
 
-默认分支当前只提供 `app.ports.jd_input.JdInputPort` 及其不可变 DTO，不提供 OCR、HTTP Client、Provider Adapter
-或公开上传/抓取路由。重新开放的 M2 由 #136/#137 在 #135 决策后实现 Adapter、预览确认和 API；既有文本粘贴继续走
-`POST /job-postings` 的 `jd_text` 路径。
+默认分支已交付 `app.ports.jd_input.JdInputPort` 的截图 OCR（#136，百度智能云）与受控链接抓取（#137）Adapter、
+公开预览 API（`POST /job-postings/image`、`POST /job-postings/fetch`）。两者都只返回正文预览，不直接创建岗位；
+用户确认后经既有 `POST /job-postings` 文本路径进入快照。
 
 ## 图片边界
 
 - 只接受 `image/png` 和 `image/jpeg`，且 MIME 必须与 PNG/JPEG 文件签名一致；扩展名不作为格式证据。
 - 单张图片最大 `10 MiB`，在解码和 OCR 前检查；超限返回 `image_too_large`。
-- 空内容、未知格式或 MIME/签名不一致返回 `unsupported_image`。
+- 空内容、未知格式或 MIME/签名不一致返回 `unsupported_image`；无法解码返回 `decode_failed`。
 - OCR Adapter 失败返回 `ocr_failed`，不得猜测或生成 JD 正文。
 - OCR 结果为空返回 `empty_content`，超过 `100,000` 字符返回 `content_too_large`。
 
 图片解码器仍需在隔离资源限制内运行。像素尺寸、解压膨胀和解码器漏洞防护属于 M2 Adapter 的实现审查项，不能用当前字节大小检查替代。
+百度智能云 OCR（`accurate_basic`）对 base64 图片约 `4 MB` 上限，低于上传端口 `10 MiB`；超过该上限的图片会在百度侧失败并返回 `ocr_failed`，部署时应优先对截图做降采样或压缩后再上传。
 
 ## URL 与 SSRF 边界
 
@@ -37,6 +38,7 @@
 |---|---|
 | `unsupported_image` | 图片格式、签名或内容不受支持 |
 | `image_too_large` | 上传图片超过 10 MiB |
+| `decode_failed` | 图片无法解码或超过像素/尺寸限制 |
 | `invalid_url` | URL 语法或结构不合法 |
 | `unsafe_url` | 主机或解析地址不满足公网边界 |
 | `too_many_redirects` | 重定向超过 3 次 |
