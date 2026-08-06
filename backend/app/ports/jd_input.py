@@ -31,6 +31,7 @@ class JdInputErrorCode(StrEnum):
 
     UNSUPPORTED_IMAGE = "unsupported_image"
     IMAGE_TOO_LARGE = "image_too_large"
+    DECODE_FAILED = "decode_failed"
     INVALID_URL = "invalid_url"
     UNSAFE_URL = "unsafe_url"
     TOO_MANY_REDIRECTS = "too_many_redirects"

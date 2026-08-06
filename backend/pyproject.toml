@@ -15,7 +15,10 @@ dependencies = [
     "alembic>=1.13,<2",
     "asyncpg>=0.29,<1",
     "fastapi>=0.115,<1",
+    "httpx>=0.27,<1",
+    "pillow>=10,<12",
     "pwdlib[argon2]>=0.2,<1",
+    "python-multipart>=0.0.9,<1",
     "pydantic-settings>=2.0,<3",
     "pyjwt>=2.9,<3",
     "sqlalchemy[asyncio]>=2.0,<3",
@@ -25,7 +28,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "httpx>=0.27,<1",
     "mypy>=1.13,<2",
     "pytest>=8.0,<9",
     "pytest-asyncio>=0.23,<1",
