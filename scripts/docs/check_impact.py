@@ -125,19 +125,19 @@ def evaluate_impact(
     return errors, report
 
 
-def git_changed_files(base: str) -> set[str]:
+def git_changed_files(base: str, *, root: Path = ROOT) -> set[str]:
     """Collect committed, staged, and unstaged changes relative to base."""
     commands = [
-        ["git", "diff", "--name-only", "--diff-filter=ACMRTUXB", f"{base}...HEAD"],
-        ["git", "diff", "--name-only", "--diff-filter=ACMRTUXB"],
-        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRTUXB"],
+        ["git", "diff", "--name-only", "--diff-filter=ACDMRTUXB", f"{base}...HEAD"],
+        ["git", "diff", "--name-only", "--diff-filter=ACDMRTUXB"],
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACDMRTUXB"],
         ["git", "ls-files", "--others", "--exclude-standard"],
     ]
     changed: set[str] = set()
     for command in commands:
         result = subprocess.run(
             command,
-            cwd=ROOT,
+            cwd=root,
             check=False,
             capture_output=True,
             text=True,

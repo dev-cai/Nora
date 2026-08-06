@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -8,7 +9,12 @@ from pathlib import Path
 DOCS_SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(DOCS_SCRIPTS))
 
-from check_impact import ImpactDeclaration, evaluate_impact, parse_declaration  # noqa: E402
+from check_impact import (  # noqa: E402
+    ImpactDeclaration,
+    evaluate_impact,
+    git_changed_files,
+    parse_declaration,
+)
 from contract import validate_capabilities, validate_contract  # noqa: E402
 
 
@@ -35,6 +41,18 @@ def sample_contract() -> dict[str, object]:
             }
         ],
     }
+
+
+def run_git(root: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return result.stdout.strip()
 
 
 class ContractValidationTests(unittest.TestCase):
@@ -67,6 +85,28 @@ class ContractValidationTests(unittest.TestCase):
 
 
 class ImpactTests(unittest.TestCase):
+    def test_collects_committed_staged_and_unstaged_deletions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            route = root / "backend" / "api" / "routes.py"
+            route.parent.mkdir(parents=True)
+            route.write_text("route = True\n", encoding="utf-8")
+            run_git(root, "init")
+            run_git(root, "config", "user.email", "test@example.com")
+            run_git(root, "config", "user.name", "Nora Docs Test")
+            run_git(root, "add", ".")
+            run_git(root, "commit", "-m", "baseline")
+            base = run_git(root, "rev-parse", "HEAD")
+
+            route.unlink()
+            self.assertIn("backend/api/routes.py", git_changed_files(base, root=root))
+
+            run_git(root, "add", "-A")
+            self.assertIn("backend/api/routes.py", git_changed_files(base, root=root))
+
+            run_git(root, "commit", "-m", "delete route")
+            self.assertIn("backend/api/routes.py", git_changed_files(base, root=root))
+
     def test_parse_complete_declaration(self) -> None:
         body = """## 文档影响
 
