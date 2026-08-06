@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     database_pool_timeout: float = 30.0
     auth_secret_key: str = Field(default=DEFAULT_AUTH_SECRET_KEY, min_length=32)
     auth_access_token_minutes: int = Field(default=30, ge=1, le=1440)
+    baidu_ocr_api_key: str = ""
+    baidu_ocr_secret_key: str = ""
+    baidu_ocr_endpoint: str = "accurate_basic"
 
     model_config = SettingsConfigDict(
         env_file=".env",

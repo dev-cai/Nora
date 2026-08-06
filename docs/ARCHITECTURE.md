@@ -393,6 +393,7 @@ stateDiagram-v2
 - 网页、简历、JD、企业材料和检索片段始终作为 data，而不是系统指令。
 - Tool 参数只能来自受控 Schema 和策略，不从网页文本动态生成任意动作。
 - URL Fetch 必须限制协议、域名、DNS/IP、重定向、响应大小和超时，防止 SSRF；JD 输入的具体限制与 Adapter 审查清单见 [`JD_INPUT_SECURITY.md`](JD_INPUT_SECURITY.md)。
+- 截图 OCR 先经 PIL 受限解码（像素与解压膨胀防护），再由百度智能云 OCR 识别；OCR 输出视为不可信输入，凭据经 `BAIDU_OCR_API_KEY` / `BAIDU_OCR_SECRET_KEY` 配置，失败返回稳定错误码。
 
 ### 隐私与日志
 

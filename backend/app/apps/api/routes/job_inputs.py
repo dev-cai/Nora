@@ -1,13 +1,22 @@
-"""JD 输入（受控链接抓取）预览 API。"""
+"""JD 输入（受控链接抓取与截图 OCR）预览 API。"""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel, StringConstraints
 
-from app.apps.api.dependencies import get_current_user, get_jd_input_adapter
+from app.apps.api.dependencies import (
+    get_current_user,
+    get_jd_input_adapter,
+    get_jd_ocr_adapter,
+)
 from app.domain.identity import User
-from app.ports.jd_input import JdInputKind, JdInputPort, JdUrlInput
+from app.ports.jd_input import (
+    JdImageInput,
+    JdInputKind,
+    JdInputPort,
+    JdUrlInput,
+)
 
 router = APIRouter(prefix="/job-postings", tags=["job-inputs"])
 
@@ -37,6 +46,25 @@ async def fetch_job_posting_preview(
     """受控抓取 URL 并返回正文预览，不直接创建岗位快照。"""
 
     result = await adapter.fetch_url(JdUrlInput(payload.url))
+    return JdInputPreviewResponse(
+        jd_text=result.jd_text,
+        source_url=result.source_url,
+        kind=result.kind,
+    )
+
+
+@router.post("/image", response_model=JdInputPreviewResponse)
+async def ocr_job_posting_image(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    adapter: JdInputPort = Depends(get_jd_ocr_adapter),
+) -> JdInputPreviewResponse:
+    """对截图做 OCR 并返回正文预览，不直接创建岗位快照。"""
+
+    content = await file.read()
+    result = await adapter.extract_image(
+        JdImageInput(content=content, media_type=file.content_type or "application/octet-stream")
+    )
     return JdInputPreviewResponse(
         jd_text=result.jd_text,
         source_url=result.source_url,

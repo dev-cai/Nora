@@ -19,6 +19,7 @@ from app.infrastructure.database import (
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.jd_fetch import JdFetchAdapter
+from app.infrastructure.jd_ocr import BaiduOcrEngine, JdOcrAdapter
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.jd_input import JdInputPort
@@ -105,6 +106,19 @@ def get_jd_input_adapter() -> JdInputPort:
     """组装 SSRF 安全的 JD 输入 Adapter。"""
 
     return JdFetchAdapter()
+
+
+def get_jd_ocr_adapter(request: Request) -> JdInputPort:
+    """组装受限解码 + 百度 OCR 的截图 Adapter。"""
+
+    settings = request.app.state.settings
+    return JdOcrAdapter(
+        engine=BaiduOcrEngine(
+            api_key=settings.baidu_ocr_api_key,
+            secret_key=settings.baidu_ocr_secret_key,
+            endpoint=settings.baidu_ocr_endpoint,
+        )
+    )
 
 
 def get_audit_event_repository(
