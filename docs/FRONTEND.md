@@ -6,8 +6,8 @@
 ## 1. 状态
 
 - 技术选择：Vue 3 + Vite 独立 Web 客户端。
-- 交付阶段：M2（工程与基础页面）；M3 起扩展分析与报告页面。
-- 实现状态：Current（M2 已交付）。默认分支已包含 `frontend/`、Node 依赖、Web 容器与前端 CI。
+- 交付阶段：既有 Web 基线已交付；重新开放的 M2 补齐分析就绪输入，M3-M5 依次扩展决策、投递和 Evidence 页面。
+- 实现状态：Current 基线已包含 `frontend/`、Node 依赖、Web 容器与前端 CI；新增页面仍按 Planned 标注。
 - 替代方案：不采用 Gradio；不维护 Gradio 与 Vue 两套客户端。
 
 选择 Vue 是为了支持长期的多步骤工作流、状态管理、Evidence 展示和可测试交互。代价是增加 Node 工具链、
@@ -15,7 +15,7 @@
 
 ## 2. 所有权与目录
 
-前端工程位于根目录 `frontend/`（M2 已交付）。Issue #59 已将当前后端迁移至 `backend/`，应用包位于
+前端工程位于根目录 `frontend/`（Current 基线）。Issue #59 已将当前后端迁移至 `backend/`，应用包位于
 `backend/app/`；前后端是独立构建、测试和容器边界：
 
 ```text
@@ -50,7 +50,7 @@ flowchart LR
 - 浏览器只访问 Web 入口和公开 API，不访问 Compose 内部基础设施端口。
 - 开发代理可以把浏览器的 `/api` 请求转发到 Compose 中的 `api:8000`，但不得改变后端真实路由。
 - `/api/v1` 是 Issue #59 定义的目标版本边界；当前已发布路由保持兼容，切换必须由独立 Issue 提供双端契约测试。
-- 生产静态资源托管、TLS 和同源反向代理属于部署 Issue，不在 M3 前端实现中提前承诺。
+- 生产静态资源托管、TLS 和同源反向代理属于 M4 Beta 运行基线，不在更早的输入或决策页面中提前承诺。
 
 ## 4. API 契约
 
@@ -64,7 +64,7 @@ flowchart LR
 - `GET /health`
 - `GET /ready`
 
-简历接口已在 M2 交付（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）；分析与报告接口仍为 M3 Planned。
+简历接口属于 Current（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）；分析与报告接口仍为 M3 Planned。
 前端不得根据路线图伪造响应或绕过未交付 API。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
@@ -95,17 +95,20 @@ Nora 可预期错误使用稳定结构：
 
 ## 7. 交付边界
 
-### M2 已交付
+### Current Web 基线
 
 - 可锁定依赖的 Vue 3 + Vite 工程（`frontend/`，锁文件 `package-lock.json`）；
 - API client、认证状态与岗位 / 主档 / 简历页面；
 - `web` Compose 服务、开发代理、单元 / 组件测试与生产构建验证；
 - 前端 CI：固定 Node 版本（`frontend/.nvmrc`）、锁文件安装、lint、类型检查、单元测试、生产构建与 Playwright 基础浏览器 E2E。
 
-### M3 起 Planned
+### M2-M5 Planned
 
-- M3 分析与报告页面的真实调用路径（对应 `MILESTONE_PLAN.md` §11.4）；
-- 报告等跨 API 流程的端到端检查随 M3 交付补充。
+- M2 岗位要求确认、OCR/链接预览确认和分析就绪状态；
+- M3 分析、确定性报告和 apply/skip 页面（对应 `MILESTONE_PLAN.md` §6.6-§6.8）；
+- M4 定制材料、手工投递记录、最小面试通知和 Beta 流程；
+- M5 Evidence、检索引用和可选模型增强版本；
+- 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
 
 前端不得把构建通过描述为完整用户流程已经通过；跨 API 的真实流程必须有独立集成或 E2E 证据。
 
@@ -121,52 +124,54 @@ Nora 可预期错误使用稳定结构：
 
 | 业务流程步骤 | 页面 | 里程碑 |
 | :--- | :--- | :--- |
-| 注册 / 登录 | `/register`、`/login` | M2 |
-| 主档建立（基本信息/项目/经历/教育/技能/偏好） | `/profile` | M2 |
-| 发布简历版本 | `/resumes`、`/resumes/new` | M2 |
-| JD 输入（文本/截图/链接） | `/jobs/new` | M2（文本）/ M3（截图、链接） |
-| 岗位列表与详情 | `/jobs`、`/jobs/:id` | M2 |
+| 注册 / 登录 | `/register`、`/login` | Current |
+| 主档建立（基本信息/项目/经历/教育/技能/偏好） | `/profile` | Current |
+| 发布简历版本 | `/resumes`、`/resumes/new` | Current |
+| JD 输入（文本/截图/链接）与岗位要求确认 | `/jobs/new`、`/jobs/:id/requirements` | M2 |
+| 岗位列表与详情 | `/jobs`、`/jobs/:id` | Current |
 | 发起适配分析 | `/analysis/new` | M3 |
 | 查看分析进度 | `/analysis/:id` | M3 |
 | 决策报告（匹配/差距/未知/建议/公司情报） | `/reports/:id` | M3 |
 | 投/不投决定 | 报告页内 `DecisionBar` | M3 |
-| 定制简历（选模板）与 PDF | `/templates`、`/resumes/:id/customize` | M6+ |
-| 打招呼语草稿 | `/messages/:id` | M6+ |
-| 投递记录 | `/applications` | M6+ |
-| 面试记录与出行推荐 | `/interviews`、`/interviews/:id/travel` | M6+ |
+| 定制简历（选模板）与 PDF | `/templates`、`/resumes/:id/customize` | M4 |
+| 打招呼语草稿 | `/messages/:id` | M4 |
+| 投递与最小面试通知 | `/applications`、`/interviews` | M4 |
+| Evidence 与 AI 增强版本 | 报告详情内版本视图 | M5 |
+| 深度面试准备、复盘与出行 | 待独立设计 | 触发式候选 |
 
 ## 9. 路由表
 
-下表标注交付状态：M2 路由已交付；标注「〔M3 Planned〕/〔M6+ Planned〕」的路由尚未实现，不得按已交付处理。
+下表以 `Current` 和 `Planned` 区分实际交付。里程碑归属不能替代默认分支代码与能力台账证据。
 
 ```text
-/login                      登录（M2 已交付）
-/register                   注册（M2 已交付）
-/                           工作台概览（最近岗位、分析入口）（M2 已交付）
-/jobs/new                   新建岗位（文本 / 截图 / 链接）（M2 文本）
-/jobs                       岗位列表（分页）（M2 已交付）
-/jobs/:id                   岗位详情（M2 已交付）
-/profile                    主档编辑（字段级确认状态）（M2 已交付）
-/resumes                    简历版本列表（M2 已交付）
-/resumes/new                发布新版本（M2 已交付）
-/resumes/:id                简历版本详情（M2 已交付）
+/login                      登录〔Current〕
+/register                   注册〔Current〕
+/                           工作台概览〔Current〕
+/jobs/new                   文本岗位输入〔Current〕；截图/链接预览〔M2 Planned〕
+/jobs                       岗位列表〔Current〕
+/jobs/:id                   岗位详情〔Current〕
+/jobs/:id/requirements      岗位要求确认与版本历史〔M2 Planned〕
+/profile                    主档编辑〔Current〕
+/resumes                    简历版本列表〔Current〕
+/resumes/new                发布新版本〔Current〕
+/resumes/:id                简历版本详情〔Current〕
 /analysis/new               发起分析（选岗位 + 主档 + 简历版本）〔M3 Planned〕
 /analysis/:id               分析进度 / 失败重试〔M3 Planned〕
 /reports                    报告历史列表（分页）〔M3 Planned〕
 /reports/:id                报告详情（含投/不投）〔M3 Planned〕
 /decisions                  投递决定记录（skip/apply）〔M3 Planned〕
-/templates                  模板管理〔M6+ Planned〕
-/resumes/:id/customize      定制简历〔M6+ Planned〕
-/messages/:id               打招呼语草稿〔M6+ Planned〕
-/applications               投递记录〔M6+ Planned〕
-/interviews/:id/travel      出行推荐〔M6+ Planned〕
+/templates                  模板管理〔M4 Planned〕
+/resumes/:id/customize      定制简历〔M4 Planned〕
+/messages/:id               打招呼语草稿〔M4 Planned〕
+/applications               手工投递记录〔M4 Planned〕
+/interviews                 最小面试通知〔M4 Planned〕
 ```
 
 路由守卫：未登录访问受保护路由跳 `/login`；收到 `401` 统一清除会话；`403` 不做登出。
 
 ## 10. 页面规格
 
-### 10.1 注册 / 登录（M2）
+### 10.1 注册 / 登录（Current）
 
 - 功能：注册（用户名/邮箱 + 密码 + 确认密码）、登录、登出。
 - 表单校验：非空、邮箱格式、密码强度、两次密码一致。
@@ -174,30 +179,31 @@ Nora 可预期错误使用稳定结构：
 - Token：标签页级 `sessionStorage` 受控保存，刷新后通过 `/auth/me` 校验恢复（见 §5）。
 - 错误：`401` 页内提示；`409`（已注册）明确提示。
 
-### 10.2 主档编辑 `/profile`（M2，M2.2）
+### 10.2 主档编辑 `/profile`（Current）
 
 - 功能：维护 `CandidateProfile` 基本信息、求职偏好、教育、经历、技能；展示字段级确认状态（`unconfirmed` / `confirmed` / `rejected` / `superseded`）。
 - 表单：分区表单 + 经历/技能动态增删列表。
-- API：CandidateProfile CRUD（已有，M2.2 交付）。
+- API：CandidateProfile CRUD（Current）。
 - 状态：`profileStore` 持有草稿与已确认快照；有未保存修改时离开需确认。
 - 校验：必填字段、经历时间范围可排序、技能用规范化名称。
 
-### 10.3 简历版本 `/resumes`（M2，M2.3）
+### 10.3 简历版本 `/resumes`（Current）
 
 - 功能：从已确认主档发布不可变 `ResumeVersion`；查看历史版本。
 - 发布：选择主档版本 → 预览 → 发布（发布后不可变，不因主档后续修改重写）。
-- API：`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`（已有，M2.3 交付）。
+- API：`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`（Current）。
 - 状态：`resumeStore`；发布成功进入详情，显示版本号与发布时间。
 
-### 10.4 岗位输入 `/jobs/new`（M2 文本 / M3.7 截图与链接）
+### 10.4 岗位输入与要求确认（M2）
 
 - 文本模式：JD 正文 textarea + 标题/公司/地点结构化字段。
-- 截图模式（M3.7）：图片上传（大小/格式限制）→ OCR 结果预览可编辑 → 进入 JD 文本。
-- 链接模式（M3.7）：URL 输入 → 受控抓取预览 → 进入 JD 文本；失败展示稳定错误码（如 `fetch_failed`）。
-- API：`POST /job-postings`（M2 扩展结构化字段）、截图上传 / 链接抓取端点（M3.7，Planned）。
+- 截图模式（M2 Planned）：图片上传（大小/格式限制）→ OCR 结果预览可编辑 → 用户确认保存。
+- 链接模式（M2 Planned）：URL 输入 → 受控抓取预览 → 用户确认保存；失败展示稳定错误码（如 `fetch_failed`）。
+- 岗位要求（M2 Planned）：原始 `JobPosting` 与 `JobRequirementSnapshot` 分开显示；用户补充、修正和确认后创建新版本。
+- API：既有 `POST /job-postings` 保持兼容；截图、链接与岗位要求端点由 #135-#137 后续契约定义。
 - 组件：`FileUpload`（校验类型/大小/超时）、`OCRPreview`、`LinkFetchPreview`。
 
-### 10.5 岗位列表 / 详情（M2）
+### 10.5 岗位列表 / 详情（Current）
 
 - 列表：`GET /job-postings` 分页列表，卡片展示标题/公司/地点/摘要/时间。
 - 详情：`GET /job-postings/{id}` 展示完整 JD、来源、版本、创建时间；入口进入发起分析。
@@ -215,10 +221,10 @@ Nora 可预期错误使用稳定结构：
 - 分区展示：
   - **事实（Fact）**：已确认主档与岗位的结构化字段；
   - **规则结果（Rule Result）**：技能/技术栈覆盖、经验年限、地点兼容、学历要求；每条带 `rule_id`、状态（match/partial/mismatch/unknown）、输入字段定位与原因；
-  - **公司情报**（M3.8）：网评摘要 + 规模 + 行业 + 来源与时效标签；缺失显示 unknown；
+  - **公司情报**（M4 Planned）：网评摘要 + 规模 + 行业 + 来源与时效标签；缺失显示 unknown；
   - **未知项（Unknown）**：规则缺输入项；
   - **建议（Recommendation）**：确定性下一步；
-  - 明确"确定性规则"标识；M4 前显示"AI 增强未启用"。
+  - 明确"确定性规则"标识；M5 前显示"AI 增强未启用"。
 - 幂等：重复"生成报告"返回既有报告，版本不变。
 - API：`POST /decisions/{id}/reports`、`GET /reports/{id}`（Planned，M3.3/M3.4）。
 - 组件：`ReportSection`、`RuleRow`、`UnknownBadge`、`EvidenceLink`。
@@ -227,23 +233,23 @@ Nora 可预期错误使用稳定结构：
 
 - 报告页底部 `DecisionBar`：`投递` / `不投` / `稍后`。
 - 选择"不投"：填写原因 → `skip` 记录（沉淀为历史相似记录）。
-- 选择"投递"：仅标记 `apply`，投递产物属 M6+。
+- 选择"投递"：仅标记 `apply`，投递产物属 M4。
 - API：ApplicationDecision 状态机（Planned，M3.9）。
 - 状态转换记录操作者、时间与报告版本；重复提交幂等。
 
-### 10.9 定制简历与 PDF（M6+）
+### 10.9 定制简历与 PDF（M4）
 
 - 模板列表 `/templates`：声明式 JSON 模板（页面设置/区块顺序/占位字段）只读预览。
 - 定制 `/resumes/:id/customize`：选择模板 → 字段映射（主档/岗位）→ 预览 → 生成 PDF。
 - PDF：`GET` 产物（Object Storage 签名引用），下载/分享。
 - 打招呼语 `/messages/:id`：可编辑纯文本，默认 `professional` 风格。
-- API：`ResumeVariant`、`MessageDraft`（Planned，M6+）。
+- API：`ResumeVariant`、`MessageDraft`（Planned，M4）。
 
-### 10.10 面试与出行（M6+）
+### 10.10 最小面试通知（M4）与触发式候选
 
-- 面试记录 `/interviews`：录入面试时间/地点/轮次。
-- 出行推荐 `/interviews/:id/travel`：多模式路线、出发时间、天气建议，来源与时效标注。
-- API：InterviewCase、TravelPlan（Planned，M6+）。
+- 面试记录 `/interviews`：录入面试时间、地点、轮次和备注（M4 Planned）。
+- API：最小 `InterviewCase`（Planned，M4）。
+- 深度准备、复盘和出行推荐不属于 M2-M5 默认退出条件，满足触发条件后另行设计路由与契约。
 
 ## 11. 状态管理（Pinia）
 
@@ -271,15 +277,16 @@ Nora 可预期错误使用稳定结构：
 
 ## 13. 组件划分
 
-下表为组件设计划分，里程碑列表示计划交付阶段：M2 行的页面功能已随 M2 页面交付（部分组件可能内联在页面中，并非全部以独立文件存在）；M3 及之后均为 Planned，尚未实现。
+下表为组件设计划分。`Current` 只表示能力台账已证明的页面；M2-M5 均按新增功能的计划归属标注。
 
 | 组件 | 用途 | 里程碑 |
 | :--- | :--- | :--- |
-| `AppShell` | 布局、导航、认证态 | M2 |
-| `AuthForm` | 注册/登录表单 | M2 |
-| `JobForm` / `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 三模式输入 | M2 文本 / M3.7 Planned |
-| `ProfileForm` / `FieldGroup` / `ConfirmationBadge` | 主档分区与字段确认状态 | M2 |
-| `ResumeVersionCard` | 简历版本卡片 | M2 |
+| `AppShell` | 布局、导航、认证态 | Current |
+| `AuthForm` | 注册/登录表单 | Current |
+| `JobForm` / `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 三模式输入 | Current 文本 / M2 Planned 增强 |
+| `RequirementEditor` / `ConfirmationBadge` | 岗位要求确认与版本历史 | M2 Planned |
+| `ProfileForm` / `FieldGroup` | 主档分区与字段确认状态 | Current |
+| `ResumeVersionCard` | 简历版本卡片 | Current |
 | `ReportSection` / `RuleRow` / `UnknownBadge` / `EvidenceLink` | 报告分区 | M3 Planned |
 | `DecisionBar` | 投/不投 | M3 Planned |
 | `ErrorState` / `LoadingState` / `EmptyState` | 通用状态 | M3 Planned |
@@ -288,16 +295,13 @@ Nora 可预期错误使用稳定结构：
 
 | 里程碑 | 前端交付 |
 | :--- | :--- |
-| M2.4 | Vue 工程初始化、路由/布局/错误边界、API client、注册登录/岗位页面 |
-| M2.5 | 前端 CI（lint/type/test/build） |
-| M2.6 | 主档表单、简历发布与列表页面 |
-| M3.5 | 分析创建、进度、报告详情、历史列表页面 |
-| M3.7 | 截图上传/OCR 预览、链接抓取预览组件 |
-| M3.9 | DecisionBar 与 skip/apply 记录页 |
-| M4 | Evidence 展示（来源/版本/时效），前端只读增强 |
-| M6+ | 模板管理、定制简历/PDF、打招呼语、投递记录、面试与出行页面 |
+| Current 基线 | Vue 工程、认证、岗位文本、主档、简历、前端 CI 和基础浏览器 E2E |
+| M2 | 岗位要求确认、截图 OCR/链接抓取预览、分析就绪状态和输入 E2E |
+| M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
+| M4 | 模板、定制简历/PDF、消息草稿、手工投递记录、最小面试通知和 Beta E2E |
+| M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示 |
 
-## 15. 技术选型（由 M2 实现 Issue 确认并记录用途）
+## 15. 技术选型（Current 基线）
 
 - Vue 3 + Vite + TypeScript；
 - Vue Router（路由与守卫）；Pinia（状态管理）；

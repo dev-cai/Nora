@@ -1,121 +1,106 @@
 # Nora 业务流程与缺口分析（决策基线）
 
 > **文档定位**：本文是已确认业务流程与产品决策的基线真源，记录**已确认的业务流程**、**已确认的技术决策**、
-> 与当前项目实现的**差距分析**（缺少 / 越界）以及调整方向。本文不独立定义技术实现边界；任何落地都必须按
-> `ARCHITECTURE.md` 变更规则（架构改动先 Architecture Issue）与本仓库交付与审核门禁执行。
+> 与当前项目实现的**差距分析**以及调整方向。本文不独立定义技术实现边界；任何落地都必须遵守
+> [`ARCHITECTURE.md`](ARCHITECTURE.md) 的变更规则和仓库交付门禁。
 >
-> 相关真源：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)、[`ROADMAP.md`](ROADMAP.md)、[`ARCHITECTURE.md`](ARCHITECTURE.md)。
-> 建立基线：2026-08-02。
+> 相关真源：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)、[`ROADMAP.md`](ROADMAP.md)、
+> [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md)。建立基线：2026-08-02；M2-M5 规划同步：2026-08-06。
 
 ---
 
 ## 1. 目标用户与产品定位（已确认）
 
 - 目标用户：**软件工程专业应届生，以校招为主**。
-- 产品形态：**个人定制求职 Agent**（单人使用，非企业级多租户）。
-- 定位：围绕校招流程（在线评测 OA → 技术面 → HR 面 → Offer）提供可审计的决策与准备支持。
+- 产品形态：**个人定制求职决策系统**（单人使用，非企业级多租户）。
+- 定位：围绕校招流程（在线评测 OA -> 技术面 -> HR 面 -> Offer）提供可审计的决策与准备支持。
 - 非目标：社招、管理岗、跨行业求职；生产级多租户、计费、高可用。
 
 ## 2. 已确认的业务流程
 
 ```text
-第一步  基本信息格式化存储
-        （项目 / 经历 / 基本信息）→ 结构化存 PostgreSQL，向量化供后续相似检索
-第二步  投递时输入 JD（文本 / 截图 / 链接）
-        根据 JD、公司信息、网评、规模 → 适配分析说明 → 用户决定投 / 不投
-第三步  按用户决定执行：
-        不投  → 结果沉淀（历史 skip 记录），便于后续相似岗位分析
-        投递  → 生成打招呼语 + 按用户所选模板定制简历 → 输出 PDF → 存库
-第四步  收到面试通知后，用户补充信息 → 出行推荐等
-预留    自动化投递 + 批量 JD 导入分析（应届生网、Boss 等平台）
+第一步  建立并确认个人主档与不可变简历版本
+第二步  输入 JD（文本 / 截图 / 链接）并确认结构化岗位要求
+第三步  创建固定输入版本的 DecisionCase，生成确定性报告，用户选择 apply / skip
+第四步  apply 后生成定制简历、PDF 和消息草稿；用户手工投递并记录结果与面试通知
+第五步  在确定性闭环可独立运行后，以 Evidence、检索和可选模型增强报告
+候选    外部平台写入、深度面试复盘、实时出行、长期记忆和 Agent Runtime 按触发条件立项
 ```
 
 ### 各阶段要点
 
-| 阶段 | 关键动作 | 落库/产物 |
-| :--- | :--- | :--- |
-| ① 主档建立 | 录入/确认基本信息、项目、经历、技能 | `CandidateProfile` 普通表（事实源）；简历/JD 向量化属于 M4 Planned |
-| ② 适配分析 | 输入 JD（文本/截图/链接）→ 抓取公司信息、网评、规模 → 生成分析说明 | `JobPosting` 快照 + 公司 Evidence + `DecisionCase` 分析 |
-| ③a 不投 | 记录决定与原因 | `ApplicationDecision(skip)` + 历史 skip 沉淀 |
-| ③b 投递 | 生成打招呼语 + 定制简历 | `MessageDraft` + `ResumeVariant` + 模板版本 + PDF（Object Storage） |
-| ④ 面试出行 | 用户补充面试时间/地点 → 出行推荐 | `InterviewPlan` / `TravelPlan` |
-| ⑤ 平台预留 | 批量 JD 导入、投递、打招呼发送 | Job Platform Port（初版 Disabled/Manual Adapter） |
+| 阶段 | 关键动作 | 落库/产物 | 里程碑 |
+| :--- | :--- | :--- | :--- |
+| 输入基线 | 主档、简历、JD 原文和用户确认的岗位要求 | `CandidateProfile`、`ResumeVersion`、`JobPosting`、`JobRequirementSnapshot` | M2 |
+| 确定性分析 | 固定输入版本，运行规则并记录投/不投 | `DecisionCase`、`DecisionReport`、`ApplicationDecision` | M3 |
+| 投递闭环 | 生成材料，用户手工投递并记录最小面试通知 | `ResumeVariant`、`MessageDraft`、PDF、`ApplicationRecord`、`InterviewCase` | M4 |
+| Evidence/AI 增强 | 版本化来源、检索、Evidence Pack 和可选模型增强 | `Source`、`Chunk`、`Embedding`、`EvidencePack`、增强报告版本 | M5 |
+| 触发式候选 | 外部写、深度面试/出行、长期记忆和 Agent 编排 | 独立 Architecture/Task Issue 决定 | 非默认 Milestone |
 
 ## 3. 已确认的技术决策
 
-> 三项决策是已确认的产品基线，用于约束后续 Issue。权威技术定义以
-> [`ARCHITECTURE.md`](ARCHITECTURE.md) §4 决策表（D-003/D-004）与 §12 外部写/审批状态机为真源，本节不重述。
+> 以下决策用于约束后续交付。权威技术定义以 [`ARCHITECTURE.md`](ARCHITECTURE.md) §4 和 §12 为准。
 
 | 决策 | 选择 | 说明 |
 | :--- | :--- | :--- |
-| **D-存储** | **PostgreSQL + pgvector** | 结构化事实（主档/决定/审计/报告）存普通表，是事实源；向量只存"用于相似检索"的 Chunk/Embedding，作为可重建派生索引，同一个 PostgreSQL 库（pgvector 扩展）；不引入 Milvus（D-004 保持一致）。 |
-| **D-自动化** | **半自动，仅预留接口** | 系统生成打招呼语 + 定制简历，用户在网页确认后手动复制/投递；自动化只定义 Port 抽象（批量导入 / 投递 / 打招呼发送），复用 Approval + 幂等 + 审计模型，不实现自动登录平台操作。 |
-| **D-模板** | **本地声明式 JSON 模板 + WeasyPrint** | "挖空式"模板：页面设置 + 区块顺序 + 占位字段，声明式不可变版本；WeasyPrint 本地渲染 PDF；输出入 Object Storage，构建产物不入 Git。 |
+| **D-存储** | **PostgreSQL；M5 候选 pgvector** | 结构化事实存普通表；向量只保存可重建 Chunk/Embedding 索引。Embedding 契约先于 pgvector Schema，Milvus 仅在容量触发后评估。 |
+| **D-自动化** | **半自动，外部写关闭** | 系统可以生成草稿和材料，用户手工复制、投递并确认记录；不实现自动登录平台操作。 |
+| **D-模板** | **声明式不可变模板** | 模板不能执行任意代码；具体 PDF 渲染器、字体和元数据必须在 M4 实现中锁定并验证确定性。 |
 
 ## 4. 与当前项目实现的差距
 
-### 4.1 当前已实现（M0–M2）
+### 4.1 当前已有基线
 
-> 以下为已交付能力摘要；逐项证据与限制以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §4 为真源。
+> 以下只作导航，逐项 Current 能力、代码路径和合并证据只见
+> [`current-capabilities.toml`](current-capabilities.toml)。M2 重新开放不会撤销这些历史交付。
 
-- 本地账号认证与用户范围隔离（`auth`）；
-- 不可变 `JobPosting` 文本快照创建、列表与读取，包含岗位、公司、地点和来源公开契约；
-- 幂等、创建审计、事务一致性；
-- `CandidateProfile` 用户确认事实主档与不可变 `ResumeVersion`；
-- Vue 3 工作台的认证、岗位、主档和简历页面，以及标签页会话恢复和请求超时；
-- 后端、前端与容器 CI 门禁、Web→API 冒烟和 Playwright 基础浏览器 E2E；
-- JD 截图与链接输入的 Port/DTO/安全契约（执行 Adapter 和公开路由仍属于 M3）。
+- 本地账号认证、用户范围隔离和不可变 `JobPosting` 文本快照；
+- 岗位公开契约、幂等、创建审计和事务一致性；
+- `CandidateProfile` 与不可变 `ResumeVersion`；
+- Vue 3 工作台的认证、岗位、主档和简历页面；
+- 后端、前端、容器和基础浏览器质量门禁；
+- JD 截图与链接输入的 Port/DTO/安全契约，但没有执行 Adapter 和公开路由。
 
-### 4.2 功能缺少清单
+### 4.2 功能缺口
 
-| # | 缺口 | 现状 | 优先级 |
-| :- | :--- | :--- | :--- |
-| G1 | **JD 截图/图片输入（OCR）** | API 只有 `jd_text` 文本，无图像解析 | 高 |
-| G2 | **JD 链接受控抓取** | `source_url` 是记录字段，未实现抓取（需 SSRF 防护） | 高 |
-| G4 | **公司情报（网评 / 规模 / 来源）** | 用户明确要求，零实现 | 中 |
-| G5 | **适配分析 + 投递决定状态机** | M3 Planned（`analyzed → skip/apply`） | 高 |
-| G6 | **平台预留接口 Port** | 无 `JobPlatform` Port/Adapter 抽象 | 中（预留） |
-| G7 | **简历模板 + PDF 生成** | 已规划（声明式模板 + WeasyPrint），未实现 | 中（M3 后） |
-| G8 | **出行推荐** | `TravelPlan` 已规划，未实现 | 低 |
+| 缺口 | 当前状态 | 归属 |
+| :--- | :--- | :--- |
+| `JobRequirementSnapshot` 所有权、版本、确认和来源定位 | Architecture Issue #135 先行 | M2 |
+| JD 截图 OCR、链接受控抓取、预览确认 | #136/#137 等待 #135；尚无执行路径 | M2 |
+| 分析就绪 UI 与真实双用户 E2E | 在岗位要求契约落定后逐项交付 | M2 |
+| `DecisionCase`、确定性规则、报告和 apply/skip | #24、#73-#77、#80 | M3 |
+| 定制简历、模板、PDF、消息、投递和最小面试记录 | #91-#94、#140 等 | M4 |
+| 单用户 Beta 部署、安全、恢复与可观测基线 | #87、#138 | M4 |
+| Source/Chunk/Embedding/检索/Evidence/Model Gateway | #21-#23、#25、#81-#85、#141 | M5 |
+| Redis、Worker、Reranker | 先由 #139 或固定评测集提供触发证据 | M5 条件项 |
 
-### 4.3 越界 / 超前项（建议收敛）
+### 4.3 越界与收敛
 
-| # | 项 | 处理建议 |
-| :- | :--- | :--- |
-| N1 | 向量库作为业务事实主存储 | **已纠正**为 pgvector 决策（D-存储）：事实走普通表，向量仅作检索索引 |
-| N2 | 多 Agent 编排（M6+ LangGraph） | 业务流程是线性确定性流水线，MVP 用规则引擎 + 受控模型调用即可；多 Agent 降为可选演进项 |
-| N3 | 复盘 / 长期记忆闭环（R=Review） | 业务流程到"出行推荐"结束，复盘不进 MVP，保留为后期能力 |
-| N4 | 复杂公司网评分层（四级来源 + fresh/aging/stale + 禁止聚合分数） | 初版简化为"来源 + 摘要 + 时效标签"，满足"网评、规模"两点即可 |
-| N5 | 8 个限界上下文全量铺开 | MVP 实际只用 Identity、Career、Opportunity、Application & Follow-up、Interview 五个；其余（Reporting 并入、Knowledge 简化、Governance 保留）不必全量 |
-
-## 5. 已采用的调整方向
-
-### 5.1 产品文档
-
-- 按第 2 节业务流程重写 `PRODUCT_VISION.md` 的目标用户旅程与能力目录，收敛为 5 个上下文相关的核心能力；
-- `ROADMAP.md` 里程碑范围按第 4.2 缺口优先级调整。
-
-### 5.2 架构文档（由 Architecture Issue #98 承载）
-
-- 新增 **Job Platform Port**：`批量导入 JD`、`投递`、`打招呼发送` 三类 Port，初版 Disabled/Manual Adapter；
-- 新增 **JD 输入 Port**：截图 OCR、链接受控抓取（SSRF 防护）两类；
-- 明确 **pgvector 定位**：事实在结构化表，向量是可重建索引，Milvus 仅规模触发后评估（保持 D-004/D-005）。
-
-### 5.3 里程碑调整建议
-
-| 里程碑 | 调整 |
+| 项 | 处理规则 |
 | :--- | :--- |
-| M2 | **已完成**：岗位公开契约、`CandidateProfile`、`ResumeVersion`、Vue 工作台、前端 CI、JD 输入 Port 契约和基础浏览器 E2E |
-| M3 | 核心改为"JD 输入（文本/截图/链接）→ 适配分析 → 投不投决定"，是用户价值最高的一步 |
-| M4 | 定义平台 Port 与 Approval 接线，半自动投递落地；批量 JD 导入 |
-| M6+ | 出行推荐、复盘、多 Agent 作为可选演进，按需评估 |
+| 向量库作为业务事实主存储 | 禁止；PostgreSQL 结构化表保存事实，向量只作可重建索引 |
+| 多 Agent 编排 | 不作为里程碑叙事；只有稳定 Use Case、多 Tool 和暂停/恢复需求成立后评估 |
+| 外部平台自动投递/发送 | 不属于 M2-M5；重新立项需许可、Approval、幂等、审计和人工接管 |
+| 深度面试复盘、实时出行和长期记忆 | 保留在触发式候选池，不阻塞 M4 最小 `InterviewCase` |
+| 复杂公司情报 | M4 先交付来源、摘要、时效和 unknown；不得把匿名评价升级为事实 |
 
-## 6. 后续 Issue 映射（按依赖顺序）
+## 5. 已采用的 M2-M5 调整
 
-1. **产品与里程碑基线**：由 Architecture Issue #98 固化本文、产品愿景、路线图和详细里程碑计划。
-2. **M2 已完成**：#69、#20、#70、#26、#53、#71、#72、#107、#112 依次交付岗位契约、主档、简历、Vue、CI、页面、JD 输入 Port、前端收尾和基础浏览器 E2E；#111 与 #117 同步封版文档证据。
-3. **M3 实现**：#24、#73–#80 交付确定性分析、报告、真实 E2E、JD 增强、公司情报和最小投不投决定。
-4. **M4 实现**：#21–#23、#25、#81–#86 交付 Evidence/RAG/AI 与 Job Platform Port 预留。
-5. **M5/M6+**：#27–#29、#87–#97 按指标推进生产准备、投递闭环和 Agent 评估。
+| 里程碑 | 用户结果 |
+| :--- | :--- |
+| M2 | 基于已有岗位/主档/简历/Web 基线，补齐可确认、版本化、可直接分析的输入 |
+| M3 | 无模型、向量、缓存和 Worker 也能生成确定性报告并记录 apply/skip |
+| M4 | 生成投递材料、手工记录投递和面试通知，并达到可部署单用户 Beta |
+| M5 | 增加 Evidence、检索和可选模型增强；规模化组件只按指标引入 |
 
-> 每条 Issue 一分支一 PR、独立验收；不批量创建空目录或预留未验收能力。
+M6+ 已取消为主动 Milestone。未来能力进入 [`ROADMAP.md`](ROADMAP.md) 的触发式候选池，而不是继续按编号预排。
+
+## 6. Issue 映射原则
+
+1. M2 先完成 #135，再解锁 #136/#137 和 `JobRequirementSnapshot` 实现；
+2. M3 按 DecisionCase -> 规则 -> 报告 -> API/UI -> apply/skip -> E2E 顺序交付；
+3. M4 在 M3 apply 事实之后交付材料、投递记录、最小面试通知和 Beta 运行基线；
+4. M5 先完成 Embedding 契约 #141，再设计 pgvector #22，并保持确定性降级路径；
+5. 每项一分支一 PR；前置决策未合并时，不提前创建锁定 Schema 的实现 Issue。
+
+完整原子顺序、依赖和验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) 为准。

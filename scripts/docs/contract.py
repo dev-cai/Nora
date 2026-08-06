@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 PR_URL = re.compile(r"https://github\.com/dev-cai/Nora/pull/[1-9][0-9]*$")
+MILESTONE_HEADING = re.compile(r"^(?:\d+\.\s+)?(M\d+\+?)(?:[：:]|\s|$)")
 
 
 def load_toml(path: Path) -> dict[str, Any]:
@@ -38,6 +39,99 @@ def _string_list(value: object) -> bool:
     )
 
 
+def _level2_headings(path: Path) -> list[str]:
+    """Return level-two Markdown heading text without the marker."""
+    return [
+        line[3:].strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.startswith("## ") and not line.startswith("### ")
+    ]
+
+
+def _validate_planning_baseline(
+    root: Path,
+    planning: object,
+    document_paths: dict[str, str],
+) -> list[str]:
+    """Validate canonical planning headings and retired milestone boundaries."""
+    prefix = "docs-contract.toml: planning_baseline"
+    if not isinstance(planning, dict):
+        return [f"{prefix} must be a table"]
+
+    errors: list[str] = []
+    active = planning.get("active_milestones")
+    retired = planning.get("retired_milestones")
+    if not _string_list(active):
+        errors.append(f"{prefix}.active_milestones must be a non-empty string list")
+        active = []
+    if not _string_list(retired):
+        errors.append(f"{prefix}.retired_milestones must be a non-empty string list")
+        retired = []
+    if set(active) & set(retired):
+        errors.append(f"{prefix} active and retired milestones must not overlap")
+
+    planning_documents = planning.get("documents")
+    if not isinstance(planning_documents, list) or not planning_documents:
+        return [*errors, f"{prefix}.documents must be a non-empty table array"]
+
+    seen_ids: set[str] = set()
+    for index, entry in enumerate(planning_documents, start=1):
+        entry_prefix = f"{prefix}.documents[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{entry_prefix} must be a table")
+            continue
+        document_id = entry.get("id")
+        expected = entry.get("level2_headings")
+        if not isinstance(document_id, str) or not document_id:
+            errors.append(f"{entry_prefix}.id must be a non-empty string")
+            continue
+        if document_id in seen_ids:
+            errors.append(f"{entry_prefix}.id is duplicated: {document_id}")
+            continue
+        seen_ids.add(document_id)
+        if document_id not in document_paths:
+            errors.append(f"{entry_prefix} references unknown document: {document_id}")
+            continue
+        if not _string_list(expected):
+            errors.append(f"{entry_prefix}.level2_headings must be a non-empty string list")
+            continue
+
+        expected_milestones = {
+            match.group(1)
+            for heading in expected
+            if (match := MILESTONE_HEADING.match(heading)) is not None
+        }
+        if expected_milestones != set(active):
+            errors.append(
+                f"{entry_prefix}.level2_headings must declare exactly the active milestones: "
+                f"{', '.join(active)}"
+            )
+
+        path = root / document_paths[document_id]
+        if not path.is_file():
+            continue
+        try:
+            actual = _level2_headings(path)
+        except (OSError, UnicodeError) as error:
+            errors.append(f"{entry_prefix} cannot read {path.relative_to(root)}: {error}")
+            continue
+        for heading in expected:
+            count = actual.count(heading)
+            if count != 1:
+                errors.append(
+                    f"{path.relative_to(root)}: expected level-two heading exactly once: "
+                    f"{heading} (found {count})"
+                )
+        for heading in actual:
+            match = MILESTONE_HEADING.match(heading)
+            if match is not None and match.group(1) in retired:
+                errors.append(
+                    f"{path.relative_to(root)}: retired milestone must not be a "
+                    f"level-two heading: {heading}"
+                )
+    return errors
+
+
 def validate_contract(root: Path, contract: dict[str, Any]) -> list[str]:
     """Validate document ownership and path-impact declarations."""
     errors: list[str] = []
@@ -52,9 +146,13 @@ def validate_contract(root: Path, contract: dict[str, Any]) -> list[str]:
 
     documents = contract.get("documents")
     if not isinstance(documents, list) or not documents:
-        return [*errors, "docs-contract.toml: documents must be a non-empty table array"]
+        return [
+            *errors,
+            "docs-contract.toml: documents must be a non-empty table array",
+        ]
 
     document_ids: set[str] = set()
+    document_paths_by_id: dict[str, str] = {}
     document_paths: set[str] = set()
     for index, document in enumerate(documents, start=1):
         prefix = f"docs-contract.toml: documents[{index}]"
@@ -76,6 +174,8 @@ def validate_contract(root: Path, contract: dict[str, Any]) -> list[str]:
             errors.append(f"{prefix}.path is duplicated: {path}")
         else:
             document_paths.add(path)
+            if isinstance(document_id, str) and document_id:
+                document_paths_by_id[document_id] = path
             if not (root / path).is_file():
                 errors.append(f"{prefix}.path does not exist: {path}")
         if category not in category_set:
@@ -98,9 +198,18 @@ def validate_contract(root: Path, contract: dict[str, Any]) -> list[str]:
                     f"{summary_id}"
                 )
 
+    errors += _validate_planning_baseline(
+        root,
+        contract.get("planning_baseline"),
+        document_paths_by_id,
+    )
+
     rules = contract.get("impact_rules")
     if not isinstance(rules, list) or not rules:
-        return [*errors, "docs-contract.toml: impact_rules must be a non-empty table array"]
+        return [
+            *errors,
+            "docs-contract.toml: impact_rules must be a non-empty table array",
+        ]
     rule_ids: set[str] = set()
     for index, rule in enumerate(rules, start=1):
         prefix = f"docs-contract.toml: impact_rules[{index}]"

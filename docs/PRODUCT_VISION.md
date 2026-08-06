@@ -73,8 +73,8 @@ CandidateProfile
 
 ## 4. 产品能力目录
 
-以下五类角色是稳定的产品能力分类，不承诺“一类角色等于一个 LangGraph 节点、进程或服务”。M6+ 实现时可根据
-调用路径、状态边界和评测结果拆分或组合。
+以下五类角色是稳定的产品能力分类，不承诺“一类角色等于一个 LangGraph 节点、进程或服务”。只有出现真实的分支、
+暂停/恢复和多 Tool 编排需求时，才通过独立 Architecture Issue 评估 Agent Runtime。
 
 | 能力角色 | 用户触发 | 目标输出 | 关键输入 |
 | :--- | :--- | :--- | :--- |
@@ -121,23 +121,23 @@ CandidateProfile
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已实现并有验证证据 | 仓库治理与 Issue/PR 工作流、M0 工程基础、M1 认证与岗位快照、M2 CandidateProfile、ResumeVersion、Vue 工作台、前端 CI、JD 输入契约与基础浏览器 E2E |
-| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M3 确定性 Demo、M4 Evidence/RAG/AI 增强、M5 生产准备、M6+ 投递闭环 |
-| **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | M6+ Agent Runtime、专项 Agent、Milvus、服务拆分和受控连接器 |
+| **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、Vue 工作台、JD 输入契约与基础浏览器 E2E；逐项范围只见能力台账 |
+| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强 |
+| **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | 外部平台写入、深度面试复盘、实时出行、Agent Runtime、Milvus 和服务拆分 |
 
-状态以默认分支、已合并 PR 和 GitHub Issue 为证据；逐项交付证据与限制见
-[`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) §4 当前能力基线。本文中的产品示例不能替代实现、测试或发布证明。
+Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 状态以 GitHub Milestone/Issue 为准。逐项交付证据与限制
+只维护在 [`current-capabilities.toml`](current-capabilities.toml)。本文中的产品示例不能替代实现、测试或发布证明。
 
 ## 8. 技术与 Provider 边界
 
-- M4 的初期向量能力是 PostgreSQL + pgvector；Milvus/Zilliz 仅为 Benchmark 和规模触发后的演进选项。
-- BGE-M3 是 M4 的候选 Embedding 方向，部署方式、版本和 Reranker 必须在实施前固化并评测。
+- M5 的初期向量能力候选是 PostgreSQL + pgvector；模型、版本、维度和归一化契约必须在 Schema 设计前确认。
+- BGE-M3 只是候选 Embedding 方向，不在规划中预先锁定；Reranker 只有在固定评测集证明收益后才引入。
 - 模型通过 Provider-neutral Model Gateway 访问；DeepSeek、GLM、OpenAI 兼容 Provider 等均为候选配置，不在产品愿景中锁定
   尚未验证的具体版本。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应
   Architecture/Task Issue 验收。
-- LangGraph Agent Runtime 属于 M6+；M3 的首个 Demo 使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。
-- Redis/Celery 在 M5 仅按指标评估，不拥有业务事实。
+- Agent Runtime 不属于 M2-M5 的默认退出条件；M3 使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。
+- Redis/Celery 在 M5 仅按性能和故障隔离指标评估，不拥有业务事实，评估结论可以是不引入。
 
 ## 9. 文档真源
 

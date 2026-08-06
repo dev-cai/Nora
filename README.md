@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/Vue%203-0d1117?style=flat-square&labelColor=0d1117&logo=vuedotjs&logoColor=22d3ee&color=22d3ee" alt="Vue 3">
   <img src="https://img.shields.io/badge/PostgreSQL%2016-0d1117?style=flat-square&labelColor=0d1117&logo=postgresql&logoColor=22d3ee&color=22d3ee" alt="PostgreSQL 16">
   <img src="https://img.shields.io/badge/Docker-0d1117?style=flat-square&labelColor=0d1117&logo=docker&logoColor=22d3ee&color=22d3ee" alt="Docker">
-  <img src="https://img.shields.io/badge/Status-M0~M2%20done%20%7C%20M3-22d3ee?style=flat-square&labelColor=0d1117&color=4ade80" alt="M0–M2 已完成，M3 进行中">
+  <img src="https://img.shields.io/badge/Status-M0~M1%20done%20%7C%20M2-22d3ee?style=flat-square&labelColor=0d1117&color=4ade80" alt="M0–M1 已完成，M2 进行中">
 </p>
 
 ---
@@ -65,7 +65,7 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 |------|----------|
 | 后端 | Python 3.11 · FastAPI · SQLAlchemy（异步） · Alembic |
 | 前端 | Vue 3 · Vite · TypeScript · Pinia |
-| 数据 | PostgreSQL 16 · pgvector（M4 引入） |
+| 数据 | PostgreSQL 16 · pgvector（M5 规划，模型维度确认后引入） |
 | 工程 | Docker Compose · ruff · mypy · pytest · GitHub Actions |
 | 治理 | 一 PR 一分支 · Issue 可选 · Codex 自动审核门禁 |
 
@@ -77,13 +77,12 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 |--------|--------|------|
 | **M0** | 工程骨架 · CI 门禁 · Docker Compose | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
 | **M1** | 本地认证 · 岗位快照 · 幂等 · 审计 | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
-| **M2** | 数据契约 · 画像/简历 · Vue 工作台 | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
-| **M3** | 确定性决策 Demo（无模型密钥可运行） | ![进行中](https://img.shields.io/badge/-building-22d3ee?style=flat-square&labelColor=0d1117) |
-| **M4** | Evidence · RAG · pgvector · Model Gateway | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
-| **M5** | 生产准备 · 可观测性 · 异步能力评估 | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
-| **M6+** | 投递闭环 · 专项 Agent · 受控连接器 | ![演进中](https://img.shields.io/badge/-evolution-818cf8?style=flat-square&labelColor=0d1117) |
+| **M2** | 可确认的岗位要求 · OCR/链接输入 · 分析就绪 E2E | ![进行中](https://img.shields.io/badge/-building-22d3ee?style=flat-square&labelColor=0d1117) |
+| **M3** | 确定性决策报告 · apply/skip（无模型密钥可运行） | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
+| **M4** | 定制材料 · 手工投递/面试记录 · 可部署 Beta | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
+| **M5** | Evidence · 检索 · 可选 AI 与指标触发的规模化 | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
 
-> 当前边界：RAG、Agent、自动投递与生产部署尚未交付，不要把路线图内容当作已实现能力。各里程碑状态与完成证据以 GitHub Milestone 与 [`docs/ROADMAP.md`](docs/ROADMAP.md) 为准。
+> 当前边界：M2 复用已经交付的岗位、主档、简历和 Vue 基线，但结构化岗位要求、OCR/链接执行、决策报告、投递闭环、RAG、Agent 与生产部署仍未交付。规划状态以 GitHub Milestone 与 [`docs/ROADMAP.md`](docs/ROADMAP.md) 为准；已交付证据只见 [`docs/current-capabilities.toml`](docs/current-capabilities.toml)。
 
 ## 快速开始
 
