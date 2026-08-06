@@ -5,6 +5,9 @@ import type {
   CreateJobPostingInput,
   JobPosting,
   JobPostingList,
+  JobRequirementSaveInput,
+  JobRequirementSnapshot,
+  JobRequirementSnapshotList,
   ResumeVersion,
   ResumeVersionList,
   TokenResponse,
@@ -32,6 +35,11 @@ const errorCodeMessages: Record<string, string> = {
   entity_not_found: "对象不存在或无权访问",
   database_unavailable: "服务暂时不可用，请稍后重试",
   network_timeout: "请求超时，请检查网络后重试",
+  job_requirement_version_conflict: "岗位要求已更新，请刷新后重试",
+  invalid_requirement: "岗位要求内容未通过校验",
+  invalid_requirement_field: "岗位要求字段未通过校验",
+  invalid_confirmation_status: "确认状态无效",
+  invalid_source_type: "字段来源无效",
 }
 
 export class ApiError extends Error {
@@ -133,5 +141,22 @@ export const api = {
     request<ResumeVersion>("/resumes", {
       method: "POST",
       body: JSON.stringify({ title, profile_version: profileVersion }),
+    }),
+  listJobRequirements: (jobId: string, page = 1, pageSize = 20) =>
+    request<JobRequirementSnapshotList>(
+      `/job-postings/${encodeURIComponent(jobId)}/requirements?page=${page}&page_size=${pageSize}`,
+    ),
+  getJobRequirementLatest: (jobId: string) =>
+    request<JobRequirementSnapshot>(
+      `/job-postings/${encodeURIComponent(jobId)}/requirements/latest`,
+    ),
+  getJobRequirementVersion: (jobId: string, version: number) =>
+    request<JobRequirementSnapshot>(
+      `/job-postings/${encodeURIComponent(jobId)}/requirements/${version}`,
+    ),
+  saveJobRequirements: (jobId: string, input: JobRequirementSaveInput) =>
+    request<JobRequirementSnapshot>(`/job-postings/${encodeURIComponent(jobId)}/requirements`, {
+      method: "POST",
+      body: JSON.stringify(input),
     }),
 }

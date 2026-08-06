@@ -99,12 +99,13 @@ Nora 可预期错误使用稳定结构：
 
 - 可锁定依赖的 Vue 3 + Vite 工程（`frontend/`，锁文件 `package-lock.json`）；
 - API client、认证状态与岗位 / 主档 / 简历页面；
+- 岗位要求确认与版本历史页面（`/jobs/:id/requirements`，M2 交付）；
 - `web` Compose 服务、开发代理、单元 / 组件测试与生产构建验证；
 - 前端 CI：固定 Node 版本（`frontend/.nvmrc`）、锁文件安装、lint、类型检查、单元测试、生产构建与 Playwright 基础浏览器 E2E。
 
 ### M2-M5 Planned
 
-- M2 岗位要求确认、OCR/链接预览确认和分析就绪状态；
+- M2 分析就绪状态与输入 E2E；
 - M3 分析、确定性报告和 apply/skip 页面（对应 `MILESTONE_PLAN.md` §6.6-§6.8）；
 - M4 定制材料、手工投递记录、最小面试通知和 Beta 流程；
 - M5 Evidence、检索引用和可选模型增强版本；
@@ -127,7 +128,7 @@ Nora 可预期错误使用稳定结构：
 | 注册 / 登录 | `/register`、`/login` | Current |
 | 主档建立（基本信息/项目/经历/教育/技能/偏好） | `/profile` | Current |
 | 发布简历版本 | `/resumes`、`/resumes/new` | Current |
-| JD 输入（文本/截图/链接）与岗位要求确认 | `/jobs/new`、`/jobs/:id/requirements` | M2 |
+| JD 输入（文本/截图/链接）与岗位要求确认 | `/jobs/new`、`/jobs/:id/requirements` | M2（要求确认已交付） |
 | 岗位列表与详情 | `/jobs`、`/jobs/:id` | Current |
 | 发起适配分析 | `/analysis/new` | M3 |
 | 查看分析进度 | `/analysis/:id` | M3 |
@@ -150,7 +151,7 @@ Nora 可预期错误使用稳定结构：
 /jobs/new                   文本岗位输入〔Current〕；截图/链接预览〔M2 Planned〕
 /jobs                       岗位列表〔Current〕
 /jobs/:id                   岗位详情〔Current〕
-/jobs/:id/requirements      岗位要求确认与版本历史〔M2 Planned〕
+/jobs/:id/requirements      岗位要求确认与版本历史〔Current〕
 /profile                    主档编辑〔Current〕
 /resumes                    简历版本列表〔Current〕
 /resumes/new                发布新版本〔Current〕
@@ -284,7 +285,7 @@ Nora 可预期错误使用稳定结构：
 | `AppShell` | 布局、导航、认证态 | Current |
 | `AuthForm` | 注册/登录表单 | Current |
 | `JobForm` / `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 三模式输入 | Current 文本 / M2 Planned 增强 |
-| `RequirementEditor` / `ConfirmationBadge` | 岗位要求确认与版本历史 | M2 Planned |
+| `RequirementEditor` / `ConfirmationBadge` | 岗位要求确认与版本历史（`JobRequirementsView`） | Current |
 | `ProfileForm` / `FieldGroup` | 主档分区与字段确认状态 | Current |
 | `ResumeVersionCard` | 简历版本卡片 | Current |
 | `ReportSection` / `RuleRow` / `UnknownBadge` / `EvidenceLink` | 报告分区 | M3 Planned |
@@ -295,8 +296,8 @@ Nora 可预期错误使用稳定结构：
 
 | 里程碑 | 前端交付 |
 | :--- | :--- |
-| Current 基线 | Vue 工程、认证、岗位文本、主档、简历、前端 CI 和基础浏览器 E2E |
-| M2 | 岗位要求确认、截图 OCR/链接抓取预览、分析就绪状态和输入 E2E |
+| Current 基线 | Vue 工程、认证、岗位文本、主档、简历、岗位要求确认页面、前端 CI 和基础浏览器 E2E |
+| M2 | 分析就绪状态、输入 E2E；截图 OCR/链接预览经后端接口返回正文预览 |
 | M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
 | M4 | 模板、定制简历/PDF、消息草稿、手工投递记录、最小面试通知和 Beta E2E |
 | M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示 |

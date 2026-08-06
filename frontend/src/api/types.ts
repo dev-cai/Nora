@@ -140,3 +140,45 @@ export interface ResumeVersionList {
   page_size: number
   total: number
 }
+
+export type RequirementConfirmationStatus = "unknown" | "unconfirmed" | "confirmed"
+export type RequirementSourceType = "manual" | "text_range" | "ocr_preview"
+export type WorkMode = "onsite" | "hybrid" | "remote"
+
+export interface JobRequirementFact<T> {
+  value: T
+  confirmation_status: RequirementConfirmationStatus
+  source_type: RequirementSourceType
+  source_range: string | null
+}
+
+export interface JobRequirementContent {
+  required_skills: JobRequirementFact<string[] | null>
+  minimum_experience_years: JobRequirementFact<number | null>
+  degree_requirement: JobRequirementFact<string | null>
+  location_requirement: JobRequirementFact<string | null>
+  work_mode: JobRequirementFact<WorkMode | null>
+}
+
+export interface JobRequirementSnapshot {
+  id: string
+  job_posting_id: string
+  job_posting_version: number
+  version: number
+  content: JobRequirementContent
+  content_hash: string
+  created_at: string
+  updated_at: string
+}
+
+export interface JobRequirementSnapshotList {
+  items: JobRequirementSnapshot[]
+  page: number
+  page_size: number
+  total: number
+}
+
+export interface JobRequirementSaveInput {
+  content: JobRequirementContent
+  job_posting_version: number
+}

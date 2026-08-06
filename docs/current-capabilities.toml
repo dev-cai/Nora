@@ -166,15 +166,20 @@ id = "job-requirement-snapshots"
 name = "结构化岗位要求快照"
 milestone = "M2"
 status = "current"
-summary = "支持按岗位创建、版本追加、幂等重放与读取 JobRequirementSnapshot：字段级确认状态、来源定位、内容哈希与版本冲突保护。"
+summary = "支持按岗位创建、版本追加、幂等重放与读取 JobRequirementSnapshot：字段级确认状态、来源定位、内容哈希与版本冲突保护；Web 端可编辑候选字段、确认并创建新版本。"
 code_paths = [
   "backend/app/apps/api/routes/job_requirements.py",
   "backend/app/application/opportunity/requirements.py",
   "backend/app/domain/opportunity/job_requirement_snapshot.py",
   "backend/app/infrastructure/database/opportunity.py",
   "backend/alembic/versions/0010_job_requirement_snapshots.py",
+  "frontend/src/views/JobRequirementsView.vue",
+  "frontend/src/stores/jobRequirements.ts",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/146"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/146",
+  "https://github.com/dev-cai/Nora/pull/150",
+]
 
 [[capabilities]]
 id = "jd-url-fetch"
