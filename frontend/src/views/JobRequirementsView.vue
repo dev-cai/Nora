@@ -47,7 +47,10 @@ const draft = reactive({
 })
 
 function skillList(): string[] {
-  return draft.required_skills.value ?? []
+  if (draft.required_skills.value === null) {
+    draft.required_skills.value = []
+  }
+  return draft.required_skills.value
 }
 
 function addSkill(): void {
@@ -213,13 +216,14 @@ onMounted(load)
           v-if="analysisReady"
           class="ready-badge ready"
         >
-          <CheckCircle2 :size="16" /> 分析就绪（5/5 已确认）
+          <CheckCircle2 :size="16" /> 岗位要求已确认（5/5）
         </div>
         <div
           v-else
           class="ready-badge pending"
+          title="分析就绪还需主档与简历"
         >
-          <CircleDashed :size="16" /> 待确认（{{ confirmedCount }}/5）
+          <CircleDashed :size="16" /> 岗位要求待确认（{{ confirmedCount }}/5）
         </div>
       </section>
 
