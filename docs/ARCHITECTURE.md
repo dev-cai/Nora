@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135。
 - 当前代码：M0/M1 与既有输入/Web 基线已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、Vue Web、前端 CI、JD 输入契约与基础浏览器 E2E。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -53,6 +53,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | Current/M2 延伸 | 既有工作台已交付；新增输入确认由 M2 完成，始终通过公开 HTTP API |
 | D-010 | 对象存储 | Object Storage Port | M4 起 | 本地开发可用文件系统；投递产物和集成/部署可用 MinIO/S3 |
 | D-011 | 工程组织 | 前后端分离；后端业务模块优先、模块内分层 | #59 / 后续 Task | `backend/app` 边界 Current；业务模块内聚渐进迁移 |
+| D-012 | 岗位要求所有权 | 独立 `JobRequirementSnapshot`（版本化、来源定位、确认状态） | M2 | `JobPosting` 只保存原文；结构化要求独立版本化；OCR/规则/LLM 抽取仅作候选，确认后才成为事实 |
 
 ## 5. 系统上下文
 
@@ -126,7 +127,7 @@ flowchart TB
 | :--- | :--- | :--- | :--- |
 | Identity & Preferences | 用户身份、租户映射、时区、语言、隐私与出行偏好 | User、ExternalIdentity、UserPreference | 简历事实、岗位结论、第三方凭据正文 |
 | Career Profile | 简历版本、已确认经历、技能和能力证据 | ResumeVersion、CandidateProfile、CapabilityEvidence | 岗位评分、面试状态和模型推断事实化 |
-| Opportunity Intelligence | 公司与岗位快照、风险 Evidence、人岗分析输入 | CompanySnapshot、JobPosting、OpportunityCase | 投递状态、报告发布和消息发送 |
+| Opportunity Intelligence | 公司与岗位快照、风险 Evidence、人岗分析输入 | CompanySnapshot、JobPosting、JobRequirementSnapshot、DecisionCase | 投递状态、报告发布和消息发送 |
 | Application & Follow-up | 用户对机会的决定、投递产物和投递进度 | ApplicationDecision、ResumeVariant、MessageDraft、ApplicationRecord | 修改个人主档、自动发送外部消息或自动投递 |
 | Interview Journey | 面试计划、准备材料、题目、出行方案和复盘 | InterviewPlan、QuestionSet、TravelPlan、InterviewReview | 公司事实源和长期画像直接修改 |
 | Decision & Reporting | 汇总经校验的分析结果，生成版本化决策报告 | DecisionCase、Recommendation、DecisionReport | 原始抓取、任意模型调用和外部写执行 |
@@ -148,19 +149,41 @@ flowchart TB
 
 每个字段都带 `confirmation_status`（`unconfirmed`、`confirmed`、`rejected`、`superseded`）、来源版本、更新时间和用户归属。PDF/Word 导入时，原文件进入 `SourceDocument`，解析结果先作为候选，用户确认后才写入 `CandidateProfile`。
 
+### 岗位要求契约（JobRequirementSnapshot）
+
+`JobPosting` 保存用户实际看到的岗位原文与基本来源元数据；结构化岗位要求使用独立 `JobRequirementSnapshot`，与原文分离、不反向覆盖原文，避免向原始快照持续追加解释字段。
+
+| 项 | 最小结构 | 规则 |
+| :--- | :--- | :--- |
+| 身份与归属 | `id`、`owner_id`、`version`、`job_posting_id` 与岗位版本 | 用户范围隔离；岗位引用必须带版本 |
+| 结构化字段 | `required_skills`、`minimum_experience_years`、`degree_requirement`、`location_requirement`、`work_mode` | `work_mode` 取 onsite / hybrid / remote / unknown；缺失保持 unknown，不从自由文本推断 |
+| 确认状态 | 字段级 `confirmation_status` | `unknown` / `unconfirmed` / `confirmed` |
+| 来源定位 | 原文字符区间 / 人工输入 / OCR 预览 | 每条解释可定位来源与录入方式 |
+| 版本元数据 | `created_at`、生成器或录入方式版本、内容哈希或等价幂等标识 | 修改确认结果创建新版本，不覆盖历史快照 |
+
+取舍：向 `JobPosting` 追加解释字段（破坏原文快照、无法版本化）与派生表/缓存临时保存（不可作为业务事实源、无法承载用户确认语义）均被拒绝，采用独立 `JobRequirementSnapshot`。
+
+规则：
+
+- OCR、规则或 LLM 输出只作为候选，经用户确认后才成为确定性规则事实；
+- `DecisionCase` 固定引用 `job_requirement_snapshot_id` 与版本，不能只引用「当前岗位要求」；
+- 数据所有权、Schema 与迁移由后续实现 Issue 在本决策之上落地。
+
 ### 主档、简历与岗位输出关系
 
 ```mermaid
 erDiagram
     CandidateProfile ||--o{ ResumeVersion : "事实快照"
     ResumeVersion ||--o{ ResumeVariant : "岗位定制"
-    OpportunityCase ||--o{ ApplicationDecision : "可重审"
+    JobPosting ||--o{ JobRequirementSnapshot : "确认解释"
+    JobRequirementSnapshot }o--|| DecisionCase : "固定版本引用"
+    DecisionCase ||--o{ ApplicationDecision : "可重审"
     ApplicationDecision ||--o| ApplicationRecord : "用户确认后"
     ApplicationRecord ||--o{ InterviewCase : "面试流程"
-    ResumeVariant }o--|| OpportunityCase : "针对岗位"
+    ResumeVariant }o--|| DecisionCase : "针对岗位"
 ```
 
-修改 `CandidateProfile` 不会重写历史 `ResumeVersion`；用户显式发布后生成新 `ResumeVersion`。`ResumeVariant` 固定引用一个 `ResumeVersion`、一个 `OpportunityCase`、一个模板版本和一个渲染器版本。
+修改 `CandidateProfile` 不会重写历史 `ResumeVersion`；用户显式发布后生成新 `ResumeVersion`。`ResumeVariant` 固定引用一个 `ResumeVersion`、一个 `DecisionCase`、一个模板版本和一个渲染器版本。
 
 ### ApplicationDecision 状态机
 
@@ -186,7 +209,7 @@ stateDiagram-v2
 ### 简历模板、PDF 与 MessageDraft
 
 - 模板采用声明式 JSON `TemplateDefinition`：页面设置、样式 Token、区块顺序、允许字段和必填字段；不执行任意 HTML、JavaScript 或 Jinja。
-- 模板发布后不可变。`ResumeVariant` 固定模板版本、`ResumeVersion`、`OpportunityCase`、字段映射和生成器版本；模板更新不会重算历史 PDF。
+- 模板发布后不可变。`ResumeVariant` 固定模板版本、`ResumeVersion`、`DecisionCase`、字段映射和生成器版本；模板更新不会重算历史 PDF。
 - 初版 PDF 统一使用 WeasyPrint Adapter，将受限模板转换为 HTML/CSS 后渲染；输出文件写入 Object Storage，保存 SHA-256、模板版本、来源版本和用户归属，构建产物不得进入 Git。
 - `MessageDraft` 是一条可编辑纯文本，默认 `professional` 风格，另支持 `concise` 和用户提供内推上下文的 `referral` 风格；输入只允许已确认主档、JD、公司 Evidence 和用户备注，初版不做平台适配、不自动发送。
 
@@ -246,6 +269,7 @@ flowchart LR
 | 数据类别 | 权威存储 | 性质 | 规则 |
 | :--- | :--- | :--- | :--- |
 | 用户、画像、岗位、投递决定、投递记录、面试、报告 | PostgreSQL | 业务事实 | 聚合和 Repository 负责写入与版本控制 |
+| JobRequirementSnapshot（结构化岗位要求） | PostgreSQL | 用户确认解释，独立版本 | 独立于 `JobPosting` 原文；字段级确认状态与来源定位；修改产生新版本；`DecisionCase` 固定引用快照版本 |
 | 简历版本、模板配置、简历变体、消息草稿元数据 | PostgreSQL | 结构化事实与版本 | 记录用户归属、输入版本、模板版本和生成器版本 |
 | Run、Approval、ToolCall、Audit | PostgreSQL | 治理事实 | 追加式或受状态机约束，不由队列状态替代 |
 | 原始简历、截图、附件、长文档、生成 PDF | Object Storage | 不可变或版本化对象 | 私有访问、摘要校验、短期签名引用；生成产物不得提交 Git |
