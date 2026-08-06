@@ -8,6 +8,12 @@ from .job_posting import (
     JobPostingStatus,
     JobSourceType,
 )
+from .job_requirement_snapshot import (
+    JobRequirementSnapshot,
+    RequirementConfirmationStatus,
+    RequirementSourceType,
+    WorkMode,
+)
 
 __all__ = (
     "UNKNOWN_COMPANY_NAME",
@@ -16,4 +22,8 @@ __all__ = (
     "JobPosting",
     "JobPostingStatus",
     "JobSourceType",
+    "JobRequirementSnapshot",
+    "RequirementConfirmationStatus",
+    "RequirementSourceType",
+    "WorkMode",
 )

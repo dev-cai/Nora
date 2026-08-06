@@ -13,7 +13,9 @@ from .identity import SqlAlchemyUserRepository, UserRecord
 from .opportunity import (
     JobPostingIdempotencyRecord,
     JobPostingRecord,
+    JobRequirementSnapshotRecord,
     SqlAlchemyJobPostingRepository,
+    SqlAlchemyJobRequirementSnapshotRepository,
 )
 from .repository import SqlAlchemyRepository, SqlAlchemyUserScopedRepository
 
@@ -26,11 +28,13 @@ __all__ = (
     "AuditEventRecord",
     "JobPostingIdempotencyRecord",
     "JobPostingRecord",
+    "JobRequirementSnapshotRecord",
     "SqlAlchemyRepository",
     "SqlAlchemyAuditEventRepository",
     "SqlAlchemyCandidateProfileRepository",
     "SqlAlchemyResumeVersionRepository",
     "SqlAlchemyJobPostingRepository",
+    "SqlAlchemyJobRequirementSnapshotRepository",
     "SqlAlchemyUserScopedRepository",
     "create_database_engine",
     "create_session_factory",
