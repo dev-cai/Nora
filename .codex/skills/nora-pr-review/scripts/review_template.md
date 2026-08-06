@@ -17,6 +17,7 @@
 
 - 依据 PR diff（+{{ADDITIONS}}/-{{DELETIONS}}）与关联 Issue 验收条件
 - 对照 `docs/ARCHITECTURE.md` 依赖方向与边界
+- 对照 `docs/docs-contract.toml`、Current 能力台账与 PR“文档影响”声明
 - 检查项：静态质量、契约与测试覆盖、安全与外部写、密钥/凭据、文档同步、Issue 范围一致性
 
 ## 通过项

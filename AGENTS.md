@@ -16,3 +16,7 @@ Issue 标题使用自然中文，可选择性添加 `M<n>` 或 `M<n>.<n>` Milest
 
 实现与本地验证完成后，直接推送分支、创建唯一 PR 并触发自动审核（`.codex/skills/nora-pr-review`）。自动审核不通过时
 按建议修改并重新推送重审；自动审核通过不代表合并授权，PR 合并仍需用户显式授权。
+
+代码、配置或工作流变化时，推送前读取 `docs/docs-contract.toml` 中命中的规范文档，并运行
+`python scripts/docs/check_impact.py --base origin/main`、链接、一致性和 Markdown 检查。只在事实发生变化时更新文档；无需更新时，
+必须在 PR 的“文档影响”章节填写具体理由。当前已交付能力及证据只维护在 `docs/current-capabilities.toml`，不得在长期文档中另建并行台账。

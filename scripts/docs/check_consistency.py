@@ -7,8 +7,11 @@ Verifies:
 2. Every file referenced in README.md's "文档" section (role navigation
    and the full index) exists.
 
+3. docs/docs-contract.toml has valid ownership and impact declarations.
+4. docs/current-capabilities.toml contains only locally evidenced Current facts.
+
 This complements check_links.py by giving targeted diagnostics for the
-document index contract. Uses only the Python standard library.
+document index and machine-readable contract. Uses only the Python standard library.
 
 Usage: python scripts/docs/check_consistency.py
 """
@@ -19,9 +22,12 @@ import re
 import sys
 from pathlib import Path
 
+from contract import load_toml, validate_capabilities, validate_contract
+
 ROOT = Path(__file__).resolve().parents[2]
 PRODUCT_VISION = ROOT / "docs" / "PRODUCT_VISION.md"
 README = ROOT / "README.md"
+CONTRACT = ROOT / "docs" / "docs-contract.toml"
 
 HEADING = re.compile(r"^(#{1,6})\s+")
 LINK = re.compile(r"\]\(([^)]+)\)")
@@ -55,9 +61,7 @@ def extract_section_links(path: Path, section: str) -> list[str]:
     urls: list[str] = []
     for line in lines[start:]:
         for url in LINK.findall(line):
-            if EXTERNAL.match(url) or url.startswith("#") or url.startswith(
-                "!"
-            ):
+            if EXTERNAL.match(url) or url.startswith("#") or url.startswith("!"):
                 continue
             urls.append(url.split("#")[0])
     return urls
@@ -78,12 +82,31 @@ def main() -> int:
         errors += check(PRODUCT_VISION, extract_section_links(PRODUCT_VISION, "文档真源"))
     if README.is_file():
         errors += check(README, extract_section_links(README, "文档"))
+    if not CONTRACT.is_file():
+        errors.append("docs/docs-contract.toml: file is missing")
+    else:
+        try:
+            contract = load_toml(CONTRACT)
+            errors += validate_contract(ROOT, contract)
+            ledger_value = contract.get("capability_ledger")
+            if not isinstance(ledger_value, str) or not ledger_value:
+                errors.append("docs-contract.toml: capability_ledger must be a non-empty string")
+            else:
+                ledger_path = ROOT / ledger_value
+                if not ledger_path.is_file():
+                    errors.append(
+                        f"docs-contract.toml: capability ledger is missing: {ledger_value}"
+                    )
+                else:
+                    errors += validate_capabilities(ROOT, load_toml(ledger_path))
+        except (OSError, ValueError) as error:
+            errors.append(f"document contract cannot be parsed: {error}")
     if errors:
         for err in errors:
             print(err, file=sys.stderr)
         print(f"\n{len(errors)} consistency error(s).", file=sys.stderr)
         return 1
-    print("Document source-of-truth references are consistent.")
+    print("Document source-of-truth references and machine-readable contracts are consistent.")
     return 0
 
 

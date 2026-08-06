@@ -23,6 +23,7 @@ description: Review one Nora Pull Request by having Codex itself read the render
 - `gh pr checks <n>`
 - 关联 Issue 正文与验收条件（`gh issue view <n> --json body`）
 - `docs/ARCHITECTURE.md` 依赖方向与边界（Domain 不得导入 FastAPI/SQLAlchemy/LangGraph）
+- `docs/docs-contract.toml` 命中的事实源、`docs/current-capabilities.toml` 的 Current 证据，以及 PR“文档影响”声明是否与 diff 一致
 
 ## 审核步骤
 
@@ -40,7 +41,7 @@ description: Review one Nora Pull Request by having Codex itself read the render
 - 缺测试，或测试与契约不符，或测试跳过未记录原因；
 - 引入密钥/凭据、敏感数据或未经审批的外部写；
 - 混入 Issue 范围外变更；
-- 文档未同步，或验收条件未满足。
+- 文档影响声明缺失、豁免理由与 diff 不符、命中的事实源未同步，或验收条件未满足。
 
 ## 失败降级
 

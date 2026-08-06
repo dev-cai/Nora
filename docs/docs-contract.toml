@@ -1,0 +1,235 @@
+version = 1
+capability_ledger = "docs/current-capabilities.toml"
+categories = [
+  "product",
+  "architecture",
+  "planning",
+  "development",
+  "operations",
+  "security",
+  "governance",
+  "reference",
+]
+
+[[documents]]
+id = "readme"
+path = "README.md"
+category = "reference"
+reviewer = "area:docs"
+owns = ["repository entry point", "role-based documentation navigation"]
+allowed_summaries = []
+
+[[documents]]
+id = "product-vision"
+path = "docs/PRODUCT_VISION.md"
+category = "product"
+reviewer = "area:docs"
+owns = ["product goals", "capability vocabulary", "documentation source-of-truth policy"]
+allowed_summaries = ["readme"]
+
+[[documents]]
+id = "business-flow"
+path = "docs/BUSINESS_FLOW.md"
+category = "product"
+reviewer = "area:docs"
+owns = ["confirmed business flow", "business decision baseline", "capability gaps"]
+allowed_summaries = ["product-vision", "user-experience", "roadmap", "milestone-plan"]
+
+[[documents]]
+id = "user-experience"
+path = "docs/USER_EXPERIENCE.md"
+category = "product"
+reviewer = "area:frontend"
+owns = ["target user journeys", "interaction goals"]
+allowed_summaries = ["product-vision", "frontend"]
+
+[[documents]]
+id = "architecture"
+path = "docs/ARCHITECTURE.md"
+category = "architecture"
+reviewer = "area:architecture"
+owns = ["module boundaries", "data ownership", "dependency direction", "architecture decisions"]
+allowed_summaries = ["readme", "agents"]
+
+[[documents]]
+id = "frontend"
+path = "docs/FRONTEND.md"
+category = "architecture"
+reviewer = "area:frontend"
+owns = ["frontend structure", "browser routes", "HTTP integration contract"]
+allowed_summaries = ["architecture", "roadmap"]
+
+[[documents]]
+id = "roadmap"
+path = "docs/ROADMAP.md"
+category = "planning"
+reviewer = "area:docs"
+owns = ["milestone outcomes", "roadmap boundaries"]
+allowed_summaries = ["readme"]
+
+[[documents]]
+id = "milestone-plan"
+path = "docs/MILESTONE_PLAN.md"
+category = "planning"
+reviewer = "area:docs"
+owns = ["atomic delivery order", "milestone acceptance mapping"]
+allowed_summaries = ["roadmap"]
+
+[[documents]]
+id = "development"
+path = "docs/DEVELOPMENT.md"
+category = "development"
+reviewer = "area:infra"
+owns = ["local environment", "configuration", "migration commands", "test commands"]
+allowed_summaries = ["readme", "workflow"]
+
+[[documents]]
+id = "workflow"
+path = "docs/WORKFLOW.md"
+category = "governance"
+reviewer = "area:docs"
+owns = ["branch", "commit", "pull request", "CI", "review and merge workflow"]
+allowed_summaries = ["contributing", "agents"]
+
+[[documents]]
+id = "issue-workflow"
+path = "docs/ISSUE_WORKFLOW.md"
+category = "governance"
+reviewer = "area:docs"
+owns = ["issue types", "labels", "status", "relationships"]
+allowed_summaries = ["contributing", "workflow"]
+
+[[documents]]
+id = "contributing"
+path = "CONTRIBUTING.md"
+category = "governance"
+reviewer = "area:docs"
+owns = ["contributor-facing workflow summary"]
+allowed_summaries = []
+
+[[documents]]
+id = "agents"
+path = "AGENTS.md"
+category = "governance"
+reviewer = "area:docs"
+owns = ["agent entry gates"]
+allowed_summaries = []
+
+[[documents]]
+id = "security"
+path = "SECURITY.md"
+category = "security"
+reviewer = "area:security"
+owns = ["security reporting", "baseline security boundary"]
+allowed_summaries = ["contributing", "architecture"]
+
+[[documents]]
+id = "jd-input-security"
+path = "docs/JD_INPUT_SECURITY.md"
+category = "security"
+reviewer = "area:security"
+owns = ["JD input trust boundary", "OCR and URL-fetch safety contract"]
+allowed_summaries = ["frontend", "architecture"]
+
+[[documents]]
+id = "glossary"
+path = "docs/GLOSSARY.md"
+category = "reference"
+reviewer = "area:docs"
+owns = ["domain terminology"]
+allowed_summaries = ["product-vision", "business-flow", "architecture"]
+
+[[documents]]
+id = "docs-contract"
+path = "docs/docs-contract.toml"
+category = "governance"
+reviewer = "area:docs"
+owns = ["document ownership", "allowed summaries", "code-to-document impact rules"]
+allowed_summaries = ["product-vision", "workflow"]
+
+[[documents]]
+id = "capability-ledger"
+path = "docs/current-capabilities.toml"
+category = "reference"
+reviewer = "area:docs"
+owns = ["current capability status", "current capability code paths", "delivery evidence"]
+allowed_summaries = ["readme", "product-vision", "business-flow", "user-experience", "architecture", "frontend", "development"]
+
+[[impact_rules]]
+id = "backend-public-api"
+description = "Public API routes and application wiring change Current behavior."
+patterns = ["backend/app/apps/api/app.py", "backend/app/apps/api/routes/**"]
+required_docs = ["capability-ledger"]
+
+[[impact_rules]]
+id = "backend-contracts"
+description = "Domain, application, port, persistence, and schema changes may alter architecture or Current capabilities."
+patterns = [
+  "backend/app/domain/**",
+  "backend/app/application/**",
+  "backend/app/ports/**",
+  "backend/app/infrastructure/database/**",
+  "backend/alembic/**",
+]
+required_docs = ["architecture", "capability-ledger"]
+
+[[impact_rules]]
+id = "frontend-navigation-api"
+description = "Browser routes and API integration are owned by FRONTEND and the Current capability ledger."
+patterns = ["frontend/src/router/**", "frontend/src/api/**"]
+required_docs = ["frontend", "capability-ledger"]
+
+[[impact_rules]]
+id = "frontend-capabilities"
+description = "User-visible views and state flows may change Current capability claims."
+patterns = ["frontend/src/views/**", "frontend/src/stores/**", "frontend/src/features/**"]
+required_docs = ["capability-ledger"]
+
+[[impact_rules]]
+id = "runtime-configuration"
+description = "Runtime and Compose configuration are documented in DEVELOPMENT."
+patterns = [
+  "docker-compose*.yml",
+  "docker/**",
+  ".env.example",
+  "backend/.env.example",
+  "frontend/.env.example",
+  "backend/app/infrastructure/config/**",
+]
+required_docs = ["development"]
+
+[[impact_rules]]
+id = "toolchain"
+description = "Supported Python, Node, package, and test commands are documented in DEVELOPMENT."
+patterns = [
+  "backend/pyproject.toml",
+  "backend/uv.lock",
+  "frontend/package.json",
+  "frontend/package-lock.json",
+  "frontend/.nvmrc",
+  "frontend/.npmrc",
+]
+required_docs = ["development"]
+
+[[impact_rules]]
+id = "delivery-governance"
+description = "Automation, templates, hooks, and agent delivery rules are owned by WORKFLOW."
+patterns = [
+  ".github/workflows/**",
+  ".github/pull_request_template.md",
+  ".githooks/**",
+  ".codex/skills/**",
+  "AGENTS.md",
+  "CONTRIBUTING.md",
+]
+required_docs = ["workflow"]
+
+[[impact_rules]]
+id = "documentation-governance"
+description = "Document metadata and checking behavior are declared in PRODUCT_VISION."
+patterns = [
+  "docs/docs-contract.toml",
+  "docs/current-capabilities.toml",
+  "scripts/docs/**",
+]
+required_docs = ["product-vision"]

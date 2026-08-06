@@ -128,10 +128,28 @@ git config core.hooksPath .githooks
 
 ### PR 规范
 
-- 正文必须以 `Closes #<编号>` 开头
-- 包含：背景与目标、实际变更、明确未包含、影响分析、验证结果
+- 如关联 Issue，正文包含唯一 `Closes #<编号>`；Issue 可选
+- 包含：背景与目标、实际变更、明确未包含、影响分析、文档影响、验证结果
 - 禁止使用 `[Roadmap]`、`[Phase]`、`[Implementation]` 前缀
 - main 禁止直接推送和 force-push，Squash Merge 合并
+
+### 文档影响门禁
+
+[`docs-contract.toml`](docs-contract.toml) 按代码路径声明规范事实源。实现前读取命中规则的文档，推送前运行：
+
+```bash
+python scripts/docs/check_impact.py --base origin/main
+python -m unittest discover -s scripts/docs/tests -v
+python scripts/docs/check_links.py
+python scripts/docs/check_consistency.py
+```
+
+事实发生变化时更新命中的规范文档；事实未变化时不机械修改文档，但 PR“文档影响”章节必须填写至少 12 字的具体理由。
+Current 能力、代码路径与证据只维护在 [`current-capabilities.toml`](current-capabilities.toml)；临时进度只维护在 GitHub
+Issue/Milestone。CI 使用同一契约复算 diff，Agent 的推送前检查不能替代 CI。
+
+Milestone 关闭前执行一次收口审计：逐项核对 Current 能力台账、默认分支代码路径、测试和已合并 PR 证据；随后运行完整文档门禁。
+计划进度以 GitHub Milestone/Issue 为准，不为封版结果再创建平行的 Markdown 状态表。
 
 ---
 
@@ -228,7 +246,8 @@ gh pr create \
   --body-file pr-body.md    # 正文可含 Closes #<编号>（可选），UTF-8 无 BOM
 ```
 
-PR 正文如含 `Closes #<编号>` 必须唯一，并写明背景、实际变更、非目标、影响分析、验证结果、未执行检查及原因、审查重点。
+PR 正文如含 `Closes #<编号>` 必须唯一，并写明背景、实际变更、非目标、影响分析、文档影响、验证结果、未执行检查及原因、
+审查重点。
 
 如有关联 Issue，更新其正文状态为 `review`，随后触发自动审核：
 
