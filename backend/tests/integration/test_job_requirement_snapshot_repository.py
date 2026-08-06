@@ -112,7 +112,7 @@ async def test_requirement_repository_round_trip_and_user_scope(
 
         restored_by_id = await repository_a.get_by_id(stored.id)
         assert restored_by_id is not None
-        assert restored_by_id.version == 1
+        assert restored_by_id.version == 2
 
         assert [item.version for item in await repository_a.list(posting_id)] == [2, 1]
         assert await repository_a.count(posting_id) == 2
