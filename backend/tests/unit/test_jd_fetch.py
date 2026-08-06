@@ -122,6 +122,34 @@ async def test_fetch_rejects_too_many_redirects() -> None:
 
 
 @pytest.mark.asyncio
+async def test_fetch_rejects_redirect_to_fragment() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/start":
+            return httpx.Response(
+                302,
+                headers={"location": "https://jobs.example.com/final#section"},
+                text="",
+            )
+        return httpx.Response(200, text="ok", headers={"content-type": "text/plain"})
+
+    with pytest.raises(JdInputError) as error:
+        await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/start"))
+    assert error.value.error_code == JdInputErrorCode.INVALID_URL
+
+
+@pytest.mark.asyncio
+async def test_fetch_rejects_redirect_to_private_host() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/start":
+            return httpx.Response(302, headers={"location": "http://192.168.1.1/x"}, text="")
+        return httpx.Response(200, text="ok", headers={"content-type": "text/plain"})
+
+    with pytest.raises(JdInputError) as error:
+        await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/start"))
+    assert error.value.error_code == JdInputErrorCode.UNSAFE_URL
+
+
+@pytest.mark.asyncio
 async def test_fetch_rejects_oversized_response() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, content=b"a" * 1_000, headers={"content-type": "text/plain"})

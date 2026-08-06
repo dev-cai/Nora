@@ -3,6 +3,9 @@
 实现 `JdInputPort.fetch_url`：先解析主机并验证所有解析结果都是公网单播地址，
 再把连接固定到已验证地址（防 DNS Rebinding）；每次重定向目标都重新解析与验证；
 限制响应大小、超时与 Content-Type；网页正文视为不可信输入，不做脚本、Cookie 或登录。
+
+连接固定依赖 `httpcore._backends` 私有接口（httpcore 1.0.x，由 uv.lock 锁定）；
+升级 httpcore 时必须复核 `_VerifiedBackend` 与 `_SafeTransport`。
 """
 
 import socket
@@ -157,7 +160,7 @@ class JdFetchAdapter(JdInputPort):
                         "JD URL redirect is missing a location header",
                         JdInputErrorCode.FETCH_FAILED,
                     )
-                url = urljoin(url, location)
+                url = JdUrlInput(urljoin(url, location), policy=policy).url
                 redirect_count += 1
                 continue
             return url, response
