@@ -15,6 +15,7 @@ export function createAppRouter(pinia: Pinia) {
       { path: "/jobs", name: "jobs", component: () => import("@/views/JobsView.vue"), meta: { requiresAuth: true } },
       { path: "/jobs/new", name: "job-new", component: () => import("@/views/JobCreateView.vue"), meta: { requiresAuth: true } },
       { path: "/jobs/:id", name: "job-detail", component: () => import("@/views/JobDetailView.vue"), meta: { requiresAuth: true } },
+      { path: "/jobs/:id/requirements", name: "job-requirements", component: () => import("@/views/JobRequirementsView.vue"), meta: { requiresAuth: true, title: "岗位要求确认" } },
       { path: "/profile", name: "profile", component: () => import("@/views/ProfileView.vue"), meta: { requiresAuth: true, title: "我的主档" } },
       { path: "/resumes", name: "resumes", component: () => import("@/views/ResumesView.vue"), meta: { requiresAuth: true, title: "简历版本" } },
       { path: "/resumes/new", name: "resume-new", component: () => import("@/views/ResumeNewView.vue"), meta: { requiresAuth: true, title: "发布新简历" } },

@@ -41,7 +41,15 @@ onMounted(load)
     <template v-else>
       <section class="detail-header">
         <div><span class="status-dot">有效快照</span><h2>{{ store.current.job_title }}</h2><p>{{ store.current.company_name }}</p></div>
-        <span class="version-badge">版本 {{ store.current.version }}</span>
+        <div class="detail-actions">
+          <span class="version-badge">版本 {{ store.current.version }}</span>
+          <RouterLink
+            class="button button-primary button-small"
+            :to="{ name: 'job-requirements', params: { id: store.current.id } }"
+          >
+            确认岗位要求
+          </RouterLink>
+        </div>
       </section>
       <section class="detail-meta">
         <span><Building2 :size="16" /> {{ store.current.company_name }}</span>
