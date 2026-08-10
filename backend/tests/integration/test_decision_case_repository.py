@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 from app.application.decision import CreateDecisionCaseCommand, CreateDecisionCaseUseCase
-from app.domain.base.exceptions import ApplicationError
+from app.domain.base.exceptions import ApplicationError, InfrastructureError
 from app.domain.career import CandidateProfile
 from app.domain.opportunity import JobPosting, JobRequirementSnapshot
 from app.infrastructure.database import (
@@ -202,6 +202,62 @@ async def test_decision_case_persists_terminal_states(database_engine: AsyncEngi
         assert restored_failed is not None
         assert restored_failed.status.value == "failed"
         assert restored_failed.failure_code == "rule_error"
+
+
+@pytest.mark.asyncio
+async def test_decision_case_rejects_stale_terminal_update(
+    database_engine: AsyncEngine,
+) -> None:
+    factory = create_session_factory(database_engine)
+    owner = UserRecord(
+        username=f"decision-stale-{uuid4()}",
+        email=f"decision-stale-{uuid4()}@example.com",
+        password_hash="hash",
+    )
+    async with factory() as session:
+        session.add(owner)
+        await session.commit()
+        posting, requirement, profile, resume = await _seed_inputs(session, owner.id)
+        repository = SqlAlchemyDecisionCaseRepository(session, owner.id)
+        use_case = CreateDecisionCaseUseCase(
+            repository,
+            SqlAlchemyJobPostingRepository(session, owner.id),
+            SqlAlchemyJobRequirementSnapshotRepository(session, owner.id),
+            SqlAlchemyCandidateProfileRepository(session, owner.id),
+            SqlAlchemyResumeVersionRepository(session, owner.id),
+        )
+        created = await use_case.execute(_command(owner.id, posting, requirement, profile, resume))
+        await repository.commit()
+        case_id = created.decision_case.id
+
+    async with factory() as stale_session:
+        stale_repository = SqlAlchemyDecisionCaseRepository(stale_session, owner.id)
+        stale_case = await stale_repository.get_by_id(case_id)
+        assert stale_case is not None
+        assert stale_case.status.value == "created"
+
+        async with factory() as winner_session:
+            winner_repository = SqlAlchemyDecisionCaseRepository(winner_session, owner.id)
+            winner_case = await winner_repository.get_by_id(case_id)
+            assert winner_case is not None
+            await winner_repository.update(winner_case.complete())
+            await winner_repository.commit()
+
+        with pytest.raises(InfrastructureError) as error:
+            await stale_repository.update(
+                stale_case.fail(
+                    failure_code="stale_failure",
+                    failure_message="Stale terminal update must be rejected",
+                )
+            )
+        assert error.value.error_code == "invalid_decision_case_state"
+        await stale_session.rollback()
+
+    async with factory() as session:
+        restored = await SqlAlchemyDecisionCaseRepository(session, owner.id).get_by_id(case_id)
+        assert restored is not None
+        assert restored.status.value == "completed"
+        assert restored.failure_code is None
 
 
 @pytest.mark.asyncio

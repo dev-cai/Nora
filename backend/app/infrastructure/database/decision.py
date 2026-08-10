@@ -184,6 +184,7 @@ class SqlAlchemyDecisionCaseRepository:
                 DecisionCaseRecord.owner_id == self.owner_id,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
         if record is None:
             raise InfrastructureError("Decision case not found", error_code="entity_not_found")
