@@ -119,10 +119,21 @@ def test_decision_case_terminal_states_are_immutable_transitions() -> None:
     assert error.value.error_code == "invalid_decision_case_state"
 
 
-@pytest.mark.parametrize("field", ["job_posting_version", "resume_version"])
-def test_decision_case_rejects_non_positive_or_boolean_versions(field: str) -> None:
+@pytest.mark.parametrize(
+    "field",
+    [
+        "job_posting_version",
+        "job_requirement_snapshot_version",
+        "candidate_profile_version",
+        "resume_version",
+    ],
+)
+@pytest.mark.parametrize("value", [0, False])
+def test_decision_case_rejects_non_positive_or_boolean_versions(
+    field: str, value: int | bool
+) -> None:
     values = _case_kwargs()
-    values[field] = False
+    values[field] = value
 
     with pytest.raises(DomainError) as error:
         DecisionCase.create(**values)
@@ -136,6 +147,10 @@ class _DecisionRepository:
 
     async def add(self, decision_case: DecisionCase) -> DecisionCase:
         self.add_count += 1
+        self.items[decision_case.input_fingerprint] = decision_case
+        return decision_case
+
+    async def update(self, decision_case: DecisionCase) -> DecisionCase:
         self.items[decision_case.input_fingerprint] = decision_case
         return decision_case
 
@@ -273,15 +288,34 @@ async def test_create_decision_case_hides_foreign_inputs(invalid_input: str) -> 
 
 
 @pytest.mark.asyncio
-async def test_create_decision_case_requires_resume_from_selected_profile_version() -> None:
+@pytest.mark.parametrize(
+    "invalid_relationship",
+    [
+        "requirement_posting_id",
+        "requirement_posting_version",
+        "resume_profile_id",
+        "resume_profile_version",
+    ],
+)
+async def test_create_decision_case_requires_related_input_versions(
+    invalid_relationship: str,
+) -> None:
     command, repository, posting, requirement, profile, resume = _use_case_fixture()
-    unrelated_resume = replace(resume, candidate_profile_id=uuid4())
+    if invalid_relationship == "requirement_posting_id":
+        requirement = replace(requirement, job_posting_id=uuid4())
+    elif invalid_relationship == "requirement_posting_version":
+        requirement = replace(requirement, job_posting_version=posting.version + 1)
+    elif invalid_relationship == "resume_profile_id":
+        resume = replace(resume, candidate_profile_id=uuid4())
+    else:
+        resume = replace(resume, profile_version=profile.version + 1)
+
     use_case = CreateDecisionCaseUseCase(
         repository,
         _PostingRepository(posting),
         _RequirementRepository(requirement),
         _ProfileRepository(profile),
-        _ResumeRepository(unrelated_resume),
+        _ResumeRepository(resume),
     )
 
     with pytest.raises(ApplicationError) as error:

@@ -451,7 +451,7 @@ Issue #59 已将后端工程迁移至 `backend/`：Python 应用包为 `backend/
 Compose、Docker 配置和协作治理文件。
 
 当前后端采用技术层 + 业务子模块的过渡形态：`application/`、`domain/`、`ports/` 下按业务上下文（`career`、
-`identity`、`opportunity`、`governance`）组织子模块，`apps/api/` 承载路由与 composition。该形态是模块化蓝图
+`decision`、`identity`、`opportunity`、`governance`）组织子模块，`apps/api/` 承载路由与 composition。该形态是模块化蓝图
 的渐进迁移中间态，以确保目录迁移不改变业务行为：
 
 ```text
@@ -459,6 +459,7 @@ backend/
 ├── app/
 │   ├── application/          # Use Case 编排（按业务子模块）
 │   │   ├── career/
+│   │   ├── decision/
 │   │   ├── identity/
 │   │   └── opportunity/
 │   ├── apps/
@@ -466,6 +467,7 @@ backend/
 │   ├── domain/               # 领域对象与规则（按业务子模块）
 │   │   ├── base/
 │   │   ├── career/
+│   │   ├── decision/
 │   │   ├── governance/
 │   │   ├── identity/
 │   │   └── opportunity/
@@ -476,6 +478,7 @@ backend/
 │   │   └── logging/
 │   └── ports/                # Repository 与 Gateway Protocol
 │       ├── career.py
+│       ├── decision.py
 │       ├── governance.py
 │       ├── identity.py
 │       ├── jd_input.py

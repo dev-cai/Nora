@@ -172,6 +172,41 @@ class SqlAlchemyDecisionCaseRepository:
             ) from exc
         return self._to_domain(record)
 
+    async def update(self, decision_case: DecisionCase) -> DecisionCase:
+        if decision_case.owner_id != self.owner_id:
+            raise InfrastructureError(
+                "Decision case is outside user scope", error_code="entity_not_found"
+            )
+        record = await self.session.scalar(
+            select(DecisionCaseRecord)
+            .where(
+                DecisionCaseRecord.id == decision_case.id,
+                DecisionCaseRecord.owner_id == self.owner_id,
+            )
+            .with_for_update()
+        )
+        if record is None:
+            raise InfrastructureError("Decision case not found", error_code="entity_not_found")
+        if not _has_same_fixed_inputs(record, decision_case):
+            raise InfrastructureError(
+                "Decision case inputs are immutable", error_code="decision_case_immutable"
+            )
+        if (
+            DecisionCaseStatus(record.status) is not DecisionCaseStatus.CREATED
+            or decision_case.status is DecisionCaseStatus.CREATED
+        ):
+            raise InfrastructureError(
+                "Decision case has already finished",
+                error_code="invalid_decision_case_state",
+            )
+
+        record.status = decision_case.status.value
+        record.completed_at = decision_case.completed_at
+        record.failure_code = decision_case.failure_code
+        record.failure_message = decision_case.failure_message
+        await self.session.flush()
+        return self._to_domain(record)
+
     async def get_by_id(self, case_id: UUID) -> DecisionCase | None:
         record = await self.session.scalar(
             select(DecisionCaseRecord).where(
@@ -192,6 +227,24 @@ class SqlAlchemyDecisionCaseRepository:
 
     async def commit(self) -> None:
         await self.session.commit()
+
+
+def _has_same_fixed_inputs(record: DecisionCaseRecord, decision_case: DecisionCase) -> bool:
+    return (
+        record.owner_id == decision_case.owner_id
+        and record.job_posting_id == decision_case.job_posting_id
+        and record.job_posting_version == decision_case.job_posting_version
+        and record.job_requirement_snapshot_id == decision_case.job_requirement_snapshot_id
+        and record.job_requirement_snapshot_version
+        == decision_case.job_requirement_snapshot_version
+        and record.candidate_profile_id == decision_case.candidate_profile_id
+        and record.candidate_profile_version == decision_case.candidate_profile_version
+        and record.resume_version_id == decision_case.resume_version_id
+        and record.resume_version == decision_case.resume_version
+        and record.rule_set_version == decision_case.rule_set_version
+        and record.input_fingerprint == decision_case.input_fingerprint
+        and _as_utc(record.created_at) == decision_case.created_at
+    )
 
 
 def _as_utc(value: datetime) -> datetime:

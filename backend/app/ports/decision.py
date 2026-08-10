@@ -7,9 +7,11 @@ from app.domain.decision import DecisionCase
 
 
 class DecisionCaseRepository(Protocol):
-    """用户范围内 DecisionCase 的幂等创建与读取端口。"""
+    """用户范围内 DecisionCase 的幂等创建、生命周期更新与读取端口。"""
 
     async def add(self, decision_case: DecisionCase) -> DecisionCase: ...
+
+    async def update(self, decision_case: DecisionCase) -> DecisionCase: ...
 
     async def get_by_id(self, case_id: UUID) -> DecisionCase | None: ...
 

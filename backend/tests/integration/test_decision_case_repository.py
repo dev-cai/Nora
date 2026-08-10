@@ -80,7 +80,14 @@ async def _seed_inputs(session, owner_id):
     return posting, requirement, profile, resume
 
 
-def _command(owner_id, posting, requirement, profile, resume) -> CreateDecisionCaseCommand:
+def _command(
+    owner_id,
+    posting,
+    requirement,
+    profile,
+    resume,
+    rule_set_version: str = "rules-v1",
+) -> CreateDecisionCaseCommand:
     return CreateDecisionCaseCommand(
         owner_id=owner_id,
         job_posting_id=posting.id,
@@ -91,7 +98,7 @@ def _command(owner_id, posting, requirement, profile, resume) -> CreateDecisionC
         candidate_profile_version=profile.version,
         resume_version_id=resume.id,
         resume_version=resume.version,
-        rule_set_version="rules-v1",
+        rule_set_version=rule_set_version,
     )
 
 
@@ -138,6 +145,63 @@ async def test_decision_case_round_trip_replay_and_historical_inputs(
         assert restored.job_requirement_snapshot_version == 1
         assert restored.candidate_profile_version == 1
         assert restored.input_fingerprint == first.decision_case.input_fingerprint
+
+
+@pytest.mark.asyncio
+async def test_decision_case_persists_terminal_states(database_engine: AsyncEngine) -> None:
+    factory = create_session_factory(database_engine)
+    owner = UserRecord(
+        username=f"decision-terminal-{uuid4()}",
+        email=f"decision-terminal-{uuid4()}@example.com",
+        password_hash="hash",
+    )
+    async with factory() as session:
+        session.add(owner)
+        await session.commit()
+        posting, requirement, profile, resume = await _seed_inputs(session, owner.id)
+        repository = SqlAlchemyDecisionCaseRepository(session, owner.id)
+        use_case = CreateDecisionCaseUseCase(
+            repository,
+            SqlAlchemyJobPostingRepository(session, owner.id),
+            SqlAlchemyJobRequirementSnapshotRepository(session, owner.id),
+            SqlAlchemyCandidateProfileRepository(session, owner.id),
+            SqlAlchemyResumeVersionRepository(session, owner.id),
+        )
+
+        completed = await use_case.execute(
+            _command(owner.id, posting, requirement, profile, resume)
+        )
+        completed_case = await repository.update(completed.decision_case.complete())
+        assert completed_case.status.value == "completed"
+        assert completed_case.completed_at is not None
+        await repository.commit()
+
+        failed = await use_case.execute(
+            _command(owner.id, posting, requirement, profile, resume, rule_set_version="rules-v2")
+        )
+        failed_case = await repository.update(
+            failed.decision_case.fail(
+                failure_code="rule_error",
+                failure_message="Rule execution failed",
+            )
+        )
+        assert failed_case.status.value == "failed"
+        assert failed_case.failure_code == "rule_error"
+        assert failed_case.failure_message == "Rule execution failed"
+        await repository.commit()
+
+    async with factory() as session:
+        restored_completed = await SqlAlchemyDecisionCaseRepository(session, owner.id).get_by_id(
+            completed.decision_case.id
+        )
+        restored_failed = await SqlAlchemyDecisionCaseRepository(session, owner.id).get_by_id(
+            failed.decision_case.id
+        )
+        assert restored_completed is not None
+        assert restored_completed.status.value == "completed"
+        assert restored_failed is not None
+        assert restored_failed.status.value == "failed"
+        assert restored_failed.failure_code == "rule_error"
 
 
 @pytest.mark.asyncio

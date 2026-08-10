@@ -187,6 +187,21 @@ evidence = [
 ]
 
 [[capabilities]]
+id = "decision-cases"
+name = "不可变决策案例输入"
+milestone = "M3"
+status = "current"
+summary = "支持固定岗位、岗位要求、主档、简历和规则集版本的 DecisionCase，提供用户范围校验、确定性输入指纹、幂等创建、生命周期终态持久化与历史输入稳定性；不包含公开 HTTP 路由、规则执行或报告生成。"
+code_paths = [
+  "backend/app/domain/decision/decision_case.py",
+  "backend/app/application/decision/service.py",
+  "backend/app/ports/decision.py",
+  "backend/app/infrastructure/database/decision.py",
+  "backend/alembic/versions/0011_decision_cases.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/154"]
+
+[[capabilities]]
 id = "jd-url-fetch"
 name = "受控链接抓取输入"
 milestone = "M2"
