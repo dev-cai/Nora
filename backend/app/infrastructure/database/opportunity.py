@@ -325,6 +325,18 @@ class SqlAlchemyJobRequirementSnapshotRepository:
         )
         return None if record is None else self._to_domain(record)
 
+    async def get_by_identity(
+        self, snapshot_id: UUID, version: int
+    ) -> JobRequirementSnapshot | None:
+        record = await self.session.scalar(
+            select(JobRequirementSnapshotRecord).where(
+                JobRequirementSnapshotRecord.snapshot_id == snapshot_id,
+                JobRequirementSnapshotRecord.version == version,
+                JobRequirementSnapshotRecord.owner_id == self.owner_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
     async def get_latest(self, job_posting_id: UUID) -> JobRequirementSnapshot | None:
         record = await self.session.scalar(
             select(JobRequirementSnapshotRecord)

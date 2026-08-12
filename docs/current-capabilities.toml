@@ -191,7 +191,7 @@ id = "decision-cases"
 name = "不可变决策案例输入"
 milestone = "M3"
 status = "current"
-summary = "支持固定岗位、岗位要求、主档、简历和规则集版本的 DecisionCase，提供用户范围校验、确定性输入指纹、幂等创建、生命周期终态持久化与历史输入稳定性；不包含公开 HTTP 路由、规则执行或报告生成。"
+summary = "支持固定岗位、岗位要求、主档、简历和规则集版本的 DecisionCase，提供用户范围校验、确定性输入指纹、幂等创建、生命周期终态持久化与历史输入稳定性；公开 HTTP 编排由 decision-report-api 能力提供。"
 code_paths = [
   "backend/app/domain/decision/decision_case.py",
   "backend/app/application/decision/service.py",
@@ -230,7 +230,7 @@ id = "versioned-decision-reports"
 name = "版本化确定性决策报告"
 milestone = "M3"
 status = "current"
-summary = "基于 DecisionCase 固定输入与确定性规则结果生成不可变 DecisionReport，区分 Fact、Rule Result、Unknown、Recommendation 与 Citation，支持按生成身份幂等重放、生成器升级追加版本、用户隔离和历史报告保留；不包含公开 HTTP API、LLM 或 Evidence Pack。"
+summary = "基于 DecisionCase 固定输入与确定性规则结果生成不可变 DecisionReport，区分 Fact、Rule Result、Unknown、Recommendation 与 Citation，支持按生成身份幂等重放、生成器升级追加版本、用户隔离和历史报告保留；公开 HTTP 编排由 decision-report-api 能力提供，不包含 LLM 或 Evidence Pack。"
 code_paths = [
   "backend/app/domain/decision/report.py",
   "backend/app/application/decision/report_service.py",
@@ -252,3 +252,18 @@ code_paths = [
   "backend/app/ports/jd_input.py",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/148"]
+
+[[capabilities]]
+id = "decision-report-api"
+name = "分析与报告公开 API"
+milestone = "M3"
+status = "current"
+summary = "提供认证后的同步分析与确定性报告 HTTP API：固定版本输入的案例幂等创建、四类规则读取、报告幂等生成与详情、用户范围分页列表，以及稳定的 401/404/409/422/503 错误边界；缺失 confirmed 规则输入保持 unknown。"
+code_paths = [
+  "backend/app/apps/api/routes/decisions.py",
+  "backend/app/application/decision/api_service.py",
+  "backend/app/application/decision/service.py",
+  "backend/app/infrastructure/database/decision.py",
+  "backend/tests/integration/test_decision_report_api.py",
+]
+evidence = []

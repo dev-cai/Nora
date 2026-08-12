@@ -13,6 +13,8 @@ from app.infrastructure.auth import Argon2PasswordHasher, JwtTokenIssuer
 from app.infrastructure.database import (
     SqlAlchemyAuditEventRepository,
     SqlAlchemyCandidateProfileRepository,
+    SqlAlchemyDecisionCaseRepository,
+    SqlAlchemyDecisionReportRepository,
     SqlAlchemyJobPostingRepository,
     SqlAlchemyJobRequirementSnapshotRepository,
     SqlAlchemyResumeVersionRepository,
@@ -21,6 +23,7 @@ from app.infrastructure.database import (
 from app.infrastructure.jd_fetch import JdFetchAdapter
 from app.infrastructure.jd_ocr import BaiduOcrEngine, JdOcrAdapter
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
+from app.ports.decision import DecisionCaseRepository, DecisionReportRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.jd_input import JdInputPort
 from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
@@ -100,6 +103,24 @@ def get_job_requirement_snapshot_repository(
     """组装当前认证用户范围内的岗位要求快照 Repository。"""
 
     return SqlAlchemyJobRequirementSnapshotRepository(session, user.id)
+
+
+def get_decision_case_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> DecisionCaseRepository:
+    """组装当前认证用户范围内的 DecisionCase Repository。"""
+
+    return SqlAlchemyDecisionCaseRepository(session, user.id)
+
+
+def get_decision_report_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> DecisionReportRepository:
+    """组装当前认证用户范围内的 DecisionReport Repository。"""
+
+    return SqlAlchemyDecisionReportRepository(session, user.id)
 
 
 def get_jd_input_adapter() -> JdInputPort:

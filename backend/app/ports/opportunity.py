@@ -48,6 +48,10 @@ class JobRequirementSnapshotRepository(Protocol):
 
     async def get_by_id(self, snapshot_id: UUID) -> JobRequirementSnapshot | None: ...
 
+    async def get_by_identity(
+        self, snapshot_id: UUID, version: int
+    ) -> JobRequirementSnapshot | None: ...
+
     async def get_latest(self, job_posting_id: UUID) -> JobRequirementSnapshot | None: ...
 
     async def get_version(
