@@ -7,10 +7,14 @@ from uuid import UUID, uuid4
 
 import pytest
 from app.application.decision import (
+    AnalyzeDecisionCaseQuery,
+    AnalyzeDecisionCaseUseCase,
     GenerateDecisionReportCommand,
     GenerateDecisionReportUseCase,
+    ListDecisionReportsQuery,
+    ListDecisionReportsUseCase,
 )
-from app.domain.base.exceptions import ApplicationError, DomainError
+from app.domain.base.exceptions import ApplicationError, DomainError, InfrastructureError
 from app.domain.career import CandidateProfile
 from app.domain.decision import (
     RULE_SET_VERSION,
@@ -288,7 +292,49 @@ class _ReportRepository:
     async def list_for_case(self, decision_case_id: UUID) -> list[DecisionReport]:
         return [item for item in self.reports if item.decision_case_id == decision_case_id]
 
+    async def list(self, *, offset: int, limit: int) -> list[DecisionReport]:
+        return self.reports[offset : offset + limit]
+
+    async def count(self) -> int:
+        return len(self.reports)
+
     async def commit(self) -> None:
+        return None
+
+
+class _DecisionCaseRepository:
+    def __init__(self, decision_case: DecisionCase | None) -> None:
+        self.decision_case = decision_case
+
+    async def get_by_id(self, case_id: UUID) -> DecisionCase | None:
+        if self.decision_case is not None and self.decision_case.id == case_id:
+            return self.decision_case
+        return None
+
+
+class _RequirementRepository:
+    def __init__(self, requirements: JobRequirementSnapshot | None) -> None:
+        self.requirements = requirements
+
+    async def get_by_identity(
+        self, snapshot_id: UUID, version: int
+    ) -> JobRequirementSnapshot | None:
+        if (
+            self.requirements is not None
+            and self.requirements.id == snapshot_id
+            and self.requirements.version == version
+        ):
+            return self.requirements
+        return None
+
+
+class _ProfileRepository:
+    def __init__(self, profile: CandidateProfile | None) -> None:
+        self.profile = profile
+
+    async def get_version(self, version: int) -> CandidateProfile | None:
+        if self.profile is not None and self.profile.version == version:
+            return self.profile
         return None
 
 
@@ -339,3 +385,39 @@ async def test_generate_use_case_hides_cross_owner_case() -> None:
             requirements=requirements,
         )
     assert error.value.error_code == "entity_not_found"
+
+
+@pytest.mark.asyncio
+async def test_analyze_use_case_reports_unavailable_fixed_inputs() -> None:
+    decision_case, profile, _requirements = _application_fixture()
+    use_case = AnalyzeDecisionCaseUseCase(
+        _DecisionCaseRepository(decision_case),
+        _RequirementRepository(None),
+        _ProfileRepository(profile),
+    )
+
+    with pytest.raises(InfrastructureError) as error:
+        await use_case.execute(
+            AnalyzeDecisionCaseQuery(
+                owner_id=decision_case.owner_id,
+                case_id=decision_case.id,
+            )
+        )
+    assert error.value.error_code == "decision_input_unavailable"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("page", "page_size"),
+    [(0, 20), (1, 0), (1, 101)],
+)
+async def test_list_reports_rejects_invalid_pagination(page: int, page_size: int) -> None:
+    with pytest.raises(ApplicationError) as error:
+        await ListDecisionReportsUseCase(_ReportRepository()).execute(
+            ListDecisionReportsQuery(
+                owner_id=uuid4(),
+                page=page,
+                page_size=page_size,
+            )
+        )
+    assert error.value.error_code == "invalid_pagination"

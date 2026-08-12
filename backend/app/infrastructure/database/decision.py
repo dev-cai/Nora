@@ -377,6 +377,27 @@ class SqlAlchemyDecisionReportRepository:
         )
         return [self._to_domain(record) for record in records]
 
+    async def list(self, *, offset: int, limit: int) -> list[DecisionReport]:
+        records = await self.session.scalars(
+            select(DecisionReportRecord)
+            .where(DecisionReportRecord.owner_id == self.owner_id)
+            .order_by(
+                DecisionReportRecord.generated_at.desc(),
+                DecisionReportRecord.id.desc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return [self._to_domain(record) for record in records]
+
+    async def count(self) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(DecisionReportRecord)
+            .where(DecisionReportRecord.owner_id == self.owner_id)
+        )
+        return int(total or 0)
+
     async def commit(self) -> None:
         await self.session.commit()
 

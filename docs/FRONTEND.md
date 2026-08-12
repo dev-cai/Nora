@@ -61,11 +61,15 @@ flowchart LR
 - `GET /auth/me`
 - `POST /job-postings`
 - `GET /job-postings/{id}`
+- `POST /decisions`
+- `GET /decisions/{id}`
+- `POST /decisions/{id}/reports`
+- `GET /reports/{id}`
+- `GET /reports`
 - `GET /health`
 - `GET /ready`
 
-简历接口属于 Current（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）；分析与报告接口仍为 M3 Planned。
-前端不得根据路线图伪造响应或绕过未交付 API。
+简历接口属于 Current（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）。分析与报告后端 API 也属于 Current，但对应浏览器页面仍为 M3 Planned；前端不得把后端契约交付误报为页面已经可用，也不得根据路线图伪造响应或绕过未交付 API。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
 构建产物，因此只能保存公开配置，禁止写入数据库凭据、签名密钥、Provider Token 或其他秘密。
@@ -213,9 +217,9 @@ Nora 可预期错误使用稳定结构：
 ### 10.6 发起分析 `/analysis/new`（M3，M3.1）
 
 - 功能：选择岗位 + 主档 + 简历版本 → 创建 `DecisionCase`。
-- API：`POST /decisions`（Planned，M3.1）。
+- API：`POST /decisions`、`GET /decisions/{id}`（Current 后端契约；页面 Planned）。
 - 校验：三者同属当前用户（后端 404）；输入版本不兼容返回 `409`。
-- 进度：`/analysis/:id` 展示创建/完成状态；失败可重试。
+- 执行：当前 API 同步返回四条确定性规则结果，不伪造异步进度；页面可展示加载、成功与失败状态。
 
 ### 10.7 报告详情 `/reports/:id`（M3，M3.3/M3.5）
 
@@ -227,7 +231,7 @@ Nora 可预期错误使用稳定结构：
   - **建议（Recommendation）**：确定性下一步；
   - 明确"确定性规则"标识；M5 前显示"AI 增强未启用"。
 - 幂等：重复"生成报告"返回既有报告，版本不变。
-- API：`POST /decisions/{id}/reports`、`GET /reports/{id}`（Planned，M3.3/M3.4）。
+- API：`POST /decisions/{id}/reports`、`GET /reports/{id}`、`GET /reports`（Current 后端契约；页面 Planned）。列表从第 1 页开始，默认每页 20 条、最多 100 条，按生成时间倒序，空集合返回空 `items` 与 `total = 0`。
 - 组件：`ReportSection`、`RuleRow`、`UnknownBadge`、`EvidenceLink`。
 
 ### 10.8 投/不投决定（M3，M3.9）

@@ -79,34 +79,37 @@ class CreateDecisionCaseUseCase:
             return CreateDecisionCaseResult(decision_case=existing, replayed=True)
 
         posting = await self.posting_repository.get_by_id(command.job_posting_id)
-        requirement = await self.requirement_repository.get_version(
-            command.job_posting_id, command.job_requirement_snapshot_version
+        requirement = await self.requirement_repository.get_by_identity(
+            command.job_requirement_snapshot_id,
+            command.job_requirement_snapshot_version,
         )
         profile = await self.profile_repository.get_version(command.candidate_profile_version)
         resume = await self.resume_repository.get_by_id(command.resume_version_id)
 
-        valid_inputs = (
-            posting is not None
-            and posting.owner_id == command.owner_id
-            and posting.version == command.job_posting_version
-            and requirement is not None
-            and requirement.id == command.job_requirement_snapshot_id
-            and requirement.owner_id == command.owner_id
-            and requirement.version == command.job_requirement_snapshot_version
+        if any(item is None for item in (posting, requirement, profile, resume)):
+            raise ApplicationError("Decision input not found", error_code="entity_not_found")
+        assert posting is not None
+        assert requirement is not None
+        assert profile is not None
+        assert resume is not None
+        if any(
+            item.owner_id != command.owner_id for item in (posting, requirement, profile, resume)
+        ):
+            raise ApplicationError("Decision input not found", error_code="entity_not_found")
+        compatible = (
+            posting.version == command.job_posting_version
             and requirement.job_posting_id == command.job_posting_id
             and requirement.job_posting_version == command.job_posting_version
-            and profile is not None
             and profile.id == command.candidate_profile_id
-            and profile.owner_id == command.owner_id
-            and profile.version == command.candidate_profile_version
-            and resume is not None
-            and resume.owner_id == command.owner_id
             and resume.version == command.resume_version
             and resume.candidate_profile_id == command.candidate_profile_id
             and resume.profile_version == command.candidate_profile_version
         )
-        if not valid_inputs:
-            raise ApplicationError("Decision input not found", error_code="entity_not_found")
+        if not compatible:
+            raise ApplicationError(
+                "Decision input versions are incompatible",
+                error_code="decision_input_conflict",
+            )
 
         try:
             stored = await self.repository.add(candidate)

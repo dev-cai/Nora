@@ -10,8 +10,10 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.apps.api.routes.auth import router as auth_router
+from app.apps.api.routes.decisions import decision_router, report_router
 from app.apps.api.routes.job_inputs import router as job_inputs_router
 from app.apps.api.routes.job_postings import router as job_postings_router
 from app.apps.api.routes.job_requirements import router as job_requirements_router
@@ -61,6 +63,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="Nora API", lifespan=lifespan)
     app.include_router(auth_router)
+    app.include_router(decision_router)
+    app.include_router(report_router)
     app.include_router(job_inputs_router)
     app.include_router(job_postings_router)
     app.include_router(job_requirements_router)
@@ -119,12 +123,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "profile_version_conflict": 409,
             "resume_version_conflict": 409,
             "job_requirement_version_conflict": 409,
+            "decision_case_conflict": 409,
+            "decision_input_conflict": 409,
+            "decision_report_generation_conflict": 409,
+            "decision_report_version_conflict": 409,
+            "unsupported_rule_set_version": 409,
+            "decision_input_unavailable": 503,
+            "decision_persistence_failed": 503,
             "fetch_failed": 502,
             "ocr_failed": 502,
             "fetch_timeout": 504,
         }.get(exc.error_code, 400)
         headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
         return JSONResponse(status_code=status_code, content=exc.to_dict(), headers=headers)
+
+    @app.exception_handler(SQLAlchemyError)
+    async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+        get_logger("nora.api").error(
+            "Database operation unavailable",
+            error_type=type(exc).__name__,
+            request_id=getattr(request.state, "request_id", None),
+            trace_id=getattr(request.state, "trace_id", None),
+        )
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error_code": "database_unavailable",
+                "message": "Database is unavailable",
+            },
+        )
 
     @app.exception_handler(Exception)
     async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:

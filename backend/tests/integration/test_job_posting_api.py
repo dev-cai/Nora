@@ -357,7 +357,11 @@ def test_job_posting_create_rolls_back_all_writes_on_database_failure(
             json={"jd_text": "Sensitive candidate-specific role text."},
         )
 
-    assert response.status_code == 500
+    assert response.status_code == 503
+    assert response.json() == {
+        "error_code": "database_unavailable",
+        "message": "Database is unavailable",
+    }
     assert load_write_counts(database_url) == (0, 0, 0)
 
 

@@ -187,6 +187,17 @@ class _RequirementRepository:
             return self.snapshot
         return None
 
+    async def get_by_identity(
+        self, snapshot_id: UUID, version: int
+    ) -> JobRequirementSnapshot | None:
+        if (
+            self.snapshot is not None
+            and self.snapshot.id == snapshot_id
+            and self.snapshot.version == version
+        ):
+            return self.snapshot
+        return None
+
 
 class _ProfileRepository:
     def __init__(self, profile: CandidateProfile | None) -> None:
@@ -320,7 +331,7 @@ async def test_create_decision_case_requires_related_input_versions(
 
     with pytest.raises(ApplicationError) as error:
         await use_case.execute(command)
-    assert error.value.error_code == "entity_not_found"
+    assert error.value.error_code == "decision_input_conflict"
 
 
 @pytest.mark.asyncio
