@@ -267,3 +267,19 @@ code_paths = [
   "backend/tests/integration/test_decision_report_api.py",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/157"]
+
+[[capabilities]]
+id = "analysis-report-web"
+name = "分析与报告浏览器工作流"
+milestone = "M3"
+status = "current"
+summary = "Vue 工作台支持选择固定岗位要求、主档和简历版本创建 DecisionCase，同步展示四类确定性规则结果，生成并刷新恢复版本化报告；报告分区呈现 Fact、Rule Result、Unknown、Recommendation 与字段级 Citation，并明确 AI 增强未启用。"
+code_paths = [
+  "frontend/src/views/AnalysisNewView.vue",
+  "frontend/src/views/AnalysisDetailView.vue",
+  "frontend/src/views/ReportsView.vue",
+  "frontend/src/views/ReportDetailView.vue",
+  "frontend/src/components/ReportContent.vue",
+  "frontend/src/stores/analysis.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/158"]

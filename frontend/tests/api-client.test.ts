@@ -76,4 +76,22 @@ describe("API client", () => {
       ["/api/resumes", "POST"],
     ])
   })
+
+  it("uses the synchronous analysis and report resource contracts", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({})))
+
+    await api.createDecisionCase({} as never)
+    await api.getDecisionAnalysis("case/1")
+    await api.generateDecisionReport("case/1")
+    await api.listDecisionReports(2, 10)
+    await api.getDecisionReport("report/1")
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
+      ["/api/decisions", "POST"],
+      ["/api/decisions/case%2F1", "GET"],
+      ["/api/decisions/case%2F1/reports", "POST"],
+      ["/api/reports?page=2&page_size=10", "GET"],
+      ["/api/reports/report%2F1", "GET"],
+    ])
+  })
 })

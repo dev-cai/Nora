@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
-import { ArrowLeft, Building2, CalendarDays, MapPin, ShieldCheck } from "lucide-vue-next"
+import { ArrowLeft, Building2, CalendarDays, ChartNoAxesCombined, MapPin, ShieldCheck } from "lucide-vue-next"
 import { useRoute } from "vue-router"
 
 import { userMessage } from "@/api/client"
@@ -48,6 +48,12 @@ onMounted(load)
             :to="{ name: 'job-requirements', params: { id: store.current.id } }"
           >
             确认岗位要求
+          </RouterLink>
+          <RouterLink
+            class="button button-secondary button-small"
+            :to="{ name: 'analysis-new', query: { jobId: store.current.id } }"
+          >
+            <ChartNoAxesCombined :size="16" /> 发起分析
           </RouterLink>
         </div>
       </section>

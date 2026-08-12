@@ -26,4 +26,30 @@ describe("route guards", () => {
 
     expect(router.currentRoute.value.name).toBe("dashboard")
   })
+
+  it("protects analysis routes and resolves their intended page", async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const auth = useAuthStore(pinia)
+    auth.$patch({ token: "runtime-token", user: { id: "1", username: "alice", email: "alice@example.com" } })
+    const router = createAppRouter(pinia)
+
+    await router.push("/reports/report-1")
+
+    expect(router.currentRoute.value.name).toBe("report-detail")
+    expect(router.currentRoute.value.meta.requiresAuth).toBe(true)
+  })
+
+  it("updates the immutable object id when navigating within one detail route", async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const auth = useAuthStore(pinia)
+    auth.$patch({ token: "runtime-token", user: { id: "1", username: "alice", email: "alice@example.com" } })
+    const router = createAppRouter(pinia)
+
+    await router.push("/reports/report-1")
+    await router.push("/reports/report-2")
+
+    expect(router.currentRoute.value.params.id).toBe("report-2")
+  })
 })

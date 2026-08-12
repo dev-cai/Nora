@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
-import { ArrowUpRight, BriefcaseBusiness, CircleDashed, LockKeyhole, Sparkles } from "lucide-vue-next"
+import { ArrowUpRight, BriefcaseBusiness, ChartNoAxesCombined, Sparkles } from "lucide-vue-next"
 import { RouterLink } from "vue-router"
 
 import { userMessage } from "@/api/client"
 import StatePanel from "@/components/StatePanel.vue"
+import { useAnalysisStore } from "@/stores/analysis"
 import AppShell from "@/components/AppShell.vue"
 import { useJobsStore } from "@/stores/jobs"
 
 const jobs = useJobsStore()
+const analysis = useAnalysisStore()
 const error = ref("")
 onMounted(async () => {
-  try { await jobs.fetchJobs(1, 5) } catch (reason) { error.value = userMessage(reason) }
+  try { await Promise.all([jobs.fetchJobs(1, 5), analysis.fetchReports(1, 5)]) } catch (reason) { error.value = userMessage(reason) }
 })
 </script>
 
@@ -25,9 +27,9 @@ onMounted(async () => {
       </div>
       <RouterLink
         class="button button-dark"
-        to="/jobs/new"
+        to="/analysis/new"
       >
-        录入第一份岗位 <ArrowUpRight :size="17" />
+        发起适配分析 <ArrowUpRight :size="17" />
       </RouterLink>
     </section>
     <section
@@ -38,7 +40,7 @@ onMounted(async () => {
         <span class="metric-icon green"><BriefcaseBusiness :size="18" /></span><span class="metric-label">岗位快照</span><strong>{{ jobs.total }}</strong><small>已保存到你的账号</small>
       </article>
       <article class="metric">
-        <span class="metric-icon orange"><CircleDashed :size="18" /></span><span class="metric-label">分析报告</span><strong>—</strong><small>将在 M3 开放</small>
+        <span class="metric-icon orange"><ChartNoAxesCombined :size="18" /></span><span class="metric-label">分析报告</span><strong>{{ analysis.total }}</strong><small>确定性版本记录</small>
       </article>
       <article class="metric">
         <span class="metric-icon blue"><Sparkles :size="18" /></span><span class="metric-label">主档与简历</span><strong>可管理</strong><small>维护你的求职资产</small>
@@ -90,22 +92,22 @@ onMounted(async () => {
       </div>
     </section>
     <section class="locked-band">
-      <LockKeyhole :size="18" />
+      <ChartNoAxesCombined :size="18" />
       <div>
-        <strong>管理你的求职资产</strong>
-        <p>主档与简历版本已经可用，确定性分析将在 M3 开放。</p>
+        <strong>从版本化输入生成报告</strong>
+        <p>选择岗位要求、主档与简历版本，执行可追溯的确定性规则。</p>
         <div class="asset-links">
           <RouterLink
             class="inline-link"
-            to="/profile"
+            to="/analysis/new"
           >
-            编辑主档 <ArrowUpRight :size="15" />
+            发起分析 <ArrowUpRight :size="15" />
           </RouterLink>
           <RouterLink
             class="inline-link"
-            to="/resumes"
+            to="/reports"
           >
-            查看简历版本 <ArrowUpRight :size="15" />
+            查看报告历史 <ArrowUpRight :size="15" />
           </RouterLink>
         </div>
       </div>

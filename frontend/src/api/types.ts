@@ -182,3 +182,121 @@ export interface JobRequirementSaveInput {
   content: JobRequirementContent
   job_posting_version: number
 }
+
+export type DecisionCaseStatus = "created" | "completed" | "failed"
+export type RuleStatus = "match" | "partial" | "mismatch" | "unknown"
+export type RuleInputSource = "candidate_profile" | "job_requirement_snapshot"
+
+export interface CreateDecisionCaseInput {
+  job_posting_id: string
+  job_posting_version: number
+  job_requirement_snapshot_id: string
+  job_requirement_snapshot_version: number
+  candidate_profile_id: string
+  candidate_profile_version: number
+  resume_version_id: string
+  resume_version: number
+}
+
+export interface DecisionCase {
+  id: string
+  job_posting_id: string
+  job_posting_version: number
+  job_requirement_snapshot_id: string
+  job_requirement_snapshot_version: number
+  candidate_profile_id: string
+  candidate_profile_version: number
+  resume_version_id: string
+  resume_version: number
+  rule_set_version: string
+  status: DecisionCaseStatus
+  created_at: string
+  completed_at: string | null
+  failure_code: string | null
+  failure_message: string | null
+}
+
+export interface RuleInputReference {
+  source: RuleInputSource
+  object_id: string
+  version: number
+  field_path: string
+}
+
+export interface RuleResult {
+  rule_id: string
+  rule_version: string
+  status: RuleStatus
+  input_references: RuleInputReference[]
+  reason: string
+  uncertainty: string | null
+  suggestion: string | null
+}
+
+export interface DecisionAnalysis {
+  decision: DecisionCase
+  rule_set_version: string
+  rule_results: RuleResult[]
+}
+
+export interface ReportCitation {
+  citation_id: string
+  source: RuleInputSource
+  object_id: string
+  version: number
+  field_path: string
+}
+
+export interface ReportFact {
+  fact_id: string
+  label: string
+  citation_ids: string[]
+}
+
+export interface ReportRuleResult {
+  rule_id: string
+  rule_version: string
+  status: RuleStatus
+  reason: string
+  citation_ids: string[]
+}
+
+export interface ReportUnknown {
+  unknown_id: string
+  reason: string
+  detail: string
+  citation_ids: string[]
+}
+
+export interface ReportRecommendation {
+  recommendation_id: string
+  action: string
+  rationale: string
+  source_rule_id: string
+}
+
+export interface DecisionReport {
+  id: string
+  decision_case_id: string
+  version: number
+  rule_set_version: string
+  generator_version: string
+  summary: Record<RuleStatus, number>
+  facts: ReportFact[]
+  rule_results: ReportRuleResult[]
+  unknowns: ReportUnknown[]
+  recommendations: ReportRecommendation[]
+  citations: ReportCitation[]
+  satisfied_conditions: string[]
+  gaps: string[]
+  risks: string[]
+  next_steps: string[]
+  generated_at: string
+}
+
+export interface DecisionReportList {
+  items: DecisionReport[]
+  page: number
+  page_size: number
+  total: number
+}
