@@ -214,6 +214,8 @@ docker compose --profile test run --rm test
 
 全部通过方可提交。因外部服务不可用跳过部分检查时，必须记录原因。
 
+浏览器门禁由 `.github/workflows/e2e.yml` 在 PR 与 main push 上启动独立 Compose 栈、执行迁移、Web/API smoke 和 Playwright 全套用例；M3 决策闭环覆盖固定版本输入、规则与报告分区、刷新恢复、apply/skip 及双用户读写隔离。工作流无论成功或失败都删除该次 Compose 容器、网络与数据卷，不复用开发数据库。
+
 ### 步骤 7：提交 Commit
 
 ```bash

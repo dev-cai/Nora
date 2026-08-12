@@ -365,9 +365,9 @@ docker compose logs -f api
 docker compose logs -f web
 ```
 
-### 浏览器级基础 E2E
+### 浏览器级真实 Compose E2E
 
-当前质量门禁在真实浏览器中验证既有基础流程。E2E 使用 Playwright（用例位于 `frontend/e2e/`），在 compose 栈
+当前质量门禁在真实浏览器中验证 M2 输入与 M3 决策闭环。E2E 使用 Playwright（用例位于 `frontend/e2e/`），在 Compose 栈
 就绪后运行：
 
 ```bash
@@ -383,10 +383,12 @@ npm run e2e
 
 - 用例 `frontend/e2e/main-flow.spec.ts` 覆盖：注册/登录 → 刷新保持登录 → 创建岗位 → 主档保存 → 简历列表 →
   登出后受保护路由跳转登录。
+- 用例 `frontend/e2e/analysis-ready.spec.ts` 覆盖：确认主档与简历 → 岗位要求版本追加 → 刷新恢复 → 双用户隔离。
+- 用例 `frontend/e2e/decision-flow.spec.ts` 覆盖：创建固定版本 DecisionCase → 断言 match/unknown 规则结果 → 生成并刷新恢复报告 → 记录并恢复 skip 决定 → 双用户读取与写入隔离；主流程不使用 Mock 或外部 Provider，完整 HTTP 错误组合由 API 契约和集成测试承担。
 - 失败时在 `frontend/test-results/` 与 `frontend/playwright-report/` 生成截图与 trace；可执行
   `npm run e2e:report` 查看。
 - 每次运行使用隔离随机账号，不在业务数据中制造冲突。
-- CI：`.github/workflows/e2e.yml` 在 PR 改动前端路径时起 compose 栈并执行同一套用例。
+- CI：`.github/workflows/e2e.yml` 在每个 PR 和 main push 上启动 Compose、迁移隔离数据库、执行 Web/API smoke 与同一套浏览器用例，并在成功或失败后通过 `docker compose down --volumes --remove-orphans` 清理隔离环境。
 
 ### 请求与追踪标识
 

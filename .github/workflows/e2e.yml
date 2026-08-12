@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   e2e:
-    name: Browser E2E (basic flow)
+    name: Browser E2E (decision flow)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -79,3 +79,7 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+
+      - name: Clean isolated compose environment
+        if: ${{ always() }}
+        run: docker compose down --volumes --remove-orphans

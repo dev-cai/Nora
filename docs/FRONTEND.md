@@ -69,7 +69,7 @@ flowchart LR
 - `GET /health`
 - `GET /ready`
 
-简历接口属于 Current（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）。分析与报告后端 API 及浏览器页面也属于 Current；投/不投决定仍为 Planned。前端不得根据路线图伪造响应或绕过未交付 API。
+简历接口属于 Current（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）。分析、报告与投/不投决定的后端 API 及浏览器页面均属于 Current。前端不得根据路线图伪造响应或绕过未交付 API。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
 构建产物，因此只能保存公开配置，禁止写入数据库凭据、签名密钥、Provider Token 或其他秘密。
@@ -105,12 +105,12 @@ Nora 可预期错误使用稳定结构：
 - API client、认证状态与岗位 / 主档 / 简历页面；
 - 岗位要求确认与版本历史页面（`/jobs/:id/requirements`，M2 交付）；
 - `web` Compose 服务、开发代理、单元 / 组件测试与生产构建验证；
-- 前端 CI：固定 Node 版本（`frontend/.nvmrc`）、锁文件安装、lint、类型检查、单元测试、生产构建与 Playwright 基础浏览器 E2E。
+- 前端 CI：固定 Node 版本（`frontend/.nvmrc`）、锁文件安装、lint、类型检查、单元测试、生产构建与 Playwright 真实 Compose 浏览器 E2E。
 
-### M2-M5 Planned
+### M2-M3 Current 与 M4-M5 Planned
 
-- M2 分析就绪状态与输入 E2E；
-- M3 分析、确定性报告和 apply/skip 页面（对应 `MILESTONE_PLAN.md` §6.6-§6.8）；
+- M2 分析就绪状态与输入 E2E（Current）；
+- M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，对应 `MILESTONE_PLAN.md` §6.6-§6.9）；
 - M4 定制材料、手工投递记录、最小面试通知和 Beta 流程；
 - M5 Evidence、检索引用和可选模型增强版本；
 - 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
