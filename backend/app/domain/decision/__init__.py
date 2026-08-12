@@ -1,6 +1,16 @@
 """Decision & Reporting 领域对象。"""
 
 from .decision_case import DecisionCase, DecisionCaseStatus
+from .report import (
+    DecisionReport,
+    MatchSummary,
+    ReportCitation,
+    ReportFact,
+    ReportRecommendation,
+    ReportRuleResult,
+    ReportSection,
+    ReportUnknown,
+)
 from .rules import (
     RULE_SET_VERSION,
     RuleInputReference,
@@ -15,6 +25,14 @@ __all__ = (
     "RULE_SET_VERSION",
     "DecisionCase",
     "DecisionCaseStatus",
+    "DecisionReport",
+    "MatchSummary",
+    "ReportCitation",
+    "ReportFact",
+    "ReportRecommendation",
+    "ReportRuleResult",
+    "ReportSection",
+    "ReportUnknown",
     "RuleInputReference",
     "RuleInputSource",
     "RuleResult",

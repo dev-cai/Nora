@@ -11,15 +11,17 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    func,
     select,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
 from app.domain.base.exceptions import InfrastructureError
-from app.domain.decision import DecisionCase, DecisionCaseStatus
+from app.domain.decision import DecisionCase, DecisionCaseStatus, DecisionReport
 from app.infrastructure.database.base import Base
 
 
@@ -28,6 +30,7 @@ class DecisionCaseRecord(Base):
 
     __tablename__ = "decision_cases"
     __table_args__ = (
+        UniqueConstraint("id", "owner_id", name="uq_decision_case_id_owner"),
         UniqueConstraint(
             "owner_id", "input_fingerprint", name="uq_decision_case_owner_fingerprint"
         ),
@@ -107,6 +110,44 @@ class DecisionCaseRecord(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     failure_message: Mapped[str | None] = mapped_column(String(1_000), nullable=True)
+
+
+class DecisionReportRecord(Base):
+    """不可变、可追溯且按生成身份幂等的决策报告。"""
+
+    __tablename__ = "decision_reports"
+    __table_args__ = (
+        UniqueConstraint(
+            "decision_case_id",
+            "version",
+            name="uq_decision_report_case_version",
+        ),
+        UniqueConstraint(
+            "owner_id",
+            "decision_case_id",
+            "rule_set_version",
+            "generator_version",
+            name="uq_decision_report_generation",
+        ),
+        CheckConstraint("version >= 1", name="ck_decision_report_version_positive"),
+        ForeignKeyConstraint(
+            ["decision_case_id", "owner_id"],
+            ["decision_cases.id", "decision_cases.owner_id"],
+            name="fk_decision_report_case_owner",
+            ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    decision_case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    rule_set_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    generator_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class SqlAlchemyDecisionCaseRepository:
@@ -225,6 +266,116 @@ class SqlAlchemyDecisionCaseRepository:
             )
         )
         return None if record is None else self._to_domain(record)
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
+
+class SqlAlchemyDecisionReportRepository:
+    """用户范围内持久化不可变 DecisionReport。"""
+
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(record: DecisionReportRecord) -> DecisionReport:
+        return DecisionReport.restore(
+            report_id=record.id,
+            owner_id=record.owner_id,
+            decision_case_id=record.decision_case_id,
+            version=record.version,
+            rule_set_version=record.rule_set_version,
+            generator_version=record.generator_version,
+            content=record.content,
+            generated_at=_as_utc(record.generated_at),
+        )
+
+    async def next_version(self, decision_case_id: UUID) -> int:
+        decision_case = await self.session.scalar(
+            select(DecisionCaseRecord)
+            .where(
+                DecisionCaseRecord.id == decision_case_id,
+                DecisionCaseRecord.owner_id == self.owner_id,
+            )
+            .with_for_update()
+        )
+        if decision_case is None:
+            raise InfrastructureError("Decision case not found", error_code="entity_not_found")
+        latest_version = await self.session.scalar(
+            select(func.max(DecisionReportRecord.version)).where(
+                DecisionReportRecord.decision_case_id == decision_case_id,
+                DecisionReportRecord.owner_id == self.owner_id,
+            )
+        )
+        return (latest_version or 0) + 1
+
+    async def add(self, report: DecisionReport) -> DecisionReport:
+        if report.owner_id != self.owner_id:
+            raise InfrastructureError(
+                "Decision report is outside user scope", error_code="entity_not_found"
+            )
+        record = DecisionReportRecord(
+            id=report.id,
+            owner_id=report.owner_id,
+            decision_case_id=report.decision_case_id,
+            version=report.version,
+            rule_set_version=report.rule_set_version,
+            generator_version=report.generator_version,
+            content=report.content,
+            generated_at=report.generated_at,
+        )
+        self.session.add(record)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+            error_code = (
+                "decision_report_generation_conflict"
+                if constraint == "uq_decision_report_generation"
+                else "decision_report_version_conflict"
+            )
+            raise InfrastructureError(
+                "Decision report already exists", error_code=error_code
+            ) from exc
+        return self._to_domain(record)
+
+    async def get_by_generation(
+        self,
+        decision_case_id: UUID,
+        rule_set_version: str,
+        generator_version: str,
+    ) -> DecisionReport | None:
+        record = await self.session.scalar(
+            select(DecisionReportRecord).where(
+                DecisionReportRecord.owner_id == self.owner_id,
+                DecisionReportRecord.decision_case_id == decision_case_id,
+                DecisionReportRecord.rule_set_version == rule_set_version,
+                DecisionReportRecord.generator_version == generator_version,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_by_id(self, report_id: UUID) -> DecisionReport | None:
+        record = await self.session.scalar(
+            select(DecisionReportRecord).where(
+                DecisionReportRecord.id == report_id,
+                DecisionReportRecord.owner_id == self.owner_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def list_for_case(self, decision_case_id: UUID) -> list[DecisionReport]:
+        records = await self.session.scalars(
+            select(DecisionReportRecord)
+            .where(
+                DecisionReportRecord.decision_case_id == decision_case_id,
+                DecisionReportRecord.owner_id == self.owner_id,
+            )
+            .order_by(DecisionReportRecord.version)
+        )
+        return [self._to_domain(record) for record in records]
 
     async def commit(self) -> None:
         await self.session.commit()

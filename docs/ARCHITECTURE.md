@@ -191,6 +191,22 @@ M3 首个规则集版本为 `m3-rules-v1`，只消费 `DecisionCase` 固定引�
 
 规则是无 I/O 的纯领域逻辑：不访问数据库、网络、模型或系统时钟。技能比较只做空白与大小写规范化，不隐式扩展同义词；经验年限只合并完整 confirmed 起止日期，未结束或日期不完整且可能改变结论时返回 `unknown`；现场或混合岗位按规范化后的明确目标地点比较，远程岗位由 `accepts_remote` 决定兼容性；学历只使用规则集显式声明的等级映射，无法识别的表达保持 `unknown`。源对象新版本、未知字段或未确认字段不得改变历史案例的既有规则输入。
 
+### DecisionReport 报告契约
+
+`DecisionReport` 是 Decision & Reporting 上下文拥有的不可变业务事实。报告只消费与 `DecisionCase` 固定版本一致的确定性规则结果，不读取自由文本补全事实，也不调用 LLM。每个报告固定 `decision_case_id`、报告版本、规则集版本、生成器版本和生成时间，并保存匹配摘要、已满足条件、差距、未知项、风险、下一步与字段级引用。
+
+报告内容明确分为五种语义：
+
+| 分区 | 内容与边界 |
+| :--- | :--- |
+| Fact | 只陈述能够定位到 confirmed 输入版本的事实；部分或未知规则引用不得整体提升为事实 |
+| Rule Result | 保存规则 ID、规则版本、结果状态、原因和所用 Citation |
+| Unknown | 明确记录缺失、冲突或未确认输入及其影响，不猜测缺失值 |
+| Recommendation | 由固定规则结果映射出的确定性后续动作，并保留来源规则 ID |
+| Citation | 定位输入对象类型、对象 ID、版本和字段路径；不包含 M5 Evidence Pack |
+
+同一用户、`DecisionCase`、规则集版本和生成器版本构成生成身份，重复生成返回既有报告。生成器升级在同一案例下追加递增报告版本；规则集版本由 `DecisionCase` 固定，规则集升级需创建固定新规则版本的新案例及报告，不覆盖旧案例或旧报告。PostgreSQL 同时约束案例内报告版本唯一和生成身份唯一，并在分配版本时锁定所属案例，保证并发重试最多发布一条报告。公开 HTTP Schema 与路由仍由 #75 拥有。
+
 ### 主档、简历与岗位输出关系
 
 ```mermaid
@@ -199,6 +215,7 @@ erDiagram
     ResumeVersion ||--o{ ResumeVariant : "岗位定制"
     JobPosting ||--o{ JobRequirementSnapshot : "确认解释"
     JobRequirementSnapshot }o--|| DecisionCase : "固定版本引用"
+    DecisionCase ||--o{ DecisionReport : "版本化报告"
     DecisionCase ||--o{ ApplicationDecision : "可重审"
     ApplicationDecision ||--o| ApplicationRecord : "用户确认后"
     ApplicationRecord ||--o{ InterviewCase : "面试流程"

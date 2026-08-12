@@ -1,15 +1,22 @@
-"""DecisionCase PostgreSQL 持久化、幂等与用户隔离测试。"""
+"""DecisionCase and DecisionReport PostgreSQL persistence tests."""
 
+import asyncio
 from uuid import uuid4
 
 import pytest
-from app.application.decision import CreateDecisionCaseCommand, CreateDecisionCaseUseCase
+from app.application.decision import (
+    CreateDecisionCaseCommand,
+    CreateDecisionCaseUseCase,
+    GenerateDecisionReportCommand,
+    GenerateDecisionReportUseCase,
+)
 from app.domain.base.exceptions import ApplicationError, InfrastructureError
 from app.domain.career import CandidateProfile
 from app.domain.opportunity import JobPosting, JobRequirementSnapshot
 from app.infrastructure.database import (
     SqlAlchemyCandidateProfileRepository,
     SqlAlchemyDecisionCaseRepository,
+    SqlAlchemyDecisionReportRepository,
     SqlAlchemyJobPostingRepository,
     SqlAlchemyJobRequirementSnapshotRepository,
     SqlAlchemyResumeVersionRepository,
@@ -288,3 +295,114 @@ async def test_decision_case_rejects_foreign_user_inputs(database_engine: AsyncE
         with pytest.raises(ApplicationError) as error:
             await use_case.execute(_command(owner_a.id, posting, requirement, profile, resume))
         assert error.value.error_code == "entity_not_found"
+
+
+@pytest.mark.asyncio
+async def test_decision_report_round_trip_replay_upgrade_and_user_isolation(
+    database_engine: AsyncEngine,
+) -> None:
+    factory = create_session_factory(database_engine)
+    owner = UserRecord(
+        username=f"report-owner-{uuid4()}",
+        email=f"report-owner-{uuid4()}@example.com",
+        password_hash="hash",
+    )
+    other_owner = UserRecord(
+        username=f"report-other-{uuid4()}",
+        email=f"report-other-{uuid4()}@example.com",
+        password_hash="hash",
+    )
+    async with factory() as session:
+        session.add_all([owner, other_owner])
+        await session.commit()
+        posting, requirement, profile, resume = await _seed_inputs(session, owner.id)
+        case_result = await CreateDecisionCaseUseCase(
+            SqlAlchemyDecisionCaseRepository(session, owner.id),
+            SqlAlchemyJobPostingRepository(session, owner.id),
+            SqlAlchemyJobRequirementSnapshotRepository(session, owner.id),
+            SqlAlchemyCandidateProfileRepository(session, owner.id),
+            SqlAlchemyResumeVersionRepository(session, owner.id),
+        ).execute(_command(owner.id, posting, requirement, profile, resume, "m3-rules-v1"))
+        report_use_case = GenerateDecisionReportUseCase(
+            SqlAlchemyDecisionReportRepository(session, owner.id)
+        )
+        first = await report_use_case.execute(
+            GenerateDecisionReportCommand(owner.id, "generator-v1"),
+            decision_case=case_result.decision_case,
+            candidate_profile=profile,
+            requirements=requirement,
+        )
+        replay = await report_use_case.execute(
+            GenerateDecisionReportCommand(owner.id, " generator-v1 "),
+            decision_case=case_result.decision_case,
+            candidate_profile=profile,
+            requirements=requirement,
+        )
+        upgraded = await report_use_case.execute(
+            GenerateDecisionReportCommand(owner.id, "generator-v2"),
+            decision_case=case_result.decision_case,
+            candidate_profile=profile,
+            requirements=requirement,
+        )
+
+        assert first.replayed is False
+        assert replay.replayed is True
+        assert replay.report.id == first.report.id
+        assert upgraded.report.version == 2
+        assert first.report.content["rule_result"]
+
+    async with factory() as session:
+        repository = SqlAlchemyDecisionReportRepository(session, owner.id)
+        restored = await repository.get_by_id(first.report.id)
+        history = await repository.list_for_case(case_result.decision_case.id)
+        foreign_repository = SqlAlchemyDecisionReportRepository(session, other_owner.id)
+        assert restored == first.report
+        assert [item.id for item in history] == [first.report.id, upgraded.report.id]
+        assert await foreign_repository.get_by_id(first.report.id) is None
+        assert await foreign_repository.list_for_case(case_result.decision_case.id) == []
+        with pytest.raises(InfrastructureError) as error:
+            await foreign_repository.next_version(case_result.decision_case.id)
+        assert error.value.error_code == "entity_not_found"
+
+
+@pytest.mark.asyncio
+async def test_decision_report_concurrent_generation_replays_one_row(
+    database_engine: AsyncEngine,
+) -> None:
+    factory = create_session_factory(database_engine)
+    owner = UserRecord(
+        username=f"report-race-{uuid4()}",
+        email=f"report-race-{uuid4()}@example.com",
+        password_hash="hash",
+    )
+    async with factory() as session:
+        session.add(owner)
+        await session.commit()
+        posting, requirement, profile, resume = await _seed_inputs(session, owner.id)
+        case_result = await CreateDecisionCaseUseCase(
+            SqlAlchemyDecisionCaseRepository(session, owner.id),
+            SqlAlchemyJobPostingRepository(session, owner.id),
+            SqlAlchemyJobRequirementSnapshotRepository(session, owner.id),
+            SqlAlchemyCandidateProfileRepository(session, owner.id),
+            SqlAlchemyResumeVersionRepository(session, owner.id),
+        ).execute(_command(owner.id, posting, requirement, profile, resume, "m3-rules-v1"))
+
+    async def generate():
+        async with factory() as session:
+            return await GenerateDecisionReportUseCase(
+                SqlAlchemyDecisionReportRepository(session, owner.id)
+            ).execute(
+                GenerateDecisionReportCommand(owner.id, "generator-v1"),
+                decision_case=case_result.decision_case,
+                candidate_profile=profile,
+                requirements=requirement,
+            )
+
+    first, second = await asyncio.gather(generate(), generate())
+    assert first.report.id == second.report.id
+    assert {first.replayed, second.replayed} == {False, True}
+    async with factory() as session:
+        history = await SqlAlchemyDecisionReportRepository(session, owner.id).list_for_case(
+            case_result.decision_case.id
+        )
+        assert len(history) == 1

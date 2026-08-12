@@ -3,7 +3,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.domain.decision import DecisionCase
+from app.domain.decision import DecisionCase, DecisionReport
 
 
 class DecisionCaseRepository(Protocol):
@@ -16,5 +16,26 @@ class DecisionCaseRepository(Protocol):
     async def get_by_id(self, case_id: UUID) -> DecisionCase | None: ...
 
     async def get_by_input_fingerprint(self, fingerprint: str) -> DecisionCase | None: ...
+
+    async def commit(self) -> None: ...
+
+
+class DecisionReportRepository(Protocol):
+    """用户范围内不可变 DecisionReport 的版本化持久化端口。"""
+
+    async def next_version(self, decision_case_id: UUID) -> int: ...
+
+    async def add(self, report: DecisionReport) -> DecisionReport: ...
+
+    async def get_by_generation(
+        self,
+        decision_case_id: UUID,
+        rule_set_version: str,
+        generator_version: str,
+    ) -> DecisionReport | None: ...
+
+    async def get_by_id(self, report_id: UUID) -> DecisionReport | None: ...
+
+    async def list_for_case(self, decision_case_id: UUID) -> list[DecisionReport]: ...
 
     async def commit(self) -> None: ...

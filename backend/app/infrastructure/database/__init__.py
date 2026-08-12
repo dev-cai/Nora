@@ -7,7 +7,12 @@ from .career import (
     SqlAlchemyCandidateProfileRepository,
     SqlAlchemyResumeVersionRepository,
 )
-from .decision import DecisionCaseRecord, SqlAlchemyDecisionCaseRepository
+from .decision import (
+    DecisionCaseRecord,
+    DecisionReportRecord,
+    SqlAlchemyDecisionCaseRepository,
+    SqlAlchemyDecisionReportRepository,
+)
 from .engine import create_database_engine, create_session_factory
 from .governance import AuditEventRecord, SqlAlchemyAuditEventRepository
 from .identity import SqlAlchemyUserRepository, UserRecord
@@ -25,6 +30,7 @@ __all__ = (
     "Base",
     "CandidateProfileRecord",
     "DecisionCaseRecord",
+    "DecisionReportRecord",
     "ResumeVersionRecord",
     "OwnedByUserMixin",
     "AuditEventRecord",
@@ -35,6 +41,7 @@ __all__ = (
     "SqlAlchemyAuditEventRepository",
     "SqlAlchemyCandidateProfileRepository",
     "SqlAlchemyDecisionCaseRepository",
+    "SqlAlchemyDecisionReportRepository",
     "SqlAlchemyResumeVersionRepository",
     "SqlAlchemyJobPostingRepository",
     "SqlAlchemyJobRequirementSnapshotRepository",
