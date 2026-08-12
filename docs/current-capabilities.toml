@@ -214,6 +214,18 @@ code_paths = [
 evidence = ["https://github.com/dev-cai/Nora/pull/147"]
 
 [[capabilities]]
+id = "deterministic-decision-rules"
+name = "确定性决策规则"
+milestone = "M3"
+status = "current"
+summary = "提供版本化纯领域规则集，基于 DecisionCase 固定的 confirmed 岗位要求与主档版本，输出技能、经验、地点/工作方式和学历四类可追溯结果；缺失或无法确定的输入保持 unknown。"
+code_paths = [
+  "backend/app/domain/decision/rules.py",
+  "backend/tests/unit/test_decision_rules.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/155"]
+
+[[capabilities]]
 id = "jd-image-ocr"
 name = "截图 OCR 输入"
 milestone = "M2"
