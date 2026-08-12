@@ -69,7 +69,7 @@ flowchart LR
 - `GET /health`
 - `GET /ready`
 
-简历接口属于 Current（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）。分析与报告后端 API 也属于 Current，但对应浏览器页面仍为 M3 Planned；前端不得把后端契约交付误报为页面已经可用，也不得根据路线图伪造响应或绕过未交付 API。
+简历接口属于 Current（`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`）。分析与报告后端 API 及浏览器页面也属于 Current；投/不投决定仍为 Planned。前端不得根据路线图伪造响应或绕过未交付 API。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
 构建产物，因此只能保存公开配置，禁止写入数据库凭据、签名密钥、Provider Token 或其他秘密。
@@ -160,10 +160,10 @@ Nora 可预期错误使用稳定结构：
 /resumes                    简历版本列表〔Current〕
 /resumes/new                发布新版本〔Current〕
 /resumes/:id                简历版本详情〔Current〕
-/analysis/new               发起分析（选岗位 + 主档 + 简历版本）〔M3 Planned〕
-/analysis/:id               分析进度 / 失败重试〔M3 Planned〕
-/reports                    报告历史列表（分页）〔M3 Planned〕
-/reports/:id                报告详情（含投/不投）〔M3 Planned〕
+/analysis/new               发起分析（选岗位要求版本 + 主档 + 简历版本）〔Current〕
+/analysis/:id               同步分析结果 / 失败重试〔Current〕
+/reports                    报告历史列表（分页）〔Current〕
+/reports/:id                确定性报告详情〔Current〕
 /decisions                  投递决定记录（skip/apply）〔M3 Planned〕
 /templates                  模板管理〔M4 Planned〕
 /resumes/:id/customize      定制简历〔M4 Planned〕
@@ -217,7 +217,7 @@ Nora 可预期错误使用稳定结构：
 ### 10.6 发起分析 `/analysis/new`（M3，M3.1）
 
 - 功能：选择岗位 + 主档 + 简历版本 → 创建 `DecisionCase`。
-- API：`POST /decisions`、`GET /decisions/{id}`（Current 后端契约；页面 Planned）。
+- API：`POST /decisions`、`GET /decisions/{id}`（Current）。
 - 校验：三者同属当前用户（后端 404）；输入版本不兼容返回 `409`。
 - 执行：当前 API 同步返回四条确定性规则结果，不伪造异步进度；页面可展示加载、成功与失败状态。
 
@@ -231,8 +231,8 @@ Nora 可预期错误使用稳定结构：
   - **建议（Recommendation）**：确定性下一步；
   - 明确"确定性规则"标识；M5 前显示"AI 增强未启用"。
 - 幂等：重复"生成报告"返回既有报告，版本不变。
-- API：`POST /decisions/{id}/reports`、`GET /reports/{id}`、`GET /reports`（Current 后端契约；页面 Planned）。列表从第 1 页开始，默认每页 20 条、最多 100 条，按生成时间倒序，空集合返回空 `items` 与 `total = 0`。
-- 组件：`ReportSection`、`RuleRow`、`UnknownBadge`、`EvidenceLink`。
+- API：`POST /decisions/{id}/reports`、`GET /reports/{id}`、`GET /reports`（Current）。列表从第 1 页开始，默认每页 20 条、最多 100 条，按生成时间倒序，空集合返回空 `items` 与 `total = 0`。
+- 组件：`ReportContent`、`RuleStatusBadge`，统一呈现报告分区、规则状态与字段级引用。
 
 ### 10.8 投/不投决定（M3，M3.9）
 
@@ -264,7 +264,7 @@ Nora 可预期错误使用稳定结构：
 | `profileStore` | 主档草稿与确认快照 | draft、confirmed snapshot、confirmationStatus |
 | `resumeStore` | 简历版本列表/详情 | versions、current |
 | `jobStore` | 岗位列表/详情/新建 | jobs、current、inputMode（text/ocr/link） |
-| `analysisStore` | DecisionCase 创建/进度/报告 | cases、progress、report、decision |
+| `analysisStore` | DecisionCase 创建、同步结果与报告缓存 | currentCase、analysis、report、reports |
 
 规则：Store 只保存展示状态与缓存快照，不持有业务事实权威；页面刷新后从后端重新加载；跨页共享使用稳定 ID。
 
@@ -292,7 +292,7 @@ Nora 可预期错误使用稳定结构：
 | `RequirementEditor` / `ConfirmationBadge` | 岗位要求确认与版本历史（`JobRequirementsView`） | Current |
 | `ProfileForm` / `FieldGroup` | 主档分区与字段确认状态 | Current |
 | `ResumeVersionCard` | 简历版本卡片 | Current |
-| `ReportSection` / `RuleRow` / `UnknownBadge` / `EvidenceLink` | 报告分区 | M3 Planned |
+| `ReportContent` / `RuleStatusBadge` | 报告分区、规则状态与字段引用 | Current |
 | `DecisionBar` | 投/不投 | M3 Planned |
 | `ErrorState` / `LoadingState` / `EmptyState` | 通用状态 | M3 Planned |
 

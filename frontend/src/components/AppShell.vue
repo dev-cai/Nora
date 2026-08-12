@@ -3,6 +3,7 @@ import { computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import {
   BriefcaseBusiness,
+  ChartNoAxesCombined,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -11,11 +12,13 @@ import {
 } from "lucide-vue-next"
 
 import { useAuthStore } from "@/stores/auth"
+import { useAnalysisStore } from "@/stores/analysis"
 import { useJobsStore } from "@/stores/jobs"
 import { useProfileStore } from "@/stores/profile"
 import { useResumesStore } from "@/stores/resumes"
 
 const auth = useAuthStore()
+const analysis = useAnalysisStore()
 const jobs = useJobsStore()
 const profile = useProfileStore()
 const resumes = useResumesStore()
@@ -28,6 +31,7 @@ function logout(): void {
   jobs.reset()
   profile.reset()
   resumes.reset()
+  analysis.reset()
   void router.push({ name: "login" })
 }
 </script>
@@ -66,6 +70,14 @@ function logout(): void {
         >
           <BriefcaseBusiness :size="18" />
           <span>岗位库</span>
+        </RouterLink>
+        <RouterLink
+          class="nav-item"
+          :class="{ active: route.name === 'reports' || route.name === 'report-detail' || route.name === 'analysis-new' || route.name === 'analysis-detail' }"
+          to="/reports"
+        >
+          <ChartNoAxesCombined :size="18" />
+          <span>分析报告</span>
         </RouterLink>
         <RouterLink
           class="nav-item"
@@ -117,7 +129,7 @@ function logout(): void {
       <header class="topbar">
         <div>
           <p class="eyebrow">
-            NORA / M2 工作台
+            NORA / M3 决策工作台
           </p>
           <h1>{{ route.meta.title || '求职工作台' }}</h1>
         </div>

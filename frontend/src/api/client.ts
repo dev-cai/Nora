@@ -2,7 +2,12 @@ import type {
   ApiProblem,
   CandidateProfile,
   CandidateProfileInput,
+  CreateDecisionCaseInput,
   CreateJobPostingInput,
+  DecisionAnalysis,
+  DecisionCase,
+  DecisionReport,
+  DecisionReportList,
   JobPosting,
   JobPostingList,
   JobRequirementSaveInput,
@@ -159,4 +164,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  createDecisionCase: (input: CreateDecisionCaseInput) =>
+    request<DecisionCase>("/decisions", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  getDecisionAnalysis: (caseId: string) =>
+    request<DecisionAnalysis>(`/decisions/${encodeURIComponent(caseId)}`),
+  generateDecisionReport: (caseId: string) =>
+    request<DecisionReport>(`/decisions/${encodeURIComponent(caseId)}/reports`, {
+      method: "POST",
+    }),
+  listDecisionReports: (page = 1, pageSize = 20) =>
+    request<DecisionReportList>(`/reports?page=${page}&page_size=${pageSize}`),
+  getDecisionReport: (reportId: string) =>
+    request<DecisionReport>(`/reports/${encodeURIComponent(reportId)}`),
 }
