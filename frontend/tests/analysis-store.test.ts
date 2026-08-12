@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from "pinia"
 
 import { api } from "@/api/client"
-import type { DecisionAnalysis, DecisionCase, DecisionReport } from "@/api/types"
+import type { ApplicationDecision, DecisionAnalysis, DecisionCase, DecisionReport } from "@/api/types"
 import { useAnalysisStore } from "@/stores/analysis"
 
 const decisionCase: DecisionCase = {
@@ -39,6 +39,19 @@ const report: DecisionReport = {
   risks: [],
   next_steps: [],
   generated_at: "2026-08-12T00:00:02Z",
+}
+
+const decision: ApplicationDecision = {
+  id: "decision-1",
+  report_id: "report-1",
+  report_version: 1,
+  decision_case_id: "case-1",
+  resume_version_id: "resume-1",
+  resume_version: 1,
+  status: "skip",
+  reason: "岗位地点不合适",
+  actor_id: "user-1",
+  decided_at: "2026-08-12T00:00:03Z",
 }
 
 describe("analysis store", () => {
@@ -83,6 +96,7 @@ describe("analysis store", () => {
     vi.spyOn(api, "getDecisionReport").mockImplementation(() => new Promise((resolve) => {
       resolveReport = resolve
     }))
+    vi.spyOn(api, "getApplicationDecision").mockResolvedValue(null)
     const store = useAnalysisStore()
     store.$patch({
       currentCase: decisionCase,
@@ -102,5 +116,22 @@ describe("analysis store", () => {
     resolveAnalysis?.({ decision: decisionCase, rule_set_version: "m3-rules-v1", rule_results: [] })
     resolveReport?.(report)
     await Promise.all([analysisRequest, reportRequest])
+  })
+
+  it("restores and records the immutable application decision", async () => {
+    vi.spyOn(api, "getDecisionReport").mockResolvedValue(report)
+    vi.spyOn(api, "getApplicationDecision").mockResolvedValue(decision)
+    const createDecision = vi.spyOn(api, "createApplicationDecision").mockResolvedValue(decision)
+    const store = useAnalysisStore()
+
+    await store.fetchReport("report-1")
+    await store.decide("report-1", { status: "skip", reason: "岗位地点不合适" })
+
+    expect(store.decision).toEqual(decision)
+    expect(createDecision).toHaveBeenCalledWith(
+      "report-1",
+      { status: "skip", reason: "岗位地点不合适" },
+      expect.any(String),
+    )
   })
 })

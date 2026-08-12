@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Header, Query, Response, status
+from pydantic import BaseModel, Field, model_validator
 
 from app.application.decision import (
     AnalyzeDecisionCaseQuery,
@@ -19,7 +19,15 @@ from app.application.decision import (
     ListDecisionReportsQuery,
     ListDecisionReportsUseCase,
 )
+from app.application.followup import (
+    CreateApplicationDecisionCommand,
+    CreateApplicationDecisionUseCase,
+    GetApplicationDecisionQuery,
+    GetApplicationDecisionUseCase,
+)
 from app.apps.api.dependencies import (
+    get_application_decision_repository,
+    get_audit_event_repository,
     get_candidate_profile_repository,
     get_current_user,
     get_decision_case_repository,
@@ -43,9 +51,12 @@ from app.domain.decision import (
     RuleResult,
     RuleStatus,
 )
+from app.domain.followup import ApplicationDecision, ApplicationDecisionStatus
 from app.domain.identity import User
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.decision import DecisionCaseRepository, DecisionReportRepository
+from app.ports.followup import ApplicationDecisionRepository
+from app.ports.governance import AuditEventRepository
 from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
 
 REPORT_GENERATOR_VERSION = "m3-report-v1"
@@ -257,6 +268,34 @@ class DecisionReportListResponse(BaseModel):
     total: int
 
 
+class CreateApplicationDecisionRequest(BaseModel):
+    status: ApplicationDecisionStatus
+    reason: str | None = Field(default=None, max_length=1_000)
+
+    @model_validator(mode="after")
+    def validate_skip_reason(self) -> "CreateApplicationDecisionRequest":
+        if self.status is ApplicationDecisionStatus.SKIP and not (self.reason or "").strip():
+            raise ValueError("reason is required when status is skip")
+        return self
+
+
+class ApplicationDecisionResponse(BaseModel):
+    id: UUID
+    report_id: UUID
+    report_version: int
+    decision_case_id: UUID
+    resume_version_id: UUID
+    resume_version: int
+    status: ApplicationDecisionStatus
+    reason: str | None
+    actor_id: UUID
+    decided_at: datetime
+
+    @classmethod
+    def from_domain(cls, decision: ApplicationDecision) -> "ApplicationDecisionResponse":
+        return cls.model_validate(decision, from_attributes=True)
+
+
 @decision_router.post("", response_model=DecisionCaseResponse, status_code=status.HTTP_201_CREATED)
 async def create_decision_case(
     payload: CreateDecisionCaseRequest,
@@ -364,3 +403,60 @@ async def get_decision_report(
         GetDecisionReportQuery(owner_id=user.id, report_id=report_id)
     )
     return DecisionReportResponse.from_domain(report)
+
+
+@report_router.get(
+    "/{report_id}/decision",
+    response_model=ApplicationDecisionResponse,
+    responses={status.HTTP_204_NO_CONTENT: {"description": "No decision recorded"}},
+)
+async def get_application_decision(
+    report_id: UUID,
+    response: Response,
+    user: User = Depends(get_current_user),
+    repository: ApplicationDecisionRepository = Depends(get_application_decision_repository),
+    report_repository: DecisionReportRepository = Depends(get_decision_report_repository),
+) -> ApplicationDecisionResponse | Response:
+    decision = await GetApplicationDecisionUseCase(repository, report_repository).execute(
+        GetApplicationDecisionQuery(owner_id=user.id, report_id=report_id)
+    )
+    if decision is None:
+        response.status_code = status.HTTP_204_NO_CONTENT
+        return response
+    return ApplicationDecisionResponse.from_domain(decision)
+
+
+@report_router.post(
+    "/{report_id}/decision",
+    response_model=ApplicationDecisionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_application_decision(
+    report_id: UUID,
+    payload: CreateApplicationDecisionRequest,
+    response: Response,
+    idempotency_key: str = Header(alias="Idempotency-Key"),
+    user: User = Depends(get_current_user),
+    repository: ApplicationDecisionRepository = Depends(get_application_decision_repository),
+    report_repository: DecisionReportRepository = Depends(get_decision_report_repository),
+    case_repository: DecisionCaseRepository = Depends(get_decision_case_repository),
+    audit_repository: AuditEventRepository = Depends(get_audit_event_repository),
+) -> ApplicationDecisionResponse:
+    result = await CreateApplicationDecisionUseCase(
+        repository,
+        report_repository,
+        case_repository,
+        audit_repository,
+    ).execute(
+        CreateApplicationDecisionCommand(
+            owner_id=user.id,
+            actor_id=user.id,
+            report_id=report_id,
+            status=payload.status,
+            reason=payload.reason,
+            idempotency_key=idempotency_key,
+        )
+    )
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    return ApplicationDecisionResponse.from_domain(result.decision)

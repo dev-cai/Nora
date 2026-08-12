@@ -300,3 +300,23 @@ export interface DecisionReportList {
   page_size: number
   total: number
 }
+
+export type ApplicationDecisionStatus = "apply" | "skip"
+
+export interface CreateApplicationDecisionInput {
+  status: ApplicationDecisionStatus
+  reason: string | null
+}
+
+export interface ApplicationDecision {
+  id: string
+  report_id: string
+  report_version: number
+  decision_case_id: string
+  resume_version_id: string
+  resume_version: number
+  status: ApplicationDecisionStatus
+  reason: string | null
+  actor_id: string
+  decided_at: string
+}

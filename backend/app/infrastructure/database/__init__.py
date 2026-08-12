@@ -14,6 +14,7 @@ from .decision import (
     SqlAlchemyDecisionReportRepository,
 )
 from .engine import create_database_engine, create_session_factory
+from .followup import ApplicationDecisionRecord, SqlAlchemyApplicationDecisionRepository
 from .governance import AuditEventRecord, SqlAlchemyAuditEventRepository
 from .identity import SqlAlchemyUserRepository, UserRecord
 from .opportunity import (
@@ -34,11 +35,13 @@ __all__ = (
     "ResumeVersionRecord",
     "OwnedByUserMixin",
     "AuditEventRecord",
+    "ApplicationDecisionRecord",
     "JobPostingIdempotencyRecord",
     "JobPostingRecord",
     "JobRequirementSnapshotRecord",
     "SqlAlchemyRepository",
     "SqlAlchemyAuditEventRepository",
+    "SqlAlchemyApplicationDecisionRepository",
     "SqlAlchemyCandidateProfileRepository",
     "SqlAlchemyDecisionCaseRepository",
     "SqlAlchemyDecisionReportRepository",

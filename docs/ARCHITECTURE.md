@@ -247,6 +247,8 @@ stateDiagram-v2
 
 状态转换必须记录操作者、时间、输入报告版本和幂等键。`message_drafted` 不代表消息已发送；只有用户确认外部网站或渠道已完成投递，才能进入 `applied`。
 
+M3 Current 只交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecision` 属于 Application & Follow-up 上下文，是引用一条不可变 `DecisionReport` 的不可变业务事实。记录固定报告 ID/版本、DecisionCase、分析所用 ResumeVersion、操作者、决定时间、原因和幂等键；每个用户范围内的一份报告最多存在一条决定。相同语义重放返回既有记录，复用幂等键提交不同内容或对同一报告提交不同决定返回稳定 `409`。`skip` 必须保存原因，`apply` 只表达投递意图，不创建 ResumeVariant、PDF、MessageDraft 或外部写。公开接口为 `GET /reports/{id}/decision` 与 `POST /reports/{id}/decision`；跨用户与不存在报告统一返回 `404`，未决定的读取返回 `204`。
+
 ### 简历模板、PDF 与 MessageDraft
 
 - 模板采用声明式 JSON `TemplateDefinition`：页面设置、样式 Token、区块顺序、允许字段和必填字段；不执行任意 HTML、JavaScript 或 Jinja。

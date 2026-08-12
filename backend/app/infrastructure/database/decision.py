@@ -32,6 +32,13 @@ class DecisionCaseRecord(Base):
     __table_args__ = (
         UniqueConstraint("id", "owner_id", name="uq_decision_case_id_owner"),
         UniqueConstraint(
+            "id",
+            "resume_version_id",
+            "resume_version",
+            "owner_id",
+            name="uq_decision_case_resume_owner",
+        ),
+        UniqueConstraint(
             "owner_id", "input_fingerprint", name="uq_decision_case_owner_fingerprint"
         ),
         CheckConstraint("job_posting_version >= 1", name="ck_decision_job_version_positive"),
@@ -117,6 +124,14 @@ class DecisionReportRecord(Base):
 
     __tablename__ = "decision_reports"
     __table_args__ = (
+        UniqueConstraint("id", "version", "owner_id", name="uq_decision_report_id_version_owner"),
+        UniqueConstraint(
+            "id",
+            "version",
+            "decision_case_id",
+            "owner_id",
+            name="uq_decision_report_case_identity",
+        ),
         UniqueConstraint(
             "decision_case_id",
             "version",

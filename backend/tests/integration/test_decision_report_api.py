@@ -186,8 +186,50 @@ def test_decision_and_report_api_contract(database_url: str) -> None:
         fetched = client.get(f"/reports/{report_id}", headers=auth_a)
         assert fetched.status_code == 200
         assert fetched.json() == report_body
+        assert client.get(f"/reports/{report_id}/decision", headers=auth_a).status_code == 204
+        missing_reason = client.post(
+            f"/reports/{report_id}/decision",
+            headers={**auth_a, "Idempotency-Key": "decision-missing-reason"},
+            json={"status": "skip", "reason": ""},
+        )
+        assert missing_reason.status_code == 422
+        decided = client.post(
+            f"/reports/{report_id}/decision",
+            headers={**auth_a, "Idempotency-Key": "decision-alice-1"},
+            json={"status": "skip", "reason": "岗位地点不合适"},
+        )
+        assert decided.status_code == 201
+        decision_body = decided.json()
+        assert decision_body["report_id"] == report_id
+        assert decision_body["report_version"] == report_body["version"]
+        assert decision_body["decision_case_id"] == case_id
+        assert decision_body["resume_version_id"] == inputs["resume_version_id"]
+        assert decision_body["resume_version"] == inputs["resume_version"]
+        assert decision_body["status"] == "skip"
+        assert decision_body["reason"] == "岗位地点不合适"
+        replayed_decision = client.post(
+            f"/reports/{report_id}/decision",
+            headers={**auth_a, "Idempotency-Key": "decision-alice-1"},
+            json={"status": "skip", "reason": "岗位地点不合适"},
+        )
+        assert replayed_decision.status_code == 200
+        assert replayed_decision.json() == decision_body
+        conflicting_decision = client.post(
+            f"/reports/{report_id}/decision",
+            headers={**auth_a, "Idempotency-Key": "decision-alice-2"},
+            json={"status": "apply", "reason": None},
+        )
+        assert conflicting_decision.status_code == 409
+        assert conflicting_decision.json()["error_code"] == "application_decision_conflict"
+        assert client.get(f"/reports/{report_id}/decision", headers=auth_a).json() == decision_body
         assert client.get(f"/decisions/{case_id}", headers=auth_b).status_code == 404
         assert client.get(f"/reports/{report_id}", headers=auth_b).status_code == 404
+        assert client.get(f"/reports/{report_id}/decision", headers=auth_b).status_code == 404
+        assert client.post(
+            f"/reports/{report_id}/decision",
+            headers={**auth_b, "Idempotency-Key": "decision-bob-1"},
+            json={"status": "apply", "reason": None},
+        ).status_code == 404
         assert client.post(f"/decisions/{case_id}/reports", headers=auth_b).status_code == 404
 
         empty = client.get("/reports", headers=auth_b)
