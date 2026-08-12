@@ -73,4 +73,34 @@ describe("analysis store", () => {
     expect(store.reports).toEqual([report])
     expect(store.total).toBe(1)
   })
+
+  it("clears stale detail content while another immutable object is loading", async () => {
+    let resolveAnalysis: ((value: DecisionAnalysis) => void) | undefined
+    let resolveReport: ((value: DecisionReport) => void) | undefined
+    vi.spyOn(api, "getDecisionAnalysis").mockImplementation(() => new Promise((resolve) => {
+      resolveAnalysis = resolve
+    }))
+    vi.spyOn(api, "getDecisionReport").mockImplementation(() => new Promise((resolve) => {
+      resolveReport = resolve
+    }))
+    const store = useAnalysisStore()
+    store.$patch({
+      currentCase: decisionCase,
+      analysis: { decision: decisionCase, rule_set_version: "m3-rules-v1", rule_results: [] },
+      report,
+    })
+
+    const analysisRequest = store.fetchAnalysis("case-2")
+    const reportRequest = store.fetchReport("report-2")
+
+    expect(store.currentCase).toBeNull()
+    expect(store.analysis).toBeNull()
+    expect(store.report).toBeNull()
+    expect(store.analyzing).toBe(true)
+    expect(store.reportLoading).toBe(true)
+
+    resolveAnalysis?.({ decision: decisionCase, rule_set_version: "m3-rules-v1", rule_results: [] })
+    resolveReport?.(report)
+    await Promise.all([analysisRequest, reportRequest])
+  })
 })

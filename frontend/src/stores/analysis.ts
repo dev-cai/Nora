@@ -42,6 +42,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
 
   async function fetchAnalysis(caseId: string): Promise<DecisionAnalysis> {
     const request = ++analysisRequest
+    analysis.value = null
+    currentCase.value = null
     analyzing.value = true
     try {
       const result = await api.getDecisionAnalysis(caseId)
@@ -70,6 +72,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
 
   async function fetchReport(reportId: string): Promise<DecisionReport> {
     const request = ++reportRequest
+    report.value = null
     reportLoading.value = true
     try {
       const loaded = await api.getDecisionReport(reportId)
