@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test"
 
 /**
- * 浏览器级基础 E2E（M2 门禁）。
+ * 浏览器级真实 Compose E2E（M2/M3 门禁）。
  *
  * 前置：compose 栈已就绪（web :5173 + api :8000 + db），且已执行
  * `docker compose exec api alembic upgrade head`。运行命令：`npm run e2e`。
