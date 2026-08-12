@@ -226,6 +226,21 @@ code_paths = [
 evidence = ["https://github.com/dev-cai/Nora/pull/155"]
 
 [[capabilities]]
+id = "versioned-decision-reports"
+name = "版本化确定性决策报告"
+milestone = "M3"
+status = "current"
+summary = "基于 DecisionCase 固定输入与确定性规则结果生成不可变 DecisionReport，区分 Fact、Rule Result、Unknown、Recommendation 与 Citation，支持按生成身份幂等重放、生成器升级追加版本、用户隔离和历史报告保留；不包含公开 HTTP API、LLM 或 Evidence Pack。"
+code_paths = [
+  "backend/app/domain/decision/report.py",
+  "backend/app/application/decision/report_service.py",
+  "backend/app/ports/decision.py",
+  "backend/app/infrastructure/database/decision.py",
+  "backend/alembic/versions/0012_decision_reports.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/156"]
+
+[[capabilities]]
 id = "jd-image-ocr"
 name = "截图 OCR 输入"
 milestone = "M2"
