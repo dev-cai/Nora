@@ -384,7 +384,7 @@ npm run e2e
 - 用例 `frontend/e2e/main-flow.spec.ts` 覆盖：注册/登录 → 刷新保持登录 → 创建岗位 → 主档保存 → 简历列表 →
   登出后受保护路由跳转登录。
 - 用例 `frontend/e2e/analysis-ready.spec.ts` 覆盖：确认主档与简历 → 岗位要求版本追加 → 刷新恢复 → 双用户隔离。
-- 用例 `frontend/e2e/decision-flow.spec.ts` 覆盖：创建固定版本 DecisionCase → 断言 match/unknown 规则结果 → 生成并刷新恢复报告 → 记录并恢复 skip 决定 → 幂等/409/422 契约 → 双用户隔离；另以浏览器路由注入验证 401、503 与网络失败的稳定降级界面，真实主流程不使用 Mock。
+- 用例 `frontend/e2e/decision-flow.spec.ts` 覆盖：创建固定版本 DecisionCase → 断言 match/unknown 规则结果 → 生成并刷新恢复报告 → 记录并恢复 skip 决定 → 双用户读取与写入隔离；主流程不使用 Mock 或外部 Provider，完整 HTTP 错误组合由 API 契约和集成测试承担。
 - 失败时在 `frontend/test-results/` 与 `frontend/playwright-report/` 生成截图与 trace；可执行
   `npm run e2e:report` 查看。
 - 每次运行使用隔离随机账号，不在业务数据中制造冲突。

@@ -96,53 +96,19 @@ test("M3 决策闭环：真实 Compose 主流程、刷新恢复、决定与双�
   await expect(page.getByRole("heading", { name: "暂不投递" })).toBeVisible()
   await expect(page.getByText("报告 v1 · 简历 v1", { exact: false })).toBeVisible()
 
-  const session = await page.evaluate(() => JSON.parse(sessionStorage.getItem("nora.auth.session") || "{}"))
-  const authorization = { Authorization: `Bearer ${session.token}` }
-  const replay = await page.request.post(`/api/reports/${reportId}/decision`, {
-    headers: { ...authorization, "Idempotency-Key": "m3-e2e-replay" },
-    data: { status: "skip", reason: "关键岗位要求尚未确认" },
-  })
-  expect(replay.status()).toBe(200)
-  const conflict = await page.request.post(`/api/reports/${reportId}/decision`, {
-    headers: { ...authorization, "Idempotency-Key": "m3-e2e-conflict" },
-    data: { status: "apply", reason: null },
-  })
-  expect(conflict.status()).toBe(409)
-  expect((await conflict.json()).error_code).toBe("application_decision_conflict")
-  const invalid = await page.request.post(`/api/reports/${reportId}/decision`, {
-    headers: { ...authorization, "Idempotency-Key": "m3-e2e-invalid" },
-    data: { status: "skip", reason: "" },
-  })
-  expect(invalid.status()).toBe(422)
-
   await page.getByRole("button", { name: "退出登录" }).click()
   await registerAndLogin(page, newUser("m3-b"))
   await page.goto(`/analysis/${caseId}`)
   await expect(page.getByText("对象不存在或无权访问")).toBeVisible()
   await page.goto(`/reports/${reportId}`)
   await expect(page.getByText("对象不存在或无权访问")).toBeVisible()
-})
-
-test("报告读取失败时保留稳定的 401、503 与网络错误界面", async ({ page }) => {
-  await registerAndLogin(page, newUser("m3-errors"))
-
-  await page.route("**/api/reports/network-failure", (route) => route.abort("connectionrefused"))
-  await page.goto("/reports/network-failure")
-  await expect(page.getByText("无法连接 Nora 服务，请检查网络后重试")).toBeVisible()
-
-  await page.route("**/api/reports/service-unavailable", (route) => route.fulfill({
-    status: 503,
-    contentType: "application/json",
-    body: JSON.stringify({ error_code: "database_unavailable" }),
-  }))
-  await page.goto("/reports/service-unavailable")
-  await expect(page.getByText("服务暂时不可用，请稍后重试")).toBeVisible()
-
-  await page.route("**/api/reports/unauthorized", (route) => route.fulfill({
-    status: 401,
-    contentType: "application/json",
-    body: JSON.stringify({ error_code: "authentication_required" }),
-  }))
-  await page.goto("/reports/unauthorized")
-  await expect(page).toHaveURL(/\/login/)
+  const userBSession = await page.evaluate(() => JSON.parse(sessionStorage.getItem("nora.auth.session") || "{}"))
+  const foreignWrite = await page.request.post(`/api/reports/${reportId}/decision`, {
+    headers: {
+      Authorization: `Bearer ${userBSession.token}`,
+      "Idempotency-Key": "m3-e2e-foreign-write",
+    },
+    data: { status: "apply", reason: null },
+  })
+  expect(foreignWrite.status()).toBe(404)
 })
