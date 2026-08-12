@@ -1,8 +1,10 @@
 import type {
   ApiProblem,
+  ApplicationDecision,
   CandidateProfile,
   CandidateProfileInput,
   CreateDecisionCaseInput,
+  CreateApplicationDecisionInput,
   CreateJobPostingInput,
   DecisionAnalysis,
   DecisionCase,
@@ -45,6 +47,8 @@ const errorCodeMessages: Record<string, string> = {
   invalid_requirement_field: "岗位要求字段未通过校验",
   invalid_confirmation_status: "确认状态无效",
   invalid_source_type: "字段来源无效",
+  application_decision_conflict: "该报告已经记录了不同决定",
+  skip_reason_required: "选择不投时需要填写原因",
 }
 
 export class ApiError extends Error {
@@ -179,4 +183,17 @@ export const api = {
     request<DecisionReportList>(`/reports?page=${page}&page_size=${pageSize}`),
   getDecisionReport: (reportId: string) =>
     request<DecisionReport>(`/reports/${encodeURIComponent(reportId)}`),
+  getApplicationDecision: async (reportId: string) =>
+    (await request<ApplicationDecision | undefined>(
+      `/reports/${encodeURIComponent(reportId)}/decision`,
+    )) ?? null,
+  createApplicationDecision: (
+    reportId: string,
+    input: CreateApplicationDecisionInput,
+    idempotencyKey: string,
+  ) => request<ApplicationDecision>(`/reports/${encodeURIComponent(reportId)}/decision`, {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(input),
+  }),
 }

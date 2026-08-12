@@ -283,3 +283,19 @@ code_paths = [
   "frontend/src/stores/analysis.ts",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/158"]
+
+[[capabilities]]
+id = "application-decision"
+name = "最小投不投决定"
+milestone = "M3"
+status = "current"
+summary = "支持用户对不可变 DecisionReport 记录 apply 或 skip：决定固定报告、DecisionCase 与分析所用 ResumeVersion，保存操作者、时间、原因和幂等键；skip 原因必填，相同语义重放幂等，不同决定稳定冲突。报告页 DecisionBar 可提交并在刷新后恢复；apply 只表达意图，不生成材料、不调用 RAG 且不执行外部写。"
+code_paths = [
+  "backend/app/domain/followup/application_decision.py",
+  "backend/app/application/followup/service.py",
+  "backend/app/infrastructure/database/followup.py",
+  "backend/app/apps/api/routes/decisions.py",
+  "frontend/src/components/DecisionBar.vue",
+  "frontend/src/stores/analysis.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/159"]

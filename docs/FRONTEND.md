@@ -236,11 +236,12 @@ Nora 可预期错误使用稳定结构：
 
 ### 10.8 投/不投决定（M3，M3.9）
 
-- 报告页底部 `DecisionBar`：`投递` / `不投` / `稍后`。
-- 选择"不投"：填写原因 → `skip` 记录（沉淀为历史相似记录）。
+- 报告页底部 `DecisionBar`：`投递` / `不投`；未提交即保持 analyzed，无需伪造“稍后”记录。
+- 选择"不投"：必须填写原因 → `skip` 记录。
 - 选择"投递"：仅标记 `apply`，投递产物属 M4。
-- API：ApplicationDecision 状态机（Planned，M3.9）。
-- 状态转换记录操作者、时间与报告版本；重复提交幂等。
+- API：`GET /reports/{id}/decision`、`POST /reports/{id}/decision`（Current）。未决定返回 `204`；创建使用 `Idempotency-Key`，相同语义重放返回既有记录，不同决定返回 `409`。
+- 状态转换固定报告、DecisionCase 与简历版本，并记录操作者、时间和原因；刷新时与报告并行恢复。
+- 边界：不生成 ResumeVariant、MessageDraft 或 PDF，不执行外部投递；历史 skip 提示如后续展示，只允许使用确定性标签交集，不依赖 RAG。
 
 ### 10.9 定制简历与 PDF（M4）
 
@@ -264,7 +265,7 @@ Nora 可预期错误使用稳定结构：
 | `profileStore` | 主档草稿与确认快照 | draft、confirmed snapshot、confirmationStatus |
 | `resumeStore` | 简历版本列表/详情 | versions、current |
 | `jobStore` | 岗位列表/详情/新建 | jobs、current、inputMode（text/ocr/link） |
-| `analysisStore` | DecisionCase 创建、同步结果与报告缓存 | currentCase、analysis、report、reports |
+| `analysisStore` | DecisionCase 创建、同步结果、报告与投不投决定缓存 | currentCase、analysis、report、reports、decision |
 
 规则：Store 只保存展示状态与缓存快照，不持有业务事实权威；页面刷新后从后端重新加载；跨页共享使用稳定 ID。
 
@@ -293,7 +294,7 @@ Nora 可预期错误使用稳定结构：
 | `ProfileForm` / `FieldGroup` | 主档分区与字段确认状态 | Current |
 | `ResumeVersionCard` | 简历版本卡片 | Current |
 | `ReportContent` / `RuleStatusBadge` | 报告分区、规则状态与字段引用 | Current |
-| `DecisionBar` | 投/不投 | M3 Planned |
+| `DecisionBar` | 固定报告版本的投/不投决定 | Current |
 | `ErrorState` / `LoadingState` / `EmptyState` | 通用状态 | M3 Planned |
 
 ## 14. 里程碑前端交付映射

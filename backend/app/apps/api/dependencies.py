@@ -11,6 +11,7 @@ from app.domain.base.exceptions import NoraError
 from app.domain.identity import User
 from app.infrastructure.auth import Argon2PasswordHasher, JwtTokenIssuer
 from app.infrastructure.database import (
+    SqlAlchemyApplicationDecisionRepository,
     SqlAlchemyAuditEventRepository,
     SqlAlchemyCandidateProfileRepository,
     SqlAlchemyDecisionCaseRepository,
@@ -24,6 +25,7 @@ from app.infrastructure.jd_fetch import JdFetchAdapter
 from app.infrastructure.jd_ocr import BaiduOcrEngine, JdOcrAdapter
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.decision import DecisionCaseRepository, DecisionReportRepository
+from app.ports.followup import ApplicationDecisionRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.jd_input import JdInputPort
 from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
@@ -121,6 +123,15 @@ def get_decision_report_repository(
     """组装当前认证用户范围内的 DecisionReport Repository。"""
 
     return SqlAlchemyDecisionReportRepository(session, user.id)
+
+
+def get_application_decision_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ApplicationDecisionRepository:
+    """组装当前认证用户范围内的 ApplicationDecision Repository。"""
+
+    return SqlAlchemyApplicationDecisionRepository(session, user.id)
 
 
 def get_jd_input_adapter() -> JdInputPort:

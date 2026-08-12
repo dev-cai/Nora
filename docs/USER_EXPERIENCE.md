@@ -53,7 +53,7 @@ Nora 不自动提交招聘网站表单、不自动发送消息，也不把模型
 | 主档与简历事实 | Current，既有 M2 基线 | 支持手工确认主档与发布不可变简历版本；不承诺 PDF/Word 自动解析 |
 | 结构化岗位要求、OCR 与受控链接 | Planned，M2 | 候选结果必须预览、修正并确认；原文与解释分离 |
 | 确定性决策报告 | Current，M3 | 浏览器可同步发起分析，分区呈现事实、规则、建议、未知和字段级引用；AI 增强未启用 |
-| 投递/不投递决定 | Planned，M3 | `ApplicationDecision` 固定引用报告版本 |
+| 投递/不投递决定 | Current，M3 | 报告页可记录 apply/skip；决定固定引用报告和简历版本，skip 原因必填，apply 不生成材料或执行外部写 |
 | 定制简历、模板、PDF 与手工投递记录 | Planned，M4 | 模板受限 Schema，产物版本化，外部写保持关闭 |
 | 最小面试通知 | Planned，M4 | 只含时间、地点、轮次、备注和用户隔离 |
 | Evidence 检索与可选 AI | Planned，M5 | 依赖 Source、Chunk、Embedding、评测和降级契约 |

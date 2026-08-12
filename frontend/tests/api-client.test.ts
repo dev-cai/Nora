@@ -85,6 +85,12 @@ describe("API client", () => {
     await api.generateDecisionReport("case/1")
     await api.listDecisionReports(2, 10)
     await api.getDecisionReport("report/1")
+    await api.getApplicationDecision("report/1")
+    await api.createApplicationDecision(
+      "report/1",
+      { status: "skip", reason: "地点不合适" },
+      "decision-key",
+    )
 
     expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
       ["/api/decisions", "POST"],
@@ -92,6 +98,10 @@ describe("API client", () => {
       ["/api/decisions/case%2F1/reports", "POST"],
       ["/api/reports?page=2&page_size=10", "GET"],
       ["/api/reports/report%2F1", "GET"],
+      ["/api/reports/report%2F1/decision", "GET"],
+      ["/api/reports/report%2F1/decision", "POST"],
     ])
+    const decisionHeaders = new Headers(fetchMock.mock.calls[6]?.[1]?.headers)
+    expect(decisionHeaders.get("Idempotency-Key")).toBe("decision-key")
   })
 })
