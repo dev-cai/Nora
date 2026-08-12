@@ -42,18 +42,10 @@ def upgrade() -> None:
         sa.Column("idempotency_key", sa.String(length=255), nullable=False),
         sa.Column("request_fingerprint", sa.String(length=64), nullable=False),
         sa.Column("decided_at", sa.DateTime(timezone=True), nullable=False),
-        sa.CheckConstraint(
-            "report_version >= 1", name="ck_application_decision_report_version"
-        ),
-        sa.CheckConstraint(
-            "resume_version >= 1", name="ck_application_decision_resume_version"
-        ),
-        sa.CheckConstraint(
-            "status IN ('apply', 'skip')", name="ck_application_decision_status"
-        ),
-        sa.CheckConstraint(
-            "actor_id = owner_id", name="ck_application_decision_actor_owner"
-        ),
+        sa.CheckConstraint("report_version >= 1", name="ck_application_decision_report_version"),
+        sa.CheckConstraint("resume_version >= 1", name="ck_application_decision_resume_version"),
+        sa.CheckConstraint("status IN ('apply', 'skip')", name="ck_application_decision_status"),
+        sa.CheckConstraint("actor_id = owner_id", name="ck_application_decision_actor_owner"),
         sa.CheckConstraint(
             "length(idempotency_key) BETWEEN 1 AND 255",
             name="ck_application_decision_key_length",
@@ -102,9 +94,7 @@ def upgrade() -> None:
             ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "owner_id", "report_id", name="uq_application_decision_owner_report"
-        ),
+        sa.UniqueConstraint("owner_id", "report_id", name="uq_application_decision_owner_report"),
         sa.UniqueConstraint(
             "owner_id", "idempotency_key", name="uq_application_decision_owner_key"
         ),
@@ -120,12 +110,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_application_decisions_owner_id", table_name="application_decisions")
     op.drop_table("application_decisions")
-    op.drop_constraint(
-        "uq_decision_case_resume_owner", "decision_cases", type_="unique"
-    )
-    op.drop_constraint(
-        "uq_decision_report_case_identity", "decision_reports", type_="unique"
-    )
-    op.drop_constraint(
-        "uq_decision_report_id_version_owner", "decision_reports", type_="unique"
-    )
+    op.drop_constraint("uq_decision_case_resume_owner", "decision_cases", type_="unique")
+    op.drop_constraint("uq_decision_report_case_identity", "decision_reports", type_="unique")
+    op.drop_constraint("uq_decision_report_id_version_owner", "decision_reports", type_="unique")

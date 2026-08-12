@@ -5,10 +5,7 @@ from pathlib import Path
 
 def test_application_decision_migration_declares_fixed_version_constraints() -> None:
     migration = (
-        Path(__file__).parents[2]
-        / "alembic"
-        / "versions"
-        / "0013_application_decisions.py"
+        Path(__file__).parents[2] / "alembic" / "versions" / "0013_application_decisions.py"
     ).read_text(encoding="utf-8")
 
     assert "uq_application_decision_owner_report" in migration

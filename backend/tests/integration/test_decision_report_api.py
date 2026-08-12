@@ -225,11 +225,14 @@ def test_decision_and_report_api_contract(database_url: str) -> None:
         assert client.get(f"/decisions/{case_id}", headers=auth_b).status_code == 404
         assert client.get(f"/reports/{report_id}", headers=auth_b).status_code == 404
         assert client.get(f"/reports/{report_id}/decision", headers=auth_b).status_code == 404
-        assert client.post(
-            f"/reports/{report_id}/decision",
-            headers={**auth_b, "Idempotency-Key": "decision-bob-1"},
-            json={"status": "apply", "reason": None},
-        ).status_code == 404
+        assert (
+            client.post(
+                f"/reports/{report_id}/decision",
+                headers={**auth_b, "Idempotency-Key": "decision-bob-1"},
+                json={"status": "apply", "reason": None},
+            ).status_code
+            == 404
+        )
         assert client.post(f"/decisions/{case_id}/reports", headers=auth_b).status_code == 404
 
         empty = client.get("/reports", headers=auth_b)

@@ -149,9 +149,7 @@ async def test_get_application_decision_hides_foreign_report() -> None:
     )
 
     with pytest.raises(ApplicationError) as error:
-        await use_case.execute(
-            GetApplicationDecisionQuery(owner_id=uuid4(), report_id=report.id)
-        )
+        await use_case.execute(GetApplicationDecisionQuery(owner_id=uuid4(), report_id=report.id))
     assert error.value.error_code == "entity_not_found"
 
 
@@ -199,9 +197,7 @@ class FakeAuditRepository:
         return event
 
 
-def _decision(
-    *, status: ApplicationDecisionStatus, reason: str | None
-) -> ApplicationDecision:
+def _decision(*, status: ApplicationDecisionStatus, reason: str | None) -> ApplicationDecision:
     return ApplicationDecision.create(
         owner_id=uuid4(),
         actor_id=uuid4(),

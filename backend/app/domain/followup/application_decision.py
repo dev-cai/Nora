@@ -167,9 +167,7 @@ def _reason(value: str | None, *, required: bool) -> str | None:
             raise DomainError("Skip reason is required", error_code="skip_reason_required")
         return None
     if len(normalized) > MAX_DECISION_REASON_LENGTH:
-        raise DomainError(
-            "Decision reason is too long", error_code="invalid_decision_reason"
-        )
+        raise DomainError("Decision reason is too long", error_code="invalid_decision_reason")
     return normalized
 
 

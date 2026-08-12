@@ -28,9 +28,7 @@ class ApplicationDecisionRecord(Base):
     __tablename__ = "application_decisions"
     __table_args__ = (
         UniqueConstraint("owner_id", "report_id", name="uq_application_decision_owner_report"),
-        UniqueConstraint(
-            "owner_id", "idempotency_key", name="uq_application_decision_owner_key"
-        ),
+        UniqueConstraint("owner_id", "idempotency_key", name="uq_application_decision_owner_key"),
         CheckConstraint("report_version >= 1", name="ck_application_decision_report_version"),
         CheckConstraint("resume_version >= 1", name="ck_application_decision_resume_version"),
         CheckConstraint("status IN ('apply', 'skip')", name="ck_application_decision_status"),
