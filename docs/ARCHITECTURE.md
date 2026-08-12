@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163。
 - 当前代码：M0/M1 与既有输入/Web 基线已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、Vue Web、前端 CI、JD 输入契约与基础浏览器 E2E。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -51,9 +51,10 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-007 | 模型访问 | Provider-neutral Model Gateway | M5 | Provider 由配置选择，不绑定未验证版本；M2-M4 无模型也可完成 |
 | D-008 | 异步任务 | Task Queue Port；候选 Adapter 为 Celery + Redis | M5 条件评估 | 仅在指标成立时引入；最终结果不保存在 Celery Result Backend |
 | D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | Current/M2 延伸 | 既有工作台已交付；新增输入确认由 M2 完成，始终通过公开 HTTP API |
-| D-010 | 对象存储 | Object Storage Port | M4 起 | 本地开发可用文件系统；投递产物和集成/部署可用 MinIO/S3 |
+| D-010 | 对象存储 | Object Storage Port + MinIO/S3 首个真实 Adapter | M4 起 | 开发、集成 CI 与 Beta 统一验证私有 MinIO；Application 不依赖具体 SDK |
 | D-011 | 工程组织 | 前后端分离；后端业务模块优先、模块内分层 | #59 / 后续 Task | `backend/app` 边界 Current；业务模块内聚渐进迁移 |
 | D-012 | 岗位要求所有权 | 独立 `JobRequirementSnapshot`（版本化、来源定位、确认状态） | M2 | `JobPosting` 只保存原文；结构化要求独立版本化；OCR/规则/LLM 抽取仅作候选，确认后才成为事实 |
+| D-013 | Artifact 与 Source 生命周期 | PostgreSQL 元数据事实源 + 私有对象存储字节 + 应用层补偿 | M4 | MinIO/S3 是首个真实 Adapter；逻辑删除先撤销访问，物理删除与孤儿清理由可重试任务完成 |
 
 ## 5. 系统上下文
 
@@ -131,7 +132,7 @@ flowchart TB
 | Application & Follow-up | 用户对机会的决定、投递产物和投递进度 | ApplicationDecision、ResumeVariant、MessageDraft、ApplicationRecord | 修改个人主档、自动发送外部消息或自动投递 |
 | Interview Journey | 面试计划、准备材料、题目、出行方案和复盘 | InterviewPlan、QuestionSet、TravelPlan、InterviewReview | 公司事实源和长期画像直接修改 |
 | Decision & Reporting | 汇总经校验的分析结果，生成版本化决策报告 | DecisionCase、Recommendation、DecisionReport | 原始抓取、任意模型调用和外部写执行 |
-| Knowledge & Evidence | 来源快照、文档版本、Chunk、Evidence、检索索引和记忆候选 | SourceDocument、Evidence、MemoryCandidate、RetrievalRecord | 直接决定业务状态或自动确认用户事实 |
+| Knowledge & Evidence | 来源快照、文档版本、Chunk、Evidence、检索索引和记忆候选 | SourceDocument、Artifact、Evidence、MemoryCandidate、RetrievalRecord | 直接决定业务状态或自动确认用户事实 |
 | Automation & Governance | Run、Task、Tool、Approval、Checkpoint、Audit 和幂等 | AgentRun、ProposedAction、Approval、ToolCall、AuditEvent | 拥有其他 Context 的业务聚合 |
 
 ### Career Profile 契约
@@ -322,6 +323,101 @@ flowchart LR
 | Agent Checkpoint | PostgreSQL Adapter | 可恢复编排状态 | 不包含密钥、大型正文和未版本化对象 |
 | 外部 API 响应 | Source Snapshot / Object Storage | 不可信输入快照 | 保存来源、查询、时间、摘要和许可信息 |
 
+### Artifact 与 Source 生命周期（D-013）
+
+#### 所有权与引用
+
+- `SourceDocument` 属于 Knowledge & Evidence Context，记录用户提供或受控采集材料的不可变来源版本、录入/许可方式、
+  获取时间、适用的原始发布时间和内容身份；其原始字节通过精确 `artifact_id`、`artifact_version` 引用 `Artifact`。
+- `Artifact` 也由 Knowledge & Evidence Context 管理，只描述不可变二进制的归属、版本、完整性和生命周期。生成 PDF
+  是 `Artifact`，不是外部 `SourceDocument`；它额外保存生成器和全部输入版本构成的生成身份。
+- Application & Follow-up、Career Profile 等业务 Context 拥有各自的业务对象和 Artifact 引用，只通过 ID、版本、DTO
+  或 Application Service 交互，不共享 ORM Model、Repository 或对象存储 SDK。
+- PostgreSQL 中的 Source/Artifact 元数据、生命周期和业务引用是唯一事实源；对象键、Bucket 或字节是否存在不能自行证明
+  Artifact 已发布。对象存储不得承载业务状态。
+
+每个 Artifact 元数据至少包含 `id`、`owner_id`、`version`、用途/类型、`content_type`、字节数、SHA-256、
+内部对象键、创建时间和生命周期状态。SourceDocument 固定引用 Artifact 精确版本；生成 Artifact 保存生成器版本及由业务输入版本
+构成的生成身份。SourceDocument 另保存来源类型、录入/许可方式、时间、定位信息和内容哈希。版本发布后不可原地覆盖；内容、来源
+或生成器变化必须产生新版本。
+
+#### 私有对象键与访问
+
+- 对象键只由服务端从 owner、Artifact ID、版本和随机标识生成；请求中的文件名、URL、路径或业务文本不能参与目录解析。
+- MinIO/S3 Bucket 保持私有。M4 的上传、读取、下载和删除默认通过认证 API 与 Application Use Case 完成，先校验 owner，
+  再访问 Storage Port；跨用户和不存在对象统一不可见。
+- API 使用仅限目标私有 Bucket 和必要动作的独立凭据；MinIO root 凭据只用于受控初始化，不能注入应用、进入响应或写入日志。
+- M4 不提供匿名 URL或长期签名 URL。后续确需预签名下载时，必须在签发前完成 owner 校验，只允许短时、单对象、只读 GET，
+  固定安全 `Content-Disposition`/`Content-Type`，且 URL 不进入日志、审计正文或客户端持久存储。
+- Adapter 必须限制允许的 content type 和大小、流式计算 size/SHA-256，并拒绝路径穿越、符号链接逃逸和任意本地文件读取。
+  用户文件名只可作为经过清理的下载展示名，不能成为对象键。
+
+M4 选择 Compose 已具备的 MinIO/S3 兼容服务作为开发、集成 CI 和 Beta 的首个真实 Adapter，因为它能覆盖私有 Bucket、
+流式读写、对象元数据、备份恢复和未来迁移到 S3 的接口边界。内存或临时文件 Adapter 只用于单元/契约测试，不能替代 #21 的
+真实集成验收；若保留本地文件系统 Adapter，其根目录约束和原子 rename 必须达到同等安全语义。M4 不要求同时交付 MinIO 与
+公有云 S3，也不在本决策中锁定具体 Python SDK。
+
+#### 发布、幂等与失败补偿
+
+跨 PostgreSQL 与对象存储不伪造原子事务，使用可观察、可重试的状态机：
+
+```text
+pending -> available -> delete_pending -> deleted
+   |                 |
+   v                 v
+ failed           delete_failed（仍不可访问）
+   |                 |
+   +--> pending      +--> delete_pending
+```
+
+1. Application Use Case 先以 owner 范围的幂等键/生成身份创建 `pending` 元数据并提交；相同身份重放返回同一记录，
+   相同幂等键但不同内容返回稳定冲突。
+2. Adapter 将字节写入同一 Artifact 的临时对象，流式核对 size、content type 和 SHA-256，再通过同 Bucket copy/delete 或
+   同文件系统原子 rename 发布到服务端生成的最终键。
+3. 只有最终对象验证成功且 PostgreSQL 将记录更新为 `available` 后，调用方才得到成功。任何 `pending`、`failed`、孤儿对象或
+   仅存在于 Bucket 的字节都不可读取、引用或报告为成功。
+4. 对象写入失败时记录可重试失败；对象成功但数据库发布失败时，由重试按同一身份协调，或由孤儿扫描在安全窗口后清理。
+   并发发布依靠 owner + 幂等/生成身份唯一约束和显式版本冲突，不静默覆盖。
+5. 审计记录创建、发布、下载、导出、删除请求、物理删除和补偿结果，只保存 actor、动作、目标 ID/版本、结果、时间及
+   request/trace ID，不保存字节、对象键、签名 URL、文件正文或来源正文。
+
+补偿、孤儿扫描和物理删除必须实现为可重复运行的 Application 维护用例，可由管理命令或部署调度周期调用；M4 不因此依赖
+Redis、Celery 或 Worker。只有 M5 的真实时延、吞吐或故障隔离指标满足条件并经过独立决策后，才可把同一用例接到任务队列。
+
+#### 导出、保留与删除
+
+- M4 的可用 Source/Artifact 不设置静默的时间自动过期；它们随业务对象保留，直到用户显式删除、父业务对象按已审查策略删除，
+  或后续政策明确到期。临时对象、失败上传和无元数据引用的孤儿必须由 #21/#138 配置有界清理窗口并提供清单与审计。
+- 用户导出通过认证调用路径生成元数据清单并流式读取其仍可见的原始字节；导出不暴露 Bucket、对象键、存储凭据或其他用户数据。
+- 删除先在 PostgreSQL 中原子转为 `delete_pending`，立即阻止新读取、下载、派生和业务引用；随后异步物理删除字节及可重建派生物，
+  成功后转为 `deleted`。失败保持不可访问并安全重试，不能因对象仍存在而恢复可见性。
+- 已被 DecisionReport、ResumeVariant、ApplicationRecord 或 EvidencePack 引用的对象删除后，历史业务记录继续存在，但只显示
+  `artifact_id`/`source_id`、版本和已删除状态；正文、下载和派生内容不可访问。物理删除后仅保留满足引用完整性和审计所需的
+  owner 范围墓碑（ID、版本、类型、删除状态/时间与审计关联），不保留对象键、文件名、URL、正文或可恢复字节。
+- M4 不提供 Legal Hold。若法规或组织场景需要阻止用户删除，必须通过新的 Security/Architecture Review，明确授权主体、期限、
+  通知和审计后才能引入。
+- 备份中的已删除字节只保留到 #138 定义的备份到期；删除台账必须随数据库备份，恢复后不得把 `delete_pending`/`deleted` 对象
+  重新发布为可用。
+
+#### 备份恢复与 M5 继承
+
+- #138 必须使用暂停写入或等价的一致性屏障，生成 PostgreSQL 备份、对象快照/副本及 `available` Artifact 清单；清单包含
+  ID、版本、对象身份、size 和 SHA-256，但不作为 PostgreSQL 之外的第二事实源。
+- 恢复后逐项核对数据库引用与对象哈希：缺失或损坏对象标为不可用并使 readiness/恢复验收失败；无有效元数据的对象进入隔离
+  清单，不能自动发布；已删除对象继续删除。RPO/RTO 和备份保留期由 #138 在真实演练中记录。
+- M5 的 Chunk、Embedding 和索引必须固定 Source ID/版本/content hash，视为可重建派生数据。Source 不可见或删除后禁止新派生，
+  既有派生立即不可查询并进入清理流程。
+- EvidencePack 和增强报告可保留不可变结论及墓碑引用，但 Source 删除后不得继续暴露摘录、原文或可反向恢复的派生内容；
+  重建与恢复流程必须继承相同的 owner、版本和删除台账。
+
+| 代表场景 | 必须得到的结果 | 后续验收责任 |
+| :--- | :--- | :--- |
+| 用户上传来源 | owner 范围 `pending` 经哈希验证后才变为 `available`，下载不暴露对象键 | #21 |
+| ResumeVariant 生成 PDF | 相同生成身份幂等；对象或数据库任一步失败都不产生成功 Artifact | #92 |
+| 对象已写、数据库发布失败 | 重试协调同一 Artifact；超出安全窗口的无主对象进入隔离/清理清单 | #21、#138 |
+| 用户删除被历史对象引用的 Source/Artifact | 立即不可下载和派生；历史对象只保留墓碑引用，物理删除失败可重试 | #21、#23、#81 |
+| PostgreSQL 与 MinIO 联合恢复 | 逐项核对 owner、版本、size、SHA-256 和删除台账；缺失/损坏对象不恢复为可用 | #138 |
+
 ### 向量数据库演进
 
 M5 在 Embedding 模型、版本、维度和归一化契约确定后计划使用 pgvector，避免在领域尚未稳定时维护额外分布式组件。
@@ -442,7 +538,8 @@ stateDiagram-v2
 
 - 日志不记录简历正文、面试回答全文、Token、Cookie、签名 URL 和完整 Prompt。
 - 使用 request/trace/run/tool ID 关联事件，敏感字段脱敏。
-- 数据导出、删除、保留期和长期记忆确认规则必须由独立 Security/Architecture Issue 定义。
+- Artifact/Source 的导出、删除、保留和历史引用遵循 D-013；其他个人数据与长期记忆仍须由适用的独立
+  Security/Architecture Issue 定义。
 
 ### 供应链
 
@@ -696,7 +793,7 @@ M5 条件: Client → API → Redis/Task Queue → Worker → PostgreSQL / Objec
 - 数据库 Schema 演进和迁移工具；
 - 第三方身份 Provider、Session/OAuth 和生产身份联邦；
 - Celery Broker、重试、取消和可靠事件发布；
-- Object Storage 与用户数据删除策略；
+- Artifact 之外其他用户数据的导出、保留与删除策略；
 - BGE-M3 部署方式、Reranker 和检索 Benchmark；
 - Milvus 引入阈值与迁移方案；
 - Model Gateway Provider、Prompt 版本和成本预算；
