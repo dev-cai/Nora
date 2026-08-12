@@ -167,7 +167,23 @@ flowchart TB
 
 - OCR、规则或 LLM 输出只作为候选，经用户确认后才成为确定性规则事实；
 - `DecisionCase` 固定引用 `job_requirement_snapshot_id` 与版本，不能只引用「当前岗位要求」；
-- 数据所有权、Schema 与迁移由后续实现 Issue 在本决策之上落地。
+- 数据所有权、Schema 与迁移必须继续遵守下述 DecisionCase 输入契约。
+
+### DecisionCase 输入契约
+
+`DecisionCase` 是 Decision & Reporting 上下文拥有的不可变分析输入关系。创建时固定以下引用，源对象后续产生新版本不得重写历史案例：
+
+| 输入 | 固定字段 | 不变量 |
+| :--- | :--- | :--- |
+| 岗位原文 | `job_posting_id`、`job_posting_version` | 必须是当前用户可见的精确版本 |
+| 岗位要求 | `job_requirement_snapshot_id`、快照版本 | 必须属于所选岗位及岗位版本 |
+| 用户主档 | `candidate_profile_id`、主档版本 | 必须是当前用户可见的精确版本 |
+| 简历事实 | `resume_version_id`、简历版本 | 必须由所选主档版本发布 |
+| 规则 | `rule_set_version` | 规范化后参与输入指纹，不隐式使用“最新规则” |
+
+创建用例先按用户范围解析全部对象；对象不存在、属于其他用户或版本不匹配均返回统一不可见语义，不泄露跨用户存在性。规范化输入生成确定性 SHA-256 指纹，同一用户和同一输入指纹只创建一个案例并支持幂等重放。
+
+持久化层用包含 `owner_id` 的复合外键约束四类输入，并限制版本为正数。状态只允许 `created`、`completed`、`failed`：终态必须记录完成时间，失败态还必须同时记录稳定失败码与信息。公开创建/读取路由、HTTP Schema 和错误映射由 #75 拥有；规则执行与报告生成分别由 #73、#74 拥有。
 
 ### 主档、简历与岗位输出关系
 
@@ -435,7 +451,7 @@ Issue #59 已将后端工程迁移至 `backend/`：Python 应用包为 `backend/
 Compose、Docker 配置和协作治理文件。
 
 当前后端采用技术层 + 业务子模块的过渡形态：`application/`、`domain/`、`ports/` 下按业务上下文（`career`、
-`identity`、`opportunity`、`governance`）组织子模块，`apps/api/` 承载路由与 composition。该形态是模块化蓝图
+`decision`、`identity`、`opportunity`、`governance`）组织子模块，`apps/api/` 承载路由与 composition。该形态是模块化蓝图
 的渐进迁移中间态，以确保目录迁移不改变业务行为：
 
 ```text
@@ -443,6 +459,7 @@ backend/
 ├── app/
 │   ├── application/          # Use Case 编排（按业务子模块）
 │   │   ├── career/
+│   │   ├── decision/
 │   │   ├── identity/
 │   │   └── opportunity/
 │   ├── apps/
@@ -450,6 +467,7 @@ backend/
 │   ├── domain/               # 领域对象与规则（按业务子模块）
 │   │   ├── base/
 │   │   ├── career/
+│   │   ├── decision/
 │   │   ├── governance/
 │   │   ├── identity/
 │   │   └── opportunity/
@@ -460,6 +478,7 @@ backend/
 │   │   └── logging/
 │   └── ports/                # Repository 与 Gateway Protocol
 │       ├── career.py
+│       ├── decision.py
 │       ├── governance.py
 │       ├── identity.py
 │       ├── jd_input.py

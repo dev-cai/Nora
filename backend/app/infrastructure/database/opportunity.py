@@ -38,6 +38,7 @@ class JobPostingRecord(Base, AuditMixin, OwnedByUserMixin):
 
     __tablename__ = "job_postings"
     __table_args__ = (
+        UniqueConstraint("id", "version", "owner_id", name="uq_job_posting_id_version_owner"),
         CheckConstraint("length(trim(jd_text)) > 0", name="ck_job_postings_jd_text_nonempty"),
         CheckConstraint("length(jd_text) <= 100000", name="ck_job_postings_jd_text_max_length"),
         CheckConstraint("source_type IN ('manual', 'url')", name="ck_job_postings_source_type"),
@@ -222,6 +223,12 @@ class JobRequirementSnapshotRecord(Base):
             "job_posting_id",
             "version",
             name="uq_job_requirement_owner_posting_version",
+        ),
+        UniqueConstraint(
+            "snapshot_id",
+            "version",
+            "owner_id",
+            name="uq_job_requirement_snapshot_id_version_owner",
         ),
         CheckConstraint("version >= 1", name="ck_job_requirement_version_positive"),
         CheckConstraint(

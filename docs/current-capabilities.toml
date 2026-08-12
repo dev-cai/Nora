@@ -116,12 +116,17 @@ id = "jd-input-contract"
 name = "JD 输入安全契约"
 milestone = "M2"
 status = "current"
-summary = "已定义文本、OCR 和 URL 输入的 Port/DTO 与安全边界；OCR、HTTP 抓取和上传路由尚未实现。"
+summary = "定义文本、OCR 和 URL 输入共享的 Port/DTO 与安全边界；具体 OCR 和受控抓取实现由对应 Current 条目记录。"
 code_paths = [
   "backend/app/ports/jd_input.py",
+  "backend/app/apps/api/routes/job_inputs.py",
   "docs/JD_INPUT_SECURITY.md",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/106"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/106",
+  "https://github.com/dev-cai/Nora/pull/147",
+  "https://github.com/dev-cai/Nora/pull/148",
+]
 
 [[capabilities]]
 id = "quality-gates"
@@ -180,6 +185,21 @@ evidence = [
   "https://github.com/dev-cai/Nora/pull/146",
   "https://github.com/dev-cai/Nora/pull/150",
 ]
+
+[[capabilities]]
+id = "decision-cases"
+name = "不可变决策案例输入"
+milestone = "M3"
+status = "current"
+summary = "支持固定岗位、岗位要求、主档、简历和规则集版本的 DecisionCase，提供用户范围校验、确定性输入指纹、幂等创建、生命周期终态持久化与历史输入稳定性；不包含公开 HTTP 路由、规则执行或报告生成。"
+code_paths = [
+  "backend/app/domain/decision/decision_case.py",
+  "backend/app/application/decision/service.py",
+  "backend/app/ports/decision.py",
+  "backend/app/infrastructure/database/decision.py",
+  "backend/alembic/versions/0011_decision_cases.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/154"]
 
 [[capabilities]]
 id = "jd-url-fetch"

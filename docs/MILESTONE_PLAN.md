@@ -68,15 +68,7 @@ Reranker、Redis 和 Worker 的评估结论可以是不引入。未达阈值时�
 
 ## 3. 当前基线
 
-默认分支已经具备的能力由 [`current-capabilities.toml`](current-capabilities.toml) 证明。与本计划直接相关的边界是：
-
-- JobPosting 目前保存标题、公司、地点和 JD 原文，没有结构化岗位要求；
-- CandidateProfile 和 ResumeVersion 已存在；
-- Vue 工作台已支持认证、岗位、主档和简历；
-- JD 输入 Port/DTO 与安全契约已存在；
-- OCR Adapter、受控抓取 Adapter、JobRequirementSnapshot、DecisionCase 和报告尚未实现。
-
-本节只帮助理解依赖，不替代 Current 台账。
+默认分支已经具备的能力、代码路径与合并证据只由 [`current-capabilities.toml`](current-capabilities.toml) 证明，本计划不再复制容易过期的 Current 清单。执行某项工作前必须同时核对 Current 台账、GitHub Milestone、关联 Issue 和已合并依赖；路线图中的目标描述不等于已交付能力。
 
 ## 4. 总览与关键路径
 
@@ -627,17 +619,15 @@ Issue #141 只交付决策，不实现 Schema。
 
 ## 9. 公开 API 规划矩阵
 
-| API | 状态 | 目标 |
-| :--- | :--- | :--- |
-| Auth、JobPosting、CandidateProfile、ResumeVersion | Current | 保持兼容，证据见 Current 台账 |
-| JobRequirementSnapshot API | 缺失 | M2，Architecture #135 后确定 |
-| OCR/URL 预览确认 API | 缺失 | M2，#136/#137 |
-| DecisionCase API | 缺失 | M3，公开路由由 #75 所有 |
-| DecisionReport API | 缺失 | M3，#74/#75 |
-| ApplicationDecision API | 缺失 | M3，#80 |
-| ResumeVariant/Template/PDF/MessageDraft | 缺失 | M4 |
-| ApplicationRecord/InterviewCase | 缺失 | M4 |
-| Source/Chunk/Evidence/增强报告 | 缺失 | M5，仅在需要用户入口时公开 |
+| API 契约 | 交付归属 |
+| :--- | :--- |
+| M0-M2 输入 API | 当前状态、代码路径与证据只查 Current 台账 |
+| DecisionCase API | M3，公开路由由 #75 所有 |
+| DecisionReport API | M3，#74/#75 |
+| ApplicationDecision API | M3，#80 |
+| ResumeVariant/Template/PDF/MessageDraft | M4 |
+| ApplicationRecord/InterviewCase | M4 |
+| Source/Chunk/Evidence/增强报告 | M5，仅在需要用户入口时公开 |
 
 所有列表接口必须定义分页、排序和空集合。跨用户对象统一返回 404。
 

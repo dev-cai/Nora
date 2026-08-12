@@ -612,7 +612,5 @@ docker compose up --build
 
 ## 当前边界
 
-当前已提供 M0 工程与容器基线、Identity 本地账号认证、不可变 JobPosting、CandidateProfile、ResumeVersion、Vue 工作台、
-JD 输入安全契约及全量质量和浏览器门禁。逐项代码路径与合并证据以
-[`current-capabilities.toml`](current-capabilities.toml) 为准。审计查询 API、OCR/链接抓取执行、OAuth、邮箱验证、密码重置、
-角色权限、RAG、Agent、Celery 和生产部署尚不可用；不要把路线图内容当作当前能力。
+本指南只说明开发和运行方法，不维护功能完成清单。当前可运行能力、逐项代码路径与合并证据只以
+[`current-capabilities.toml`](current-capabilities.toml) 为准；不要把本指南或路线图中的目标、示例和环境骨架当作当前能力。

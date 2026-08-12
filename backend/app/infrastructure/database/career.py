@@ -34,6 +34,12 @@ class CandidateProfileRecord(Base):
     __table_args__ = (
         UniqueConstraint("owner_id", "version", name="uq_candidate_profile_owner_version"),
         UniqueConstraint("profile_id", "version", name="uq_candidate_profile_id_version"),
+        UniqueConstraint(
+            "profile_id",
+            "version",
+            "owner_id",
+            name="uq_candidate_profile_id_version_owner",
+        ),
         CheckConstraint("version >= 1", name="ck_candidate_profile_version_positive"),
     )
 
@@ -131,6 +137,7 @@ class ResumeVersionRecord(Base):
     __tablename__ = "resume_versions"
     __table_args__ = (
         UniqueConstraint("owner_id", "version", name="uq_resume_version_owner_version"),
+        UniqueConstraint("id", "version", "owner_id", name="uq_resume_version_id_version_owner"),
         CheckConstraint("version >= 1", name="ck_resume_version_version_positive"),
         CheckConstraint("profile_version >= 1", name="ck_resume_version_profile_positive"),
         CheckConstraint("length(trim(title)) > 0", name="ck_resume_version_title_nonempty"),
