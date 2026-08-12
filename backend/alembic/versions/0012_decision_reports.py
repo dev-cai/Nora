@@ -13,9 +13,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.create_unique_constraint(
-        "uq_decision_case_id_owner", "decision_cases", ["id", "owner_id"]
-    )
+    op.create_unique_constraint("uq_decision_case_id_owner", "decision_cases", ["id", "owner_id"])
     op.create_table(
         "decision_reports",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -35,9 +33,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "decision_case_id", "version", name="uq_decision_report_case_version"
-        ),
+        sa.UniqueConstraint("decision_case_id", "version", name="uq_decision_report_case_version"),
         sa.UniqueConstraint(
             "owner_id",
             "decision_case_id",
@@ -46,9 +42,7 @@ def upgrade() -> None:
             name="uq_decision_report_generation",
         ),
     )
-    op.create_index(
-        "ix_decision_reports_owner_id", "decision_reports", ["owner_id"], unique=False
-    )
+    op.create_index("ix_decision_reports_owner_id", "decision_reports", ["owner_id"], unique=False)
 
 
 def downgrade() -> None:
