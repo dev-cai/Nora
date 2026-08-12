@@ -133,7 +133,7 @@ id = "quality-gates"
 name = "全量质量与浏览器门禁"
 milestone = "M0-M3"
 status = "current"
-summary = "PR 和 main push 运行后端质量/测试、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备与 M3 固定版本分析、报告刷新恢复、apply/skip 决定和双用户读写隔离；运行后清理容器、网络与数据卷。"
+summary = "PR 和 main push 运行后端质量/测试、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备与 M3 固定版本分析、报告刷新和原用户重新登录恢复、apply/skip 决定及双用户读写隔离；运行后清理容器、网络与数据卷。"
 code_paths = [
   ".github/workflows/pr-conventions.yml",
   ".github/workflows/frontend-ci.yml",

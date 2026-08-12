@@ -22,6 +22,14 @@ async function registerAndLogin(page: Page, user: User): Promise<void> {
   await expect(page).toHaveURL(/\/$/)
 }
 
+async function login(page: Page, user: User): Promise<void> {
+  await page.goto("/login")
+  await page.getByLabel("用户名").fill(user.username)
+  await page.getByLabel("密码", { exact: true }).fill(user.password)
+  await page.getByRole("button", { name: "登录" }).click()
+  await expect(page).toHaveURL(/\/$/)
+}
+
 async function prepareProfileAndResume(page: Page): Promise<void> {
   await page.goto("/profile")
   await page.getByLabel("姓名").fill("M3 决策用户")
@@ -61,7 +69,7 @@ async function prepareJobRequirements(page: Page): Promise<string> {
   return jobId
 }
 
-test("M3 决策闭环：真实 Compose 主流程、刷新恢复、决定与双用户隔离", async ({ page }) => {
+test("M3 决策闭环：真实 Compose 主流程、刷新与重新登录恢复、双用户隔离", async ({ page }) => {
   const userA = newUser("m3-a")
   await registerAndLogin(page, userA)
   await prepareProfileAndResume(page)
@@ -111,4 +119,22 @@ test("M3 决策闭环：真实 Compose 主流程、刷新恢复、决定与双�
     data: { status: "apply", reason: null },
   })
   expect(foreignWrite.status()).toBe(404)
+
+  await page.getByRole("button", { name: "退出登录" }).click()
+  await login(page, userA)
+
+  await page.goto(`/analysis/${caseId}`)
+  await expect(page.getByRole("heading", { name: "确定性规则已执行" })).toBeVisible()
+  await expect(page.getByText(`案例 ${caseId}`, { exact: false })).toBeVisible()
+  const restoredRuleResults = page.getByRole("region", { name: "规则分析结果" })
+  await expect(restoredRuleResults.getByText("满足", { exact: true }).first()).toBeVisible()
+  await expect(restoredRuleResults.getByText("未知", { exact: true }).first()).toBeVisible()
+  await expect(restoredRuleResults.getByText(/用户主档 v\d+/).first()).toBeVisible()
+  await expect(restoredRuleResults.getByText(/岗位要求 v\d+/).first()).toBeVisible()
+
+  await page.goto(`/reports/${reportId}`)
+  await expect(page.getByRole("heading", { name: "报告 v1" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "暂不投递" })).toBeVisible()
+  await expect(page.getByText("关键岗位要求尚未确认")).toBeVisible()
+  await expect(page.getByText("报告 v1 · 简历 v1", { exact: false })).toBeVisible()
 })
