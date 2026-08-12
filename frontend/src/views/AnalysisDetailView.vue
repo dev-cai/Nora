@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import { ArrowLeft, FileText, RefreshCw, ShieldCheck } from "lucide-vue-next"
 import { useRoute, useRouter } from "vue-router"
 
@@ -44,7 +44,7 @@ async function generateReport(): Promise<void> {
   }
 }
 
-onMounted(load)
+watch(caseId, () => void load(), { immediate: true })
 </script>
 
 <template>

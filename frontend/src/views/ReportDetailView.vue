@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { computed, ref, watch } from "vue"
 import { ArrowLeft, RefreshCw, ShieldCheck } from "lucide-vue-next"
 import { useRoute } from "vue-router"
 
@@ -12,17 +12,18 @@ import { useAnalysisStore } from "@/stores/analysis"
 const route = useRoute()
 const store = useAnalysisStore()
 const error = ref("")
+const reportId = computed(() => String(route.params.id))
 
 async function load(): Promise<void> {
   error.value = ""
   try {
-    await store.fetchReport(String(route.params.id))
+    await store.fetchReport(reportId.value)
   } catch (reason) {
     error.value = userMessage(reason)
   }
 }
 
-onMounted(load)
+watch(reportId, () => void load(), { immediate: true })
 </script>
 
 <template>
