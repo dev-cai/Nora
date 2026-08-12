@@ -392,10 +392,17 @@ analyzed -> skip
 
 - M3 已关闭；
 - apply/skip 和确定性报告契约稳定；
-- Artifact 数据所有权通过适用 Architecture Review；
+- Artifact/Source 数据所有权通过 #163 Architecture Review；
+- 公司情报与决策报告版本边界通过 #164 Architecture Review；
 - 外部写继续关闭。
 
-### 7.2 Artifact 与 Source 基础（#21）
+### 7.2 Architecture 门禁（#163、#164）
+
+- #163 固定 Artifact/Source 所有权、跨存储一致性、访问、保留、删除、恢复和 M5 继承规则；
+- #164 固定公司情报与 M3 DecisionCase/DecisionReport 的版本关系；
+- 两项只交付决策，不提前实现 Schema、Adapter、API 或业务页面。
+
+### 7.3 Artifact 与 Source 基础（#21）
 
 - 元数据、版本和归属存 PostgreSQL；
 - 二进制存一种真实 Artifact Adapter；
@@ -403,7 +410,7 @@ analyzed -> skip
 - 定义保留、删除和审计；
 - 不要求同时交付文件系统和 MinIO 两套生产实现。
 
-### 7.3 公司情报最小化（#79）
+### 7.4 公司情报最小化（#79）
 
 - 公司规模和行业；
 - 来源和获取/发布时间；
@@ -412,7 +419,7 @@ analyzed -> skip
 - 缺失、冲突或过期明确 unknown；
 - 不做全网自动采集和聚合风险分数。
 
-### 7.4 ResumeVariant 与模板（#91）
+### 7.5 ResumeVariant 与模板（#91）
 
 - 声明式不可变 TemplateDefinition；
 - 不执行任意 Python、JavaScript、Jinja 或活动 HTML；
@@ -420,7 +427,7 @@ analyzed -> skip
 - 历史变体不因模板升级重算；
 - 字段选择和排序可解释。
 
-### 7.5 确定性 PDF（#92）
+### 7.6 确定性 PDF（#92）
 
 - 固定渲染器、字体和易变元数据；
 - 记录输入、模板和生成器版本；
@@ -428,7 +435,7 @@ analyzed -> skip
 - 不允许模板访问未批准网络资源；
 - 字节级确定性只在锁定环境内验收。
 
-### 7.6 确定性 MessageDraft（#93）
+### 7.7 确定性 MessageDraft（#93）
 
 - professional/concise/referral 等有限风格；
 - 可编辑纯文本；
@@ -436,7 +443,7 @@ analyzed -> skip
 - 无 LLM 时可生成；
 - 用户手工复制，不自动发送。
 
-### 7.7 ApplicationRecord（#94）
+### 7.8 ApplicationRecord（#94）
 
 建议状态：
 
@@ -449,14 +456,14 @@ planned -> withdrawn
 
 状态由用户确认，具有操作者、时间、幂等和审计。不确定的外部结果不得自动标成功。
 
-### 7.8 最小 InterviewCase（#140）
+### 7.9 最小 InterviewCase（#140）
 
 - 时间、地点、轮次、备注；
 - 与 ApplicationRecord interviewing 状态衔接；
 - 用户隔离、幂等和审计；
 - 不包含面试准备、复盘、TravelPlan 或长期记忆。
 
-### 7.9 可观测与 Beta 运行基线（#87、#138）
+### 7.10 可观测与 Beta 运行基线（#87、#138）
 
 - 在既有日志/request/trace ID 上增加延迟、吞吐和错误率指标；
 - Secret Scan、依赖审查和 SBOM；
@@ -467,7 +474,12 @@ planned -> withdrawn
 - Token、Cookie、简历正文、PDF 和完整 Prompt 脱敏；
 - 基础保留和删除说明。
 
-### 7.10 M4 E2E
+### 7.11 Jenkins CD（#153）
+
+Issue #153 是 M4 可部署 Beta 的必需自动部署门禁，而不是 GitHub Actions PR CI 的替代品；它在 #138 固定部署、Secret、健康与回滚
+契约后，负责从固定 Commit/镜像部署 Beta、验证镜像/SBOM 追溯、执行冒烟并在失败时安全停止或回滚。
+
+### 7.12 M4 E2E（#165）
 
 至少覆盖：
 
@@ -480,9 +492,11 @@ planned -> withdrawn
 7. 可选记录 InterviewCase；
 8. 刷新恢复和双用户隔离。
 
-### 7.11 M4 退出条件
+### 7.13 M4 退出条件
 
-- [ ] #21、#79、#87、#91-#94、#138、#140 全部交付；
+- [ ] #163、#164 Architecture 门禁已完成；
+- [ ] #21、#79、#87、#91-#94、#138、#140、#153 全部交付；
+- [ ] #165 真实 Compose/Object Storage 浏览器 E2E 已交付；
 - [ ] 无模型环境可完成投递材料和记录流程；
 - [ ] Artifact、模板和用户数据安全边界通过；
 - [ ] 部署、安全和恢复门禁通过；
