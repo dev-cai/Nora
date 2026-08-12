@@ -18,6 +18,19 @@ const ruleLabels: Record<string, string> = {
   "location_work_mode.compatibility": "地点与工作方式",
   "degree.minimum": "学历要求",
 }
+const fieldLabels: Record<string, string> = {
+  required_skills: "岗位技能要求",
+  "skills[*].name": "候选人技能",
+  minimum_experience_years: "岗位最低经验年限",
+  "experiences[*].start_date": "经历开始日期",
+  "experiences[*].end_date": "经历结束日期",
+  location_requirement: "岗位地点要求",
+  work_mode: "岗位工作方式",
+  "preferences.target_locations": "目标地点偏好",
+  "preferences.accepts_remote": "远程工作偏好",
+  degree_requirement: "岗位学历要求",
+  "education[*].degree": "候选人学历",
+}
 
 function citations(ids: string[]): ReportCitation[] {
   return ids.flatMap((id) => {
@@ -28,6 +41,11 @@ function citations(ids: string[]): ReportCitation[] {
 
 function citationLabel(citation: ReportCitation): string {
   return `${sourceLabels[citation.source]} v${citation.version} · ${citation.field_path}`
+}
+
+function factLabel(label: string): string {
+  const fieldPath = label.split(".").slice(1).join(".")
+  return fieldLabels[fieldPath] || label
 }
 </script>
 
@@ -61,7 +79,7 @@ function citationLabel(citation: ReportCitation): string {
         :key="fact.fact_id"
         class="report-item"
       >
-        <strong>{{ fact.label }}</strong>
+        <strong>{{ factLabel(fact.label) }}</strong>
         <div class="citation-list">
           <span
             v-for="citation in citations(fact.citation_ids)"
