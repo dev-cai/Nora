@@ -238,7 +238,7 @@ code_paths = [
   "backend/app/infrastructure/database/decision.py",
   "backend/alembic/versions/0012_decision_reports.py",
 ]
-evidence = []
+evidence = ["https://github.com/dev-cai/Nora/pull/156"]
 
 [[capabilities]]
 id = "jd-image-ocr"
