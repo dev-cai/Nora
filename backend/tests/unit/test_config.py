@@ -53,3 +53,13 @@ def test_auth_configuration_rejects_weak_secret_and_invalid_lifetime() -> None:
 def test_settings_reject_non_postgresql_database_url() -> None:
     with pytest.raises(ValidationError, match=r"DATABASE_URL must use postgresql\+asyncpg"):
         Settings(database_url="sqlite:///nora.db", _env_file=None)
+
+
+def test_artifact_storage_configuration_is_private_and_bounded() -> None:
+    settings = Settings(_env_file=None)
+    assert settings.artifact_storage_endpoint == "storage:9000"
+    assert "application/pdf" in settings.allowed_artifact_content_types
+    with pytest.raises(ValidationError, match="host:port"):
+        Settings(artifact_storage_endpoint="http://storage:9000", _env_file=None)
+    with pytest.raises(ValidationError, match="bucket"):
+        Settings(artifact_storage_bucket="Invalid/Bucket", _env_file=None)

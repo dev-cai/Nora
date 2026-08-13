@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/Vue%203-0d1117?style=flat-square&labelColor=0d1117&logo=vuedotjs&logoColor=22d3ee&color=22d3ee" alt="Vue 3">
   <img src="https://img.shields.io/badge/PostgreSQL%2016-0d1117?style=flat-square&labelColor=0d1117&logo=postgresql&logoColor=22d3ee&color=22d3ee" alt="PostgreSQL 16">
   <img src="https://img.shields.io/badge/Docker-0d1117?style=flat-square&labelColor=0d1117&logo=docker&logoColor=22d3ee&color=22d3ee" alt="Docker">
-  <img src="https://img.shields.io/badge/Status-M0~M2%20done%20%7C%20M3-22d3ee?style=flat-square&labelColor=0d1117&color=4ade80" alt="M0–M2 已完成，M3 进行中">
+  <img src="https://img.shields.io/badge/Status-M0~M3%20done%20%7C%20M4-22d3ee?style=flat-square&labelColor=0d1117&color=4ade80" alt="M0–M3 已完成，M4 进行中">
 </p>
 
 ---
@@ -48,7 +48,7 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 
 ## 技术架构
 
-当前可运行的边界（Redis / MinIO 为骨架，尚未进入业务路径）：
+当前可运行的边界（Redis 仍为条件组件；MinIO 已进入 Artifact/Source 路径）：
 
 ```text
    [ Vue 3 工作台 :5173 ]
@@ -58,7 +58,8 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
         │
         ├──────────────►  PostgreSQL 16   ← 业务事实唯一
         │
-        └─ ─ ─ ─ ─ ─ ─►  Redis · MinIO   ← 骨架 · 未接入业务路径
+        ├──────────────►  私有 MinIO      ← Artifact/Source 原始字节
+        └─ ─ ─ ─ ─ ─ ─►  Redis           ← 条件组件 · 未接入业务路径
 ```
 
 | 层 | 技术选型 |
@@ -78,8 +79,8 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 | **M0** | 工程骨架 · CI 门禁 · Docker Compose | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
 | **M1** | 本地认证 · 岗位快照 · 幂等 · 审计 | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
 | **M2** | 可确认的岗位要求 · OCR/链接输入 · 分析就绪 E2E | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
-| **M3** | 确定性决策报告 · apply/skip（无模型密钥可运行） | ![进行中](https://img.shields.io/badge/-building-22d3ee?style=flat-square&labelColor=0d1117) |
-| **M4** | 定制材料 · 手工投递/面试记录 · 可部署 Beta | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
+| **M3** | 确定性决策报告 · apply/skip（无模型密钥可运行） | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
+| **M4** | 定制材料 · 手工投递/面试记录 · 可部署 Beta | ![进行中](https://img.shields.io/badge/-building-22d3ee?style=flat-square&labelColor=0d1117) |
 | **M5** | Evidence · 检索 · 可选 AI 与指标触发的规模化 | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
 
 > 规划状态以 GitHub Milestone 与 [`docs/ROADMAP.md`](docs/ROADMAP.md) 为准；当前可运行能力、代码路径与合并证据只见 [`docs/current-capabilities.toml`](docs/current-capabilities.toml)，不要从路线图反推已交付能力。

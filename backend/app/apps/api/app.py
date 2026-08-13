@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.apps.api.routes.artifacts import router as artifacts_router
 from app.apps.api.routes.auth import router as auth_router
 from app.apps.api.routes.decisions import decision_router, report_router
 from app.apps.api.routes.job_inputs import router as job_inputs_router
@@ -63,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="Nora API", lifespan=lifespan)
     app.include_router(auth_router)
+    app.include_router(artifacts_router)
     app.include_router(decision_router)
     app.include_router(report_router)
     app.include_router(job_inputs_router)
@@ -136,6 +138,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "fetch_failed": 502,
             "ocr_failed": 502,
             "fetch_timeout": 504,
+            "artifact_conflict": 409,
+            "source_conflict": 409,
+            "artifact_state_conflict": 409,
+            "artifact_storage_unavailable": 503,
+            "artifact_delete_failed": 503,
+            "artifact_corrupt": 503,
+            "artifact_too_large": 413,
+            "unsupported_artifact_type": 415,
         }.get(exc.error_code, 400)
         headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
         return JSONResponse(status_code=status_code, content=exc.to_dict(), headers=headers)

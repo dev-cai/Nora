@@ -54,6 +54,15 @@ class Settings(BaseSettings):
     baidu_ocr_api_key: str = ""
     baidu_ocr_secret_key: str = ""
     baidu_ocr_endpoint: str = "accurate_basic"
+    artifact_storage_endpoint: str = "storage:9000"
+    artifact_storage_access_key: str = "nora-app"
+    artifact_storage_secret_key: str = Field(default="development-artifact-secret", min_length=16)
+    artifact_storage_bucket: str = "nora-artifacts"
+    artifact_storage_secure: bool = False
+    artifact_max_size_bytes: int = Field(default=10 * 1024 * 1024, ge=1, le=100 * 1024 * 1024)
+    artifact_allowed_content_types: str = (
+        "image/png,image/jpeg,application/pdf,text/plain,text/html"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -71,7 +80,24 @@ class Settings(BaseSettings):
 
         if self.env is not Environment.DEV and self.auth_secret_key == DEFAULT_AUTH_SECRET_KEY:
             raise ValueError("AUTH_SECRET_KEY must be changed outside the dev environment")
+        if "://" in self.artifact_storage_endpoint or "/" in self.artifact_storage_endpoint:
+            raise ValueError("ARTIFACT_STORAGE_ENDPOINT must be host:port without scheme or path")
+        bucket = self.artifact_storage_bucket
+        if not (3 <= len(bucket) <= 63) or bucket.lower() != bucket or ".." in bucket:
+            raise ValueError(
+                "ARTIFACT_STORAGE_BUCKET must be a valid lowercase private bucket name"
+            )
+        if not self.allowed_artifact_content_types:
+            raise ValueError("ARTIFACT_ALLOWED_CONTENT_TYPES must not be empty")
         return self
+
+    @property
+    def allowed_artifact_content_types(self) -> frozenset[str]:
+        return frozenset(
+            item.strip().lower()
+            for item in self.artifact_allowed_content_types.split(",")
+            if item.strip()
+        )
 
 
 @lru_cache(maxsize=1)

@@ -384,6 +384,10 @@ pending -> available -> delete_pending -> deleted
 补偿、孤儿扫描和物理删除必须实现为可重复运行的 Application 维护用例，可由管理命令或部署调度周期调用；M4 不因此依赖
 Redis、Celery 或 Worker。只有 M5 的真实时延、吞吐或故障隔离指标满足条件并经过独立决策后，才可把同一用例接到任务队列。
 
+本 Issue 按该状态机交付 `ArtifactService`、PostgreSQL Repository、私有 MinIO Adapter 与认证 API。上传使用服务端生成的临时键，
+校验后复制到最终键；孤儿扫描按 owner 前缀执行，只有受控维护调用可显式处理全局 `.pending` 临时对象。该实现不包含 #92 的
+PDF 生成，也不替代 #138 的联合备份恢复演练。
+
 #### 导出、保留与删除
 
 - M4 的可用 Source/Artifact 不设置静默的时间自动过期；它们随业务对象保留，直到用户显式删除、父业务对象按已审查策略删除，
@@ -720,7 +724,7 @@ M3: Vue Web     → API → PostgreSQL（确定性报告）
 M4: Vue Web     → API → PostgreSQL / Object Storage（投递材料与记录）
 ```
 
-- M0 的 Docker Compose 可提供 API、PostgreSQL 以及 Redis/MinIO 骨架，但 M1-M4 业务路径不依赖 Redis/Celery。
+- Docker Compose 提供 API、PostgreSQL、私有 MinIO 和 Redis；M4 Artifact/Source 使用 MinIO，Redis/Celery 仍不进入业务路径。
 - 只发布 API 端口，数据库和其他基础设施保持内部可见。
 - M3 的最小 Demo 不配置 Model Provider，不依赖 pgvector、Embedding、Reranker 或 LLM。
 
