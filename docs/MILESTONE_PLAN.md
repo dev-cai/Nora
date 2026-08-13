@@ -125,6 +125,8 @@ flowchart TD
 
 ### 5.2 M2-A：JobRequirementSnapshot 决策（#135）
 
+状态：已交付并随 M2 关闭。
+
 主要交付物：岗位结构化要求的所有权和版本边界。
 
 必须决定：
@@ -146,13 +148,13 @@ flowchart TD
 
 退出：
 
-- [ ] Architecture Review 通过；
-- [ ] 决策、取舍和拒绝方案可追溯；
-- [ ] 后续实现不得静默改变所有权。
+- [x] Architecture Review 通过；
+- [x] 决策、取舍和拒绝方案可追溯；
+- [x] 后续实现未静默改变所有权。
 
 ### 5.3 M2-B：JobRequirementSnapshot 纵向实现
 
-此 Task 在 #135 合并后创建或通过独立无 Issue PR 交付，不提前锁定字段实现。
+状态：已交付并随 M2 关闭；实现遵循 #135，不在本计划重复 Current 证据。
 
 主要交付物：
 
@@ -173,6 +175,8 @@ flowchart TD
 
 ### 5.4 M2-C：岗位要求确认页面
 
+状态：已交付并随 M2 关闭。
+
 主要交付物：用户通过浏览器确认结构化岗位要求。
 
 范围：
@@ -189,7 +193,7 @@ flowchart TD
 
 ### 5.5 M2-D：截图 OCR 输入（#136）
 
-状态：等待 #135，当前应为 blocked。
+状态：已交付并随 M2 关闭；浏览器截图入口未纳入该 Issue。
 
 主要路径：
 
@@ -213,7 +217,7 @@ upload
 
 ### 5.6 M2-E：链接受控抓取（#137）
 
-状态：等待 #135，当前应为 blocked。
+状态：已交付并随 M2 关闭；浏览器链接入口未纳入该 Issue。
 
 主要路径：
 
@@ -243,24 +247,23 @@ URL
 1. 注册并登录；
 2. 创建主档和简历；
 3. 粘贴 JD 并确认结构化岗位要求；
-4. 通过截图获得可编辑预览；
-5. 通过受控链接获得可编辑预览；
-6. 修改岗位要求产生新版本；
-7. 刷新后恢复；
-8. 第二个用户不可访问；
-9. 清理隔离环境。
+4. 修改岗位要求产生新版本；
+5. 刷新后恢复；
+6. 第二个用户不可访问；
+7. 清理隔离环境。
 
-外部 OCR/网页不可稳定访问时，CI 使用受控契约服务器或固定本地 Adapter；不能把 Fake 单元测试冒充完整 E2E。
+截图 OCR 与受控链接预览的浏览器入口不属于 #151；其公开 API 由 #136/#137 的受控 Adapter 集成测试覆盖。
+不能把 Fake 单元测试冒充浏览器 E2E 或真实 Adapter 集成证据。
 
 ### 5.8 M2 退出条件
 
-- [ ] #135 已完成；
-- [ ] JobRequirementSnapshot 实现和确认页面进入真实调用路径；
-- [ ] #136、#137 已交付；
-- [ ] 安全与用户隔离测试通过；
-- [ ] 浏览器 E2E 通过；
-- [ ] 无模型环境可完成全部流程；
-- [ ] Current 台账只在能力合并后更新。
+- [x] #135 已完成；
+- [x] JobRequirementSnapshot 实现和确认页面进入真实调用路径；
+- [x] #136、#137 已交付；
+- [x] 安全与用户隔离测试通过；
+- [x] 浏览器 E2E 通过；
+- [x] 无模型环境可完成全部流程；
+- [x] Current 台账只在能力合并后更新。
 
 ## 6. M3：确定性求职决策 MVP
 
@@ -379,12 +382,14 @@ analyzed -> skip
 
 ### 6.9 M3 退出条件
 
-- [ ] #24、#73-#77、#80 全部交付；
-- [ ] 无模型、无向量扩展时主流程通过；
-- [ ] 报告和决定可恢复；
-- [ ] 规则与输入版本可追溯；
-- [ ] API、集成和浏览器门禁通过；
-- [ ] 当前能力台账同步真实合并结果。
+- [x] #24、#73-#77、#80 全部交付；
+- [x] 无模型、无向量扩展时主流程通过；
+- [x] 报告和决定可恢复；
+- [x] 规则与输入版本可追溯；
+- [x] API、集成和浏览器门禁通过；
+- [x] 当前能力台账同步真实合并结果。
+
+M3 已于 2026-08-12 完成退出核验并关闭；Current 代码路径和 PR 证据只见能力台账。
 
 ## 7. M4：可部署的投递闭环 Beta
 
@@ -396,13 +401,16 @@ analyzed -> skip
 - 公司情报与决策报告版本边界通过 #164 Architecture Review；
 - 外部写继续关闭。
 
-### 7.2 Architecture 门禁（#163、#164）
+### 7.2 Architecture 与文档门禁（M4.1、M4.2、M4.4、M4.7、M4.14）
 
-- #163 固定 Artifact/Source 所有权、跨存储一致性、访问、保留、删除、恢复和 M5 继承规则；
-- #164 固定公司情报与 M3 DecisionCase/DecisionReport 的版本关系；
-- 两项只交付决策，不提前实现 Schema、Adapter、API 或业务页面。
+- M4.1 #163 已固定 Artifact/Source 所有权、跨存储一致性、访问、保留、删除、恢复和 M5 继承规则；
+- M4.2 #167 同步 M3 封版事实和 M4/M5 静态 Issue 映射；
+- M4.4 #164 固定公司情报与 M3 DecisionCase/DecisionReport 的版本关系；
+- M4.7 #171 固定 Beta 部署目标、网络、TLS、Secret 和发布边界；
+- M4.14 #174 固定注册、认证、会话、CORS、滥用防护和密钥轮换边界；
+- Architecture 项只交付决策，不提前实现 Schema、Adapter、API 或业务页面。
 
-### 7.3 Artifact 与 Source 基础（#21）
+### 7.3 Artifact 与 Source 基础（M4.3 #21）
 
 - 元数据、版本和归属存 PostgreSQL；
 - 二进制存一种真实 Artifact Adapter；
@@ -410,7 +418,7 @@ analyzed -> skip
 - 定义保留、删除和审计；
 - 不要求同时交付文件系统和 MinIO 两套生产实现。
 
-### 7.4 公司情报最小化（#79）
+### 7.4 公司情报最小化（M4.8 #79、M4.9 #169）
 
 - 公司规模和行业；
 - 来源和获取/发布时间；
@@ -419,7 +427,7 @@ analyzed -> skip
 - 缺失、冲突或过期明确 unknown；
 - 不做全网自动采集和聚合风险分数。
 
-### 7.5 ResumeVariant 与模板（#91）
+### 7.5 ResumeVariant 与模板（M4.5 #91）
 
 - 声明式不可变 TemplateDefinition；
 - 不执行任意 Python、JavaScript、Jinja 或活动 HTML；
@@ -427,7 +435,7 @@ analyzed -> skip
 - 历史变体不因模板升级重算；
 - 字段选择和排序可解释。
 
-### 7.6 确定性 PDF（#92）
+### 7.6 确定性 PDF（M4.10 #92）
 
 - 固定渲染器、字体和易变元数据；
 - 记录输入、模板和生成器版本；
@@ -435,7 +443,7 @@ analyzed -> skip
 - 不允许模板访问未批准网络资源；
 - 字节级确定性只在锁定环境内验收。
 
-### 7.7 确定性 MessageDraft（#93）
+### 7.7 确定性 MessageDraft（M4.11 #93）
 
 - professional/concise/referral 等有限风格；
 - 可编辑纯文本；
@@ -443,7 +451,7 @@ analyzed -> skip
 - 无 LLM 时可生成；
 - 用户手工复制，不自动发送。
 
-### 7.8 ApplicationRecord（#94）
+### 7.8 ApplicationRecord（M4.12 #94）
 
 建议状态：
 
@@ -456,14 +464,14 @@ planned -> withdrawn
 
 状态由用户确认，具有操作者、时间、幂等和审计。不确定的外部结果不得自动标成功。
 
-### 7.9 最小 InterviewCase（#140）
+### 7.9 最小 InterviewCase（M4.13 #140）
 
 - 时间、地点、轮次、备注；
 - 与 ApplicationRecord interviewing 状态衔接；
 - 用户隔离、幂等和审计；
 - 不包含面试准备、复盘、TravelPlan 或长期记忆。
 
-### 7.10 可观测与 Beta 运行基线（#87、#138）
+### 7.10 可观测与 Beta 运行基线（M4.6 #87、M4.16 #138）
 
 - 在既有日志/request/trace ID 上增加延迟、吞吐和错误率指标；
 - Secret Scan、依赖审查和 SBOM；
@@ -474,12 +482,14 @@ planned -> withdrawn
 - Token、Cookie、简历正文、PDF 和完整 Prompt 脱敏；
 - 基础保留和删除说明。
 
-### 7.11 Jenkins CD（#153）
+### 7.11 Beta 认证安全（M4.15 #175）与 Jenkins CD（M4.17 #153）
+
+M4.15 按 M4.14 决策落地受控开户、登录滥用防护、生产 CORS allowlist、可信代理、JWT 轮换和安全可观测契约。
 
 Issue #153 是 M4 可部署 Beta 的必需自动部署门禁，而不是 GitHub Actions PR CI 的替代品；它在 #138 固定部署、Secret、健康与回滚
 契约后，负责从固定 Commit/镜像部署 Beta、验证镜像/SBOM 追溯、执行冒烟并在失败时安全停止或回滚。
 
-### 7.12 M4 E2E（#165）
+### 7.12 M4 E2E（M4.18 #165）
 
 至少覆盖：
 
@@ -491,12 +501,13 @@ Issue #153 是 M4 可部署 Beta 的必需自动部署门禁，而不是 GitHub 
 6. 记录 ApplicationRecord；
 7. 可选记录 InterviewCase；
 8. 刷新恢复和双用户隔离。
+9. 受控开户/注册、登录、会话失效、退出与未授权 Origin 拒绝。
 
 ### 7.13 M4 退出条件
 
-- [ ] #163、#164 Architecture 门禁已完成；
-- [ ] #21、#79、#87、#91-#94、#138、#140、#153 全部交付；
-- [ ] #165 真实 Compose/Object Storage 浏览器 E2E 已交付；
+- [ ] M4.1、M4.4、M4.7、M4.14 Architecture 门禁已完成；
+- [ ] M4.3-M4.17 的强制实现与运行项全部交付；
+- [ ] M4.18 真实 Compose/Object Storage 浏览器 E2E 已交付；
 - [ ] 无模型环境可完成投递材料和记录流程；
 - [ ] Artifact、模板和用户数据安全边界通过；
 - [ ] 部署、安全和恢复门禁通过；
@@ -512,15 +523,13 @@ Issue #153 是 M4 可部署 Beta 的必需自动部署门禁，而不是 GitHub 
 - 已定义检索问题、Ground Truth 和质量指标；
 - Provider、密钥、许可、成本和失败策略通过 Architecture Review。
 
-### 8.2 Chunk（#81）
+### 8.2 Provider 与评测门禁（M5.1 #166、M5.2 #172）
 
-- 引用 Source 版本；
-- 稳定 locator、序号和字符偏移；
-- chunker version；
-- 可从 Source 重建；
-- 不在同一 Task 引入 Embedding。
+- Provider 用途、凭据、数据发送、许可、保留、区域、成本与退出条件先通过审查；
+- 检索问题、脱敏 fixture、Ground Truth、质量/安全/延迟/成本阈值在实现前冻结；
+- 后续实现不得为通过门禁而静默修改评测版本或阈值。
 
-### 8.3 Embedding 决策（#141）
+### 8.3 Embedding 决策（M5.3 #141）
 
 先决定：
 
@@ -533,9 +542,25 @@ Issue #153 是 M4 可部署 Beta 的必需自动部署门禁，而不是 GitHub 
 
 Issue #141 只交付决策，不实现 Schema。
 
-### 8.4 pgvector（#22）
+### 8.4 pgvector 决策（M5.4 #168）
 
-在 #141 后决定：
+- 固定 Embedding 身份、列、约束、距离函数和查询运算符；
+- 依据冻结评测决定精确扫描、HNSW、IVFFlat 或暂不建立 ANN 索引；
+- 固定模型升级、双版本、回填、切换、回滚和重建边界。
+
+### 8.5 Chunk（M5.5 #81）与 Model Gateway（M5.6 #85）
+
+- 引用 Source 版本；
+- 稳定 locator、序号和字符偏移；
+- chunker version；
+- 可从 Source 重建；
+- 不在同一 Task 引入 Embedding。
+
+Model Gateway 保持 Provider-neutral，定义 Prompt/Schema、限流、用量、失败分类与确定性降级，不直接写领域事实。
+
+### 8.6 pgvector 实现（M5.7 #22）
+
+严格按 M5.4 #168 的决策实现：
 
 - PostgreSQL 镜像/扩展；
 - vector 列维度；
@@ -546,7 +571,7 @@ Issue #141 只交付决策，不实现 Schema。
 
 不引入 Milvus。
 
-### 8.5 Embedding Adapter（#82）
+### 8.7 Embedding Adapter（M5.8 #82）
 
 - 实现 #141 契约；
 - 批量、超时、重试、用量和错误分类；
@@ -554,7 +579,7 @@ Issue #141 只交付决策，不实现 Schema。
 - 写入 #22 已确认 Schema；
 - 不把向量作为事实。
 
-### 8.6 混合检索（#83）
+### 8.8 混合检索（M5.9 #83）
 
 - PostgreSQL 关键词检索；
 - pgvector 相似检索；
@@ -564,7 +589,7 @@ Issue #141 只交付决策，不实现 Schema。
 - Recall/Precision/MRR/nDCG 中适用指标；
 - 延迟和成本基线。
 
-### 8.7 Evidence Pack（#23）
+### 8.9 Evidence Pack（M5.10 #23）
 
 - 不可变；
 - source ID/version/locator；
@@ -573,17 +598,7 @@ Issue #141 只交付决策，不实现 Schema。
 - 可供报告引用；
 - 无 Reranker/LLM 时成立。
 
-### 8.8 Model Gateway（#85）
-
-- Provider-neutral；
-- Prompt 版本；
-- 输入/输出 Schema；
-- 超时、重试、限流、用量和错误分类；
-- 密钥和敏感输入脱敏；
-- Provider 不可用时降级；
-- 不直接写领域事实。
-
-### 8.9 LLM 报告增强（#25）
+### 8.10 LLM 报告增强（M5.11 #25）
 
 - 只读取版本化事实、规则和 Evidence Pack；
 - 输出区分 fact/rule/llm_inferred/suggestion/unknown/citation；
@@ -592,11 +607,11 @@ Issue #141 只交付决策，不实现 Schema。
 - Provider 失败返回确定性报告；
 - 增强版本不覆盖历史。
 
-### 8.10 条件 Reranker（#84）
+### 8.11 条件 Reranker（M5.12 #84）
 
 只有固定评测集证明 Top-K 未达阈值且预计收益高于成本/延迟时引入。验收必须比较前后指标；否则以“不引入”结论关闭。
 
-### 8.11 性能和容量基线（#139）
+### 8.12 性能和容量基线（M5.13 #139）
 
 - 接口延迟、吞吐和热点；
 - 检索延迟；
@@ -605,11 +620,9 @@ Issue #141 只交付决策，不实现 Schema。
 - 可复验脚本和 fixture；
 - 为 #27/#28 提供触发证据。
 
-### 8.12 条件 Redis（#27）
+### 8.13 条件 Redis（M5.14 #27）与 Worker（M5.15 #28）
 
 只有高频热点、限流或用户可感知延迟证据成立时引入。缓存带 TTL、可重建，不保存事实，不可用时明确降级。
-
-### 8.13 条件 Worker（#28）
 
 只有长任务、跨进程重试、取消、并发控制或故障隔离需求成立时引入。
 
@@ -621,24 +634,25 @@ Issue #141 只交付决策，不实现 Schema。
 - 最终事实写 PostgreSQL；
 - 不使用 Result Backend 保存最终业务结果。
 
-### 8.14 M5 退出条件
+### 8.14 M5 E2E 与退出条件（M5.16 #170）
 
-- [ ] #81、#141、#22、#82、#83、#23、#85、#25 已交付；
+- [ ] M5.1-M5.11 强制决策与实现项已交付；
 - [ ] 检索质量、成本和延迟可复验；
 - [ ] Evidence 引用稳定；
 - [ ] Provider 不可用时 M3/M4 完整可用；
 - [ ] Reranker、Redis 和 Worker 已交付或形成不引入结论；
 - [ ] 用户隔离、重建和删除行为通过；
 - [ ] 部署、安全、备份和数据保留门禁继续通过。
+- [ ] M5.16 浏览器 E2E 覆盖 Evidence 与增强报告、恢复、隔离和降级。
 
 ## 9. 公开 API 规划矩阵
 
 | API 契约 | 交付归属 |
 | :--- | :--- |
 | M0-M2 输入 API | 当前状态、代码路径与证据只查 Current 台账 |
-| DecisionCase API | M3，公开路由由 #75 所有 |
-| DecisionReport API | M3，#74/#75 |
-| ApplicationDecision API | M3，#80 |
+| DecisionCase API | Current，M3；公开路由由 #75 所有 |
+| DecisionReport API | Current，M3；#74/#75 |
+| ApplicationDecision API | Current，M3；#80 |
 | ResumeVariant/Template/PDF/MessageDraft | M4 |
 | ApplicationRecord/InterviewCase | M4 |
 | Source/Chunk/Evidence/增强报告 | M5，仅在需要用户入口时公开 |
@@ -693,7 +707,7 @@ Issue #141 只交付决策，不实现 Schema。
 - #29 拆为 #138 部署/安全/恢复和 #139 性能/容量；
 - #95 拆出 #140 最小 InterviewCase；
 - #141 修正 Embedding 决策与 pgvector Schema 的依赖顺序；
-- #136/#137 等待 #135，状态为 blocked；
+- #135-#137 已交付并随 M2 关闭；
 - #91-#94 是 M4 核心能力，优先级为 p1。
 
 后续 Issue 创建仍遵循：

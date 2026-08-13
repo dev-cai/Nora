@@ -6,7 +6,7 @@
 ## 1. 状态
 
 - 技术选择：Vue 3 + Vite 独立 Web 客户端。
-- 交付阶段：既有 Web 基线已交付；重新开放的 M2 补齐分析就绪输入，M3-M5 依次扩展决策、投递和 Evidence 页面。
+- 交付阶段：M2 分析就绪输入与 M3 确定性决策页面已交付；M4-M5 依次扩展投递和 Evidence 页面。
 - 实现状态：Current 基线已包含 `frontend/`、Node 依赖、Web 容器与前端 CI；新增页面仍按 Planned 标注。
 - 替代方案：不采用 Gradio；不维护 Gradio 与 Vue 两套客户端。
 
@@ -123,7 +123,7 @@ Nora 可预期错误使用稳定结构：
 
 > 本章把已确认的业务流程（[`BUSINESS_FLOW.md`](BUSINESS_FLOW.md)）与里程碑计划
 > （[`MILESTONE_PLAN.md`](MILESTONE_PLAN.md)）翻译为 Vue 前端的页面、路由、状态、组件与 API
-> 映射。目标用户为软件工程专业应届生（以校招为主）。本章均为 **Planned/设计**，不代表已实现。
+> 映射。目标用户为软件工程专业应届生（以校招为主）。各表以 `Current` 和 `Planned` 明确区分默认分支已有能力与目标设计。
 
 ## 8. 用户旅程 → 页面映射
 
@@ -132,12 +132,13 @@ Nora 可预期错误使用稳定结构：
 | 注册 / 登录 | `/register`、`/login` | Current |
 | 主档建立（基本信息/项目/经历/教育/技能/偏好） | `/profile` | Current |
 | 发布简历版本 | `/resumes`、`/resumes/new` | Current |
-| JD 输入（文本/截图/链接）与岗位要求确认 | `/jobs/new`、`/jobs/:id/requirements` | M2（要求确认已交付） |
+| JD 文本输入与岗位要求确认 | `/jobs/new`、`/jobs/:id/requirements` | Current，M2 |
+| JD 截图/链接预览 | `/jobs/new` 目标入口 | API Current；浏览器入口 Planned |
 | 岗位列表与详情 | `/jobs`、`/jobs/:id` | Current |
-| 发起适配分析 | `/analysis/new` | M3 |
-| 查看分析进度 | `/analysis/:id` | M3 |
-| 决策报告（匹配/差距/未知/建议/公司情报） | `/reports/:id` | M3 |
-| 投/不投决定 | 报告页内 `DecisionBar` | M3 |
+| 发起适配分析 | `/analysis/new` | Current，M3 |
+| 查看同步分析结果 | `/analysis/:id` | Current，M3 |
+| 决策报告（匹配/差距/未知/建议） | `/reports/:id` | Current，M3；公司情报 Planned，M4 |
+| 投/不投决定 | 报告页内 `DecisionBar` | Current，M3 |
 | 定制简历（选模板）与 PDF | `/templates`、`/resumes/:id/customize` | M4 |
 | 打招呼语草稿 | `/messages/:id` | M4 |
 | 投递与最小面试通知 | `/applications`、`/interviews` | M4 |
@@ -152,7 +153,7 @@ Nora 可预期错误使用稳定结构：
 /login                      登录〔Current〕
 /register                   注册〔Current〕
 /                           工作台概览〔Current〕
-/jobs/new                   文本岗位输入〔Current〕；截图/链接预览〔M2 Planned〕
+/jobs/new                   文本岗位输入〔Current〕；截图/链接预览入口〔Planned〕
 /jobs                       岗位列表〔Current〕
 /jobs/:id                   岗位详情〔Current〕
 /jobs/:id/requirements      岗位要求确认与版本历史〔Current〕
@@ -164,7 +165,6 @@ Nora 可预期错误使用稳定结构：
 /analysis/:id               同步分析结果 / 失败重试〔Current〕
 /reports                    报告历史列表（分页）〔Current〕
 /reports/:id                确定性报告详情〔Current〕
-/decisions                  投递决定记录（skip/apply）〔M3 Planned〕
 /templates                  模板管理〔M4 Planned〕
 /resumes/:id/customize      定制简历〔M4 Planned〕
 /messages/:id               打招呼语草稿〔M4 Planned〕
@@ -202,11 +202,11 @@ Nora 可预期错误使用稳定结构：
 ### 10.4 岗位输入与要求确认（M2）
 
 - 文本模式：JD 正文 textarea + 标题/公司/地点结构化字段。
-- 截图模式（M2 Planned）：图片上传（大小/格式限制）→ OCR 结果预览可编辑 → 用户确认保存。
-- 链接模式（M2 Planned）：URL 输入 → 受控抓取预览 → 用户确认保存；失败展示稳定错误码（如 `fetch_failed`）。
-- 岗位要求（M2 Planned）：原始 `JobPosting` 与 `JobRequirementSnapshot` 分开显示；用户补充、修正和确认后创建新版本。
-- API：既有 `POST /job-postings` 保持兼容；截图、链接与岗位要求端点由 #135-#137 后续契约定义。
-- 组件：`FileUpload`（校验类型/大小/超时）、`OCRPreview`、`LinkFetchPreview`。
+- 截图模式（API Current，浏览器 Planned）：图片上传（大小/格式限制）→ OCR 结果预览可编辑 → 用户确认保存。
+- 链接模式（API Current，浏览器 Planned）：URL 输入 → 受控抓取预览 → 用户确认保存；失败展示稳定错误码（如 `fetch_failed`）。
+- 岗位要求（Current）：原始 `JobPosting` 与 `JobRequirementSnapshot` 分开显示；用户补充、修正和确认后创建新版本。
+- API：`POST /job-postings/image`、`POST /job-postings/fetch` 与岗位要求端点均为 Current；`POST /job-postings` 保持兼容。
+- 组件：`FileUpload`、`OCRPreview`、`LinkFetchPreview` 仍为 Planned；当前 `JobCreateView` 只接线文本模式。
 
 ### 10.5 岗位列表 / 详情（Current）
 
@@ -289,13 +289,15 @@ Nora 可预期错误使用稳定结构：
 | :--- | :--- | :--- |
 | `AppShell` | 布局、导航、认证态 | Current |
 | `AuthForm` | 注册/登录表单 | Current |
-| `JobForm` / `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 三模式输入 | Current 文本 / M2 Planned 增强 |
+| `JobForm` | JD 文本输入 | Current |
+| `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 截图/链接预览 | Planned |
 | `RequirementEditor` / `ConfirmationBadge` | 岗位要求确认与版本历史（`JobRequirementsView`） | Current |
 | `ProfileForm` / `FieldGroup` | 主档分区与字段确认状态 | Current |
 | `ResumeVersionCard` | 简历版本卡片 | Current |
 | `ReportContent` / `RuleStatusBadge` | 报告分区、规则状态与字段引用 | Current |
 | `DecisionBar` | 固定报告版本的投/不投决定 | Current |
-| `ErrorState` / `LoadingState` / `EmptyState` | 通用状态 | M3 Planned |
+| `AppErrorBoundary` | 顶层渲染错误边界 | Current |
+| `ErrorState` / `LoadingState` / `EmptyState` | 可复用通用状态组件 | Planned；当前页面内联处理 |
 
 ## 14. 里程碑前端交付映射
 
