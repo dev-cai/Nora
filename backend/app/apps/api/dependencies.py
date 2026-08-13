@@ -12,6 +12,7 @@ from app.domain.identity import User
 from app.infrastructure.auth import Argon2PasswordHasher, JwtTokenIssuer
 from app.infrastructure.database import (
     SqlAlchemyApplicationDecisionRepository,
+    SqlAlchemyArtifactRepository,
     SqlAlchemyAuditEventRepository,
     SqlAlchemyCandidateProfileRepository,
     SqlAlchemyDecisionCaseRepository,
@@ -19,15 +20,18 @@ from app.infrastructure.database import (
     SqlAlchemyJobPostingRepository,
     SqlAlchemyJobRequirementSnapshotRepository,
     SqlAlchemyResumeVersionRepository,
+    SqlAlchemySourceDocumentRepository,
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.jd_fetch import JdFetchAdapter
 from app.infrastructure.jd_ocr import BaiduOcrEngine, JdOcrAdapter
+from app.infrastructure.object_storage import create_minio_storage
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.decision import DecisionCaseRepository, DecisionReportRepository
 from app.ports.followup import ApplicationDecisionRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.jd_input import JdInputPort
+from app.ports.knowledge import ArtifactRepository, ArtifactStorage, SourceDocumentRepository
 from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -160,3 +164,28 @@ def get_audit_event_repository(
     """组装与业务写入共享事务的只追加审计 Repository。"""
 
     return SqlAlchemyAuditEventRepository(session)
+
+
+def get_artifact_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ArtifactRepository:
+    return SqlAlchemyArtifactRepository(session, user.id)
+
+
+def get_source_document_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> SourceDocumentRepository:
+    return SqlAlchemySourceDocumentRepository(session, user.id)
+
+
+def get_artifact_storage(request: Request) -> ArtifactStorage:
+    settings = request.app.state.settings
+    return create_minio_storage(
+        endpoint=settings.artifact_storage_endpoint,
+        access_key=settings.artifact_storage_access_key,
+        secret_key=settings.artifact_storage_secret_key,
+        bucket=settings.artifact_storage_bucket,
+        secure=settings.artifact_storage_secure,
+    )

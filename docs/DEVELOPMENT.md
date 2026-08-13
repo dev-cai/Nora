@@ -96,7 +96,8 @@ Compose 会启动：
 - `api`：FastAPI API，监听 `localhost:8000`
 - `db`：PostgreSQL 16
 - `redis`：Redis 7 骨架；M5 仅在性能、重试或故障隔离指标成立时评估进入业务路径
-- `storage`：MinIO 骨架，后续对象存储能力按 Issue 交付
+- `storage`：私有 MinIO，对象字节只通过认证后的 Artifact API 访问
+- `storage-init`：一次性创建私有 Bucket、最小权限 Policy 和应用账户，成功后 API 才启动
 
 另开一个 WSL 终端验证：
 
@@ -144,10 +145,15 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `POSTGRES_DB` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 数据库名称，不是宿主地址 |
 | `POSTGRES_PORT` | `5432` | 仅 Compose 宿主端口；映射到 `db:5432` | 容器间连接始终使用固定端口 `5432` |
 | `REDIS_PORT` | `6379` | 仅 Compose 宿主端口；映射到 `redis:6379` | Redis 当前只是骨架，不进入应用 Settings |
-| `STORAGE_PORT` | `9000` | 仅 Compose 宿主 S3 API 端口；映射到 `storage:9000` | MinIO 当前只是骨架，不进入应用 Settings |
+| `STORAGE_PORT` | `9000` | 仅 Compose 宿主 S3 API 端口；映射到 `storage:9000` | 仅用于开发调试；浏览器和前端不得直连 |
 | `STORAGE_CONSOLE_PORT` | `9001` | 仅 Compose 宿主控制台端口；映射到 `storage:9001` | 不应暴露到不可信网络 |
 | `MINIO_ROOT_USER` | `minioadmin` | Compose 只注入 `storage` 容器 | 公开值仅限本地，生产环境必须替换 |
 | `MINIO_ROOT_PASSWORD` | `change-me-local` | Compose 只注入 `storage` 容器 | 公开值仅限本地，真实值不得提交 |
+| `ARTIFACT_STORAGE_ACCESS_KEY` | `nora-app` | `storage-init` 创建并注入 API | 仅有目标私有 Bucket 的读写删权限，不是 root 凭据 |
+| `ARTIFACT_STORAGE_SECRET_KEY` | `development-artifact-secret` | `storage-init` 与 API | 公开值仅限本地；非开发环境必须通过 Secret 管理注入 |
+| `ARTIFACT_STORAGE_BUCKET` | `nora-artifacts` | `storage-init` 与 API / Settings | Bucket 保持私有，不提供匿名或长期签名 URL |
+| `ARTIFACT_STORAGE_ENDPOINT` | Compose 固定 `storage:9000`；模板为 `localhost:9000` | API / Settings | 使用 `host:port`，不得包含 scheme 或路径 |
+| `ARTIFACT_STORAGE_SECURE` | Compose 与模板为 `false` | API / Settings | Beta/生产按 #171 的 TLS 边界配置 |
 
 ### 内部派生值
 
@@ -171,6 +177,25 @@ Settings 还提供以下应用级默认值，但当前 Compose 没有把它们�
 | `DATABASE_POOL_SIZE` | `5` | 数据库连接池常驻连接数 |
 | `DATABASE_MAX_OVERFLOW` | `10` | 连接池允许的额外连接数 |
 | `DATABASE_POOL_TIMEOUT` | `30.0` | 获取连接的超时秒数 |
+| `ARTIFACT_MAX_SIZE_BYTES` | `10485760` | 单个 Artifact 最大 10 MiB，最高允许配置为 100 MiB |
+| `ARTIFACT_ALLOWED_CONTENT_TYPES` | PNG、JPEG、PDF、纯文本、HTML | 逗号分隔 allowlist；未列类型返回 `415` |
+
+### Artifact 与 Source 本地验证
+
+`storage-init` 使用 MinIO root 凭据完成受控初始化；API 容器只收到最小权限应用凭据。上传返回的公开元数据不包含 Bucket、
+对象键或凭据，下载经认证 API 代理并设置安全响应头。运行真实 Adapter 合约测试：
+
+```bash
+docker compose up -d db storage storage-init
+docker compose run --rm -e TEST_ARTIFACT_STORAGE_ENDPOINT=storage:9000 \
+  -e TEST_ARTIFACT_STORAGE_ACCESS_KEY=nora-app \
+  -e TEST_ARTIFACT_STORAGE_SECRET_KEY=development-artifact-secret \
+  -e TEST_ARTIFACT_STORAGE_BUCKET=nora-artifacts test \
+  uv run pytest tests/integration/test_minio_artifact_storage.py -q
+```
+
+数据库迁移继续使用 `alembic upgrade head`；#21 的 `0014_artifacts_sources` 支持降级后重新升级。不要使用 MinIO Console
+或对象存在性判断业务状态，PostgreSQL 中的 Artifact 生命周期始终是唯一事实源。
 
 如需覆盖这些 Settings-only 值，应在受审查的 Compose environment 或进程环境中显式提供；只把它们写进仓库根 `.env`
 不会自动注入 API。此 Issue 不定义生产秘密管理或部署拓扑。

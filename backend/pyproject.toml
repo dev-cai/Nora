@@ -24,6 +24,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0,<3",
     "structlog>=24.0,<26",
     "uvicorn[standard]>=0.30,<1",
+    "minio>=7.2,<8",
 ]
 
 [project.optional-dependencies]

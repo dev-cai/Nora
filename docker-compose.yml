@@ -26,9 +26,18 @@ services:
       BAIDU_OCR_API_KEY: ${BAIDU_OCR_API_KEY:-}
       BAIDU_OCR_SECRET_KEY: ${BAIDU_OCR_SECRET_KEY:-}
       BAIDU_OCR_ENDPOINT: ${BAIDU_OCR_ENDPOINT:-accurate_basic}
+      ARTIFACT_STORAGE_ENDPOINT: storage:9000
+      ARTIFACT_STORAGE_ACCESS_KEY: ${ARTIFACT_STORAGE_ACCESS_KEY:-nora-app}
+      ARTIFACT_STORAGE_SECRET_KEY: ${ARTIFACT_STORAGE_SECRET_KEY:-development-artifact-secret}
+      ARTIFACT_STORAGE_BUCKET: ${ARTIFACT_STORAGE_BUCKET:-nora-artifacts}
+      ARTIFACT_STORAGE_SECURE: "false"
     depends_on:
       db:
         condition: service_healthy
+      storage:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
     ports:
       - "${API_PORT:-8000}:8000"
     command: ["uvicorn", "app.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
@@ -65,6 +74,28 @@ services:
       - "${STORAGE_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  storage-init:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+      target: runtime
+    command: ["python", "scripts/init_artifact_storage.py"]
+    environment:
+      ARTIFACT_STORAGE_ENDPOINT: storage:9000
+      ARTIFACT_STORAGE_ACCESS_KEY: ${ARTIFACT_STORAGE_ACCESS_KEY:-nora-app}
+      ARTIFACT_STORAGE_SECRET_KEY: ${ARTIFACT_STORAGE_SECRET_KEY:-development-artifact-secret}
+      ARTIFACT_STORAGE_BUCKET: ${ARTIFACT_STORAGE_BUCKET:-nora-artifacts}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-local}
+    depends_on:
+      storage:
+        condition: service_healthy
 
 volumes:
   postgres_data:

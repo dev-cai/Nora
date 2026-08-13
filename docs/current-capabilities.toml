@@ -303,3 +303,21 @@ code_paths = [
   "frontend/src/stores/analysis.ts",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/159"]
+
+[[capabilities]]
+id = "artifact-source-foundation"
+name = "Artifact 与 Source 基础"
+milestone = "M4"
+status = "current"
+summary = "支持用户范围的不可变 Artifact 元数据与 SourceDocument 精确版本引用：PostgreSQL 保存生命周期事实，私有 MinIO 保存原始字节；认证 API 提供有界上传、元数据读取、安全下载、删除墓碑与幂等重放，应用层协调临时对象发布、失败补偿、删除重试和 owner 范围孤儿清理。生成 Artifact 固定生成器版本和生成身份；不包含 PDF 生成、Chunk、Embedding、检索、Evidence Pack 或联合备份恢复。"
+code_paths = [
+  "backend/app/domain/knowledge/artifact.py",
+  "backend/app/application/knowledge/service.py",
+  "backend/app/ports/knowledge.py",
+  "backend/app/infrastructure/database/knowledge.py",
+  "backend/app/infrastructure/object_storage.py",
+  "backend/app/apps/api/routes/artifacts.py",
+  "backend/alembic/versions/0014_artifacts_sources.py",
+  "backend/tests/integration/test_minio_artifact_storage.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/177"]
