@@ -3,7 +3,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.domain.decision import DecisionCase, DecisionReport
+from app.domain.decision import CompanyAssessment, DecisionCase, DecisionReport
 
 
 class DecisionCaseRepository(Protocol):
@@ -41,5 +41,17 @@ class DecisionReportRepository(Protocol):
     async def list(self, *, offset: int, limit: int) -> list[DecisionReport]: ...
 
     async def count(self) -> int: ...
+
+    async def commit(self) -> None: ...
+
+
+class CompanyAssessmentRepository(Protocol):
+    """User-scoped fixed company attachment storage."""
+
+    async def add(self, assessment: CompanyAssessment) -> CompanyAssessment: ...
+
+    async def get_by_generation(self, generation_identity: str) -> CompanyAssessment | None: ...
+
+    async def get_for_report(self, report_id: UUID) -> CompanyAssessment | None: ...
 
     async def commit(self) -> None: ...

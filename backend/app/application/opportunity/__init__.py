@@ -1,5 +1,12 @@
 """Opportunity 岗位快照应用用例。"""
 
+from .company import (
+    AppendCompanySnapshotCommand,
+    CompanySnapshotUseCases,
+    CompanySnapshotValues,
+    CreateCompanySnapshotCommand,
+    GetCompanySnapshotQuery,
+)
 from .requirements import (
     GetJobRequirementSnapshotQuery,
     GetJobRequirementSnapshotUseCase,
@@ -22,11 +29,16 @@ from .service import (
 )
 
 __all__ = (
+    "AppendCompanySnapshotCommand",
+    "CompanySnapshotUseCases",
+    "CompanySnapshotValues",
+    "CreateCompanySnapshotCommand",
     "CreateJobPostingCommand",
     "CreateJobPostingResult",
     "CreateJobPostingUseCase",
     "GetJobPostingQuery",
     "GetJobPostingUseCase",
+    "GetCompanySnapshotQuery",
     "GetJobRequirementSnapshotQuery",
     "GetJobRequirementSnapshotUseCase",
     "ListJobPostingsQuery",

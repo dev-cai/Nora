@@ -15,6 +15,8 @@ from app.infrastructure.database import (
     SqlAlchemyArtifactRepository,
     SqlAlchemyAuditEventRepository,
     SqlAlchemyCandidateProfileRepository,
+    SqlAlchemyCompanyAssessmentRepository,
+    SqlAlchemyCompanySnapshotRepository,
     SqlAlchemyDecisionCaseRepository,
     SqlAlchemyDecisionReportRepository,
     SqlAlchemyJobPostingRepository,
@@ -27,12 +29,20 @@ from app.infrastructure.jd_fetch import JdFetchAdapter
 from app.infrastructure.jd_ocr import BaiduOcrEngine, JdOcrAdapter
 from app.infrastructure.object_storage import create_minio_storage
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
-from app.ports.decision import DecisionCaseRepository, DecisionReportRepository
+from app.ports.decision import (
+    CompanyAssessmentRepository,
+    DecisionCaseRepository,
+    DecisionReportRepository,
+)
 from app.ports.followup import ApplicationDecisionRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.jd_input import JdInputPort
 from app.ports.knowledge import ArtifactRepository, ArtifactStorage, SourceDocumentRepository
-from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
+from app.ports.opportunity import (
+    CompanySnapshotRepository,
+    JobPostingRepository,
+    JobRequirementSnapshotRepository,
+)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -127,6 +137,20 @@ def get_decision_report_repository(
     """组装当前认证用户范围内的 DecisionReport Repository。"""
 
     return SqlAlchemyDecisionReportRepository(session, user.id)
+
+
+def get_company_assessment_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> CompanyAssessmentRepository:
+    return SqlAlchemyCompanyAssessmentRepository(session, user.id)
+
+
+def get_company_snapshot_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> CompanySnapshotRepository:
+    return SqlAlchemyCompanySnapshotRepository(session, user.id)
 
 
 def get_application_decision_repository(
