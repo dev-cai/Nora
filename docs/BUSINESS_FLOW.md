@@ -52,27 +52,26 @@
 ### 4.1 当前已有基线
 
 > 以下只作导航，逐项 Current 能力、代码路径和合并证据只见
-> [`current-capabilities.toml`](current-capabilities.toml)。M2 重新开放不会撤销这些历史交付。
+> [`current-capabilities.toml`](current-capabilities.toml)。M2/M3 已关闭，以下摘要不替代逐项 Current 证据。
 
 - 本地账号认证、用户范围隔离和不可变 `JobPosting` 文本快照；
 - 岗位公开契约、幂等、创建审计和事务一致性；
 - `CandidateProfile` 与不可变 `ResumeVersion`；
 - Vue 3 工作台的认证、岗位、主档和简历页面；
 - 后端、前端、容器和基础浏览器质量门禁；
-- JD 截图与链接输入的 Port/DTO/安全契约，但没有执行 Adapter 和公开路由。
+- 结构化岗位要求的真实 API/Web 调用路径，以及截图 OCR/链接受控抓取 API；
+- 固定版本 DecisionCase、确定性规则、版本化报告、apply/skip 与 Compose 浏览器 E2E。
 
 ### 4.2 功能缺口
 
 | 缺口 | 当前状态 | 归属 |
 | :--- | :--- | :--- |
-| `JobRequirementSnapshot` 所有权、版本、确认和来源定位 | Architecture Issue #135 先行 | M2 |
-| JD 截图 OCR、链接受控抓取、预览确认 | #136/#137 等待 #135；尚无执行路径 | M2 |
-| 分析就绪 UI 与真实双用户 E2E | 在岗位要求契约落定后逐项交付 | M2 |
-| `DecisionCase`、确定性规则、报告和 apply/skip | #24、#73-#77、#80 | M3 |
-| 定制简历、模板、PDF、消息、投递和最小面试记录 | #91-#94、#140 等 | M4 |
-| 单用户 Beta 部署、安全、恢复与可观测基线 | #87、#138 | M4 |
-| Source/Chunk/Embedding/检索/Evidence/Model Gateway | #21-#23、#25、#81-#85、#141 | M5 |
-| Redis、Worker、Reranker | 先由 #139 或固定评测集提供触发证据 | M5 条件项 |
+| Artifact/Source、公司情报、投递材料与记录 | M4.1-M4.13 | M4 |
+| Beta 部署、认证、安全、恢复、CD 与浏览器 E2E | M4.14-M4.18 | M4 |
+| Provider、评测、Embedding/pgvector、Chunk 与 Gateway | M5.1-M5.8 | M5 |
+| 检索、Evidence Pack 与增强报告 | M5.9-M5.11 | M5 |
+| Reranker、性能、Redis 与 Worker | M5.12-M5.15，先评估且允许不引入 | M5 条件项 |
+| Evidence/增强报告跨任务 E2E | M5.16 | M5 |
 
 ### 4.3 越界与收敛
 
@@ -97,10 +96,10 @@ M6+ 已取消为主动 Milestone。未来能力进入 [`ROADMAP.md`](ROADMAP.md)
 
 ## 6. Issue 映射原则
 
-1. M2 先完成 #135，再解锁 #136/#137 和 `JobRequirementSnapshot` 实现；
-2. M3 按 DecisionCase -> 规则 -> 报告 -> API/UI -> apply/skip -> E2E 顺序交付；
-3. M4 在 M3 apply 事实之后交付材料、投递记录、最小面试通知和 Beta 运行基线；
-4. M5 先完成 Embedding 契约 #141，再设计 pgvector #22，并保持确定性降级路径；
+1. M2/M3 已关闭，已交付范围只通过 Current 台账追踪；
+2. M4 按 M4.1-M4.18 的依赖顺序交付 Artifact/Source、材料、投递记录、Beta 安全运行与 E2E；
+3. M5 按 M5.1-M5.16 先完成 Provider/评测和 Embedding/pgvector 决策，再实现检索、Evidence 与增强；
+4. 条件组件只完成评估；达到阈值后另建 Architecture 与 Implementation Issue；
 5. 每项一分支一 PR；前置决策未合并时，不提前创建锁定 Schema 的实现 Issue。
 
 完整原子顺序、依赖和验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) 为准。

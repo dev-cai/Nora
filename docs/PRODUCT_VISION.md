@@ -122,7 +122,7 @@ CandidateProfile
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
 | **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、结构化岗位要求（JobRequirementSnapshot）、受控链接抓取与截图 OCR 输入、Vue 工作台、JD 输入契约，以及 M2 输入和 M3 固定决策输入、确定性规则、版本化报告、公开分析/报告 API、浏览器分析报告工作流、最小 apply/skip 决定与完整 Compose E2E；逐项范围只见能力台账 |
-| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M2 分析就绪输入收尾、M4 投递闭环 Beta、M5 Evidence/AI 增强 |
+| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | M4 投递闭环 Beta、M5 Evidence/AI 增强 |
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | 外部平台写入、深度面试复盘、实时出行、Agent Runtime、Milvus 和服务拆分 |
 
 Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 状态以 GitHub Milestone/Issue 为准。逐项交付证据与限制
