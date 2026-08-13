@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def _user(session: AsyncSession, name: str) -> User:
-    user = User.create(username=name, email=f"{name}@example.com", password_hash="hash")
+    user = User.create(username=name, email=f"{name}@example.com")
     await SqlAlchemyUserRepository(session).add(user)
     await session.commit()
     return user
