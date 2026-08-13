@@ -131,7 +131,7 @@ flowchart TB
 | Opportunity Intelligence | 公司与岗位快照、风险 Evidence、人岗分析输入 | CompanySnapshot、JobPosting、JobRequirementSnapshot、DecisionCase | 投递状态、报告发布和消息发送 |
 | Application & Follow-up | 用户对机会的决定、投递产物和投递进度 | ApplicationDecision、ResumeVariant、MessageDraft、ApplicationRecord | 修改个人主档、自动发送外部消息或自动投递 |
 | Interview Journey | 面试计划、准备材料、题目、出行方案和复盘 | InterviewPlan、QuestionSet、TravelPlan、InterviewReview | 公司事实源和长期画像直接修改 |
-| Decision & Reporting | 汇总经校验的分析结果，生成版本化决策报告 | DecisionCase、Recommendation、DecisionReport | 原始抓取、任意模型调用和外部写执行 |
+| Decision & Reporting | 汇总经校验的分析结果，生成版本化决策报告 | DecisionCase、CompanyAssessment、Recommendation、DecisionReport | 原始抓取、任意模型调用和外部写执行 |
 | Knowledge & Evidence | 来源快照、文档版本、Chunk、Evidence、检索索引和记忆候选 | SourceDocument、Artifact、Evidence、MemoryCandidate、RetrievalRecord | 直接决定业务状态或自动确认用户事实 |
 | Automation & Governance | Run、Task、Tool、Approval、Checkpoint、Audit 和幂等 | AgentRun、ProposedAction、Approval、ToolCall、AuditEvent | 拥有其他 Context 的业务聚合 |
 
@@ -256,6 +256,36 @@ M3 Current 只交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDe
 - 模板发布后不可变。`ResumeVariant` 固定模板版本、`ResumeVersion`、`DecisionCase`、字段映射和生成器版本；模板更新不会重算历史 PDF。
 - 初版 PDF 统一使用 WeasyPrint Adapter，将受限模板转换为 HTML/CSS 后渲染；输出文件写入 Object Storage，保存 SHA-256、模板版本、来源版本和用户归属，构建产物不得进入 Git。
 - `MessageDraft` 是一条可编辑纯文本，默认 `professional` 风格，另支持 `concise` 和用户提供内推上下文的 `referral` 风格；输入只允许已确认主档、JD、公司 Evidence 和用户备注，初版不做平台适配、不自动发送。
+
+### 公司情报与决策报告版本边界（D-014）
+
+`CompanySnapshot` 属于 Opportunity Intelligence Context，`CompanyAssessment` 属于 Decision & Reporting Context。两者均按用户归属和正整数版本追加，版本发布后不可原地覆盖。
+
+#### 所有权与来源
+
+- `CompanySnapshot` 保存公司规模、行业、来源摘要和状态字段；它不保存岗位结论，也不直接修改 `JobPosting`、`DecisionCase` 或 `DecisionReport`。
+- 每个公司情报字段都必须区分 `confirmed`、`unconfirmed`、`unknown`、`conflicted` 和 `superseded`；缺失、冲突、匿名或过期来源不得升级为当前事实。
+- 公司来源通过 #21 的 `SourceDocument` 精确引用 `source_id`/`source_version`，并保存获取时间、原始发布时间、许可/录入方式和内容哈希。来源删除后，历史快照只保留版本、状态和墓碑引用，不再暴露正文、定位信息或下载能力。
+- `CompanySnapshot` 的 owner、版本、来源和字段状态是 PostgreSQL 事实；对象字节若存在只由 Artifact/Source 生命周期决定，不能作为公司事实。
+
+#### 与 M3 决策和报告的关系
+
+- M3 `DecisionCase` 的四类输入、`input_fingerprint` 和 `rule_set_version` 保持不变。公司情报不追加到既有 DecisionCase 输入，不改变 M3 规则执行、幂等键或历史恢复。
+- `CompanyAssessment` 是可选的独立版本化附件，固定 `owner_id`、`decision_case_id`/其精确版本、`company_snapshot_id`/版本、生成器版本和生成身份；它只能引用已存在且属于同一用户的对象。
+- `DecisionReport` 的 M3 五类分区和生成身份保持不变。公开报告可在独立的兼容扩展字段中返回 `company_assessment_id`、版本、状态和来源引用；没有附件时返回 `unknown`/缺失，不读取“最新公司快照”填充历史报告。
+- 公司快照或评估新版本不会静默重算或覆盖旧报告。刷新必须显式创建新的 `CompanyAssessment`，需要新的报告组合时由后续 Task 定义新的报告版本和生成身份；旧报告继续返回原有内容。
+
+#### 缺失、冲突、过期与匿名来源
+
+- 时效标签沿用 `fresh`（不超过 12 个月）、`aging`（12–24 个月）、`stale`（超过 24 个月）；`stale` 内容可审计查看但不作为当前事实。
+- `official/company`、`reputable_media`、`verified_platform` 和 `anonymous_platform` 只表示来源类型，不代表自动可信度；匿名评价必须保留原始来源标记和摘要语气，不生成聚合评分。
+- 版本组合中任一引用不可见、删除、冲突或过期时，Assessment 对应字段保持 `unknown` 或明确状态，并记录稳定原因；不得用最新版本或其他用户数据回填。
+
+#### #79/#169 实现边界
+
+- #79 负责 CompanySnapshot/CompanyAssessment 的 Domain、Application、Repository、认证 API 和报告兼容 DTO；不修改 M3 DecisionCase/Report 的既有字段和持久化身份。
+- #169 只消费固定版本 API，提供录入、版本查看、状态和报告附件展示；页面刷新或重新登录不得切换到“最新版本”覆盖历史。
+- 本决策不引入自动全网采集、RAG、Embedding、LLM 或外部写。
 
 ### 公司网评 Evidence 与历史跳过检索
 

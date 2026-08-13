@@ -405,7 +405,7 @@ M3 已于 2026-08-12 完成退出核验并关闭；Current 代码路径和 PR �
 
 - M4.1 #163 已固定 Artifact/Source 所有权、跨存储一致性、访问、保留、删除、恢复和 M5 继承规则；
 - M4.2 #167 同步 M3 封版事实和 M4/M5 静态 Issue 映射；
-- M4.4 #164 固定公司情报与 M3 DecisionCase/DecisionReport 的版本关系；
+- M4.4 #164（D-014）固定独立 CompanySnapshot/CompanyAssessment 版本、Source 精确引用与 M3 DecisionCase/DecisionReport 兼容关系；
 - M4.7 #171 固定 Beta 部署目标、网络、TLS、Secret 和发布边界；
 - M4.14 #174 固定注册、认证、会话、CORS、滥用防护和密钥轮换边界；
 - Architecture 项只交付决策，不提前实现 Schema、Adapter、API 或业务页面。
@@ -419,6 +419,8 @@ M3 已于 2026-08-12 完成退出核验并关闭；Current 代码路径和 PR �
 - 不要求同时交付文件系统和 MinIO 两套生产实现。
 
 ### 7.4 公司情报最小化（M4.8 #79、M4.9 #169）
+
+- #79 按 D-014 实现独立 CompanySnapshot/CompanyAssessment；不得把公司情报追加到 M3 DecisionCase 输入或用最新版本覆盖历史报告；
 
 - 公司规模和行业；
 - 来源和获取/发布时间；

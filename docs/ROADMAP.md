@@ -219,7 +219,7 @@ DecisionReport
 | Artifact/Source 生命周期决策 | M4.1 #163 | 所有权、跨存储一致性、访问、删除、恢复与 M5 继承；已完成 |
 | M3 封版与规划映射 | M4.2 #167 | 同步 Current/Planned 状态和 M4/M5 原子顺序 |
 | Artifact 与 Source 基础 | M4.3 #21 | 元数据入 PostgreSQL，二进制入对象存储 |
-| 公司情报版本边界决策 | M4.4 #164 | 固定与 DecisionCase/DecisionReport 的版本关系和兼容策略 |
+| 公司情报版本边界决策 | M4.4 #164 | D-014：独立 CompanySnapshot/CompanyAssessment 版本；保持 M3 DecisionCase/DecisionReport 身份兼容 |
 | ResumeVariant 与模板 | M4.5 #91 | 声明式、不可变、不执行任意模板代码 |
 | 可观测性指标增强 | M4.6 #87 | 在既有日志和追踪上增加指标，不重复实现 |
 | Beta 部署架构 | M4.7 #171 | 固定目标环境、网络、TLS、Secret 和发布边界 |
