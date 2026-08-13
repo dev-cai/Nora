@@ -1,5 +1,6 @@
 """Decision & Reporting 领域对象。"""
 
+from .company_assessment import CompanyAssessment, CompanyAssessmentStatus
 from .decision_case import DecisionCase, DecisionCaseStatus
 from .report import (
     DecisionReport,
@@ -23,6 +24,8 @@ from .rules import (
 
 __all__ = (
     "RULE_SET_VERSION",
+    "CompanyAssessment",
+    "CompanyAssessmentStatus",
     "DecisionCase",
     "DecisionCaseStatus",
     "DecisionReport",

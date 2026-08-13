@@ -21,7 +21,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
 from app.domain.base.exceptions import InfrastructureError
-from app.domain.decision import DecisionCase, DecisionCaseStatus, DecisionReport
+from app.domain.decision import (
+    CompanyAssessment,
+    CompanyAssessmentStatus,
+    DecisionCase,
+    DecisionCaseStatus,
+    DecisionReport,
+)
 from app.infrastructure.database.base import Base
 
 
@@ -163,6 +169,82 @@ class DecisionReportRecord(Base):
     generator_version: Mapped[str] = mapped_column(String(100), nullable=False)
     content: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class CompanyAssessmentRecord(Base):
+    """A fixed company attachment for one exact report version."""
+
+    __tablename__ = "company_assessments"
+    __table_args__ = (
+        UniqueConstraint(
+            "owner_id",
+            "report_id",
+            "report_version",
+            name="uq_company_assessment_report",
+        ),
+        UniqueConstraint(
+            "owner_id", "generation_identity", name="uq_company_assessment_generation"
+        ),
+        CheckConstraint("version >= 1", name="ck_company_assessment_version"),
+        CheckConstraint("decision_case_version >= 1", name="ck_company_assessment_case_version"),
+        CheckConstraint(
+            "company_snapshot_version >= 1", name="ck_company_assessment_snapshot_version"
+        ),
+        CheckConstraint(
+            "decision_case_version = 1", name="ck_company_assessment_case_compat_version"
+        ),
+        CheckConstraint(
+            "length(generation_identity) = 64", name="ck_company_assessment_generation_identity"
+        ),
+        CheckConstraint(
+            "status IN ('available', 'unknown', 'conflicted', 'stale')",
+            name="ck_company_assessment_status",
+        ),
+        ForeignKeyConstraint(
+            ["report_id", "report_version", "decision_case_id", "owner_id"],
+            [
+                "decision_reports.id",
+                "decision_reports.version",
+                "decision_reports.decision_case_id",
+                "decision_reports.owner_id",
+            ],
+            name="fk_company_assessment_report_owner",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["decision_case_id", "owner_id"],
+            ["decision_cases.id", "decision_cases.owner_id"],
+            name="fk_company_assessment_case_owner",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["company_snapshot_id", "company_snapshot_version", "owner_id"],
+            [
+                "company_snapshots.snapshot_id",
+                "company_snapshots.version",
+                "company_snapshots.owner_id",
+            ],
+            name="fk_company_assessment_snapshot_owner",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    report_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    report_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    decision_case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    decision_case_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    company_snapshot_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    company_snapshot_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    status_reason: Mapped[str] = mapped_column(String(200), nullable=False)
+    generator_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    generation_identity: Mapped[str] = mapped_column(String(64), nullable=False)
+    assessment_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class SqlAlchemyDecisionCaseRepository:
@@ -412,6 +494,82 @@ class SqlAlchemyDecisionReportRepository:
             .where(DecisionReportRecord.owner_id == self.owner_id)
         )
         return int(total or 0)
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
+
+class SqlAlchemyCompanyAssessmentRepository:
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(record: CompanyAssessmentRecord) -> CompanyAssessment:
+        return CompanyAssessment(
+            id=record.id,
+            owner_id=record.owner_id,
+            version=record.version,
+            report_id=record.report_id,
+            report_version=record.report_version,
+            decision_case_id=record.decision_case_id,
+            decision_case_version=record.decision_case_version,
+            company_snapshot_id=record.company_snapshot_id,
+            company_snapshot_version=record.company_snapshot_version,
+            status=CompanyAssessmentStatus(record.status),
+            status_reason=record.status_reason,
+            generator_version=record.generator_version,
+            generation_identity=record.generation_identity,
+            created_at=_as_utc(record.assessment_created_at),
+        )
+
+    async def add(self, assessment: CompanyAssessment) -> CompanyAssessment:
+        if assessment.owner_id != self.owner_id:
+            raise InfrastructureError("Company assessment not found", error_code="entity_not_found")
+        record = CompanyAssessmentRecord(
+            id=assessment.id,
+            owner_id=assessment.owner_id,
+            version=assessment.version,
+            report_id=assessment.report_id,
+            report_version=assessment.report_version,
+            decision_case_id=assessment.decision_case_id,
+            decision_case_version=assessment.decision_case_version,
+            company_snapshot_id=assessment.company_snapshot_id,
+            company_snapshot_version=assessment.company_snapshot_version,
+            status=assessment.status.value,
+            status_reason=assessment.status_reason,
+            generator_version=assessment.generator_version,
+            generation_identity=assessment.generation_identity,
+            assessment_created_at=assessment.created_at,
+        )
+        self.session.add(record)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise InfrastructureError(
+                "Company assessment already exists",
+                error_code="company_assessment_conflict",
+            ) from exc
+        return self._to_domain(record)
+
+    async def get_by_generation(self, generation_identity: str) -> CompanyAssessment | None:
+        record = await self.session.scalar(
+            select(CompanyAssessmentRecord).where(
+                CompanyAssessmentRecord.owner_id == self.owner_id,
+                CompanyAssessmentRecord.generation_identity == generation_identity,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_for_report(self, report_id: UUID) -> CompanyAssessment | None:
+        record = await self.session.scalar(
+            select(CompanyAssessmentRecord).where(
+                CompanyAssessmentRecord.owner_id == self.owner_id,
+                CompanyAssessmentRecord.report_id == report_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
 
     async def commit(self) -> None:
         await self.session.commit()

@@ -272,6 +272,7 @@ M3 Current 只交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDe
 
 - M3 `DecisionCase` 的四类输入、`input_fingerprint` 和 `rule_set_version` 保持不变。公司情报不追加到既有 DecisionCase 输入，不改变 M3 规则执行、幂等键或历史恢复。
 - `CompanyAssessment` 是可选的独立版本化附件，固定 `owner_id`、`decision_case_id`/其精确版本、`company_snapshot_id`/版本、生成器版本和生成身份；它只能引用已存在且属于同一用户的对象。
+- 当前 M3 `DecisionCase` 没有独立版本列，持久化身份为不可变 ID；为保持 D-014 附件引用结构显式且不修改 M3 身份，`CompanyAssessment.decision_case_version` 兼容固定为 `1`。未来若案例引入独立版本，必须另行 Architecture Review 和迁移。
 - `DecisionReport` 的 M3 五类分区和生成身份保持不变。公开报告可在独立的兼容扩展字段中返回 `company_assessment_id`、版本、状态和来源引用；没有附件时返回 `unknown`/缺失，不读取“最新公司快照”填充历史报告。
 - 公司快照或评估新版本不会静默重算或覆盖旧报告。刷新必须显式创建新的 `CompanyAssessment`，需要新的报告组合时由后续 Task 定义新的报告版本和生成身份；旧报告继续返回原有内容。
 

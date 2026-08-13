@@ -8,8 +8,10 @@ from .career import (
     SqlAlchemyResumeVersionRepository,
 )
 from .decision import (
+    CompanyAssessmentRecord,
     DecisionCaseRecord,
     DecisionReportRecord,
+    SqlAlchemyCompanyAssessmentRepository,
     SqlAlchemyDecisionCaseRepository,
     SqlAlchemyDecisionReportRepository,
 )
@@ -24,9 +26,11 @@ from .knowledge import (
     SqlAlchemySourceDocumentRepository,
 )
 from .opportunity import (
+    CompanySnapshotRecord,
     JobPostingIdempotencyRecord,
     JobPostingRecord,
     JobRequirementSnapshotRecord,
+    SqlAlchemyCompanySnapshotRepository,
     SqlAlchemyJobPostingRepository,
     SqlAlchemyJobRequirementSnapshotRepository,
 )
@@ -36,6 +40,8 @@ __all__ = (
     "AuditMixin",
     "Base",
     "CandidateProfileRecord",
+    "CompanyAssessmentRecord",
+    "CompanySnapshotRecord",
     "DecisionCaseRecord",
     "DecisionReportRecord",
     "ResumeVersionRecord",
@@ -52,6 +58,8 @@ __all__ = (
     "SqlAlchemyApplicationDecisionRepository",
     "SqlAlchemyArtifactRepository",
     "SqlAlchemyCandidateProfileRepository",
+    "SqlAlchemyCompanyAssessmentRepository",
+    "SqlAlchemyCompanySnapshotRepository",
     "SqlAlchemyDecisionCaseRepository",
     "SqlAlchemyDecisionReportRepository",
     "SqlAlchemyResumeVersionRepository",

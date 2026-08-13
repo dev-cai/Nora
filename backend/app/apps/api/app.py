@@ -14,6 +14,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.apps.api.routes.artifacts import router as artifacts_router
 from app.apps.api.routes.auth import router as auth_router
+from app.apps.api.routes.companies import router as companies_router
 from app.apps.api.routes.decisions import decision_router, report_router
 from app.apps.api.routes.job_inputs import router as job_inputs_router
 from app.apps.api.routes.job_postings import router as job_postings_router
@@ -65,6 +66,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Nora API", lifespan=lifespan)
     app.include_router(auth_router)
     app.include_router(artifacts_router)
+    app.include_router(companies_router)
     app.include_router(decision_router)
     app.include_router(report_router)
     app.include_router(job_inputs_router)
@@ -132,6 +134,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "application_decision_conflict": 409,
             "application_decision_key_taken": 409,
             "application_decision_persistence_failed": 503,
+            "company_snapshot_version_conflict": 409,
+            "company_assessment_conflict": 409,
+            "company_assessment_unavailable": 503,
             "unsupported_rule_set_version": 409,
             "decision_input_unavailable": 503,
             "decision_persistence_failed": 503,

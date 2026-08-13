@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
-from app.domain.opportunity import JobPosting, JobRequirementSnapshot
+from app.domain.opportunity import CompanySnapshot, JobPosting, JobRequirementSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,5 +63,19 @@ class JobRequirementSnapshotRepository(Protocol):
     ) -> list[JobRequirementSnapshot]: ...
 
     async def count(self, job_posting_id: UUID) -> int: ...
+
+    async def commit(self) -> None: ...
+
+
+class CompanySnapshotRepository(Protocol):
+    """User-scoped immutable CompanySnapshot version storage."""
+
+    async def add(self, snapshot: CompanySnapshot) -> CompanySnapshot: ...
+
+    async def get_latest(self, snapshot_id: UUID) -> CompanySnapshot | None: ...
+
+    async def get_by_identity(self, snapshot_id: UUID, version: int) -> CompanySnapshot | None: ...
+
+    async def list_versions(self, snapshot_id: UUID) -> list[CompanySnapshot]: ...
 
     async def commit(self) -> None: ...

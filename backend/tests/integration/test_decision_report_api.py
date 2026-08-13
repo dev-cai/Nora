@@ -4,12 +4,30 @@ import asyncio
 from uuid import uuid4
 
 from app.apps.api import create_app
-from app.apps.api.dependencies import get_current_user
+from app.apps.api.dependencies import get_artifact_storage, get_current_user
 from app.domain.identity import User
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Base
+from app.ports.knowledge import StoredObject, StoredObjectInfo
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import create_async_engine
+
+
+class MemoryArtifactStorage:
+    def __init__(self) -> None:
+        self.values: dict[str, StoredObject] = {}
+
+    async def put(self, *, object_key: str, data: bytes, content_type: str) -> None:
+        self.values[object_key] = StoredObject(data=data, content_type=content_type)
+
+    async def get(self, *, object_key: str) -> StoredObject:
+        return self.values[object_key]
+
+    async def delete(self, *, object_key: str) -> None:
+        self.values.pop(object_key, None)
+
+    async def list(self) -> list[StoredObjectInfo]:
+        return []
 
 
 def _reset_database(database_url: str) -> None:
@@ -177,6 +195,7 @@ def test_decision_and_report_api_contract(database_url: str) -> None:
         assert report_body["rule_results"]
         assert report_body["recommendations"]
         assert report_body["citations"]
+        assert report_body["company_assessment"] is None
 
         replayed_report = client.post(f"/decisions/{case_id}/reports", headers=auth_a)
         assert replayed_report.status_code == 200
@@ -311,3 +330,160 @@ def test_decision_api_returns_503_without_database() -> None:
         response = client.get("/reports")
     assert response.status_code == 503
     assert response.json()["error_code"] == "database_unavailable"
+
+
+def test_company_api_returns_503_without_database() -> None:
+    app = create_app(Settings(database_url=None))
+    app.dependency_overrides[get_current_user] = lambda: User.create(
+        username="offline-company-user",
+        email="offline-company-user@example.com",
+    )
+    with TestClient(app) as client:
+        response = client.get(f"/companies/{uuid4()}")
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "database_unavailable"
+
+
+def test_company_assessment_fixes_snapshot_version_in_report_contract(database_url: str) -> None:
+    _reset_database(database_url)
+    app = create_app(
+        Settings(
+            database_url=database_url,
+            auth_secret_key="test-secret-key-32-bytes-long-key!",
+        )
+    )
+    app.dependency_overrides[get_artifact_storage] = MemoryArtifactStorage
+    with TestClient(app) as client:
+        alice = _register_and_login(client, "company-report-alice")
+        bob = _register_and_login(client, "company-report-bob")
+        inputs = _seed_decision_inputs(client, alice, name="company-report")
+        decision = client.post("/decisions", headers=alice, json=inputs)
+        report = client.post(f"/decisions/{decision.json()['id']}/reports", headers=alice).json()
+
+        uploaded = client.post(
+            "/artifacts",
+            headers={**alice, "Idempotency-Key": "company-source"},
+            files={"file": ("company.txt", b"company source", "text/plain")},
+        )
+        assert uploaded.status_code == 201, uploaded.text
+        source = client.post(
+            "/sources",
+            headers=alice,
+            json={
+                "artifact_id": uploaded.json()["id"],
+                "source_kind": "manual",
+                "acquisition_method": "user_entry",
+                "license_note": "user supplied",
+                "published_at": "2026-08-01T00:00:00Z",
+            },
+        )
+        assert source.status_code == 201, source.text
+        snapshot_payload = {
+            "company_name": "Example Inc",
+            "size": "100-499",
+            "size_status": "confirmed",
+            "industry": "Software",
+            "industry_status": "confirmed",
+            "review_summary": "Clear engineering ladder",
+            "review_status": "unconfirmed",
+            "source_id": source.json()["id"],
+            "source_version": source.json()["version"],
+            "source_tier": "official/company",
+        }
+        assert client.post("/companies", json=snapshot_payload).status_code == 401
+        created = client.post("/companies", headers=alice, json=snapshot_payload)
+        assert created.status_code == 201, created.text
+        first = created.json()
+        assert first["freshness"] == "fresh"
+        assert "locator" not in first["source"]
+        assert client.get(f"/companies/{first['id']}", headers=bob).status_code == 404
+
+        missing = client.get(f"/reports/{report['id']}/company-assessment", headers=alice)
+        assert missing.status_code == 204
+        attached = client.post(
+            f"/reports/{report['id']}/company-assessment",
+            headers=alice,
+            json={"company_snapshot_id": first["id"], "company_snapshot_version": 1},
+        )
+        assert attached.status_code == 201, attached.text
+        assessment = attached.json()
+        assert assessment["snapshot"]["version"] == 1
+        assert assessment["decision_case_version"] == 1
+        assert assessment["status"] == "available"
+        assert assessment["status_reason"] == "fixed_snapshot"
+        replay = client.post(
+            f"/reports/{report['id']}/company-assessment",
+            headers=alice,
+            json={"company_snapshot_id": first["id"], "company_snapshot_version": 1},
+        )
+        assert replay.status_code == 200
+        assert replay.json()["id"] == assessment["id"]
+
+        second_payload = {
+            **snapshot_payload,
+            "expected_version": 1,
+            "size": "500-999",
+            "size_status": "unconfirmed",
+        }
+        second_payload.pop("company_name")
+        appended = client.post(
+            f"/companies/{first['id']}/versions", headers=alice, json=second_payload
+        )
+        assert appended.status_code == 201, appended.text
+        assert appended.json()["version"] == 2
+        assert client.get(f"/companies/{first['id']}", headers=alice).json()["version"] == 2
+        exact_first = client.get(f"/companies/{first['id']}/versions/1", headers=alice)
+        assert exact_first.status_code == 200
+        assert exact_first.json()["size"] == "100-499"
+        versions = client.get(f"/companies/{first['id']}/versions", headers=alice)
+        assert [item["version"] for item in versions.json()] == [2, 1]
+        stale_append = client.post(
+            f"/companies/{first['id']}/versions", headers=alice, json=second_payload
+        )
+        assert stale_append.status_code == 409
+        assert stale_append.json()["error_code"] == "company_snapshot_version_conflict"
+
+        historical = client.get(f"/reports/{report['id']}", headers=alice)
+        assert historical.status_code == 200
+        fixed = historical.json()["company_assessment"]
+        assert fixed["id"] == assessment["id"]
+        assert fixed["snapshot"]["version"] == 1
+        assert fixed["snapshot"]["size"] == "100-499"
+        deleted = client.delete(f"/artifacts/{uploaded.json()['id']}", headers=alice)
+        assert deleted.status_code == 200
+        assert client.get(f"/sources/{source.json()['id']}", headers=alice).status_code == 404
+        after_source_delete = client.get(f"/reports/{report['id']}", headers=alice)
+        assert after_source_delete.status_code == 200
+        tombstone_source = after_source_delete.json()["company_assessment"]["snapshot"]["source"]
+        assert tombstone_source["id"] == source.json()["id"]
+        assert tombstone_source["version"] == source.json()["version"]
+        assert "locator" not in tombstone_source
+        assert "artifact_id" not in tombstone_source
+        assert after_source_delete.json()["company_assessment"]["status"] == "available"
+
+        second_inputs = _seed_decision_inputs(client, alice, name="company-source-deleted")
+        second_case = client.post("/decisions", headers=alice, json=second_inputs)
+        second_report = client.post(f"/decisions/{second_case.json()['id']}/reports", headers=alice)
+        unavailable = client.post(
+            f"/reports/{second_report.json()['id']}/company-assessment",
+            headers=alice,
+            json={"company_snapshot_id": first["id"], "company_snapshot_version": 1},
+        )
+        assert unavailable.status_code == 201
+        assert unavailable.json()["status"] == "unknown"
+        assert unavailable.json()["status_reason"] == "source_unavailable"
+        conflict = client.post(
+            f"/reports/{report['id']}/company-assessment",
+            headers=alice,
+            json={"company_snapshot_id": first["id"], "company_snapshot_version": 2},
+        )
+        assert conflict.status_code == 409
+        assert conflict.json()["error_code"] == "company_assessment_conflict"
+        assert (
+            client.post(
+                f"/reports/{report['id']}/company-assessment",
+                headers=bob,
+                json={"company_snapshot_id": first["id"], "company_snapshot_version": 1},
+            ).status_code
+            == 404
+        )

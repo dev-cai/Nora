@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field, model_validator
 from app.application.decision import (
     AnalyzeDecisionCaseQuery,
     AnalyzeDecisionCaseUseCase,
+    CompanyAssessmentUseCases,
+    CreateCompanyAssessmentCommand,
     CreateDecisionCaseCommand,
     CreateDecisionCaseUseCase,
     GenerateStoredDecisionReportCommand,
@@ -18,6 +20,7 @@ from app.application.decision import (
     GetDecisionReportUseCase,
     ListDecisionReportsQuery,
     ListDecisionReportsUseCase,
+    ReportCompanyAssessment,
 )
 from app.application.followup import (
     CreateApplicationDecisionCommand,
@@ -27,17 +30,23 @@ from app.application.followup import (
 )
 from app.apps.api.dependencies import (
     get_application_decision_repository,
+    get_artifact_repository,
     get_audit_event_repository,
     get_candidate_profile_repository,
+    get_company_assessment_repository,
+    get_company_snapshot_repository,
     get_current_user,
     get_decision_case_repository,
     get_decision_report_repository,
     get_job_posting_repository,
     get_job_requirement_snapshot_repository,
     get_resume_version_repository,
+    get_source_document_repository,
 )
+from app.apps.api.routes.companies import CompanySnapshotResponse
 from app.domain.decision import (
     RULE_SET_VERSION,
+    CompanyAssessmentStatus,
     DecisionCase,
     DecisionCaseStatus,
     DecisionReport,
@@ -54,10 +63,19 @@ from app.domain.decision import (
 from app.domain.followup import ApplicationDecision, ApplicationDecisionStatus
 from app.domain.identity import User
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
-from app.ports.decision import DecisionCaseRepository, DecisionReportRepository
+from app.ports.decision import (
+    CompanyAssessmentRepository,
+    DecisionCaseRepository,
+    DecisionReportRepository,
+)
 from app.ports.followup import ApplicationDecisionRepository
 from app.ports.governance import AuditEventRepository
-from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
+from app.ports.knowledge import ArtifactRepository, SourceDocumentRepository
+from app.ports.opportunity import (
+    CompanySnapshotRepository,
+    JobPostingRepository,
+    JobRequirementSnapshotRepository,
+)
 
 REPORT_GENERATOR_VERSION = "m3-report-v1"
 
@@ -217,6 +235,56 @@ class MatchSummaryResponse(BaseModel):
     unknown: int
 
 
+class CreateCompanyAssessmentRequest(BaseModel):
+    company_snapshot_id: UUID
+    company_snapshot_version: int = Field(ge=1)
+
+
+class CompanyAssessmentResponse(BaseModel):
+    id: UUID
+    version: int
+    report_id: UUID
+    report_version: int
+    decision_case_id: UUID
+    decision_case_version: int
+    status: CompanyAssessmentStatus
+    status_reason: str
+    generator_version: str
+    generation_identity: str
+    snapshot: CompanySnapshotResponse
+    created_at: datetime
+
+
+def _company_assessment_use_cases(
+    assessments: CompanyAssessmentRepository,
+    reports: DecisionReportRepository,
+    cases: DecisionCaseRepository,
+    snapshots: CompanySnapshotRepository,
+    sources: SourceDocumentRepository,
+    artifacts: ArtifactRepository,
+) -> CompanyAssessmentUseCases:
+    return CompanyAssessmentUseCases(assessments, reports, cases, snapshots, sources, artifacts)
+
+
+def _company_assessment_response(result: object) -> CompanyAssessmentResponse:
+    assert isinstance(result, ReportCompanyAssessment)
+    assessment = result.assessment
+    return CompanyAssessmentResponse(
+        id=assessment.id,
+        version=assessment.version,
+        report_id=assessment.report_id,
+        report_version=assessment.report_version,
+        decision_case_id=assessment.decision_case_id,
+        decision_case_version=assessment.decision_case_version,
+        status=assessment.status,
+        status_reason=assessment.status_reason,
+        generator_version=assessment.generator_version,
+        generation_identity=assessment.generation_identity,
+        snapshot=CompanySnapshotResponse.from_domain(result.snapshot),
+        created_at=assessment.created_at,
+    )
+
+
 class DecisionReportResponse(BaseModel):
     id: UUID
     decision_case_id: UUID
@@ -234,9 +302,14 @@ class DecisionReportResponse(BaseModel):
     risks: list[str]
     next_steps: list[str]
     generated_at: datetime
+    company_assessment: CompanyAssessmentResponse | None = None
 
     @classmethod
-    def from_domain(cls, report: DecisionReport) -> "DecisionReportResponse":
+    def from_domain(
+        cls,
+        report: DecisionReport,
+        company_assessment: CompanyAssessmentResponse | None = None,
+    ) -> "DecisionReportResponse":
         return cls(
             id=report.id,
             decision_case_id=report.decision_case_id,
@@ -258,6 +331,7 @@ class DecisionReportResponse(BaseModel):
             risks=list(report.risks),
             next_steps=list(report.next_steps),
             generated_at=report.generated_at,
+            company_assessment=company_assessment,
         )
 
 
@@ -359,6 +433,10 @@ async def generate_decision_report(
         get_job_requirement_snapshot_repository
     ),
     profile_repository: CandidateProfileRepository = Depends(get_candidate_profile_repository),
+    assessment_repository: CompanyAssessmentRepository = Depends(get_company_assessment_repository),
+    snapshot_repository: CompanySnapshotRepository = Depends(get_company_snapshot_repository),
+    source_repository: SourceDocumentRepository = Depends(get_source_document_repository),
+    artifact_repository: ArtifactRepository = Depends(get_artifact_repository),
 ) -> DecisionReportResponse:
     result = await GenerateStoredDecisionReportUseCase(
         case_repository,
@@ -372,7 +450,18 @@ async def generate_decision_report(
             generator_version=REPORT_GENERATOR_VERSION,
         )
     )
-    return DecisionReportResponse.from_domain(result.report)
+    attachment = await _company_assessment_use_cases(
+        assessment_repository,
+        report_repository,
+        case_repository,
+        snapshot_repository,
+        source_repository,
+        artifact_repository,
+    ).get(user.id, result.report.id)
+    return DecisionReportResponse.from_domain(
+        result.report,
+        None if attachment is None else _company_assessment_response(attachment),
+    )
 
 
 @report_router.get("", response_model=DecisionReportListResponse)
@@ -381,12 +470,38 @@ async def list_decision_reports(
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     user: User = Depends(get_current_user),
     repository: DecisionReportRepository = Depends(get_decision_report_repository),
+    case_repository: DecisionCaseRepository = Depends(get_decision_case_repository),
+    assessment_repository: CompanyAssessmentRepository = Depends(get_company_assessment_repository),
+    snapshot_repository: CompanySnapshotRepository = Depends(get_company_snapshot_repository),
+    source_repository: SourceDocumentRepository = Depends(get_source_document_repository),
+    artifact_repository: ArtifactRepository = Depends(get_artifact_repository),
 ) -> DecisionReportListResponse:
     result = await ListDecisionReportsUseCase(repository).execute(
         ListDecisionReportsQuery(owner_id=user.id, page=page, page_size=page_size)
     )
+    attachments = {
+        item.id: await _company_assessment_use_cases(
+            assessment_repository,
+            repository,
+            case_repository,
+            snapshot_repository,
+            source_repository,
+            artifact_repository,
+        ).get(user.id, item.id)
+        for item in result.items
+    }
     return DecisionReportListResponse(
-        items=[DecisionReportResponse.from_domain(item) for item in result.items],
+        items=[
+            DecisionReportResponse.from_domain(
+                item,
+                (
+                    None
+                    if attachments[item.id] is None
+                    else _company_assessment_response(attachments[item.id])
+                ),
+            )
+            for item in result.items
+        ],
         page=result.page,
         page_size=result.page_size,
         total=result.total,
@@ -398,11 +513,95 @@ async def get_decision_report(
     report_id: UUID,
     user: User = Depends(get_current_user),
     repository: DecisionReportRepository = Depends(get_decision_report_repository),
+    case_repository: DecisionCaseRepository = Depends(get_decision_case_repository),
+    assessment_repository: CompanyAssessmentRepository = Depends(get_company_assessment_repository),
+    snapshot_repository: CompanySnapshotRepository = Depends(get_company_snapshot_repository),
+    source_repository: SourceDocumentRepository = Depends(get_source_document_repository),
+    artifact_repository: ArtifactRepository = Depends(get_artifact_repository),
 ) -> DecisionReportResponse:
     report = await GetDecisionReportUseCase(repository).execute(
         GetDecisionReportQuery(owner_id=user.id, report_id=report_id)
     )
-    return DecisionReportResponse.from_domain(report)
+    attachment = await _company_assessment_use_cases(
+        assessment_repository,
+        repository,
+        case_repository,
+        snapshot_repository,
+        source_repository,
+        artifact_repository,
+    ).get(user.id, report.id)
+    return DecisionReportResponse.from_domain(
+        report,
+        None if attachment is None else _company_assessment_response(attachment),
+    )
+
+
+@report_router.post(
+    "/{report_id}/company-assessment",
+    response_model=CompanyAssessmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_company_assessment(
+    report_id: UUID,
+    payload: CreateCompanyAssessmentRequest,
+    response: Response,
+    user: User = Depends(get_current_user),
+    assessment_repository: CompanyAssessmentRepository = Depends(get_company_assessment_repository),
+    report_repository: DecisionReportRepository = Depends(get_decision_report_repository),
+    case_repository: DecisionCaseRepository = Depends(get_decision_case_repository),
+    snapshot_repository: CompanySnapshotRepository = Depends(get_company_snapshot_repository),
+    source_repository: SourceDocumentRepository = Depends(get_source_document_repository),
+    artifact_repository: ArtifactRepository = Depends(get_artifact_repository),
+) -> CompanyAssessmentResponse:
+    result, replayed = await _company_assessment_use_cases(
+        assessment_repository,
+        report_repository,
+        case_repository,
+        snapshot_repository,
+        source_repository,
+        artifact_repository,
+    ).create(
+        CreateCompanyAssessmentCommand(
+            owner_id=user.id,
+            report_id=report_id,
+            company_snapshot_id=payload.company_snapshot_id,
+            company_snapshot_version=payload.company_snapshot_version,
+            generator_version="m4-company-assessment-v1",
+        )
+    )
+    if replayed:
+        response.status_code = status.HTTP_200_OK
+    return _company_assessment_response(result)
+
+
+@report_router.get(
+    "/{report_id}/company-assessment",
+    response_model=CompanyAssessmentResponse,
+    responses={status.HTTP_204_NO_CONTENT: {"description": "No company assessment attached"}},
+)
+async def get_company_assessment(
+    report_id: UUID,
+    response: Response,
+    user: User = Depends(get_current_user),
+    assessment_repository: CompanyAssessmentRepository = Depends(get_company_assessment_repository),
+    report_repository: DecisionReportRepository = Depends(get_decision_report_repository),
+    case_repository: DecisionCaseRepository = Depends(get_decision_case_repository),
+    snapshot_repository: CompanySnapshotRepository = Depends(get_company_snapshot_repository),
+    source_repository: SourceDocumentRepository = Depends(get_source_document_repository),
+    artifact_repository: ArtifactRepository = Depends(get_artifact_repository),
+) -> CompanyAssessmentResponse | Response:
+    result = await _company_assessment_use_cases(
+        assessment_repository,
+        report_repository,
+        case_repository,
+        snapshot_repository,
+        source_repository,
+        artifact_repository,
+    ).get(user.id, report_id)
+    if result is None:
+        response.status_code = status.HTTP_204_NO_CONTENT
+        return response
+    return _company_assessment_response(result)
 
 
 @report_router.get(

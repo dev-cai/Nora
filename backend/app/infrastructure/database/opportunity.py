@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -22,6 +23,11 @@ from sqlalchemy.types import Uuid
 
 from app.domain.base.exceptions import InfrastructureError
 from app.domain.opportunity import (
+    CompanyFieldStatus,
+    CompanySnapshot,
+    CompanySourceReference,
+    CompanySourceTier,
+    Freshness,
     JobPosting,
     JobPostingStatus,
     JobRequirementSnapshot,
@@ -389,6 +395,211 @@ class SqlAlchemyJobRequirementSnapshotRepository:
             )
         )
         return int(total or 0)
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
+
+class CompanySnapshotRecord(Base):
+    """One immutable version of a user-owned company snapshot."""
+
+    __tablename__ = "company_snapshots"
+    __table_args__ = (
+        UniqueConstraint("snapshot_id", "version", "owner_id", name="uq_company_snapshot_identity"),
+        CheckConstraint("version >= 1", name="ck_company_snapshot_version"),
+        CheckConstraint("source_version >= 1", name="ck_company_snapshot_source_version"),
+        CheckConstraint("length(content_sha256) = 64", name="ck_company_snapshot_sha256"),
+        CheckConstraint(
+            "length(source_content_sha256) = 64", name="ck_company_snapshot_source_sha256"
+        ),
+        CheckConstraint(
+            "size_status IN ('confirmed', 'unconfirmed', 'unknown', 'conflicted', "
+            "'superseded') AND industry_status IN ('confirmed', 'unconfirmed', 'unknown', "
+            "'conflicted', 'superseded') AND review_status IN ('confirmed', 'unconfirmed', "
+            "'unknown', 'conflicted', 'superseded')",
+            name="ck_company_snapshot_field_statuses",
+        ),
+        CheckConstraint(
+            "(size IS NULL) = (size_status = 'unknown') AND "
+            "(industry IS NULL) = (industry_status = 'unknown') AND "
+            "(review_summary IS NULL) = (review_status = 'unknown')",
+            name="ck_company_snapshot_value_statuses",
+        ),
+        CheckConstraint(
+            "source_tier IN ('official/company', 'reputable_media', 'verified_platform', "
+            "'anonymous_platform')",
+            name="ck_company_snapshot_source_tier",
+        ),
+        CheckConstraint(
+            "freshness IN ('fresh', 'aging', 'stale', 'unknown')",
+            name="ck_company_snapshot_freshness",
+        ),
+        CheckConstraint(
+            "NOT (source_tier = 'anonymous_platform' AND ('confirmed' IN "
+            "(size_status, industry_status, review_status)))",
+            name="ck_company_snapshot_anonymous_facts",
+        ),
+        CheckConstraint(
+            "NOT (freshness = 'stale' AND ('confirmed' IN "
+            "(size_status, industry_status, review_status)))",
+            name="ck_company_snapshot_stale_facts",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "source_version", "owner_id"],
+            ["source_documents.id", "source_documents.version", "source_documents.owner_id"],
+            name="fk_company_snapshot_source_owner",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    record_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    snapshot_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False, index=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    company_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    size: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    size_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    industry: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    industry_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    review_summary: Mapped[str | None] = mapped_column(String(2_000), nullable=True)
+    review_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    source_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    source_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_tier: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    acquisition_method: Mapped[str] = mapped_column(String(100), nullable=False)
+    license_note: Mapped[str] = mapped_column(String(500), nullable=False)
+    acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source_content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    freshness: Mapped[str] = mapped_column(String(16), nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    snapshot_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SqlAlchemyCompanySnapshotRepository:
+    """Serialize append-only snapshot versions in the current user scope."""
+
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(record: CompanySnapshotRecord) -> CompanySnapshot:
+        return CompanySnapshot.restore(
+            snapshot_id=record.snapshot_id,
+            owner_id=record.owner_id,
+            version=record.version,
+            company_name=record.company_name,
+            size=record.size,
+            size_status=CompanyFieldStatus(record.size_status),
+            industry=record.industry,
+            industry_status=CompanyFieldStatus(record.industry_status),
+            review_summary=record.review_summary,
+            review_status=CompanyFieldStatus(record.review_status),
+            source=CompanySourceReference.create(
+                source_id=record.source_id,
+                source_version=record.source_version,
+                source_tier=CompanySourceTier(record.source_tier),
+                source_kind=record.source_kind,
+                acquisition_method=record.acquisition_method,
+                license_note=record.license_note,
+                acquired_at=_as_utc(record.acquired_at),
+                published_at=(
+                    None if record.published_at is None else _as_utc(record.published_at)
+                ),
+                content_sha256=record.source_content_sha256,
+            ),
+            freshness=Freshness(record.freshness),
+            content_sha256=record.content_sha256,
+            created_at=_as_utc(record.snapshot_created_at),
+        )
+
+    async def add(self, snapshot: CompanySnapshot) -> CompanySnapshot:
+        if snapshot.owner_id != self.owner_id:
+            raise InfrastructureError("Company snapshot not found", error_code="entity_not_found")
+        await self.session.scalar(
+            select(UserRecord.id).where(UserRecord.id == self.owner_id).with_for_update()
+        )
+        latest = await self.get_latest(snapshot.id)
+        valid = (latest is None and snapshot.version == 1) or (
+            latest is not None and snapshot.version == latest.version + 1
+        )
+        if not valid:
+            raise InfrastructureError(
+                "Company snapshot version conflict",
+                error_code="company_snapshot_version_conflict",
+            )
+        source = snapshot.source
+        record = CompanySnapshotRecord(
+            snapshot_id=snapshot.id,
+            owner_id=snapshot.owner_id,
+            version=snapshot.version,
+            company_name=snapshot.company_name,
+            size=snapshot.size,
+            size_status=snapshot.size_status.value,
+            industry=snapshot.industry,
+            industry_status=snapshot.industry_status.value,
+            review_summary=snapshot.review_summary,
+            review_status=snapshot.review_status.value,
+            source_id=source.source_id,
+            source_version=source.source_version,
+            source_tier=source.source_tier.value,
+            source_kind=source.source_kind,
+            acquisition_method=source.acquisition_method,
+            license_note=source.license_note,
+            acquired_at=source.acquired_at,
+            published_at=source.published_at,
+            source_content_sha256=source.content_sha256,
+            freshness=snapshot.freshness.value,
+            content_sha256=snapshot.content_sha256,
+            snapshot_created_at=snapshot.created_at,
+        )
+        self.session.add(record)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise InfrastructureError(
+                "Company snapshot version conflict",
+                error_code="company_snapshot_version_conflict",
+            ) from exc
+        return self._to_domain(record)
+
+    async def get_latest(self, snapshot_id: UUID) -> CompanySnapshot | None:
+        record = await self.session.scalar(
+            select(CompanySnapshotRecord)
+            .where(
+                CompanySnapshotRecord.snapshot_id == snapshot_id,
+                CompanySnapshotRecord.owner_id == self.owner_id,
+            )
+            .order_by(CompanySnapshotRecord.version.desc())
+            .limit(1)
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_by_identity(self, snapshot_id: UUID, version: int) -> CompanySnapshot | None:
+        record = await self.session.scalar(
+            select(CompanySnapshotRecord).where(
+                CompanySnapshotRecord.snapshot_id == snapshot_id,
+                CompanySnapshotRecord.version == version,
+                CompanySnapshotRecord.owner_id == self.owner_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def list_versions(self, snapshot_id: UUID) -> list[CompanySnapshot]:
+        records = await self.session.scalars(
+            select(CompanySnapshotRecord)
+            .where(
+                CompanySnapshotRecord.snapshot_id == snapshot_id,
+                CompanySnapshotRecord.owner_id == self.owner_id,
+            )
+            .order_by(CompanySnapshotRecord.version.desc())
+        )
+        return [self._to_domain(record) for record in records]
 
     async def commit(self) -> None:
         await self.session.commit()

@@ -16,6 +16,11 @@ from .job_requirement_snapshot import (
 )
 
 __all__ = (
+    "CompanyFieldStatus",
+    "CompanySnapshot",
+    "CompanySourceReference",
+    "CompanySourceTier",
+    "Freshness",
     "UNKNOWN_COMPANY_NAME",
     "UNKNOWN_JOB_TITLE",
     "UNKNOWN_LOCATION",
@@ -26,4 +31,11 @@ __all__ = (
     "RequirementConfirmationStatus",
     "RequirementSourceType",
     "WorkMode",
+)
+from .company import (
+    CompanyFieldStatus,
+    CompanySnapshot,
+    CompanySourceReference,
+    CompanySourceTier,
+    Freshness,
 )
