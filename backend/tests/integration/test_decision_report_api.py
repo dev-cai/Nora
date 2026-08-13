@@ -391,6 +391,9 @@ def test_company_assessment_fixes_snapshot_version_in_report_contract(database_u
             "source_tier": "official/company",
         }
         assert client.post("/companies", json=snapshot_payload).status_code == 401
+        foreign_source = client.post("/companies", headers=bob, json=snapshot_payload)
+        assert foreign_source.status_code == 404
+        assert foreign_source.json()["error_code"] == "entity_not_found"
         created = client.post("/companies", headers=alice, json=snapshot_payload)
         assert created.status_code == 201, created.text
         first = created.json()

@@ -4,8 +4,10 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+from app.application.decision import CompanyAssessmentUseCases
 from app.domain.base.exceptions import DomainError
 from app.domain.decision import CompanyAssessment, CompanyAssessmentStatus
+from app.domain.knowledge import ArtifactStatus
 from app.domain.opportunity import (
     CompanyFieldStatus,
     CompanySnapshot,
@@ -15,6 +17,30 @@ from app.domain.opportunity import (
 )
 
 NOW = datetime(2026, 8, 13, tzinfo=timezone.utc)
+
+
+class _LookupRepository:
+    def __init__(self, value: object | None) -> None:
+        self.value = value
+
+    async def get_by_id(self, _entity_id: object) -> object | None:
+        return self.value
+
+
+class _Source:
+    def __init__(self, *, owner_id: object, source: CompanySourceReference) -> None:
+        self.owner_id = owner_id
+        self.version = source.source_version
+        self.artifact_id = uuid4()
+        self.artifact_version = 1
+
+
+class _Artifact:
+    def __init__(self, *, owner_id: object, artifact_id: object) -> None:
+        self.id = artifact_id
+        self.owner_id = owner_id
+        self.version = 1
+        self.status = ArtifactStatus.AVAILABLE
 
 
 def _source(
@@ -47,6 +73,13 @@ def _snapshot(source: CompanySourceReference | None = None) -> CompanySnapshot:
         review_status=CompanyFieldStatus.UNCONFIRMED,
         source=source or _source(),
         now=NOW,
+    )
+
+
+def _assessment_use_case(source: _Source, artifact: _Artifact) -> CompanyAssessmentUseCases:
+    unused = _LookupRepository(None)
+    return CompanyAssessmentUseCases(
+        unused, unused, unused, unused, _LookupRepository(source), _LookupRepository(artifact)
     )
 
 
@@ -135,3 +168,88 @@ def test_company_assessment_generation_identity_is_deterministic_and_versioned()
     assert first.company_snapshot_version == 3
     changed = CompanyAssessment.create(**{**values, "company_snapshot_version": 4})
     assert changed.generation_identity != first.generation_identity
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tier", "age_days", "statuses", "expected_status", "expected_reason"),
+    [
+        (
+            CompanySourceTier.OFFICIAL,
+            30,
+            (CompanyFieldStatus.CONFLICTED,) * 3,
+            CompanyAssessmentStatus.CONFLICTED,
+            "conflicted_fields",
+        ),
+        (
+            CompanySourceTier.OFFICIAL,
+            731,
+            (CompanyFieldStatus.UNCONFIRMED,) * 3,
+            CompanyAssessmentStatus.STALE,
+            "source_stale",
+        ),
+        (
+            CompanySourceTier.OFFICIAL,
+            None,
+            (CompanyFieldStatus.UNCONFIRMED,) * 3,
+            CompanyAssessmentStatus.UNKNOWN,
+            "source_freshness_unknown",
+        ),
+        (
+            CompanySourceTier.ANONYMOUS_PLATFORM,
+            30,
+            (CompanyFieldStatus.UNCONFIRMED,) * 3,
+            CompanyAssessmentStatus.UNKNOWN,
+            "anonymous_source",
+        ),
+        (
+            CompanySourceTier.OFFICIAL,
+            30,
+            (CompanyFieldStatus.SUPERSEDED,) * 3,
+            CompanyAssessmentStatus.UNKNOWN,
+            "superseded_fields",
+        ),
+        (
+            CompanySourceTier.OFFICIAL,
+            30,
+            (CompanyFieldStatus.UNKNOWN,) * 3,
+            CompanyAssessmentStatus.UNKNOWN,
+            "incomplete_fields",
+        ),
+        (
+            CompanySourceTier.VERIFIED_PLATFORM,
+            30,
+            (CompanyFieldStatus.UNCONFIRMED,) * 3,
+            CompanyAssessmentStatus.AVAILABLE,
+            "fixed_snapshot",
+        ),
+    ],
+)
+async def test_company_assessment_maps_source_and_field_states(
+    tier: CompanySourceTier,
+    age_days: int | None,
+    statuses: tuple[CompanyFieldStatus, CompanyFieldStatus, CompanyFieldStatus],
+    expected_status: CompanyAssessmentStatus,
+    expected_reason: str,
+) -> None:
+    owner_id = uuid4()
+    source_reference = _source(tier=tier, age_days=age_days)
+    values = tuple(None if status is CompanyFieldStatus.UNKNOWN else "known" for status in statuses)
+    snapshot = CompanySnapshot.create(
+        owner_id=owner_id,
+        company_name="Example Inc",
+        size=values[0],
+        size_status=statuses[0],
+        industry=values[1],
+        industry_status=statuses[1],
+        review_summary=values[2],
+        review_status=statuses[2],
+        source=source_reference,
+        now=NOW,
+    )
+    source = _Source(owner_id=owner_id, source=source_reference)
+    artifact = _Artifact(owner_id=owner_id, artifact_id=source.artifact_id)
+
+    status, reason = await _assessment_use_case(source, artifact)._status(owner_id, snapshot)
+
+    assert (status, reason) == (expected_status, expected_reason)
