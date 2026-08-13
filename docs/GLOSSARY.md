@@ -120,6 +120,12 @@ Evidence Pack 中的最小单元，包含：
 ### Versioned Decision Report（版本化决策报告）
 最终输出给用户的求职决策报告。每个版本包含所引用的所有 Evidence 版本，确保结论可追溯。
 
+### CompanySnapshot（公司快照）
+Opportunity Intelligence Context 按用户归属保存的不可变公司情报版本。包含规模、行业、来源、获取/发布时间、许可或录入方式、内容哈希和字段级确认/冲突/时效状态；新版本追加，不覆盖历史。
+
+### CompanyAssessment（公司评估附件）
+Decision & Reporting Context 的可选版本化报告附件，精确引用一个 `DecisionCase` 版本和一个 `CompanySnapshot` 版本。它不改变 M3 `DecisionCase` 输入指纹或既有 `DecisionReport` 内容；历史报告不读取最新公司快照。
+
 ---
 
 ## 外部写与审批
