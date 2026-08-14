@@ -482,7 +482,7 @@ def test_company_assessment_fixes_snapshot_version_in_report_contract(database_u
         assert attached.status_code == 201, attached.text
         assessment = attached.json()
         assert assessment["snapshot"]["version"] == 1
-        assert assessment["decision_case_version"] == 1
+        assert "decision_case_version" not in assessment
         assert assessment["status"] == "available"
         assert assessment["status_reason"] == "fixed_snapshot"
         replay = client.post(
@@ -492,6 +492,10 @@ def test_company_assessment_fixes_snapshot_version_in_report_contract(database_u
         )
         assert replay.status_code == 200
         assert replay.json()["id"] == assessment["id"]
+        assessment_schema = client.get("/openapi.json").json()["components"]["schemas"][
+            "CompanyAssessmentResponse"
+        ]["properties"]
+        assert "decision_case_version" not in assessment_schema
 
         second_payload = {
             **snapshot_payload,

@@ -1,5 +1,7 @@
 """Company intelligence domain contract tests."""
 
+import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -153,7 +155,6 @@ def test_company_assessment_generation_identity_is_deterministic_and_versioned()
         "report_id": uuid4(),
         "report_version": 2,
         "decision_case_id": uuid4(),
-        "decision_case_version": 1,
         "company_snapshot_id": uuid4(),
         "company_snapshot_version": 3,
         "status": CompanyAssessmentStatus.AVAILABLE,
@@ -164,7 +165,22 @@ def test_company_assessment_generation_identity_is_deterministic_and_versioned()
     first = CompanyAssessment.create(**values)
     replay = CompanyAssessment.create(**values)
     assert first.generation_identity == replay.generation_identity
-    assert first.decision_case_version == 1
+    expected_identity = hashlib.sha256(
+        json.dumps(
+            {
+                "company_snapshot_id": str(values["company_snapshot_id"]),
+                "company_snapshot_version": 3,
+                "decision_case_id": str(values["decision_case_id"]),
+                "generator_version": "m4-company-assessment-v1",
+                "report_id": str(values["report_id"]),
+                "report_version": 2,
+            },
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    assert first.generation_identity == expected_identity
     assert first.company_snapshot_version == 3
     changed = CompanyAssessment.create(**{**values, "company_snapshot_version": 4})
     assert changed.generation_identity != first.generation_identity

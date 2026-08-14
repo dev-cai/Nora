@@ -25,7 +25,6 @@ class CompanyAssessment:
     report_id: UUID
     report_version: int
     decision_case_id: UUID
-    decision_case_version: int
     company_snapshot_id: UUID
     company_snapshot_version: int
     status: CompanyAssessmentStatus
@@ -42,7 +41,6 @@ class CompanyAssessment:
         report_id: UUID,
         report_version: int,
         decision_case_id: UUID,
-        decision_case_version: int,
         company_snapshot_id: UUID,
         company_snapshot_version: int,
         status: CompanyAssessmentStatus,
@@ -63,13 +61,11 @@ class CompanyAssessment:
                 error_code="invalid_company_assessment_status",
             )
         report_version_value = _positive(report_version)
-        decision_case_version_value = _positive(decision_case_version)
         snapshot_version_value = _positive(company_snapshot_version)
         identity_values = {
             "company_snapshot_id": str(company_snapshot_id),
             "company_snapshot_version": snapshot_version_value,
             "decision_case_id": str(decision_case_id),
-            "decision_case_version": decision_case_version_value,
             "generator_version": generator,
             "report_id": str(report_id),
             "report_version": report_version_value,
@@ -86,7 +82,6 @@ class CompanyAssessment:
             report_id=report_id,
             report_version=report_version_value,
             decision_case_id=decision_case_id,
-            decision_case_version=decision_case_version_value,
             company_snapshot_id=company_snapshot_id,
             company_snapshot_version=snapshot_version_value,
             status=status,

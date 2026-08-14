@@ -260,7 +260,6 @@ async def test_message_draft_only_renders_available_confirmed_company_industry(
         report_id=decision.report_id,
         report_version=decision.report_version,
         decision_case_id=decision_case.id,
-        decision_case_version=1,
         company_snapshot_id=snapshot.id,
         company_snapshot_version=snapshot.version,
         status=assessment_status,
