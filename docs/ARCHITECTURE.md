@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183、#184。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -56,6 +56,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-012 | 岗位要求所有权 | 独立 `JobRequirementSnapshot`（版本化、来源定位、确认状态） | M2 | `JobPosting` 只保存原文；结构化要求独立版本化；OCR/规则/LLM 抽取仅作候选，确认后才成为事实 |
 | D-013 | Artifact 与 Source 生命周期 | PostgreSQL 元数据事实源 + 私有对象存储字节 + 应用层补偿 | M4 | MinIO/S3 是首个真实 Adapter；逻辑删除先撤销访问，物理删除与孤儿清理由可重试任务完成 |
 | D-014 | PostgreSQL 事务所有权 | Application 注入最小 `Transaction` Port，Repository 只查询、写入与 `flush` | #183 / M4 | 顶层写 Use Case 划分提交/回滚边界；SQLAlchemy Adapter 与 Repository 共享同一请求会话 |
+| D-015 | JobPosting 幂等指纹 | 只接受当前完整字段指纹，不保留 M1 运行时双轨 | #184 / M4 | 无生产或稳定客户端迁移义务；直接删除 legacy 分支，旧格式记录按同键异请求返回冲突 |
 
 ## 5. 系统上下文
 
@@ -150,6 +151,35 @@ flowchart TB
 | 偏好 | 地点、工作方式、行业、岗位类型、薪酬约束、硬性排除项 | 偏好影响建议，不改变岗位和公司事实 |
 
 每个字段都带 `confirmation_status`（`unconfirmed`、`confirmed`、`rejected`、`superseded`）、来源版本、更新时间和用户归属。PDF/Word 导入时，原文件进入 `SourceDocument`，解析结果先作为候选，用户确认后才写入 `CandidateProfile`。
+
+### JobPosting 幂等指纹兼容退出（D-015）
+
+截至 #184 决策，Nora 没有 Git tag、GitHub Release、已完成的 Beta/生产部署或已登记的第三方 JobPosting 客户端；M4 部署、
+发布与安全基线仍由开放 Issue 交付。M1 旧指纹只在 PR #100 引入的迁移集成测试中通过人工 SQL 构造，仓库没有必须重放的
+真实旧记录证据。因此选择**直接删除运行时兼容**，不为假设数据增加一次性迁移、feature flag、wrapper 或永久双轨。
+
+JobPosting 创建只使用一个当前指纹算法：先由 Domain 完成字段规范化，再对以下对象按 key 排序、紧凑 JSON、UTF-8 编码并计算
+SHA-256：
+
+```json
+{
+  "company_name": "<normalized value>",
+  "jd_text": "<normalized value>",
+  "job_title": "<normalized value>",
+  "location": "<normalized value>",
+  "source_type": "<enum value>",
+  "source_url": "<normalized value or null>"
+}
+```
+
+同一 owner 与规范化后的 `Idempotency-Key` 下，已存指纹等于当前请求指纹时返回首次 JobPosting；不相等时返回既有稳定
+`409 idempotency_conflict`，不得忽略新增元数据字段或接受 M1 子集指纹。并发请求继续依赖 owner-scoped 唯一约束和 D-014
+事务边界：失败事务先回滚，再读取赢家并执行相同的单指纹 replay / conflict 判定。
+
+后续原子实现只删除 `_legacy_request_fingerprint()`、双指纹参数/集合比较和人工旧指纹重放断言，同时保留 PR #100 对岗位元数据
+Schema 升级、回填、约束和 downgrade 的迁移验证；不新增数据库迁移，也不修改公开请求/响应 Schema。实现验收覆盖同键同完整输入
+重放、任一指纹字段变化冲突及同键并发。若在合并前发现可核验的真实旧记录，停止实现并重新评审数据迁移；合并后的回滚只整体
+回退实现 PR 以恢复旧分支，因为本决策不重写数据。
 
 ### 岗位要求契约（JobRequirementSnapshot）
 
