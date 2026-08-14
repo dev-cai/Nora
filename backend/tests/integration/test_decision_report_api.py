@@ -20,7 +20,7 @@ from app.domain.identity import User
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Base, TemplateDefinitionRecord
 from app.ports.followup import RenderedPdf
-from app.ports.knowledge import StoredObject, StoredObjectInfo
+from app.ports.knowledge import ArtifactStorageError, StoredObject, StoredObjectInfo
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -32,7 +32,7 @@ class MemoryArtifactStorage:
 
     async def put(self, *, object_key: str, data: bytes, content_type: str) -> None:
         if self.fail_put:
-            raise RuntimeError("storage unavailable")
+            raise ArtifactStorageError("storage unavailable")
         self.values[object_key] = StoredObject(data=data, content_type=content_type)
 
     async def get(self, *, object_key: str) -> StoredObject:
