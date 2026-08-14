@@ -13,7 +13,8 @@ from app.application.career import (
     PutCandidateProfileCommand,
     PutCandidateProfileUseCase,
 )
-from app.apps.api.dependencies import get_candidate_profile_repository, get_current_user
+from app.apps.api.dependencies.career import get_candidate_profile_repository
+from app.apps.api.dependencies.common import get_current_user
 from app.domain.career import CandidateProfile, ConfirmationStatus, ProfileSourceType
 from app.domain.identity import User
 from app.ports.career import CandidateProfileRepository

@@ -13,16 +13,20 @@ from app.application.followup import (
     ListMessageDraftsQuery,
     MessageDraftUseCases,
 )
-from app.apps.api.dependencies import (
-    get_application_decision_repository,
+from app.apps.api.dependencies.career import get_resume_version_repository
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.decision import (
     get_company_assessment_repository,
-    get_company_snapshot_repository,
-    get_current_user,
     get_decision_case_repository,
-    get_job_posting_repository,
+)
+from app.apps.api.dependencies.followup import (
+    get_application_decision_repository,
     get_message_draft_repository,
     get_resume_variant_repository,
-    get_resume_version_repository,
+)
+from app.apps.api.dependencies.opportunity import (
+    get_company_snapshot_repository,
+    get_job_posting_repository,
 )
 from app.domain.followup import MessageDraft, MessageDraftRevisionType, MessageDraftStyle
 from app.domain.identity import User

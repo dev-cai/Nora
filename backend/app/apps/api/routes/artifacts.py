@@ -8,11 +8,11 @@ from fastapi import APIRouter, Depends, File, Form, Header, Request, Response, U
 from pydantic import BaseModel, Field
 
 from app.application.knowledge import ArtifactService, CreateSourceCommand, UploadArtifactCommand
-from app.apps.api.dependencies import (
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.governance import get_audit_event_repository
+from app.apps.api.dependencies.knowledge import (
     get_artifact_repository,
     get_artifact_storage,
-    get_audit_event_repository,
-    get_current_user,
     get_source_document_repository,
 )
 from app.domain.identity import User

@@ -16,8 +16,8 @@ from app.application.opportunity import (
     SaveJobRequirementSnapshotCommand,
     SaveJobRequirementSnapshotUseCase,
 )
-from app.apps.api.dependencies import (
-    get_current_user,
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.opportunity import (
     get_job_posting_repository,
     get_job_requirement_snapshot_repository,
 )

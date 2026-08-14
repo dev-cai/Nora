@@ -5,11 +5,9 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.apps.api import create_app
-from app.apps.api.dependencies import (
-    get_artifact_storage,
-    get_current_user,
-    get_resume_pdf_renderer,
-)
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.followup import get_resume_pdf_renderer
+from app.apps.api.dependencies.knowledge import get_artifact_storage
 from app.domain.followup import (
     TemplateAccent,
     TemplateDefinition,

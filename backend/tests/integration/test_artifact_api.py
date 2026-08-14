@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from app.apps.api import create_app
-from app.apps.api.dependencies import get_artifact_storage
+from app.apps.api.dependencies.knowledge import get_artifact_storage
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Base
 from app.ports.knowledge import ArtifactStorageError, StoredObject, StoredObjectInfo

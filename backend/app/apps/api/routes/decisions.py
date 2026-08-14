@@ -28,22 +28,28 @@ from app.application.followup import (
     GetApplicationDecisionQuery,
     GetApplicationDecisionUseCase,
 )
-from app.apps.api.dependencies import (
-    get_application_decision_repository,
-    get_artifact_repository,
-    get_audit_event_repository,
+from app.apps.api.dependencies.career import (
     get_candidate_profile_repository,
+    get_resume_version_repository,
+)
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.decision import (
     get_company_assessment_repository,
-    get_company_snapshot_repository,
-    get_current_user,
     get_decision_case_repository,
     get_decision_report_repository,
+)
+from app.apps.api.dependencies.followup import get_application_decision_repository
+from app.apps.api.dependencies.governance import get_audit_event_repository
+from app.apps.api.dependencies.knowledge import (
+    get_artifact_repository,
+    get_source_document_repository,
+)
+from app.apps.api.dependencies.opportunity import (
+    get_company_snapshot_repository,
     get_job_posting_repository,
     get_job_requirement_snapshot_repository,
-    get_resume_version_repository,
-    get_source_document_repository,
-    get_transaction,
 )
+from app.apps.api.dependencies.transaction import get_transaction
 from app.apps.api.routes.companies import CompanySnapshotResponse
 from app.domain.decision import (
     RULE_SET_VERSION,

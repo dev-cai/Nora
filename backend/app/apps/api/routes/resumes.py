@@ -15,11 +15,11 @@ from app.application.career import (
     PublishResumeVersionCommand,
     PublishResumeVersionUseCase,
 )
-from app.apps.api.dependencies import (
+from app.apps.api.dependencies.career import (
     get_candidate_profile_repository,
-    get_current_user,
     get_resume_version_repository,
 )
+from app.apps.api.dependencies.common import get_current_user
 from app.domain.career import ResumeVersion
 from app.domain.identity import User
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository

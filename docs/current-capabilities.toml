@@ -6,10 +6,12 @@ id = "engineering-baseline"
 name = "工程与容器基线"
 milestone = "M0"
 status = "current"
-summary = "Python/FastAPI 工程、配置、结构化日志、PostgreSQL/Alembic、Compose 与基础 CI 已进入默认分支。"
+summary = "Python/FastAPI 工程、配置、结构化日志、PostgreSQL/Alembic、Compose 与基础 CI 已进入默认分支；API composition root 按 bounded context 显式装配，Settings、请求级 AsyncSession 与认证用户保持最小共享。"
 code_paths = [
   "backend/pyproject.toml",
   "backend/app/apps/api/app.py",
+  "backend/app/apps/api/dependencies/common.py",
+  "backend/app/apps/api/dependencies/identity.py",
   "backend/app/infrastructure/config/settings.py",
   "backend/app/infrastructure/logging/configure.py",
   "backend/app/infrastructure/database/engine.py",
