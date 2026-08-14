@@ -103,16 +103,19 @@ flowchart LR
 
 ## 6. 错误与可观测性
 
-Nora 可预期错误使用稳定结构：
+D-018 目标错误响应使用稳定结构：
 
 ```json
 {
   "error_code": "authentication_failed",
+  "error_category": "authentication",
   "message": "Authentication failed"
 }
 ```
 
-前端根据 `error_code` 选择可本地化提示，保留通用失败回退；FastAPI 请求校验产生的 `422` 作为独立验证错误处理。
+Current 响应尚未包含 `error_category`；D-018 实施后，前端从 OpenAPI generated schema 获得 `ErrorCode` 与 `ErrorCategory` union，
+根据 `error_code` 选择可本地化提示，再按 category 与 status 保留通用失败回退。FastAPI 请求校验统一为
+`validation_error/request_validation/422`，不再消费独立的 `HTTPValidationError.detail` 结构。
 响应中的 `X-Request-ID` 可显示在错误详情中用于排障，但不得替代用户可理解的提示，也不得包含敏感数据。
 
 ## 7. 交付边界
@@ -307,7 +310,9 @@ Nora 可预期错误使用稳定结构：
   generated path 索引。
 - Generated 文件禁止手改；后续 `api:generate` 负责重建，`api:check` 在 CI 生成后执行 diff gate。迁移期间每个端点只有一个实际
   请求实现，不进行手写/生成 client 双写。
-- 错误码 → 本地化提示表（预留通用回退）：
+- D-018 实施后，后端 `ErrorCode` / `ErrorCategory` 只来自 generated schema；手写 UI 只拥有本地化文案与回退策略，不得声明同构
+  union/Enum。浏览器产生的 `network_error`、`network_timeout`、`http_error` 是独立 `TransportErrorCode`，不伪装成后端响应码。
+- 错误码优先于 category/status 选择本地化提示（预留通用回退）：
   - `401` → 登录态失效，跳转登录；
   - `404` → "对象不存在"（跨用户不泄露）；
   - `409` → 版本冲突 / 幂等冲突；
