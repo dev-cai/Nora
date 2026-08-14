@@ -116,6 +116,7 @@ describe("resume variants", () => {
     const getVariant = vi.spyOn(api, "getResumeVariant").mockResolvedValue(variant)
     const getTemplate = vi.spyOn(api, "getTemplate").mockResolvedValue(template)
     const getPdf = vi.spyOn(api, "getLatestResumePdf").mockResolvedValue(pdf)
+    const getMessage = vi.spyOn(api, "getLatestMessageDraft").mockResolvedValue(null)
     const router = createRouter({ history: createMemoryHistory(), routes: [
       { path: "/templates", component: { template: "<div />" } },
       { path: "/resume-variants/:id", component: ResumeVariantDetailView },
@@ -127,6 +128,7 @@ describe("resume variants", () => {
     expect(getVariant).toHaveBeenCalledWith("variant-1")
     expect(getTemplate).toHaveBeenCalledWith("template-1", 1)
     expect(getPdf).toHaveBeenCalledWith("variant-1")
+    expect(getMessage).toHaveBeenCalledWith("variant-1")
     expect(wrapper.text()).toContain("后端工程师 · 定制版")
     expect(wrapper.text()).toContain("清晰单栏")
     expect(wrapper.text()).toContain("weasyprint-69.0")
@@ -136,6 +138,7 @@ describe("resume variants", () => {
     vi.spyOn(api, "getResumeVariant").mockResolvedValue(variant)
     vi.spyOn(api, "getTemplate").mockResolvedValue(template)
     vi.spyOn(api, "getLatestResumePdf").mockResolvedValue(null)
+    vi.spyOn(api, "getLatestMessageDraft").mockResolvedValue(null)
     const generate = vi.spyOn(api, "generateResumePdf").mockResolvedValue(pdf)
     const content = vi.spyOn(api, "getResumePdfContent").mockResolvedValue(
       new Blob(["pdf"], { type: "application/pdf" }),
@@ -157,17 +160,39 @@ describe("resume variants", () => {
     const wrapper = mount(ResumeVariantDetailView, { global: { plugins: [createPinia(), router], stubs } })
     await flushPromises()
 
-    await wrapper.get("button.button-primary").trigger("click")
+    await wrapper.get(".pdf-band button.button-primary").trigger("click")
     await flushPromises()
     expect(generate).toHaveBeenCalledWith("variant-1")
     expect(wrapper.text()).toContain("artifact-1")
 
-    await wrapper.get("button.button-secondary").trigger("click")
+    await wrapper.get(".pdf-band button.button-secondary").trigger("click")
     await flushPromises()
-    await wrapper.findAll("button.button-primary").at(-1)!.trigger("click")
+    await wrapper.get(".pdf-band button.button-primary").trigger("click")
     await flushPromises()
 
     expect(content.mock.calls.map((call) => call[1])).toEqual([false, true])
     expect(wrapper.get("iframe").attributes("src")).toBe("blob:resume-pdf")
+  })
+
+  it("requires explicit context before generating a referral draft", async () => {
+    vi.spyOn(api, "getResumeVariant").mockResolvedValue(variant)
+    vi.spyOn(api, "getTemplate").mockResolvedValue(template)
+    vi.spyOn(api, "getLatestResumePdf").mockResolvedValue(null)
+    vi.spyOn(api, "getLatestMessageDraft").mockResolvedValue(null)
+    const generate = vi.spyOn(api, "generateMessageDraft")
+    const router = createRouter({ history: createMemoryHistory(), routes: [
+      { path: "/templates", component: { template: "<div />" } },
+      { path: "/resume-variants/:id", component: ResumeVariantDetailView },
+      { path: "/messages/:id", component: { template: "<div />" } },
+    ] })
+    await router.push("/resume-variants/variant-1")
+    const wrapper = mount(ResumeVariantDetailView, { global: { plugins: [createPinia(), router], stubs } })
+    await flushPromises()
+
+    await wrapper.get('[role="group"] button:last-child').trigger("click")
+    await wrapper.get(".message-draft-band .button-primary").trigger("click")
+
+    expect(wrapper.text()).toContain("内推风格需要填写上下文")
+    expect(generate).not.toHaveBeenCalled()
   })
 })

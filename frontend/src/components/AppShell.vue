@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from "@/stores/auth"
 import { useAnalysisStore } from "@/stores/analysis"
 import { useJobsStore } from "@/stores/jobs"
+import { useMessagesStore } from "@/stores/messages"
 import { useProfileStore } from "@/stores/profile"
 import { useResumesStore } from "@/stores/resumes"
 import { useVariantsStore } from "@/stores/variants"
@@ -22,6 +23,7 @@ import { useVariantsStore } from "@/stores/variants"
 const auth = useAuthStore()
 const analysis = useAnalysisStore()
 const jobs = useJobsStore()
+const messages = useMessagesStore()
 const profile = useProfileStore()
 const resumes = useResumesStore()
 const variants = useVariantsStore()
@@ -36,6 +38,7 @@ function logout(): void {
   resumes.reset()
   analysis.reset()
   variants.reset()
+  messages.reset()
   void router.push({ name: "login" })
 }
 </script>
@@ -110,7 +113,7 @@ function logout(): void {
         </RouterLink>
         <RouterLink
           class="nav-item"
-          :class="{ active: route.name === 'templates' || route.name === 'resume-customize' || route.name === 'resume-variant-detail' }"
+          :class="{ active: route.name === 'templates' || route.name === 'resume-customize' || route.name === 'resume-variant-detail' || route.name === 'message-draft' }"
           to="/templates"
         >
           <LayoutTemplate :size="18" />

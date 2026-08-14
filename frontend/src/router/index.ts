@@ -23,6 +23,7 @@ export function createAppRouter(pinia: Pinia) {
       { path: "/resumes/:id", name: "resume-detail", component: () => import("@/views/ResumeDetailView.vue"), meta: { requiresAuth: true, title: "简历详情" } },
       { path: "/templates", name: "templates", component: () => import("@/views/TemplatesView.vue"), meta: { requiresAuth: true, title: "定制简历" } },
       { path: "/resume-variants/:id", name: "resume-variant-detail", component: () => import("@/views/ResumeVariantDetailView.vue"), meta: { requiresAuth: true, title: "定制简历详情" } },
+      { path: "/messages/:id", name: "message-draft", component: () => import("@/views/MessageDraftView.vue"), meta: { requiresAuth: true, title: "消息草稿" } },
       { path: "/analysis/new", name: "analysis-new", component: () => import("@/views/AnalysisNewView.vue"), meta: { requiresAuth: true, title: "发起分析" } },
       { path: "/analysis/:id", name: "analysis-detail", component: () => import("@/views/AnalysisDetailView.vue"), meta: { requiresAuth: true, title: "分析结果" } },
       { path: "/reports", name: "reports", component: () => import("@/views/ReportsView.vue"), meta: { requiresAuth: true, title: "分析报告" } },

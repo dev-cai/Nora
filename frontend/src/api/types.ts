@@ -395,3 +395,57 @@ export interface ResumePdf {
   created_at: string
   updated_at: string
 }
+
+export type MessageDraftStyle = "professional" | "concise" | "referral"
+export type MessageDraftRevisionType = "generated" | "edited"
+
+export interface GenerateMessageDraftInput {
+  style: MessageDraftStyle
+  user_note: string | null
+  referral_context: string | null
+}
+
+export interface EditMessageDraftInput {
+  base_version: number
+  text: string
+}
+
+export interface MessageDraft {
+  id: string
+  version: number
+  application_decision_id: string
+  report_id: string
+  report_version: number
+  decision_case_id: string
+  resume_variant_id: string
+  resume_variant_version: number
+  variant_content_fingerprint: string
+  candidate_profile_id: string
+  candidate_profile_version: number
+  resume_version_id: string
+  resume_version: number
+  job_posting_id: string
+  job_posting_version: number
+  company_snapshot_id: string | null
+  company_snapshot_version: number | null
+  company_snapshot_hash: string | null
+  company_freshness: string | null
+  style: MessageDraftStyle
+  user_note: string | null
+  referral_context: string | null
+  generator_version: string
+  template_version: string
+  generation_identity: string
+  text: string
+  content_fingerprint: string
+  revision_type: MessageDraftRevisionType
+  previous_version: number | null
+  created_at: string
+}
+
+export interface MessageDraftList {
+  items: MessageDraft[]
+  page: number
+  page_size: number
+  total: number
+}

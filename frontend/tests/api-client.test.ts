@@ -142,4 +142,36 @@ describe("API client", () => {
       ["/api/resume-pdfs/pdf%2F1/content?download=true", "GET"],
     ])
   })
+
+  it("uses versioned message draft routes and idempotency keys", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({})))
+
+    await api.getLatestMessageDraft("variant/1")
+    await api.generateMessageDraft(
+      "variant/1",
+      { style: "professional", user_note: null, referral_context: null },
+      "generate-key",
+    )
+    await api.listMessageDrafts(2, 10)
+    await api.getMessageDraft("draft/1")
+    await api.getMessageDraftVersion("draft/1", 2)
+    await api.listMessageDraftVersions("draft/1")
+    await api.editMessageDraft(
+      "draft/1",
+      { base_version: 1, text: "更新后的草稿" },
+      "edit-key",
+    )
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
+      ["/api/resume-variants/variant%2F1/message-draft", "GET"],
+      ["/api/resume-variants/variant%2F1/message-drafts", "POST"],
+      ["/api/message-drafts?page=2&page_size=10", "GET"],
+      ["/api/message-drafts/draft%2F1", "GET"],
+      ["/api/message-drafts/draft%2F1/versions/2", "GET"],
+      ["/api/message-drafts/draft%2F1/versions", "GET"],
+      ["/api/message-drafts/draft%2F1/revisions", "POST"],
+    ])
+    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("Idempotency-Key")).toBe("generate-key")
+    expect(new Headers(fetchMock.mock.calls[6]?.[1]?.headers).get("Idempotency-Key")).toBe("edit-key")
+  })
 })

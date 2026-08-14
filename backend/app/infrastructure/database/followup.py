@@ -1,20 +1,23 @@
 """Application & Follow-up ORM models and user-scoped repositories."""
 
 from datetime import datetime, timezone
-from typing import cast
-from uuid import UUID
+from typing import Sequence, cast
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    and_,
     func,
     select,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
@@ -26,6 +29,10 @@ from app.domain.base.exceptions import InfrastructureError
 from app.domain.followup import (
     ApplicationDecision,
     ApplicationDecisionStatus,
+    MessageDraft,
+    MessageDraftRevisionType,
+    MessageDraftSource,
+    MessageDraftStyle,
     ResumePdf,
     ResumePdfStatus,
     ResumeVariant,
@@ -402,6 +409,145 @@ class ResumePdfRecord(Base):
     pdf_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class MessageDraftRecord(Base):
+    __tablename__ = "message_drafts"
+    __table_args__ = (
+        UniqueConstraint("id", "version", "owner_id", name="uq_message_draft_identity"),
+        UniqueConstraint("owner_id", "idempotency_key", name="uq_message_draft_owner_key"),
+        Index(
+            "uq_message_draft_owner_generation",
+            "owner_id",
+            "generation_identity",
+            unique=True,
+            postgresql_where=text("version = 1"),
+        ),
+        CheckConstraint("version >= 1", name="ck_message_draft_version"),
+        CheckConstraint("report_version >= 1", name="ck_message_draft_report_version"),
+        CheckConstraint("resume_variant_version >= 1", name="ck_message_draft_variant_version"),
+        CheckConstraint("candidate_profile_version >= 1", name="ck_message_draft_profile_version"),
+        CheckConstraint("resume_version >= 1", name="ck_message_draft_resume_version"),
+        CheckConstraint("job_posting_version >= 1", name="ck_message_draft_job_version"),
+        CheckConstraint(
+            "style IN ('professional', 'concise', 'referral')",
+            name="ck_message_draft_style",
+        ),
+        CheckConstraint(
+            "revision_type IN ('generated', 'edited')",
+            name="ck_message_draft_revision_type",
+        ),
+        CheckConstraint(
+            "(version = 1 AND revision_type = 'generated' AND previous_version IS NULL) OR "
+            "(version > 1 AND revision_type = 'edited' AND previous_version = version - 1)",
+            name="ck_message_draft_revision_chain",
+        ),
+        CheckConstraint(
+            "(style = 'referral' AND referral_context IS NOT NULL) OR "
+            "(style <> 'referral' AND referral_context IS NULL)",
+            name="ck_message_draft_referral_context",
+        ),
+        CheckConstraint("jsonb_typeof(skills) = 'array'", name="ck_message_draft_skills"),
+        CheckConstraint(
+            "length(variant_content_fingerprint) = 64 AND "
+            "length(generation_identity) = 64 AND "
+            "length(content_fingerprint) = 64 AND length(request_fingerprint) = 64",
+            name="ck_message_draft_hashes",
+        ),
+        CheckConstraint(
+            "(company_snapshot_id IS NULL AND company_snapshot_version IS NULL AND "
+            "company_snapshot_hash IS NULL AND company_freshness IS NULL) OR "
+            "(company_snapshot_id IS NOT NULL AND company_snapshot_version >= 1 AND "
+            "length(company_snapshot_hash) = 64 AND company_freshness IS NOT NULL)",
+            name="ck_message_draft_company_identity",
+        ),
+        ForeignKeyConstraint(
+            ["resume_variant_id", "resume_variant_version", "owner_id"],
+            ["resume_variants.id", "resume_variants.version", "resume_variants.owner_id"],
+            name="fk_message_draft_variant_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["candidate_profile_id", "candidate_profile_version", "owner_id"],
+            [
+                "candidate_profile_versions.profile_id",
+                "candidate_profile_versions.version",
+                "candidate_profile_versions.owner_id",
+            ],
+            name="fk_message_draft_profile_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["resume_version_id", "resume_version", "owner_id"],
+            ["resume_versions.id", "resume_versions.version", "resume_versions.owner_id"],
+            name="fk_message_draft_resume_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["job_posting_id", "job_posting_version", "owner_id"],
+            ["job_postings.id", "job_postings.version", "job_postings.owner_id"],
+            name="fk_message_draft_job_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["company_snapshot_id", "company_snapshot_version", "owner_id"],
+            [
+                "company_snapshots.snapshot_id",
+                "company_snapshots.version",
+                "company_snapshots.owner_id",
+            ],
+            name="fk_message_draft_company_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["id", "previous_version", "owner_id"],
+            ["message_drafts.id", "message_drafts.version", "message_drafts.owner_id"],
+            name="fk_message_draft_previous_version",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    record_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False, index=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    application_decision_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    report_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    report_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    decision_case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resume_variant_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resume_variant_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    variant_content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    candidate_profile_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    candidate_profile_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    resume_version_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resume_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    job_posting_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    job_posting_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    company_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    job_title: Mapped[str] = mapped_column(String(200), nullable=False)
+    skills: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    company_snapshot_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    company_snapshot_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    company_snapshot_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    company_freshness: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    company_industry: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    style: Mapped[str] = mapped_column(String(32), nullable=False)
+    user_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    referral_context: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generator_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    template_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    generation_identity: Mapped[str] = mapped_column(String(64), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    revision_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    previous_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    draft_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class SqlAlchemyTemplateDefinitionRepository:
     @staticmethod
     def _to_domain(record: TemplateDefinitionRecord) -> TemplateDefinition:
@@ -554,6 +700,175 @@ class SqlAlchemyResumeVariantRepository:
         await self.session.commit()
 
 
+class SqlAlchemyMessageDraftRepository:
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(record: MessageDraftRecord) -> MessageDraft:
+        return MessageDraft.restore(
+            draft_id=record.id,
+            owner_id=record.owner_id,
+            version=record.version,
+            source=MessageDraftSource(
+                application_decision_id=record.application_decision_id,
+                report_id=record.report_id,
+                report_version=record.report_version,
+                decision_case_id=record.decision_case_id,
+                resume_variant_id=record.resume_variant_id,
+                resume_variant_version=record.resume_variant_version,
+                variant_content_fingerprint=record.variant_content_fingerprint,
+                candidate_profile_id=record.candidate_profile_id,
+                candidate_profile_version=record.candidate_profile_version,
+                resume_version_id=record.resume_version_id,
+                resume_version=record.resume_version,
+                job_posting_id=record.job_posting_id,
+                job_posting_version=record.job_posting_version,
+                display_name=record.display_name,
+                company_name=record.company_name,
+                job_title=record.job_title,
+                skills=tuple(record.skills),
+                company_snapshot_id=record.company_snapshot_id,
+                company_snapshot_version=record.company_snapshot_version,
+                company_snapshot_hash=record.company_snapshot_hash,
+                company_freshness=record.company_freshness,
+                company_industry=record.company_industry,
+            ),
+            style=MessageDraftStyle(record.style),
+            user_note=record.user_note,
+            referral_context=record.referral_context,
+            generator_version=record.generator_version,
+            template_version=record.template_version,
+            generation_identity=record.generation_identity,
+            text=record.text,
+            content_fingerprint=record.content_fingerprint,
+            revision_type=MessageDraftRevisionType(record.revision_type),
+            previous_version=record.previous_version,
+            idempotency_key=record.idempotency_key,
+            request_fingerprint=record.request_fingerprint,
+            created_at=_as_utc(record.draft_created_at),
+        )
+
+    async def add(self, draft: MessageDraft) -> MessageDraft:
+        if draft.owner_id != self.owner_id:
+            raise InfrastructureError("Message draft not found", error_code="entity_not_found")
+        record = MessageDraftRecord(record_id=uuid4(), **_message_draft_values(draft))
+        self.session.add(record)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise InfrastructureError(
+                "Message draft already exists", error_code="message_draft_conflict"
+            ) from exc
+        return self._to_domain(record)
+
+    async def get_latest(self, draft_id: UUID) -> MessageDraft | None:
+        record = await self.session.scalar(
+            select(MessageDraftRecord)
+            .where(
+                MessageDraftRecord.id == draft_id,
+                MessageDraftRecord.owner_id == self.owner_id,
+            )
+            .order_by(MessageDraftRecord.version.desc())
+            .limit(1)
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_version(self, draft_id: UUID, version: int) -> MessageDraft | None:
+        record = await self.session.scalar(
+            select(MessageDraftRecord).where(
+                MessageDraftRecord.id == draft_id,
+                MessageDraftRecord.version == version,
+                MessageDraftRecord.owner_id == self.owner_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_by_idempotency_key(self, key: str) -> MessageDraft | None:
+        record = await self.session.scalar(
+            select(MessageDraftRecord).where(
+                MessageDraftRecord.owner_id == self.owner_id,
+                MessageDraftRecord.idempotency_key == key,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_by_generation_identity(self, identity: str) -> MessageDraft | None:
+        record = await self.session.scalar(
+            select(MessageDraftRecord).where(
+                MessageDraftRecord.owner_id == self.owner_id,
+                MessageDraftRecord.generation_identity == identity,
+                MessageDraftRecord.version == 1,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_latest_by_variant(self, variant_id: UUID) -> MessageDraft | None:
+        record = await self.session.scalar(
+            select(MessageDraftRecord)
+            .where(
+                MessageDraftRecord.owner_id == self.owner_id,
+                MessageDraftRecord.resume_variant_id == variant_id,
+            )
+            .order_by(
+                MessageDraftRecord.draft_created_at.desc(),
+                MessageDraftRecord.version.desc(),
+            )
+            .limit(1)
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def list(self, *, offset: int, limit: int) -> list[MessageDraft]:
+        latest = (
+            select(
+                MessageDraftRecord.id.label("draft_id"),
+                func.max(MessageDraftRecord.version).label("latest_version"),
+            )
+            .where(MessageDraftRecord.owner_id == self.owner_id)
+            .group_by(MessageDraftRecord.id)
+            .subquery()
+        )
+        records = await self.session.scalars(
+            select(MessageDraftRecord)
+            .join(
+                latest,
+                and_(
+                    MessageDraftRecord.id == latest.c.draft_id,
+                    MessageDraftRecord.version == latest.c.latest_version,
+                ),
+            )
+            .where(MessageDraftRecord.owner_id == self.owner_id)
+            .order_by(MessageDraftRecord.draft_created_at.desc(), MessageDraftRecord.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return [self._to_domain(record) for record in records]
+
+    async def list_versions(self, draft_id: UUID) -> Sequence[MessageDraft]:
+        records = await self.session.scalars(
+            select(MessageDraftRecord)
+            .where(
+                MessageDraftRecord.id == draft_id,
+                MessageDraftRecord.owner_id == self.owner_id,
+            )
+            .order_by(MessageDraftRecord.version.desc())
+        )
+        return [self._to_domain(record) for record in records]
+
+    async def count(self) -> int:
+        value = await self.session.scalar(
+            select(func.count(func.distinct(MessageDraftRecord.id))).where(
+                MessageDraftRecord.owner_id == self.owner_id
+            )
+        )
+        return int(value or 0)
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
+
 class SqlAlchemyResumePdfRepository:
     def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
         self.session = session
@@ -679,6 +994,50 @@ def _resume_pdf_values(value: ResumePdf) -> dict[str, object]:
         "artifact_size_bytes": value.artifact_size_bytes,
         "pdf_created_at": value.created_at,
         "pdf_updated_at": value.updated_at,
+    }
+
+
+def _message_draft_values(value: MessageDraft) -> dict[str, object]:
+    source = value.source
+    return {
+        "id": value.id,
+        "owner_id": value.owner_id,
+        "version": value.version,
+        "application_decision_id": source.application_decision_id,
+        "report_id": source.report_id,
+        "report_version": source.report_version,
+        "decision_case_id": source.decision_case_id,
+        "resume_variant_id": source.resume_variant_id,
+        "resume_variant_version": source.resume_variant_version,
+        "variant_content_fingerprint": source.variant_content_fingerprint,
+        "candidate_profile_id": source.candidate_profile_id,
+        "candidate_profile_version": source.candidate_profile_version,
+        "resume_version_id": source.resume_version_id,
+        "resume_version": source.resume_version,
+        "job_posting_id": source.job_posting_id,
+        "job_posting_version": source.job_posting_version,
+        "display_name": source.display_name,
+        "company_name": source.company_name,
+        "job_title": source.job_title,
+        "skills": list(source.skills),
+        "company_snapshot_id": source.company_snapshot_id,
+        "company_snapshot_version": source.company_snapshot_version,
+        "company_snapshot_hash": source.company_snapshot_hash,
+        "company_freshness": source.company_freshness,
+        "company_industry": source.company_industry,
+        "style": value.style.value,
+        "user_note": value.user_note,
+        "referral_context": value.referral_context,
+        "generator_version": value.generator_version,
+        "template_version": value.template_version,
+        "generation_identity": value.generation_identity,
+        "text": value.text,
+        "content_fingerprint": value.content_fingerprint,
+        "revision_type": value.revision_type.value,
+        "previous_version": value.previous_version,
+        "idempotency_key": value.idempotency_key,
+        "request_fingerprint": value.request_fingerprint,
+        "draft_created_at": value.created_at,
     }
 
 

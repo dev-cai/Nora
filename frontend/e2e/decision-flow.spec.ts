@@ -197,6 +197,33 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
   expect(downloadPath).not.toBeNull()
   expect((await readFile(downloadPath!)).subarray(0, 8).toString()).toBe("%PDF-1.7")
 
+  const draftWrites: string[] = []
+  page.on("request", (request) => {
+    if (request.method() === "POST") draftWrites.push(new URL(request.url()).pathname)
+  })
+  await page.getByLabel("用户备注").fill("可在本周沟通")
+  await page.getByRole("button", { name: "生成草稿" }).click()
+  await expect(page).toHaveURL(/\/messages\/[0-9a-f]{8}-/)
+  const draftId = page.url().match(/\/messages\/([0-9a-f-]+)/)![1]
+  const editor = page.getByLabel("消息草稿内容")
+  await expect(editor).toHaveValue(/M3 决策用户/)
+  await expect(editor).toHaveValue(/可在本周沟通/)
+  const editedText = `${await editor.inputValue()}\n\n期待您的回复。`
+  await editor.fill(editedText)
+  await page.getByRole("button", { name: "保存新版本" }).click()
+  await expect(page.getByText("版本 2", { exact: false }).first()).toBeVisible()
+
+  await page.reload()
+  await expect(editor).toHaveValue(editedText)
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.getByRole("button", { name: "复制" }).click()
+  await expect(page.getByRole("button", { name: "已复制" })).toBeVisible()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(editedText)
+  expect(draftWrites).toEqual([
+    `/api/resume-variants/${variantId}/message-drafts`,
+    `/api/message-drafts/${draftId}/revisions`,
+  ])
+
   await page.getByRole("button", { name: "退出登录" }).click()
   const userB = newUser("m4-variant-b")
   await registerAndLogin(page, userB)
@@ -216,4 +243,10 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
     headers: { Authorization: `Bearer ${userBSession.token}` },
   })
   expect(foreignPdfContent.status()).toBe(404)
+  await page.goto(`/messages/${draftId}`)
+  await expect(page.getByText("对象不存在或无权访问")).toBeVisible()
+  const foreignDraft = await page.request.get(`/api/message-drafts/${draftId}`, {
+    headers: { Authorization: `Bearer ${userBSession.token}` },
+  })
+  expect(foreignDraft.status()).toBe(404)
 })

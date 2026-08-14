@@ -16,6 +16,10 @@ import type {
   JobRequirementSaveInput,
   JobRequirementSnapshot,
   JobRequirementSnapshotList,
+  EditMessageDraftInput,
+  GenerateMessageDraftInput,
+  MessageDraft,
+  MessageDraftList,
   ResumePdf,
   ResumeVersion,
   ResumeVersionList,
@@ -58,6 +62,10 @@ const errorCodeMessages: Record<string, string> = {
   pdf_generation_failed: "PDF 生成失败，请重试",
   artifact_storage_unavailable: "PDF 存储暂时不可用，请重试",
   artifact_corrupt: "PDF 完整性校验失败",
+  referral_context_required: "内推风格需要填写上下文",
+  invalid_referral_context: "只有内推风格可以填写内推上下文",
+  message_draft_version_conflict: "草稿已更新，请刷新后重试",
+  invalid_draft_text: "消息草稿内容无效",
   skip_reason_required: "选择不投时需要填写原因",
 }
 
@@ -242,4 +250,39 @@ export const api = {
     requestBlob(
       `/resume-pdfs/${encodeURIComponent(pdfId)}/content?download=${download ? "true" : "false"}`,
     ),
+  getLatestMessageDraft: async (variantId: string) =>
+    (await request<MessageDraft | undefined>(
+      `/resume-variants/${encodeURIComponent(variantId)}/message-draft`,
+    )) ?? null,
+  generateMessageDraft: (
+    variantId: string,
+    input: GenerateMessageDraftInput,
+    idempotencyKey: string,
+  ) => request<MessageDraft>(
+    `/resume-variants/${encodeURIComponent(variantId)}/message-drafts`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(input),
+    },
+  ),
+  listMessageDrafts: (page = 1, pageSize = 20) =>
+    request<MessageDraftList>(`/message-drafts?page=${page}&page_size=${pageSize}`),
+  getMessageDraft: (draftId: string) =>
+    request<MessageDraft>(`/message-drafts/${encodeURIComponent(draftId)}`),
+  getMessageDraftVersion: (draftId: string, version: number) =>
+    request<MessageDraft>(
+      `/message-drafts/${encodeURIComponent(draftId)}/versions/${version}`,
+    ),
+  listMessageDraftVersions: (draftId: string) =>
+    request<MessageDraft[]>(`/message-drafts/${encodeURIComponent(draftId)}/versions`),
+  editMessageDraft: (
+    draftId: string,
+    input: EditMessageDraftInput,
+    idempotencyKey: string,
+  ) => request<MessageDraft>(`/message-drafts/${encodeURIComponent(draftId)}/revisions`, {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(input),
+  }),
 }
