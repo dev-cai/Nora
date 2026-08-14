@@ -116,5 +116,6 @@ describe("resume variants", () => {
     expect(getTemplate).toHaveBeenCalledWith("template-1", 1)
     expect(wrapper.text()).toContain("后端工程师 · 定制版")
     expect(wrapper.text()).toContain("清晰单栏")
+    expect(wrapper.text()).toContain("m4-resume-variant-v1")
   })
 })

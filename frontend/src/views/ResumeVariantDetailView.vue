@@ -70,6 +70,7 @@ watch(variantId, () => void load(), { immediate: true })
         <div><dt>岗位版本</dt><dd>{{ store.current.job_posting_id }} · v{{ store.current.job_posting_version }}</dd></div>
         <div><dt>岗位要求</dt><dd>{{ store.current.job_requirement_snapshot_id }} · v{{ store.current.job_requirement_snapshot_version }}</dd></div>
         <div><dt>来源简历</dt><dd>{{ store.current.resume_version_id }} · v{{ store.current.resume_version }}</dd></div>
+        <div><dt>生成器版本</dt><dd>{{ store.current.generator_version }}</dd></div>
         <div><dt>内容指纹</dt><dd><code>{{ store.current.content_fingerprint }}</code></dd></div>
       </dl>
       <section
