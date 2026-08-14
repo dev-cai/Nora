@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -55,6 +55,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-011 | 工程组织 | 前后端分离；后端业务模块优先、模块内分层 | #59 / 后续 Task | `backend/app` 边界 Current；业务模块内聚渐进迁移 |
 | D-012 | 岗位要求所有权 | 独立 `JobRequirementSnapshot`（版本化、来源定位、确认状态） | M2 | `JobPosting` 只保存原文；结构化要求独立版本化；OCR/规则/LLM 抽取仅作候选，确认后才成为事实 |
 | D-013 | Artifact 与 Source 生命周期 | PostgreSQL 元数据事实源 + 私有对象存储字节 + 应用层补偿 | M4 | MinIO/S3 是首个真实 Adapter；逻辑删除先撤销访问，物理删除与孤儿清理由可重试任务完成 |
+| D-014 | PostgreSQL 事务所有权 | Application 注入最小 `Transaction` Port，Repository 只查询、写入与 `flush` | #183 / M4 | 顶层写 Use Case 划分提交/回滚边界；SQLAlchemy Adapter 与 Repository 共享同一请求会话 |
 
 ## 5. 系统上下文
 
@@ -591,12 +592,96 @@ stateDiagram-v2
 
 ## 14. 事务、一致性与事件
 
-- 一个 Application Use Case 只修改一个主要聚合/上下文事务。
-- 外部网络调用不放在数据库事务中。
-- 数据库提交与任务/事件发布采用 Outbox 或等价可靠发布模式，避免双写不一致。
-- 跨 Context 使用领域事件和幂等消费者实现最终一致，不共享事务内 ORM 对象。
-- 领域对象使用显式版本进行乐观并发控制；冲突返回稳定错误，不静默覆盖。
-- 时间统一存储为 UTC，用户展示时按 IANA 时区转换。
+### 14.1 决策与最小契约
+
+采用最小 `Transaction` Port，后续实现位置固定为 `backend/app/ports/transaction.py`：
+
+```python
+class Transaction(Protocol):
+    async def commit(self) -> None: ...
+    async def rollback(self) -> None: ...
+```
+
+该端口只表达当前 PostgreSQL 逻辑事务段的成功或失败终点，不聚合 Repository，不提供 Repository accessor、自动重试、
+`__aenter__` / `__aexit__`、SQLAlchemy 类型或通用 savepoint API。Nora 不引入 Unit of Work Framework、第三方 DI Container
+或 Service Locator。
+
+一个顶层写 Application Use Case 是事务所有者。它可在一次业务操作中编排多个 Repository，包括与业务事实同生共死的幂等记录和
+AuditEvent；成功路径显式调用 `commit()`，失败路径在继续查询、执行幂等恢复或向外抛错前显式调用 `rollback()`。被顶层用例调用的
+Application Service 不得自行结束调用方的事务。只读 Use Case 不注入 `Transaction`，也不为释放连接而伪造提交。
+
+`Transaction` 实例由 composition root 按请求创建，可承载同一顶层用例划分的多个顺序事务段；每一段由首次数据库操作隐式开始，
+并由显式 `commit()` 或 `rollback()` 结束。请求结束时关闭 Session 只是不完整事务的安全兜底，不替代 Application 的失败路径。
+
+### 14.2 唯一职责与接线
+
+| 组件 | 唯一职责 | 禁止行为 |
+| :--- | :--- | :--- |
+| 顶层写 Application Use Case | 划分事务段，编排业务、幂等和审计写入，决定提交、整段回滚及冲突恢复 | 导入 SQLAlchemy；把提交权交给任意 Repository；在回滚前继续使用失败 Session |
+| `Transaction` Port | 向 Application 暴露技术无关的 `commit()` / `rollback()` | 暴露 Session、连接、Repository、savepoint 或框架异常 |
+| SQLAlchemy Transaction Adapter | 包装一个 `AsyncSession`，执行整段提交/回滚并转换提交阶段的基础设施异常 | 包含业务规则、owner 判断、幂等决策或 HTTP 映射 |
+| Repository Port / Adapter | owner-scoped 查询、写入、必要的 `flush()`、ORM 与 Domain 转换、已知约束识别 | 暴露或调用通用 `commit()` / `rollback()`；隐式回滚整个请求事务 |
+| API composition root | 以同一个请求级 `AsyncSession` 构造 Transaction Adapter 和该用例的全部 SQLAlchemy Repository | 依赖偶然的对象共享、创建第二个写 Session、让 FastAPI 类型进入 Application |
+
+SQLAlchemy 首个 Adapter 固定放在 `backend/app/infrastructure/database/`。FastAPI `get_session` 继续拥有请求级 Session 生命周期，
+新增的 Transaction dependency 与所有 Repository dependency 必须显式接收该同一个缓存 Session。接线测试需要验证对象身份，避免
+“多个 Adapter 恰好各自可提交”继续充当原子性契约。Session Factory 保持 `expire_on_commit=False` 且不自动提交。
+
+同一 PostgreSQL 中，一个业务动作可以原子写入主要聚合、幂等记录和 AuditEvent；这不授权跨 Context 共享 ORM Model 或
+Repository。跨数据库、任务队列、对象存储和其他外部系统不伪造数据库原子性，继续使用 D-013 状态机、补偿和可重试边界。
+外部网络调用不得位于开放的数据库事务段中。数据库提交与未来任务/事件发布采用 Outbox 或等价可靠发布模式，避免双写不一致。
+
+### 14.3 异常、并发与 savepoint
+
+SQLAlchemy 异常只能在 Infrastructure / Adapter 层被导入和识别：
+
+1. Repository 用必要的 `flush()` 尽早暴露唯一约束、外键或版本冲突。对于已知约束，Repository 检查 constraint name，并转换为现有
+   稳定 `InfrastructureError`；它不调用整事务 `rollback()`。
+2. Application 捕获可恢复冲突后，必须先调用 `Transaction.rollback()`，再查询并发赢家并执行 replay / conflict 判定。当前岗位、
+   投递决定、简历变体、PDF 与消息草稿的幂等竞争都应整段放弃失败尝试，不需要 savepoint。
+3. 未知 `IntegrityError` 转换为稳定持久化失败；提交阶段的 `SQLAlchemyError` 由 Transaction Adapter 转换为
+   `InfrastructureError(error_code="database_unavailable")`。Application 仍负责调用 `rollback()`；API 只做既有稳定 HTTP 映射。
+4. `rollback()` 后才能复用同一 Session 开始下一事务段。回滚本身失败时不得吞掉错误或继续写入，由 Adapter 报告
+   `database_unavailable`，Session 关闭作为最终资源清理。
+
+只有同时满足下列条件，SQLAlchemy Repository Adapter 才可在 Infrastructure 内部使用 `begin_nested()`：冲突是预期且可恢复的；
+冲突前的同段写入必须保留；能够把精确的风险写入及 `flush()` 包进局部 savepoint；PostgreSQL 集成测试证明 savepoint 失败不会泄漏
+部分业务或审计事实。局部回滚只回退 savepoint，外层是否提交仍由 Application 决定。不得为了省略 Use Case 的失败分支而普遍使用
+savepoint，也不得给 Repository Port 增加通用 savepoint / rollback 方法。
+
+领域对象继续使用显式版本做乐观并发控制，冲突返回稳定错误且不静默覆盖。时间统一存储为 UTC，用户展示时按 IANA 时区转换。
+
+### 14.4 迁移切片与兼容窗口
+
+迁移按以下顺序使用独立 Task Issue 和 PR 交付；这些 Issue 只能在 #183 合并后创建：
+
+1. **事务基础与审计幂等参考切片。** 增加 `Transaction` Port、SQLAlchemy Adapter 和 composition dependency；迁移
+   JobPosting + AuditEvent、ApplicationDecision + AuditEvent 两条写路径，覆盖成功、失败和并发矩阵。该切片必须在 #94
+   ApplicationRecord 开始前合并，#94 使用新事务契约，不得复制旧的 Repository 提交模式。
+2. **其余纯 PostgreSQL 写路径。** 按业务模块迁移 Identity、Career、Opportunity、Decision、Follow-up 与 Knowledge 元数据用例；
+   每迁移一个 Use Case，就同时从对应 Port、Adapter 和测试替身移除 `commit()` / 通用 `rollback()`。
+3. **外部副作用状态机与最终清理。** 最后迁移 Artifact、ResumePdf 等跨对象存储或渲染器的多事务段流程，保持 D-013 的
+   pending / available / failed / delete compensation 语义；随后增加架构测试，禁止 Repository Port 再声明事务终结方法。
+
+兼容窗口只允许“未迁移 Use Case 暂时保留旧 Repository 方法”；单个 Use Case 不得同时调用 Repository `commit()` 与
+`Transaction.commit()`，不得增加双轨 Adapter、运行时开关或兼容层。每一切片必须在前一切片合并后开始，并保持 API、Schema、
+领域模型、owner 隔离、幂等键和稳定错误码不变。
+
+每个切片都不含数据库迁移，回滚策略是整体回退该切片的代码 PR，使其用例恢复到切片前接线；不得只回退 composition root 而留下
+半迁移 Port。若生产证据要求暂停，未迁移模块保持原状，已迁移模块不采用运行时双轨。第一切片合并后，需将实际实现 Issue 编号回填
+到 #94 的依赖。
+
+### 14.5 验证矩阵
+
+| 场景 | Unit / contract 证据 | PostgreSQL 集成证据 | 必须保持的不变量 |
+| :--- | :--- | :--- | :--- |
+| 业务写成功且 Audit 成功 | 顶层 Use Case 对业务、幂等和审计全部 `add` 后提交；无回滚 | 同一请求只产生一组业务、幂等、审计记录 | 三者一次可见，owner 与目标版本一致，无部分提交 |
+| Audit 写入或 `flush` 失败 | 注入审计失败，断言调用整段回滚且不报告成功 | 对 `audit_events` 注入失败，响应为稳定 503，所有相关表计数为零 | 业务事实不得脱离审计独立存在 |
+| 业务写入或 `flush` 失败 | 审计不执行或随事务回滚；错误保持稳定 | 分别对业务表、幂等表注入失败，所有相关表计数为零 | 无审计孤儿、无幂等占位、Session 回滚后可继续使用 |
+| 幂等并发竞争 | 丢失竞争的一方先回滚，再读取赢家并判定 replay / conflict | 同键同输入为 201 + 200 且只保留一条完整链；同键异输入为 201 + 409 且无额外审计 | generation / request identity 决定稳定结果，失败事务不泄漏任何写入 |
+
+事务实现切片还必须加入架构测试，保证 Application 不导入 SQLAlchemy/具体 Adapter，并在最终清理后保证 Repository Port 不含
+`commit`、`rollback`。测试不可用时必须报告缺失的 PostgreSQL 证据，不得用 mock 或构建成功替代原子性验证。
 
 ## 15. 可观测性与审计
 
