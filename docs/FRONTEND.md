@@ -21,7 +21,7 @@
 ```text
 frontend/
 ├── src/
-│   ├── api/          # HTTP client 与公开 DTO
+│   ├── api/          # generated HTTP contract、手写 transport 与 UI Adapter
 │   ├── components/   # 可复用 UI 组件
 │   ├── features/     # 按业务能力组织的前端模块
 │   ├── views/        # 页面级组件
@@ -54,7 +54,9 @@ flowchart LR
 
 ## 4. API 契约
 
-当前可用接口由 FastAPI OpenAPI 和默认分支代码确定，包括：
+当前可用接口由默认分支的 FastAPI 路由与 Pydantic 模型确定，并通过 OpenAPI 暴露。D-017 选择该 OpenAPI 作为唯一 HTTP Contract
+源；`openapi-typescript` / `openapi-fetch` 生成链路在 #186 后续实现 Issue 合并前仍为 Planned，当前手写类型不得被误报为生成契约。
+接口包括：
 
 - `POST /auth/register`
 - `POST /auth/login`
@@ -300,6 +302,11 @@ Nora 可预期错误使用稳定结构：
 ## 12. API Client 与错误映射
 
 - HTTP client 统一基址（`VITE_NORA_API_BASE_URL`），Bearer Token 注入，采集 `X-Request-ID`。
+- D-017 目标结构把 `src/api/generated/openapi.json` 与 `schema.d.ts` 限定为后端派生传输契约，把认证、超时、取消、错误、`204`
+  和 Blob 行为保留在手写 transport Adapter；Store、View 和表单只能消费显式 API facade 或 UI/ViewModel，不直接散布
+  generated path 索引。
+- Generated 文件禁止手改；后续 `api:generate` 负责重建，`api:check` 在 CI 生成后执行 diff gate。迁移期间每个端点只有一个实际
+  请求实现，不进行手写/生成 client 双写。
 - 错误码 → 本地化提示表（预留通用回退）：
   - `401` → 登录态失效，跳转登录；
   - `404` → "对象不存在"（跨用户不泄露）；
@@ -344,6 +351,7 @@ Nora 可预期错误使用稳定结构：
 - Vue 3 + Vite + TypeScript；
 - Vue Router（路由与守卫）；Pinia（状态管理）；
 - Vitest + Vue Test Utils（组件/单元），浏览器 E2E 用 Playwright 或 Cypress（少量关键路径）；
-- HTTP：fetch 封装或 axios（实现 Issue 选定，保持 API client 单一抽象）；
+- HTTP：Current 为单一手写 fetch 封装；D-017 Planned 为精确锁定的 `openapi-typescript@7.13.0` +
+  `openapi-fetch@0.17.0` 与手写 transport Adapter，按原子实现 Issue 渐进迁移；
 - UI：不引入重量级组件库，优先原生组件 + 少量本地基元；
 - 前端不直连 PostgreSQL / MinIO / 后端内部模块；不保存生产秘密（见 §4）。
