@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError
+from app.domain.base.exceptions import ApplicationError, ErrorCode
 from app.domain.career import ResumeVersion
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 
@@ -50,11 +50,13 @@ class PublishResumeVersionUseCase:
     async def execute(self, command: PublishResumeVersionCommand) -> ResumeVersion:
         if command.profile_version < 1:
             raise ApplicationError(
-                "Profile version must be positive", error_code="invalid_profile_version"
+                "Profile version must be positive", error_code=ErrorCode.INVALID_PROFILE_VERSION
             )
         profile = await self.profile_repository.get_version(command.profile_version)
         if profile is None or profile.owner_id != command.owner_id:
-            raise ApplicationError("Candidate profile not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Candidate profile not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         resume = await self.resume_repository.publish(profile, command.title)
         await self.resume_repository.commit()
         return resume
@@ -69,7 +71,9 @@ class GetResumeVersionUseCase:
     async def execute(self, query: GetResumeVersionQuery) -> ResumeVersion:
         resume = await self.repository.get_by_id(query.resume_id)
         if resume is None or resume.owner_id != query.owner_id:
-            raise ApplicationError("Resume version not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Resume version not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         return resume
 
 
@@ -83,7 +87,7 @@ class ListResumeVersionsUseCase:
         if query.page < 1 or not 1 <= query.page_size <= 100:
             raise ApplicationError(
                 "Page must be at least 1 and page_size must be between 1 and 100",
-                error_code="invalid_pagination",
+                error_code=ErrorCode.INVALID_PAGINATION,
             )
         items = await self.repository.list(
             offset=(query.page - 1) * query.page_size,

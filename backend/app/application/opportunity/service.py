@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.governance import AuditAction, AuditEvent
 from app.domain.opportunity import JobPosting, JobSourceType
 from app.ports.governance import AuditEventRepository
@@ -116,13 +116,13 @@ class CreateJobPostingUseCase:
             await self.transaction.commit()
         except InfrastructureError as exc:
             await self.transaction.rollback()
-            if exc.error_code != "idempotency_key_taken":
+            if exc.error_code is not ErrorCode.IDEMPOTENCY_KEY_TAKEN:
                 raise
             existing = await self.repository.get_by_idempotency_key(idempotency_key)
             if existing is None:
                 raise InfrastructureError(
                     "Could not recover idempotent request",
-                    error_code="job_posting_persistence_failed",
+                    error_code=ErrorCode.JOB_POSTING_PERSISTENCE_FAILED,
                 ) from exc
             return _resolve_replay(
                 existing.job_posting,
@@ -145,7 +145,7 @@ class GetJobPostingUseCase:
     async def execute(self, query: GetJobPostingQuery) -> JobPosting:
         posting = await self.repository.get_by_id(query.job_posting_id)
         if posting is None or posting.owner_id != query.owner_id:
-            raise ApplicationError("Job posting not found", error_code="entity_not_found")
+            raise ApplicationError("Job posting not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         return posting
 
 
@@ -159,7 +159,7 @@ class ListJobPostingsUseCase:
         if query.page < 1 or not 1 <= query.page_size <= 100:
             raise ApplicationError(
                 "Page must be at least 1 and page_size must be between 1 and 100",
-                error_code="invalid_pagination",
+                error_code=ErrorCode.INVALID_PAGINATION,
             )
         offset = (query.page - 1) * query.page_size
         items = await self.repository.list(offset=offset, limit=query.page_size)
@@ -177,7 +177,7 @@ def _normalize_idempotency_key(value: str) -> str:
     if not normalized or len(normalized) > 255:
         raise ApplicationError(
             "Idempotency key must contain 1-255 characters",
-            error_code="invalid_idempotency_key",
+            error_code=ErrorCode.INVALID_IDEMPOTENCY_KEY,
         )
     return normalized
 
@@ -213,6 +213,6 @@ def _resolve_replay(
     if stored_fingerprint != request_fingerprint:
         raise ApplicationError(
             "Idempotency key was already used with different content",
-            error_code="idempotency_conflict",
+            error_code=ErrorCode.IDEMPOTENCY_CONFLICT,
         )
     return CreateJobPostingResult(job_posting=posting, replayed=True)

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 MESSAGE_DRAFT_GENERATOR_VERSION = "m4-message-draft-v1"
 MESSAGE_DRAFT_TEMPLATE_VERSION = "message-template-v1"
@@ -66,12 +66,12 @@ class MessageDraftSource:
         ):
             raise DomainError(
                 "Company snapshot identity is incomplete",
-                error_code="invalid_message_draft_source",
+                error_code=ErrorCode.INVALID_MESSAGE_DRAFT_SOURCE,
             )
         if self.company_snapshot_id is None and company_industry is not None:
             raise DomainError(
                 "Company industry requires a fixed snapshot identity",
-                error_code="invalid_message_draft_source",
+                error_code=ErrorCode.INVALID_MESSAGE_DRAFT_SOURCE,
             )
         return replace(
             self,
@@ -166,12 +166,12 @@ class MessageDraft:
         if normalized_style is MessageDraftStyle.REFERRAL and referral is None:
             raise DomainError(
                 "Referral context is required",
-                error_code="referral_context_required",
+                error_code=ErrorCode.REFERRAL_CONTEXT_REQUIRED,
             )
         if normalized_style is not MessageDraftStyle.REFERRAL and referral is not None:
             raise DomainError(
                 "Referral context is only valid for referral style",
-                error_code="invalid_referral_context",
+                error_code=ErrorCode.INVALID_REFERRAL_CONTEXT,
             )
         generation_values = {
             **normalized_source.identity_values(),
@@ -253,25 +253,25 @@ class MessageDraft:
         if (normalized_version == 1) != (normalized_revision is MessageDraftRevisionType.GENERATED):
             raise DomainError(
                 "Message draft revision type is invalid",
-                error_code="invalid_message_draft_revision",
+                error_code=ErrorCode.INVALID_MESSAGE_DRAFT_REVISION,
             )
         if normalized_version == 1:
             if previous_version is not None:
                 raise DomainError(
                     "Generated draft cannot have a previous version",
-                    error_code="invalid_message_draft_revision",
+                    error_code=ErrorCode.INVALID_MESSAGE_DRAFT_REVISION,
                 )
         elif previous_version != normalized_version - 1:
             raise DomainError(
                 "Message draft previous version is invalid",
-                error_code="invalid_message_draft_revision",
+                error_code=ErrorCode.INVALID_MESSAGE_DRAFT_REVISION,
             )
         identity = _sha256(generation_identity)
         fingerprint = _sha256(content_fingerprint)
         if fingerprint != _content_fingerprint(identity, normalized_version, normalized_text):
             raise DomainError(
                 "Message draft content fingerprint is invalid",
-                error_code="invalid_message_draft_fingerprint",
+                error_code=ErrorCode.INVALID_MESSAGE_DRAFT_FINGERPRINT,
             )
         return cls(
             id=draft_id,
@@ -308,13 +308,13 @@ def normalize_message_draft_idempotency_key(value: str) -> str:
     if not isinstance(value, str):
         raise DomainError(
             "Message draft idempotency key must be text",
-            error_code="invalid_idempotency_key",
+            error_code=ErrorCode.INVALID_IDEMPOTENCY_KEY,
         )
     normalized = value.strip()
     if not normalized or len(normalized) > 255:
         raise DomainError(
             "Message draft idempotency key is invalid",
-            error_code="invalid_idempotency_key",
+            error_code=ErrorCode.INVALID_IDEMPOTENCY_KEY,
         )
     return normalized
 
@@ -366,7 +366,7 @@ def _digest(value: object) -> str:
 def _sha256(value: str) -> str:
     normalized = value.strip().lower()
     if len(normalized) != 64 or any(char not in "0123456789abcdef" for char in normalized):
-        raise DomainError("SHA-256 is invalid", error_code="invalid_message_draft_hash")
+        raise DomainError("SHA-256 is invalid", error_code=ErrorCode.INVALID_MESSAGE_DRAFT_HASH)
     return normalized
 
 
@@ -375,7 +375,7 @@ def _style(value: MessageDraftStyle) -> MessageDraftStyle:
         return MessageDraftStyle(value)
     except (TypeError, ValueError) as exc:
         raise DomainError(
-            "Message draft style is invalid", error_code="invalid_message_draft_style"
+            "Message draft style is invalid", error_code=ErrorCode.INVALID_MESSAGE_DRAFT_STYLE
         ) from exc
 
 
@@ -384,7 +384,7 @@ def _unique_texts(values: tuple[str, ...], maximum_items: int, maximum: int) -> 
     if len(normalized) > maximum_items or len(normalized) != len(set(normalized)):
         raise DomainError(
             "Message draft source values are invalid",
-            error_code="invalid_message_draft_source",
+            error_code=ErrorCode.INVALID_MESSAGE_DRAFT_SOURCE,
         )
     return normalized
 
@@ -392,13 +392,17 @@ def _unique_texts(values: tuple[str, ...], maximum_items: int, maximum: int) -> 
 def _plain_text(value: str | None, maximum: int, *, required: bool = False) -> str | None:
     if value is None:
         if required:
-            raise DomainError("Message draft text is required", error_code="invalid_draft_text")
+            raise DomainError(
+                "Message draft text is required", error_code=ErrorCode.INVALID_DRAFT_TEXT
+            )
         return None
     if not isinstance(value, str):
-        raise DomainError("Message draft value must be text", error_code="invalid_draft_text")
+        raise DomainError(
+            "Message draft value must be text", error_code=ErrorCode.INVALID_DRAFT_TEXT
+        )
     normalized = value.replace("\r\n", "\n").replace("\r", "\n").strip()
     if (required and not normalized) or len(normalized) > maximum:
-        raise DomainError("Message draft text is invalid", error_code="invalid_draft_text")
+        raise DomainError("Message draft text is invalid", error_code=ErrorCode.INVALID_DRAFT_TEXT)
     return normalized or None
 
 
@@ -409,12 +413,14 @@ def _text(value: str | None, maximum: int, *, required: bool = False) -> str | N
 
 def _positive(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise DomainError("Version must be positive", error_code="invalid_version")
+        raise DomainError("Version must be positive", error_code=ErrorCode.INVALID_VERSION)
     return value
 
 
 def _utc(value: datetime | None) -> datetime:
     result = value or datetime.now(timezone.utc)
     if result.tzinfo is None or result.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return result.astimezone(timezone.utc)

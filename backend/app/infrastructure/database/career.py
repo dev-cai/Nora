@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
-from app.domain.base.exceptions import InfrastructureError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.domain.career import CandidateProfile, ResumeVersion
 from app.infrastructure.database.base import Base
 from app.infrastructure.database.identity import UserRecord
@@ -93,7 +93,7 @@ class SqlAlchemyCandidateProfileRepository:
     async def add(self, profile: CandidateProfile) -> CandidateProfile:
         if profile.owner_id != self.owner_id:
             raise InfrastructureError(
-                "Candidate profile is outside user scope", error_code="entity_not_found"
+                "Candidate profile is outside user scope", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
 
         await self.session.scalar(
@@ -106,7 +106,7 @@ class SqlAlchemyCandidateProfileRepository:
             valid_next_version = latest.id == profile.id and profile.version == latest.version + 1
         if not valid_next_version:
             raise InfrastructureError(
-                "Candidate profile version conflict", error_code="profile_version_conflict"
+                "Candidate profile version conflict", error_code=ErrorCode.PROFILE_VERSION_CONFLICT
             )
 
         record = CandidateProfileRecord(
@@ -123,7 +123,7 @@ class SqlAlchemyCandidateProfileRepository:
         except IntegrityError as exc:
             await self.session.rollback()
             raise InfrastructureError(
-                "Candidate profile version conflict", error_code="profile_version_conflict"
+                "Candidate profile version conflict", error_code=ErrorCode.PROFILE_VERSION_CONFLICT
             ) from exc
         return self._to_domain(record)
 
@@ -188,7 +188,7 @@ class SqlAlchemyResumeVersionRepository:
     async def publish(self, profile: CandidateProfile, title: str) -> ResumeVersion:
         if profile.owner_id != self.owner_id:
             raise InfrastructureError(
-                "Resume profile is outside user scope", error_code="entity_not_found"
+                "Resume profile is outside user scope", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
         await self.session.scalar(
             select(UserRecord.id).where(UserRecord.id == self.owner_id).with_for_update()
@@ -217,7 +217,7 @@ class SqlAlchemyResumeVersionRepository:
         except IntegrityError as exc:
             await self.session.rollback()
             raise InfrastructureError(
-                "Resume version conflict", error_code="resume_version_conflict"
+                "Resume version conflict", error_code=ErrorCode.RESUME_VERSION_CONFLICT
             ) from exc
         return resume
 

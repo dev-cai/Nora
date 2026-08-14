@@ -1,5 +1,4 @@
 import type {
-  ApiProblem,
   ApplicationDecision,
   CandidateProfile,
   CandidateProfileInput,
@@ -29,6 +28,14 @@ import type {
   TokenResponse,
   User,
 } from "./types"
+import type { components } from "./generated/schema"
+
+type ServerErrorCode = components["schemas"]["ErrorCode"]
+type ServerErrorCategory = components["schemas"]["ErrorCategory"]
+type ServerProblem = Partial<components["schemas"]["ApiProblem"]>
+
+export type TransportErrorCode = "network_error" | "network_timeout" | "http_error"
+export type ApiErrorCode = ServerErrorCode | TransportErrorCode
 
 const apiBaseUrl = (import.meta.env.VITE_NORA_API_BASE_URL || "/api").replace(/\/$/, "")
 let accessToken: string | null = null
@@ -36,21 +43,26 @@ let unauthorizedHandler: (() => void) | null = null
 export const API_REQUEST_TIMEOUT_MS = 10_000
 
 const fallbackMessages: Record<number, string> = {
+  400: "提交内容不符合要求",
   401: "登录状态已失效，请重新登录",
   404: "对象不存在或无权访问",
   409: "当前内容与服务端状态冲突",
+  413: "上传内容超过大小限制",
+  415: "上传内容类型不受支持",
   422: "提交内容未通过校验",
+  500: "服务发生内部错误，请稍后重试",
+  502: "上游服务返回失败，请稍后重试",
   503: "服务暂时不可用，请稍后重试",
+  504: "上游服务响应超时，请稍后重试",
 }
 
-const errorCodeMessages: Record<string, string> = {
+const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
   authentication_failed: "用户名或密码不正确",
   username_conflict: "该用户名已被使用",
   email_conflict: "该邮箱已被注册",
   idempotency_conflict: "本次请求与已有操作冲突",
   entity_not_found: "对象不存在或无权访问",
   database_unavailable: "服务暂时不可用，请稍后重试",
-  network_timeout: "请求超时，请检查网络后重试",
   job_requirement_version_conflict: "岗位要求已更新，请刷新后重试",
   invalid_requirement: "岗位要求内容未通过校验",
   invalid_requirement_field: "岗位要求字段未通过校验",
@@ -69,17 +81,48 @@ const errorCodeMessages: Record<string, string> = {
   skip_reason_required: "选择不投时需要填写原因",
 }
 
+const categoryMessages: Record<ServerErrorCategory, string> = {
+  invalid_input: "提交内容不符合要求",
+  authentication: "登录状态已失效，请重新登录",
+  not_found: "对象不存在或无权访问",
+  conflict: "当前内容与服务端状态冲突",
+  payload_too_large: "上传内容超过大小限制",
+  unsupported_media_type: "上传内容类型不受支持",
+  request_validation: "提交内容未通过校验",
+  upstream_failure: "上游服务返回失败，请稍后重试",
+  service_unavailable: "服务暂时不可用，请稍后重试",
+  upstream_timeout: "上游服务响应超时，请稍后重试",
+  internal: "服务发生内部错误，请稍后重试",
+}
+
+function codeMessage(value: ServerErrorCode | undefined): string | undefined {
+  if (!value || !Object.hasOwn(errorCodeMessages, value)) return undefined
+  return errorCodeMessages[value]
+}
+
+function knownCategory(value: ServerErrorCategory | undefined): ServerErrorCategory | null {
+  return value && Object.hasOwn(categoryMessages, value) ? value : null
+}
+
 export class ApiError extends Error {
   readonly status: number
-  readonly errorCode: string
+  readonly errorCode: ApiErrorCode
   readonly requestId: string | null
+  readonly errorCategory: ServerErrorCategory | null
 
-  constructor(message: string, status = 0, errorCode = "network_error", requestId: string | null = null) {
+  constructor(
+    message: string,
+    status = 0,
+    errorCode: ApiErrorCode = "network_error",
+    requestId: string | null = null,
+    errorCategory: ServerErrorCategory | null = null,
+  ) {
     super(message)
     this.name = "ApiError"
     this.status = status
     this.errorCode = errorCode
     this.requestId = requestId
+    this.errorCategory = errorCategory
   }
 }
 
@@ -130,16 +173,23 @@ async function requestResponse(path: string, init: RequestInit = {}): Promise<Re
 
   const requestId = response.headers.get("X-Request-ID")
   if (!response.ok) {
-    let problem: ApiProblem = {}
+    let problem: ServerProblem = {}
     try {
-      problem = (await response.json()) as ApiProblem
+      problem = (await response.json()) as ServerProblem
     } catch {
       problem = {}
     }
-    const errorCode = problem.error_code || (response.status === 422 ? "validation_error" : "http_error")
-    const message = errorCodeMessages[errorCode] || fallbackMessages[response.status] || problem.message || "请求失败"
+    const errorCategory = knownCategory(problem.error_category)
+    const exactMessage = codeMessage(problem.error_code)
+    const errorCode: ApiErrorCode = problem.error_code && (errorCategory || exactMessage)
+      ? problem.error_code
+      : "http_error"
+    const message = exactMessage
+      ?? (errorCategory ? categoryMessages[errorCategory] : undefined)
+      ?? fallbackMessages[response.status]
+      ?? "请求失败"
     if (response.status === 401) unauthorizedHandler?.()
-    throw new ApiError(message, response.status, errorCode, requestId)
+    throw new ApiError(message, response.status, errorCode, requestId, errorCategory)
   }
 
   return response

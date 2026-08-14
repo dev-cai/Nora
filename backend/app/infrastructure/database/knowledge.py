@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
-from app.domain.base.exceptions import InfrastructureError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.domain.knowledge import Artifact, ArtifactKind, ArtifactStatus, SourceDocument, SourceKind
 from app.infrastructure.database.base import Base
 
@@ -147,7 +147,9 @@ class SqlAlchemyArtifactRepository:
             await self.session.flush()
         except IntegrityError as exc:
             await self.session.rollback()
-            raise InfrastructureError("Artifact conflict", error_code="artifact_conflict") from exc
+            raise InfrastructureError(
+                "Artifact conflict", error_code=ErrorCode.ARTIFACT_CONFLICT
+            ) from exc
         return artifact
 
     async def update(self, artifact: Artifact) -> Artifact:
@@ -158,7 +160,7 @@ class SqlAlchemyArtifactRepository:
             .with_for_update()
         )
         if record is None:
-            raise InfrastructureError("Artifact not found", error_code="entity_not_found")
+            raise InfrastructureError("Artifact not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         for name, value in _artifact_values(artifact).items():
             setattr(record, name, value)
         await self.session.flush()
@@ -196,7 +198,7 @@ class SqlAlchemyArtifactRepository:
 
     def _check_owner(self, artifact: Artifact) -> None:
         if artifact.owner_id != self.owner_id:
-            raise InfrastructureError("Artifact not found", error_code="entity_not_found")
+            raise InfrastructureError("Artifact not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
 
 
 class SqlAlchemySourceDocumentRepository:
@@ -205,7 +207,7 @@ class SqlAlchemySourceDocumentRepository:
 
     async def add(self, source: SourceDocument) -> SourceDocument:
         if source.owner_id != self.owner_id:
-            raise InfrastructureError("Source not found", error_code="entity_not_found")
+            raise InfrastructureError("Source not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         self.session.add(
             SourceDocumentRecord(
                 id=source.id,
@@ -227,7 +229,9 @@ class SqlAlchemySourceDocumentRepository:
             await self.session.flush()
         except IntegrityError as exc:
             await self.session.rollback()
-            raise InfrastructureError("Source conflict", error_code="source_conflict") from exc
+            raise InfrastructureError(
+                "Source conflict", error_code=ErrorCode.SOURCE_CONFLICT
+            ) from exc
         return source
 
     async def get_by_id(self, source_id: UUID) -> SourceDocument | None:

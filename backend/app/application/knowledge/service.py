@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.governance import AuditAction, AuditEvent
 from app.domain.knowledge import Artifact, ArtifactKind, ArtifactStatus, SourceDocument, SourceKind
 from app.ports.governance import AuditEventRepository
@@ -71,10 +71,13 @@ class ArtifactService:
         content_type = command.content_type.strip().lower()
         if content_type not in self.allowed_content_types:
             raise ApplicationError(
-                "Artifact content type is not allowed", error_code="unsupported_artifact_type"
+                "Artifact content type is not allowed",
+                error_code=ErrorCode.UNSUPPORTED_ARTIFACT_TYPE,
             )
         if not command.data or len(command.data) > self.max_size_bytes:
-            raise ApplicationError("Artifact size is invalid", error_code="artifact_too_large")
+            raise ApplicationError(
+                "Artifact size is invalid", error_code=ErrorCode.ARTIFACT_TOO_LARGE
+            )
         digest = hashlib.sha256(command.data).hexdigest()
         candidate = Artifact.pending(
             owner_id=command.owner_id,
@@ -98,7 +101,7 @@ class ArtifactService:
             ):
                 raise ApplicationError(
                     "Idempotency key is already used for a different Artifact",
-                    error_code="idempotency_conflict",
+                    error_code=ErrorCode.IDEMPOTENCY_CONFLICT,
                 )
             if existing.status is ArtifactStatus.AVAILABLE:
                 return existing
@@ -125,7 +128,7 @@ class ArtifactService:
                 "Artifact upload failure persistence failed", exc, cleanup_errors
             )
             raise ApplicationError(
-                "Artifact storage is unavailable", error_code="artifact_storage_unavailable"
+                "Artifact storage is unavailable", error_code=ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE
             ) from exc
 
         try:
@@ -148,20 +151,22 @@ class ArtifactService:
     async def get(self, owner_id: UUID, artifact_id: UUID) -> Artifact:
         artifact = await self.artifacts.get_by_id(artifact_id)
         if artifact is None or artifact.owner_id != owner_id:
-            raise ApplicationError("Artifact not found", error_code="entity_not_found")
+            raise ApplicationError("Artifact not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         return artifact
 
     async def download(self, owner_id: UUID, artifact_id: UUID) -> ArtifactDownload:
         artifact = await self.get(owner_id, artifact_id)
         if artifact.status is not ArtifactStatus.AVAILABLE or not artifact.object_key:
-            raise ApplicationError("Artifact not found", error_code="entity_not_found")
+            raise ApplicationError("Artifact not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         stored = await self.storage.get(object_key=artifact.object_key)
         if (
             len(stored.data) != artifact.size_bytes
             or stored.content_type.strip().lower() != artifact.content_type
             or hashlib.sha256(stored.data).hexdigest() != artifact.sha256
         ):
-            raise ApplicationError("Artifact integrity check failed", error_code="artifact_corrupt")
+            raise ApplicationError(
+                "Artifact integrity check failed", error_code=ErrorCode.ARTIFACT_CORRUPT
+            )
         await self._audit(
             actor_id=owner_id,
             action=AuditAction.READ,
@@ -199,13 +204,13 @@ class ArtifactService:
     async def get_source(self, owner_id: UUID, source_id: UUID) -> SourceDocument:
         source = await self.sources.get_by_id(source_id)
         if source is None:
-            raise ApplicationError("Source not found", error_code="entity_not_found")
+            raise ApplicationError("Source not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         artifact = await self.get(owner_id, source.artifact_id)
         if (
             artifact.version != source.artifact_version
             or artifact.status is not ArtifactStatus.AVAILABLE
         ):
-            raise ApplicationError("Source not found", error_code="entity_not_found")
+            raise ApplicationError("Source not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         return source
 
     async def delete(self, owner_id: UUID, artifact_id: UUID) -> Artifact:
@@ -243,7 +248,7 @@ class ArtifactService:
     ) -> tuple[str, ...]:
         if older_than.tzinfo is None or older_than.utcoffset() is None:
             raise ApplicationError(
-                "Cleanup cutoff requires a timezone", error_code="invalid_timestamp"
+                "Cleanup cutoff requires a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
             )
         known = await self.artifacts.list_object_keys()
         removed: list[str] = []
@@ -274,7 +279,7 @@ class ArtifactService:
                 "Artifact delete failure persistence failed", exc, cleanup_errors
             )
             raise ApplicationError(
-                "Artifact deletion will be retried", error_code="artifact_delete_failed"
+                "Artifact deletion will be retried", error_code=ErrorCode.ARTIFACT_DELETE_FAILED
             ) from exc
 
         try:

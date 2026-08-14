@@ -139,6 +139,25 @@ evidence = [
 ]
 
 [[capabilities]]
+id = "typed-error-contract"
+name = "类型化错误注册表与 HTTP/OpenAPI 映射"
+milestone = "M4"
+status = "current"
+summary = "协议无关 Shared Kernel 以 144 个 ErrorCode、11 个 ErrorCategory 和不可变完整注册表固定公开失败词汇；API Adapter 只按 category 映射 HTTP，并以唯一 ApiProblem 统一 Nora、请求校验、SQLAlchemy 与未知异常响应。内部哨兵和未知异常固定脱敏 500，认证保留 Bearer challenge；OpenAPI 枚举 code/category，前端消费 generated union 并按 code、category、status 与 transport/unknown 顺序本地化回退。"
+code_paths = [
+  "backend/app/domain/base/exceptions.py",
+  "backend/app/apps/api/errors.py",
+  "backend/app/apps/api/app.py",
+  "backend/tests/unit/test_error_contract.py",
+  "backend/tests/unit/test_openapi_export.py",
+  "frontend/src/api/client.ts",
+  "frontend/src/api/generated/openapi.json",
+  "frontend/src/api/generated/schema.d.ts",
+  "frontend/tests/api-client.test.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/213"]
+
+[[capabilities]]
 id = "jd-input-contract"
 name = "JD 输入安全契约"
 milestone = "M2"

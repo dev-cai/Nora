@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 from app.apps.api import create_app
-from app.domain.base.exceptions import NoraError
+from app.domain.base.exceptions import ErrorCode, NoraError
 from app.infrastructure.config import Settings
 from app.infrastructure.logging import get_logger
 from fastapi.testclient import TestClient
@@ -90,6 +90,7 @@ def test_invalid_request_id_is_rejected_with_generated_request_id(
     assert response.status_code == 400
     assert response.json() == {
         "error_code": "invalid_correlation_id",
+        "error_category": "invalid_input",
         "message": (
             "X-Request-ID must be 1-128 characters using ASCII letters, digits, '.', '_' or '-'"
         ),
@@ -202,13 +203,29 @@ def test_nora_error_maps_to_stable_response() -> None:
 
     @app.get("/test-nora-error")
     async def raise_nora_error() -> None:
-        raise NoraError("bad request", error_code="bad_request")
+        raise NoraError("bad request", error_code=ErrorCode.INVALID_JD_TEXT)
 
     with TestClient(app) as client:
         response = client.get("/test-nora-error")
 
     assert response.status_code == 400
-    assert response.json() == {"error_code": "bad_request", "message": "bad request"}
+    assert response.json() == {
+        "error_code": "invalid_jd_text",
+        "error_category": "invalid_input",
+        "message": "bad request",
+    }
+
+
+def test_request_validation_uses_stable_problem_shape() -> None:
+    with TestClient(create_app(Settings())) as client:
+        response = client.post("/auth/register", json={"username": "missing-fields"})
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "error_code": "validation_error",
+        "error_category": "request_validation",
+        "message": "Request validation failed",
+    }
 
 
 def test_unknown_error_is_sanitized_and_logged(capsys) -> None:
@@ -227,6 +244,7 @@ def test_unknown_error_is_sanitized_and_logged(capsys) -> None:
     assert response.status_code == 500
     assert response.json() == {
         "error_code": "internal_error",
+        "error_category": "internal",
         "message": "Internal server error",
     }
     assert response.headers["X-Request-ID"] == "req-error"

@@ -9,7 +9,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 from .decision_case import DecisionCase
 from .rules import RuleInputReference, RuleInputSource, RuleResult, RuleSetEvaluation, RuleStatus
@@ -118,7 +118,7 @@ class DecisionReport:
         return _normalize_text(
             value,
             MAX_GENERATOR_VERSION_LENGTH,
-            "invalid_report_generator_version",
+            ErrorCode.INVALID_REPORT_GENERATOR_VERSION,
         )
 
     @classmethod
@@ -136,12 +136,12 @@ class DecisionReport:
         if evaluation.decision_case_id != decision_case.id:
             raise DomainError(
                 "Rule evaluation does not belong to the decision case",
-                error_code="report_input_mismatch",
+                error_code=ErrorCode.REPORT_INPUT_MISMATCH,
             )
         if evaluation.rule_set_version != decision_case.rule_set_version:
             raise DomainError(
                 "Rule evaluation uses a different rule set",
-                error_code="report_input_mismatch",
+                error_code=ErrorCode.REPORT_INPUT_MISMATCH,
             )
         report_version = _positive_version(version)
         normalized_generator = cls.normalize_generator_version(generator_version)
@@ -309,12 +309,12 @@ class DecisionReport:
                 decision_case_id=decision_case_id,
                 version=_positive_version(version),
                 rule_set_version=_normalize_text(
-                    rule_set_version, 100, "invalid_report_rule_set_version"
+                    rule_set_version, 100, ErrorCode.INVALID_REPORT_RULE_SET_VERSION
                 ),
                 generator_version=_normalize_text(
                     generator_version,
                     MAX_GENERATOR_VERSION_LENGTH,
-                    "invalid_report_generator_version",
+                    ErrorCode.INVALID_REPORT_GENERATOR_VERSION,
                 ),
                 summary=summary,
                 facts=facts,
@@ -330,7 +330,7 @@ class DecisionReport:
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise DomainError(
-                "Stored report content is invalid", error_code="invalid_report_content"
+                "Stored report content is invalid", error_code=ErrorCode.INVALID_REPORT_CONTENT
             ) from exc
         report._validate_content()
         return report
@@ -369,7 +369,9 @@ class DecisionReport:
     def _validate_content(self) -> None:
         citation_ids = {item.citation_id for item in self.citations}
         if len(citation_ids) != len(self.citations) or not self.rule_results:
-            raise DomainError("Report content is invalid", error_code="invalid_report_content")
+            raise DomainError(
+                "Report content is invalid", error_code=ErrorCode.INVALID_REPORT_CONTENT
+            )
         referenced_ids = {citation_id for item in self.facts for citation_id in item.citation_ids}
         referenced_ids.update(
             citation_id for item in self.rule_results for citation_id in item.citation_ids
@@ -378,7 +380,9 @@ class DecisionReport:
             citation_id for item in self.unknowns for citation_id in item.citation_ids
         )
         if not referenced_ids <= citation_ids:
-            raise DomainError("Report citation is invalid", error_code="invalid_report_content")
+            raise DomainError(
+                "Report citation is invalid", error_code=ErrorCode.INVALID_REPORT_CONTENT
+            )
 
 
 def _citations(results: tuple[RuleResult, ...]) -> tuple[ReportCitation, ...]:
@@ -418,11 +422,13 @@ def _default_action(status: RuleStatus) -> str:
 
 def _positive_version(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise DomainError("Report version must be positive", error_code="invalid_report_version")
+        raise DomainError(
+            "Report version must be positive", error_code=ErrorCode.INVALID_REPORT_VERSION
+        )
     return value
 
 
-def _normalize_text(value: str, maximum: int, error_code: str) -> str:
+def _normalize_text(value: str, maximum: int, error_code: ErrorCode) -> str:
     if not isinstance(value, str):
         raise DomainError("Report value must be text", error_code=error_code)
     normalized = " ".join(value.split())
@@ -434,11 +440,13 @@ def _normalize_text(value: str, maximum: int, error_code: str) -> str:
 
 
 def _bounded(value: str) -> str:
-    return _normalize_text(value, MAX_REPORT_TEXT_LENGTH, "invalid_report_content")
+    return _normalize_text(value, MAX_REPORT_TEXT_LENGTH, ErrorCode.INVALID_REPORT_CONTENT)
 
 
 def _utc_timestamp(value: datetime | None) -> datetime:
     timestamp = value or datetime.now(timezone.utc)
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return timestamp.astimezone(timezone.utc)

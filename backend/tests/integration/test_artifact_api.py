@@ -194,6 +194,7 @@ def test_unknown_artifact_storage_failure_returns_sanitized_500(database_url: st
     assert response.status_code == 500
     assert response.json() == {
         "error_code": "internal_error",
+        "error_category": "internal",
         "message": "Internal server error",
     }
     assert secret not in response.text

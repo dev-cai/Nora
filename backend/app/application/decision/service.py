@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.decision import DecisionCase
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.decision import DecisionCaseRepository
@@ -75,7 +75,9 @@ class CreateDecisionCaseUseCase:
         existing = await self.repository.get_by_input_fingerprint(candidate.input_fingerprint)
         if existing is not None:
             if existing.owner_id != command.owner_id:
-                raise ApplicationError("Decision input not found", error_code="entity_not_found")
+                raise ApplicationError(
+                    "Decision input not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+                )
             return CreateDecisionCaseResult(decision_case=existing, replayed=True)
 
         posting = await self.posting_repository.get_by_id(command.job_posting_id)
@@ -87,7 +89,9 @@ class CreateDecisionCaseUseCase:
         resume = await self.resume_repository.get_by_id(command.resume_version_id)
 
         if any(item is None for item in (posting, requirement, profile, resume)):
-            raise ApplicationError("Decision input not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Decision input not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         assert posting is not None
         assert requirement is not None
         assert profile is not None
@@ -95,7 +99,9 @@ class CreateDecisionCaseUseCase:
         if any(
             item.owner_id != command.owner_id for item in (posting, requirement, profile, resume)
         ):
-            raise ApplicationError("Decision input not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Decision input not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         compatible = (
             posting.version == command.job_posting_version
             and requirement.job_posting_id == command.job_posting_id
@@ -108,14 +114,14 @@ class CreateDecisionCaseUseCase:
         if not compatible:
             raise ApplicationError(
                 "Decision input versions are incompatible",
-                error_code="decision_input_conflict",
+                error_code=ErrorCode.DECISION_INPUT_CONFLICT,
             )
 
         try:
             stored = await self.repository.add(candidate)
             await self.repository.commit()
         except InfrastructureError as exc:
-            if exc.error_code != "decision_case_conflict":
+            if exc.error_code is not ErrorCode.DECISION_CASE_CONFLICT:
                 raise
             replay = await self.repository.get_by_input_fingerprint(candidate.input_fingerprint)
             if replay is None:
@@ -133,5 +139,5 @@ class GetDecisionCaseUseCase:
     async def execute(self, query: GetDecisionCaseQuery) -> DecisionCase:
         decision_case = await self.repository.get_by_id(query.case_id)
         if decision_case is None or decision_case.owner_id != query.owner_id:
-            raise ApplicationError("Decision case not found", error_code="entity_not_found")
+            raise ApplicationError("Decision case not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         return decision_case

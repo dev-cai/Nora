@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.decision import CompanyAssessment, CompanyAssessmentStatus
 from app.domain.knowledge import ArtifactStatus
 from app.domain.opportunity import (
@@ -58,7 +58,9 @@ class CompanyAssessmentUseCases:
     ) -> tuple[ReportCompanyAssessment, bool]:
         report = await self.reports.get_by_id(command.report_id)
         if report is None or report.owner_id != command.owner_id:
-            raise ApplicationError("Decision report not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         decision_case = await self.cases.get_by_id(report.decision_case_id)
         snapshot = await self.snapshots.get_by_identity(
             command.company_snapshot_id, command.company_snapshot_version
@@ -70,7 +72,7 @@ class CompanyAssessmentUseCases:
             or snapshot.owner_id != command.owner_id
         ):
             raise ApplicationError(
-                "Company assessment input not found", error_code="entity_not_found"
+                "Company assessment input not found", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
         assessment_status, status_reason = await self._status(command.owner_id, snapshot)
         candidate = CompanyAssessment.create(
@@ -89,14 +91,14 @@ class CompanyAssessmentUseCases:
             if existing.generation_identity != candidate.generation_identity:
                 raise ApplicationError(
                     "Report already has a different company assessment",
-                    error_code="company_assessment_conflict",
+                    error_code=ErrorCode.COMPANY_ASSESSMENT_CONFLICT,
                 )
             return ReportCompanyAssessment(existing, snapshot), True
         try:
             stored = await self.assessments.add(candidate)
             await self.assessments.commit()
         except InfrastructureError as exc:
-            if exc.error_code != "company_assessment_conflict":
+            if exc.error_code is not ErrorCode.COMPANY_ASSESSMENT_CONFLICT:
                 raise
             replay = await self.assessments.get_by_generation(candidate.generation_identity)
             if replay is None:
@@ -107,7 +109,9 @@ class CompanyAssessmentUseCases:
     async def get(self, owner_id: UUID, report_id: UUID) -> ReportCompanyAssessment | None:
         report = await self.reports.get_by_id(report_id)
         if report is None or report.owner_id != owner_id:
-            raise ApplicationError("Decision report not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         assessment = await self.assessments.get_for_report(report_id)
         if assessment is None:
             return None
@@ -117,7 +121,7 @@ class CompanyAssessmentUseCases:
         if snapshot is None:
             raise InfrastructureError(
                 "Fixed company snapshot is unavailable",
-                error_code="company_assessment_unavailable",
+                error_code=ErrorCode.COMPANY_ASSESSMENT_UNAVAILABLE,
             )
         return ReportCompanyAssessment(assessment, snapshot)
 

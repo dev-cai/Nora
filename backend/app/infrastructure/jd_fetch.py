@@ -20,10 +20,10 @@ from httpcore import AsyncConnectionPool
 from httpcore._backends.anyio import AnyIOBackend
 from httpcore._backends.base import AsyncNetworkStream
 
+from app.domain.base.exceptions import ErrorCode
 from app.ports.jd_input import (
     JdImageInput,
     JdInputError,
-    JdInputErrorCode,
     JdInputKind,
     JdInputPort,
     JdInputResult,
@@ -120,7 +120,7 @@ class JdFetchAdapter(JdInputPort):
     async def extract_image(self, request: JdImageInput) -> JdInputResult:
         raise JdInputError(
             "Image OCR is not implemented by this adapter",
-            JdInputErrorCode.OCR_FAILED,
+            ErrorCode.OCR_FAILED,
         )
 
     async def fetch_url(self, request: JdUrlInput) -> JdInputResult:
@@ -158,7 +158,7 @@ class JdFetchAdapter(JdInputPort):
                 if not location:
                     raise JdInputError(
                         "JD URL redirect is missing a location header",
-                        JdInputErrorCode.FETCH_FAILED,
+                        ErrorCode.FETCH_FAILED,
                     )
                 url = JdUrlInput(urljoin(url, location), policy=policy).url
                 redirect_count += 1
@@ -182,7 +182,7 @@ class JdFetchAdapter(JdInputPort):
         if not lowered.startswith(_ALLOWED_CONTENT_TYPE_PREFIXES):
             raise JdInputError(
                 "JD URL returned an unsupported content type",
-                JdInputErrorCode.FETCH_FAILED,
+                ErrorCode.FETCH_FAILED,
             )
 
 
@@ -226,6 +226,6 @@ def _extract_html_text(content: bytes) -> str:
     if len(text) > MAX_PREVIEW_TEXT_LENGTH:
         raise JdInputError(
             "JD URL page text exceeds the content limit",
-            JdInputErrorCode.CONTENT_TOO_LARGE,
+            ErrorCode.CONTENT_TOO_LARGE,
         )
     return text

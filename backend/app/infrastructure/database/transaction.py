@@ -3,7 +3,7 @@
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.base.exceptions import InfrastructureError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 
 
 class SqlAlchemyTransaction:
@@ -18,7 +18,7 @@ class SqlAlchemyTransaction:
         except SQLAlchemyError as exc:
             raise InfrastructureError(
                 "Database is unavailable",
-                error_code="database_unavailable",
+                error_code=ErrorCode.DATABASE_UNAVAILABLE,
             ) from exc
 
     async def rollback(self) -> None:
@@ -27,5 +27,5 @@ class SqlAlchemyTransaction:
         except SQLAlchemyError as exc:
             raise InfrastructureError(
                 "Database is unavailable",
-                error_code="database_unavailable",
+                error_code=ErrorCode.DATABASE_UNAVAILABLE,
             ) from exc

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,10 +20,12 @@ class User:
         normalized_email = email.strip().lower()
         if not 3 <= len(normalized_username) <= 64:
             raise DomainError(
-                "Username must contain 3-64 characters", error_code="invalid_username"
+                "Username must contain 3-64 characters", error_code=ErrorCode.INVALID_USERNAME
             )
         if any(char.isspace() for char in normalized_username):
-            raise DomainError("Username cannot contain whitespace", error_code="invalid_username")
+            raise DomainError(
+                "Username cannot contain whitespace", error_code=ErrorCode.INVALID_USERNAME
+            )
         local_part, separator, domain = normalized_email.partition("@")
         if (
             not separator
@@ -33,5 +35,5 @@ class User:
             or any(char.isspace() for char in normalized_email)
             or len(normalized_email) > 320
         ):
-            raise DomainError("Email address is invalid", error_code="invalid_email")
+            raise DomainError("Email address is invalid", error_code=ErrorCode.INVALID_EMAIL)
         return cls(id=uuid4(), username=normalized_username, email=normalized_email)

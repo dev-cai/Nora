@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
-from app.domain.base.exceptions import InfrastructureError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.domain.opportunity import (
     CompanyFieldStatus,
     CompanySnapshot,
@@ -116,7 +116,7 @@ class SqlAlchemyJobPostingRepository:
     async def add(self, job_posting: JobPosting) -> JobPosting:
         if job_posting.owner_id != self.owner_id:
             raise InfrastructureError(
-                "Job posting is outside user scope", error_code="entity_not_found"
+                "Job posting is outside user scope", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
         record = JobPostingRecord(
             id=job_posting.id,
@@ -157,7 +157,7 @@ class SqlAlchemyJobPostingRepository:
         except IntegrityError as exc:
             raise InfrastructureError(
                 "Idempotency key is already in use",
-                error_code="idempotency_key_taken",
+                error_code=ErrorCode.IDEMPOTENCY_KEY_TAKEN,
             ) from exc
         return stored
 
@@ -277,7 +277,7 @@ class SqlAlchemyJobRequirementSnapshotRepository:
         if snapshot.owner_id != self.owner_id:
             raise InfrastructureError(
                 "Job requirement snapshot is outside user scope",
-                error_code="entity_not_found",
+                error_code=ErrorCode.ENTITY_NOT_FOUND,
             )
 
         await self.session.scalar(
@@ -291,7 +291,7 @@ class SqlAlchemyJobRequirementSnapshotRepository:
         if not valid_next_version:
             raise InfrastructureError(
                 "Job requirement snapshot version conflict",
-                error_code="job_requirement_version_conflict",
+                error_code=ErrorCode.JOB_REQUIREMENT_VERSION_CONFLICT,
             )
 
         record = JobRequirementSnapshotRecord(
@@ -311,7 +311,7 @@ class SqlAlchemyJobRequirementSnapshotRepository:
             await self.session.rollback()
             raise InfrastructureError(
                 "Job requirement snapshot version conflict",
-                error_code="job_requirement_version_conflict",
+                error_code=ErrorCode.JOB_REQUIREMENT_VERSION_CONFLICT,
             ) from exc
         return self._to_domain(record)
 
@@ -515,7 +515,9 @@ class SqlAlchemyCompanySnapshotRepository:
 
     async def add(self, snapshot: CompanySnapshot) -> CompanySnapshot:
         if snapshot.owner_id != self.owner_id:
-            raise InfrastructureError("Company snapshot not found", error_code="entity_not_found")
+            raise InfrastructureError(
+                "Company snapshot not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         await self.session.scalar(
             select(UserRecord.id).where(UserRecord.id == self.owner_id).with_for_update()
         )
@@ -526,7 +528,7 @@ class SqlAlchemyCompanySnapshotRepository:
         if not valid:
             raise InfrastructureError(
                 "Company snapshot version conflict",
-                error_code="company_snapshot_version_conflict",
+                error_code=ErrorCode.COMPANY_SNAPSHOT_VERSION_CONFLICT,
             )
         source = snapshot.source
         record = CompanySnapshotRecord(
@@ -560,7 +562,7 @@ class SqlAlchemyCompanySnapshotRepository:
             await self.session.rollback()
             raise InfrastructureError(
                 "Company snapshot version conflict",
-                error_code="company_snapshot_version_conflict",
+                error_code=ErrorCode.COMPANY_SNAPSHOT_VERSION_CONFLICT,
             ) from exc
         return self._to_domain(record)
 

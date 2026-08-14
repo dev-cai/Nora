@@ -38,12 +38,6 @@ export interface CreateJobPostingInput {
   source_type: "manual"
 }
 
-export interface ApiProblem {
-  error_code?: string
-  message?: string
-  detail?: unknown
-}
-
 export type ConfirmationStatus = "unconfirmed" | "confirmed" | "rejected" | "superseded"
 
 export interface ProfileFact<T> {

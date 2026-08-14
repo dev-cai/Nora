@@ -13,7 +13,7 @@ from app.application.opportunity import (
     ListJobPostingsQuery,
     ListJobPostingsUseCase,
 )
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.governance import AuditEvent
 from app.domain.opportunity import JobPosting, JobSourceType
 from app.ports.opportunity import StoredIdempotentJobPosting
@@ -116,7 +116,7 @@ class RacingJobPostingRepository(FakeJobPostingRepository):
         self.claimed = True
         raise InfrastructureError(
             "Concurrent request won",
-            error_code="idempotency_key_taken",
+            error_code=ErrorCode.IDEMPOTENCY_KEY_TAKEN,
         )
 
 

@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 from app.domain.career import CandidateProfile
 from app.domain.opportunity import JobRequirementSnapshot
 
@@ -99,7 +99,7 @@ def _validate_inputs(
     if decision_case.rule_set_version != RULE_SET_VERSION:
         raise DomainError(
             "Decision case uses an unsupported rule set",
-            error_code="unsupported_rule_set_version",
+            error_code=ErrorCode.UNSUPPORTED_RULE_SET_VERSION,
         )
     valid = (
         decision_case.owner_id == candidate_profile.owner_id == requirements.owner_id
@@ -113,7 +113,7 @@ def _validate_inputs(
     if not valid:
         raise DomainError(
             "Rule inputs do not match the decision case",
-            error_code="decision_rule_input_mismatch",
+            error_code=ErrorCode.DECISION_RULE_INPUT_MISMATCH,
         )
 
 

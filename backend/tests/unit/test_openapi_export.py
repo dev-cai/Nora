@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from app.domain.base.exceptions import ErrorCategory, ErrorCode
 from scripts.export_openapi import GENERATED_NOTICE, export_openapi
 
 
@@ -39,3 +40,17 @@ def test_openapi_export_is_offline_deterministic_and_representative(
         "$ref": "#/components/schemas/CreateJobPostingRequest"
     }
     assert "201" in create_posting["responses"]
+    schemas = document["components"]["schemas"]
+    assert set(schemas["ErrorCode"]["enum"]) == {code.value for code in ErrorCode}
+    assert set(schemas["ErrorCategory"]["enum"]) == {category.value for category in ErrorCategory}
+    assert schemas["ApiProblem"]["required"] == ["error_code", "error_category", "message"]
+    for path, method, statuses in (
+        ("/job-postings", "post", ("400", "401", "404", "409", "422", "503", "500")),
+        ("/artifacts", "post", ("413", "415")),
+        ("/job-postings/fetch", "post", ("502", "504")),
+    ):
+        responses = document["paths"][path][method]["responses"]
+        for status in statuses:
+            assert responses[status]["content"]["application/json"]["schema"] == {
+                "$ref": "#/components/schemas/ApiProblem"
+            }

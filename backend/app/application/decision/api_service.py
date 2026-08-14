@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.decision import (
     DecisionCase,
     DecisionReport,
@@ -77,7 +77,7 @@ class AnalyzeDecisionCaseUseCase:
     async def execute(self, query: AnalyzeDecisionCaseQuery) -> DecisionCaseAnalysis:
         decision_case = await self.case_repository.get_by_id(query.case_id)
         if decision_case is None or decision_case.owner_id != query.owner_id:
-            raise ApplicationError("Decision case not found", error_code="entity_not_found")
+            raise ApplicationError("Decision case not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         requirements = await self.requirement_repository.get_by_identity(
             decision_case.job_requirement_snapshot_id,
             decision_case.job_requirement_snapshot_version,
@@ -86,7 +86,7 @@ class AnalyzeDecisionCaseUseCase:
         if requirements is None or profile is None:
             raise InfrastructureError(
                 "Decision case inputs are unavailable",
-                error_code="decision_input_unavailable",
+                error_code=ErrorCode.DECISION_INPUT_UNAVAILABLE,
             )
         return DecisionCaseAnalysis(
             decision_case=decision_case,
@@ -114,7 +114,7 @@ class GenerateStoredDecisionReportUseCase:
     ) -> GenerateDecisionReportResult:
         decision_case = await self.case_repository.get_by_id(command.case_id)
         if decision_case is None or decision_case.owner_id != command.owner_id:
-            raise ApplicationError("Decision case not found", error_code="entity_not_found")
+            raise ApplicationError("Decision case not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         requirements = await self.requirement_repository.get_by_identity(
             decision_case.job_requirement_snapshot_id,
             decision_case.job_requirement_snapshot_version,
@@ -123,7 +123,7 @@ class GenerateStoredDecisionReportUseCase:
         if requirements is None or profile is None:
             raise InfrastructureError(
                 "Decision case inputs are unavailable",
-                error_code="decision_input_unavailable",
+                error_code=ErrorCode.DECISION_INPUT_UNAVAILABLE,
             )
         return await GenerateDecisionReportUseCase(self.report_repository).execute(
             GenerateDecisionReportCommand(
@@ -143,7 +143,9 @@ class GetDecisionReportUseCase:
     async def execute(self, query: GetDecisionReportQuery) -> DecisionReport:
         report = await self.repository.get_by_id(query.report_id)
         if report is None or report.owner_id != query.owner_id:
-            raise ApplicationError("Decision report not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         return report
 
 
@@ -157,7 +159,7 @@ class ListDecisionReportsUseCase:
         if query.page < 1 or not 1 <= query.page_size <= 100:
             raise ApplicationError(
                 "Page must be at least 1 and page_size must be between 1 and 100",
-                error_code="invalid_pagination",
+                error_code=ErrorCode.INVALID_PAGINATION,
             )
         items = await self.repository.list(
             offset=(query.page - 1) * query.page_size,

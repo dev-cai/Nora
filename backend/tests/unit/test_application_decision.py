@@ -8,7 +8,12 @@ from app.application.followup import (
     GetApplicationDecisionQuery,
     GetApplicationDecisionUseCase,
 )
-from app.domain.base.exceptions import ApplicationError, DomainError, InfrastructureError
+from app.domain.base.exceptions import (
+    ApplicationError,
+    DomainError,
+    ErrorCode,
+    InfrastructureError,
+)
 from app.domain.decision import DecisionCase, DecisionReport
 from app.domain.followup import ApplicationDecision, ApplicationDecisionStatus
 from app.domain.governance import AuditEvent
@@ -285,7 +290,7 @@ class RacingApplicationDecisionRepository(FakeApplicationDecisionRepository):
         self.claimed = True
         raise InfrastructureError(
             "Concurrent request won",
-            error_code="application_decision_key_taken",
+            error_code=ErrorCode.APPLICATION_DECISION_KEY_TAKEN,
         )
 
     async def get_by_idempotency_key(self, key: str) -> ApplicationDecision | None:

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.knowledge import ArtifactStatus
 from app.domain.opportunity import (
     CompanyFieldStatus,
@@ -77,11 +77,13 @@ class CompanySnapshotUseCases:
     async def append(self, command: AppendCompanySnapshotCommand) -> CompanySnapshot:
         latest = await self.snapshots.get_latest(command.snapshot_id)
         if latest is None or latest.owner_id != command.owner_id:
-            raise ApplicationError("Company snapshot not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Company snapshot not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         if latest.version != command.expected_version:
             raise ApplicationError(
                 "Company snapshot version conflict",
-                error_code="company_snapshot_version_conflict",
+                error_code=ErrorCode.COMPANY_SNAPSHOT_VERSION_CONFLICT,
             )
         source = await self._fixed_source(command.owner_id, command)
         return await self._store(
@@ -103,12 +105,16 @@ class CompanySnapshotUseCases:
             else await self.snapshots.get_by_identity(query.snapshot_id, query.version)
         )
         if snapshot is None or snapshot.owner_id != query.owner_id:
-            raise ApplicationError("Company snapshot not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Company snapshot not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         return snapshot
 
     async def list_versions(self, query: GetCompanySnapshotQuery) -> tuple[CompanySnapshot, ...]:
         if await self.snapshots.get_latest(query.snapshot_id) is None:
-            raise ApplicationError("Company snapshot not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Company snapshot not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         return tuple(await self.snapshots.list_versions(query.snapshot_id))
 
     async def _fixed_source(
@@ -116,7 +122,7 @@ class CompanySnapshotUseCases:
     ) -> CompanySourceReference:
         source = await self.sources.get_by_id(values.source_id)
         if source is None or source.owner_id != owner_id or source.version != values.source_version:
-            raise ApplicationError("Source not found", error_code="entity_not_found")
+            raise ApplicationError("Source not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         artifact = await self.artifacts.get_by_id(source.artifact_id)
         if (
             artifact is None
@@ -124,7 +130,7 @@ class CompanySnapshotUseCases:
             or artifact.version != source.artifact_version
             or artifact.status is not ArtifactStatus.AVAILABLE
         ):
-            raise ApplicationError("Source not found", error_code="entity_not_found")
+            raise ApplicationError("Source not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         return CompanySourceReference.create(
             source_id=source.id,
             source_version=source.version,
@@ -143,9 +149,9 @@ class CompanySnapshotUseCases:
             await self.snapshots.commit()
             return stored
         except InfrastructureError as exc:
-            if exc.error_code == "company_snapshot_version_conflict":
+            if exc.error_code is ErrorCode.COMPANY_SNAPSHOT_VERSION_CONFLICT:
                 raise ApplicationError(
                     "Company snapshot version conflict",
-                    error_code="company_snapshot_version_conflict",
+                    error_code=ErrorCode.COMPANY_SNAPSHOT_VERSION_CONFLICT,
                 ) from exc
             raise

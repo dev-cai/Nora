@@ -7,7 +7,7 @@ from enum import StrEnum
 from hashlib import sha256
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 MAX_DECISION_REASON_LENGTH = 1_000
 MAX_IDEMPOTENCY_KEY_LENGTH = 255
@@ -62,7 +62,7 @@ class ApplicationDecision:
         normalized_key = _required_text(
             idempotency_key,
             MAX_IDEMPOTENCY_KEY_LENGTH,
-            "invalid_idempotency_key",
+            ErrorCode.INVALID_IDEMPOTENCY_KEY,
         )
         report_version = _positive_version(report_version)
         resume_version = _positive_version(resume_version)
@@ -122,7 +122,7 @@ class ApplicationDecision:
         if restored.request_fingerprint != request_fingerprint:
             raise DomainError(
                 "Application decision fingerprint is invalid",
-                error_code="invalid_application_decision_fingerprint",
+                error_code=ErrorCode.INVALID_APPLICATION_DECISION_FINGERPRINT,
             )
         return cls(
             id=decision_id,
@@ -150,28 +150,32 @@ def _status(value: ApplicationDecisionStatus) -> ApplicationDecisionStatus:
     except (TypeError, ValueError) as exc:
         raise DomainError(
             "Application decision status is invalid",
-            error_code="invalid_application_decision_status",
+            error_code=ErrorCode.INVALID_APPLICATION_DECISION_STATUS,
         ) from exc
 
 
 def _reason(value: str | None, *, required: bool) -> str | None:
     if value is None:
         if required:
-            raise DomainError("Skip reason is required", error_code="skip_reason_required")
+            raise DomainError("Skip reason is required", error_code=ErrorCode.SKIP_REASON_REQUIRED)
         return None
     if not isinstance(value, str):
-        raise DomainError("Decision reason must be text", error_code="invalid_decision_reason")
+        raise DomainError(
+            "Decision reason must be text", error_code=ErrorCode.INVALID_DECISION_REASON
+        )
     normalized = " ".join(value.split())
     if not normalized:
         if required:
-            raise DomainError("Skip reason is required", error_code="skip_reason_required")
+            raise DomainError("Skip reason is required", error_code=ErrorCode.SKIP_REASON_REQUIRED)
         return None
     if len(normalized) > MAX_DECISION_REASON_LENGTH:
-        raise DomainError("Decision reason is too long", error_code="invalid_decision_reason")
+        raise DomainError(
+            "Decision reason is too long", error_code=ErrorCode.INVALID_DECISION_REASON
+        )
     return normalized
 
 
-def _required_text(value: str, maximum: int, error_code: str) -> str:
+def _required_text(value: str, maximum: int, error_code: ErrorCode) -> str:
     if not isinstance(value, str):
         raise DomainError("Value must be text", error_code=error_code)
     normalized = value.strip()
@@ -182,14 +186,16 @@ def _required_text(value: str, maximum: int, error_code: str) -> str:
 
 def _positive_version(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise DomainError("Version must be positive", error_code="invalid_version")
+        raise DomainError("Version must be positive", error_code=ErrorCode.INVALID_VERSION)
     return value
 
 
 def _utc_timestamp(value: datetime | None) -> datetime:
     timestamp = value or datetime.now(timezone.utc)
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return timestamp.astimezone(timezone.utc)
 
 

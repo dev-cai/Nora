@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 
 class ArtifactStatus(StrEnum):
@@ -63,13 +63,19 @@ class Artifact:
         key = idempotency_key.strip()
         digest = sha256.strip().lower()
         if not content_type or len(content_type) > 255:
-            raise DomainError("Content type is invalid", error_code="invalid_artifact_content_type")
+            raise DomainError(
+                "Content type is invalid", error_code=ErrorCode.INVALID_ARTIFACT_CONTENT_TYPE
+            )
         if size_bytes < 1:
-            raise DomainError("Artifact must not be empty", error_code="invalid_artifact_size")
+            raise DomainError(
+                "Artifact must not be empty", error_code=ErrorCode.INVALID_ARTIFACT_SIZE
+            )
         if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
-            raise DomainError("SHA-256 is invalid", error_code="invalid_artifact_sha256")
+            raise DomainError("SHA-256 is invalid", error_code=ErrorCode.INVALID_ARTIFACT_SHA256)
         if not key or len(key) > 255:
-            raise DomainError("Idempotency key is invalid", error_code="invalid_idempotency_key")
+            raise DomainError(
+                "Idempotency key is invalid", error_code=ErrorCode.INVALID_IDEMPOTENCY_KEY
+            )
         generator = " ".join(generator_version.split()) if generator_version else None
         identity = generation_identity.strip().lower() if generation_identity else None
         if kind is ArtifactKind.GENERATED and (
@@ -81,12 +87,12 @@ class Artifact:
         ):
             raise DomainError(
                 "Generated Artifact identity is invalid",
-                error_code="invalid_generation_identity",
+                error_code=ErrorCode.INVALID_GENERATION_IDENTITY,
             )
         if kind is ArtifactKind.SOURCE and (generator is not None or identity is not None):
             raise DomainError(
                 "Source Artifact cannot have a generator identity",
-                error_code="invalid_generation_identity",
+                error_code=ErrorCode.INVALID_GENERATION_IDENTITY,
             )
         return cls(
             id=uuid4(),
@@ -106,30 +112,36 @@ class Artifact:
 
     def publish(self, object_key: str) -> "Artifact":
         if self.status not in {ArtifactStatus.PENDING, ArtifactStatus.FAILED}:
-            raise DomainError("Artifact cannot be published", error_code="artifact_state_conflict")
+            raise DomainError(
+                "Artifact cannot be published", error_code=ErrorCode.ARTIFACT_STATE_CONFLICT
+            )
         if not object_key or object_key.startswith("/") or ".." in object_key.split("/"):
-            raise DomainError("Object key is invalid", error_code="invalid_object_key")
+            raise DomainError("Object key is invalid", error_code=ErrorCode.INVALID_OBJECT_KEY)
         return replace(self, object_key=object_key, status=ArtifactStatus.AVAILABLE)
 
     def fail(self) -> "Artifact":
         if self.status not in {ArtifactStatus.PENDING, ArtifactStatus.FAILED}:
-            raise DomainError("Artifact cannot fail", error_code="artifact_state_conflict")
+            raise DomainError("Artifact cannot fail", error_code=ErrorCode.ARTIFACT_STATE_CONFLICT)
         return replace(self, status=ArtifactStatus.FAILED)
 
     def request_delete(self) -> "Artifact":
         if self.status not in {ArtifactStatus.AVAILABLE, ArtifactStatus.DELETE_FAILED}:
-            raise DomainError("Artifact cannot be deleted", error_code="artifact_state_conflict")
+            raise DomainError(
+                "Artifact cannot be deleted", error_code=ErrorCode.ARTIFACT_STATE_CONFLICT
+            )
         return replace(self, status=ArtifactStatus.DELETE_PENDING)
 
     def deletion_failed(self) -> "Artifact":
         if self.status is not ArtifactStatus.DELETE_PENDING:
-            raise DomainError("Artifact deletion cannot fail", error_code="artifact_state_conflict")
+            raise DomainError(
+                "Artifact deletion cannot fail", error_code=ErrorCode.ARTIFACT_STATE_CONFLICT
+            )
         return replace(self, status=ArtifactStatus.DELETE_FAILED)
 
     def mark_deleted(self, now: datetime | None = None) -> "Artifact":
         if self.status is not ArtifactStatus.DELETE_PENDING:
             raise DomainError(
-                "Artifact cannot become deleted", error_code="artifact_state_conflict"
+                "Artifact cannot become deleted", error_code=ErrorCode.ARTIFACT_STATE_CONFLICT
             )
         return replace(self, status=ArtifactStatus.DELETED, object_key=None, deleted_at=_utc(now))
 
@@ -164,14 +176,20 @@ class SourceDocument:
         now: datetime | None = None,
     ) -> "SourceDocument":
         if artifact.status is not ArtifactStatus.AVAILABLE:
-            raise DomainError("Source artifact is unavailable", error_code="artifact_unavailable")
+            raise DomainError(
+                "Source artifact is unavailable", error_code=ErrorCode.ARTIFACT_UNAVAILABLE
+            )
         method = " ".join(acquisition_method.split())
         license_value = " ".join(license_note.split())
         locator_value = " ".join(locator.split()) if locator else None
         if not method or len(method) > 100 or not license_value or len(license_value) > 500:
-            raise DomainError("Source metadata is invalid", error_code="invalid_source_metadata")
+            raise DomainError(
+                "Source metadata is invalid", error_code=ErrorCode.INVALID_SOURCE_METADATA
+            )
         if locator_value and len(locator_value) > 2000:
-            raise DomainError("Source locator is invalid", error_code="invalid_source_locator")
+            raise DomainError(
+                "Source locator is invalid", error_code=ErrorCode.INVALID_SOURCE_LOCATOR
+            )
         return cls(
             id=uuid4(),
             owner_id=artifact.owner_id,
@@ -192,5 +210,7 @@ class SourceDocument:
 def _utc(value: datetime | None) -> datetime:
     result = value or datetime.now(timezone.utc)
     if result.tzinfo is None or result.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return result.astimezone(timezone.utc)

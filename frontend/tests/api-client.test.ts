@@ -35,13 +35,57 @@ describe("API client", () => {
   })
 
   it("captures request IDs and maps stable API errors", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({ error_code: "email_conflict" }, 409, "conflict-7"))
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({
+      error_code: "email_conflict",
+      error_category: "conflict",
+      message: "Email already exists",
+    }, 409, "conflict-7"))
 
     const error = await api.register("alice", "alice@example.com", "password-123").catch((reason: unknown) => reason)
 
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({ status: 409, errorCode: "email_conflict", requestId: "conflict-7" })
     expect((error as Error).message).toBe("该邮箱已被注册")
+  })
+
+  it("falls back from an unmapped server code to its generated category", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({
+      error_code: "invalid_job_title",
+      error_category: "invalid_input",
+      message: "Job title is invalid",
+    }, 400))
+
+    const error = await api.me().catch((reason: unknown) => reason)
+
+    expect(error).toMatchObject({
+      errorCode: "invalid_job_title",
+      errorCategory: "invalid_input",
+      message: "提交内容不符合要求",
+    })
+  })
+
+  it("falls back from unknown response values to the HTTP status", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({
+      error_code: "future_code",
+      error_category: "future_category",
+      message: "Untrusted server detail",
+    }, 409))
+
+    const error = await api.me().catch((reason: unknown) => reason)
+
+    expect(error).toMatchObject({ errorCategory: null, message: "当前内容与服务端状态冲突" })
+  })
+
+  it("uses a generic fallback for an unknown response", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({
+      error_code: "toString",
+      error_category: "constructor",
+      message: "Untrusted detail",
+    }, 418))
+
+    const error = await api.me().catch((reason: unknown) => reason)
+
+    expect(error).toMatchObject({ errorCode: "http_error", message: "请求失败" })
   })
 
   it("notifies the application when a request is unauthorized", async () => {

@@ -6,7 +6,7 @@ from enum import StrEnum
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 MAX_JD_TEXT_LENGTH = 100_000
 MAX_METADATA_LENGTH = 200
@@ -67,24 +67,32 @@ class JobPosting:
         normalized_text = _normalize_jd_text(jd_text)
         normalized_source_url = _normalize_source_url(source_url)
         if not isinstance(source_type, JobSourceType):
-            raise DomainError("Job source type is invalid", error_code="invalid_source_type")
+            raise DomainError(
+                "Job source type is invalid", error_code=ErrorCode.INVALID_SOURCE_TYPE
+            )
         if source_type is JobSourceType.URL and normalized_source_url is None:
-            raise DomainError("URL source requires source_url", error_code="invalid_source_url")
+            raise DomainError(
+                "URL source requires source_url", error_code=ErrorCode.INVALID_SOURCE_URL
+            )
 
         timestamp = now or datetime.now(timezone.utc)
         if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-            raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+            raise DomainError(
+                "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+            )
         timestamp = timestamp.astimezone(timezone.utc)
 
         return cls(
             id=uuid4(),
             owner_id=owner_id,
             jd_text=normalized_text,
-            job_title=_normalize_metadata(job_title, "invalid_job_title", UNKNOWN_JOB_TITLE),
-            company_name=_normalize_metadata(
-                company_name, "invalid_company_name", UNKNOWN_COMPANY_NAME
+            job_title=_normalize_metadata(
+                job_title, ErrorCode.INVALID_JOB_TITLE, UNKNOWN_JOB_TITLE
             ),
-            location=_normalize_metadata(location, "invalid_location", UNKNOWN_LOCATION),
+            company_name=_normalize_metadata(
+                company_name, ErrorCode.INVALID_COMPANY_NAME, UNKNOWN_COMPANY_NAME
+            ),
+            location=_normalize_metadata(location, ErrorCode.INVALID_LOCATION, UNKNOWN_LOCATION),
             source_type=source_type,
             source_url=normalized_source_url,
             imported_at=timestamp,
@@ -98,16 +106,16 @@ class JobPosting:
 def _normalize_jd_text(value: str) -> str:
     normalized = value.replace("\r\n", "\n").replace("\r", "\n").strip()
     if not normalized:
-        raise DomainError("JD text cannot be blank", error_code="invalid_jd_text")
+        raise DomainError("JD text cannot be blank", error_code=ErrorCode.INVALID_JD_TEXT)
     if len(normalized) > MAX_JD_TEXT_LENGTH:
         raise DomainError(
             f"JD text cannot exceed {MAX_JD_TEXT_LENGTH} characters",
-            error_code="jd_text_too_long",
+            error_code=ErrorCode.JD_TEXT_TOO_LONG,
         )
     return normalized
 
 
-def _normalize_metadata(value: str | None, error_code: str, fallback: str) -> str:
+def _normalize_metadata(value: str | None, error_code: ErrorCode, fallback: str) -> str:
     if value is None:
         return fallback
     normalized = " ".join(value.split())
@@ -128,19 +136,19 @@ def _normalize_source_url(value: str | None) -> str | None:
     if not normalized:
         return None
     if len(normalized) > MAX_SOURCE_URL_LENGTH or any(char.isspace() for char in normalized):
-        raise DomainError("Source URL is invalid", error_code="invalid_source_url")
+        raise DomainError("Source URL is invalid", error_code=ErrorCode.INVALID_SOURCE_URL)
     try:
         parsed = urlsplit(normalized)
         hostname = parsed.hostname
     except ValueError as exc:
-        raise DomainError("Source URL is invalid", error_code="invalid_source_url") from exc
+        raise DomainError("Source URL is invalid", error_code=ErrorCode.INVALID_SOURCE_URL) from exc
     if (
         parsed.scheme not in {"http", "https"}
         or not hostname
         or parsed.username is not None
         or parsed.password is not None
     ):
-        raise DomainError("Source URL is invalid", error_code="invalid_source_url")
+        raise DomainError("Source URL is invalid", error_code=ErrorCode.INVALID_SOURCE_URL)
     return normalized
 
 

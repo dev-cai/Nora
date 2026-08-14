@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
-from app.domain.base.exceptions import InfrastructureError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.domain.decision import (
     CompanyAssessment,
     CompanyAssessmentStatus,
@@ -288,7 +288,7 @@ class SqlAlchemyDecisionCaseRepository:
     async def add(self, decision_case: DecisionCase) -> DecisionCase:
         if decision_case.owner_id != self.owner_id:
             raise InfrastructureError(
-                "Decision case is outside user scope", error_code="entity_not_found"
+                "Decision case is outside user scope", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
         record = DecisionCaseRecord(
             id=decision_case.id,
@@ -315,14 +315,14 @@ class SqlAlchemyDecisionCaseRepository:
         except IntegrityError as exc:
             await self.session.rollback()
             raise InfrastructureError(
-                "Decision case input already exists", error_code="decision_case_conflict"
+                "Decision case input already exists", error_code=ErrorCode.DECISION_CASE_CONFLICT
             ) from exc
         return self._to_domain(record)
 
     async def update(self, decision_case: DecisionCase) -> DecisionCase:
         if decision_case.owner_id != self.owner_id:
             raise InfrastructureError(
-                "Decision case is outside user scope", error_code="entity_not_found"
+                "Decision case is outside user scope", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
         record = await self.session.scalar(
             select(DecisionCaseRecord)
@@ -334,10 +334,12 @@ class SqlAlchemyDecisionCaseRepository:
             .execution_options(populate_existing=True)
         )
         if record is None:
-            raise InfrastructureError("Decision case not found", error_code="entity_not_found")
+            raise InfrastructureError(
+                "Decision case not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         if not _has_same_fixed_inputs(record, decision_case):
             raise InfrastructureError(
-                "Decision case inputs are immutable", error_code="decision_case_immutable"
+                "Decision case inputs are immutable", error_code=ErrorCode.DECISION_CASE_IMMUTABLE
             )
         if (
             DecisionCaseStatus(record.status) is not DecisionCaseStatus.CREATED
@@ -345,7 +347,7 @@ class SqlAlchemyDecisionCaseRepository:
         ):
             raise InfrastructureError(
                 "Decision case has already finished",
-                error_code="invalid_decision_case_state",
+                error_code=ErrorCode.INVALID_DECISION_CASE_STATE,
             )
 
         record.status = decision_case.status.value
@@ -407,7 +409,9 @@ class SqlAlchemyDecisionReportRepository:
             .with_for_update()
         )
         if decision_case is None:
-            raise InfrastructureError("Decision case not found", error_code="entity_not_found")
+            raise InfrastructureError(
+                "Decision case not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         latest_version = await self.session.scalar(
             select(func.max(DecisionReportRecord.version)).where(
                 DecisionReportRecord.decision_case_id == decision_case_id,
@@ -419,7 +423,7 @@ class SqlAlchemyDecisionReportRepository:
     async def add(self, report: DecisionReport) -> DecisionReport:
         if report.owner_id != self.owner_id:
             raise InfrastructureError(
-                "Decision report is outside user scope", error_code="entity_not_found"
+                "Decision report is outside user scope", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
         record = DecisionReportRecord(
             id=report.id,
@@ -438,9 +442,9 @@ class SqlAlchemyDecisionReportRepository:
             await self.session.rollback()
             constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
             error_code = (
-                "decision_report_generation_conflict"
+                ErrorCode.DECISION_REPORT_GENERATION_CONFLICT
                 if constraint == "uq_decision_report_generation"
-                else "decision_report_version_conflict"
+                else ErrorCode.DECISION_REPORT_VERSION_CONFLICT
             )
             raise InfrastructureError(
                 "Decision report already exists", error_code=error_code
@@ -533,7 +537,9 @@ class SqlAlchemyCompanyAssessmentRepository:
 
     async def add(self, assessment: CompanyAssessment) -> CompanyAssessment:
         if assessment.owner_id != self.owner_id:
-            raise InfrastructureError("Company assessment not found", error_code="entity_not_found")
+            raise InfrastructureError(
+                "Company assessment not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         record = CompanyAssessmentRecord(
             id=assessment.id,
             owner_id=assessment.owner_id,
@@ -556,7 +562,7 @@ class SqlAlchemyCompanyAssessmentRepository:
             await self.session.rollback()
             raise InfrastructureError(
                 "Company assessment already exists",
-                error_code="company_assessment_conflict",
+                error_code=ErrorCode.COMPANY_ASSESSMENT_CONFLICT,
             ) from exc
         return self._to_domain(record)
 
