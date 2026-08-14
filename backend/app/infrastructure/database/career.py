@@ -230,6 +230,16 @@ class SqlAlchemyResumeVersionRepository:
         )
         return None if record is None else self._to_domain(record)
 
+    async def get_by_identity(self, resume_id: UUID, version: int) -> ResumeVersion | None:
+        record = await self.session.scalar(
+            select(ResumeVersionRecord).where(
+                ResumeVersionRecord.id == resume_id,
+                ResumeVersionRecord.version == version,
+                ResumeVersionRecord.owner_id == self.owner_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
     async def list(self, *, offset: int = 0, limit: int = 100) -> list[ResumeVersion]:
         records = await self.session.scalars(
             select(ResumeVersionRecord)

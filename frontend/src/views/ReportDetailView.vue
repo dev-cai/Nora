@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import { ArrowLeft, RefreshCw, ShieldCheck } from "lucide-vue-next"
+import { ArrowLeft, FilePenLine, RefreshCw, ShieldCheck } from "lucide-vue-next"
 import { useRoute } from "vue-router"
 
 import { userMessage } from "@/api/client"
@@ -90,6 +90,24 @@ watch(reportId, () => void load(), { immediate: true })
         :saving="store.deciding"
         @submit="decide"
       />
+      <section
+        v-if="store.decision?.status === 'apply'"
+        class="variant-next-step"
+      >
+        <div>
+          <p class="eyebrow">
+            下一步
+          </p>
+          <h3>为这个岗位定制简历</h3>
+          <p>基于本次决定固定的简历版本选择内容和模板。</p>
+        </div>
+        <RouterLink
+          class="button button-primary"
+          :to="{ name: 'resume-customize', params: { id: store.decision.resume_version_id }, query: { decision: store.decision.id } }"
+        >
+          <FilePenLine :size="17" /> 定制简历
+        </RouterLink>
+      </section>
       <section class="locked-band">
         <ShieldCheck :size="18" />
         <div><strong>固定版本报告</strong><p>刷新会从服务端重新读取同一报告版本，不会重新计算或覆盖历史。</p></div>

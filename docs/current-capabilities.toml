@@ -131,9 +131,9 @@ evidence = [
 [[capabilities]]
 id = "quality-gates"
 name = "全量质量与浏览器门禁"
-milestone = "M0-M3"
+milestone = "M0-M4"
 status = "current"
-summary = "PR 和 main push 运行后端质量/测试、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备与 M3 固定版本分析、报告刷新和原用户重新登录恢复、apply/skip 决定及双用户读写隔离；运行后清理容器、网络与数据卷。"
+summary = "PR 和 main push 运行后端质量/测试、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备、M3 固定版本分析/报告/决定，以及 M4 apply 后的 ResumeVariant 编辑排序、详情刷新恢复和双用户读写隔离；运行后清理容器、网络与数据卷。"
 code_paths = [
   ".github/workflows/pr-conventions.yml",
   ".github/workflows/frontend-ci.yml",
@@ -151,6 +151,7 @@ evidence = [
   "https://github.com/dev-cai/Nora/pull/130",
   "https://github.com/dev-cai/Nora/pull/160",
   "https://github.com/dev-cai/Nora/pull/162",
+  "https://github.com/dev-cai/Nora/pull/180",
 ]
 
 [[capabilities]]
@@ -340,3 +341,22 @@ code_paths = [
   "backend/alembic/versions/0015_company_intelligence.py",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/179"]
+
+[[capabilities]]
+id = "declarative-resume-variants"
+name = "声明式模板与岗位定制简历"
+milestone = "M4"
+status = "current"
+summary = "支持不可变、不可执行代码的 TemplateDefinition 与用户范围 ResumeVariant：仅允许受控页面、样式和字段路径，创建必须引用 apply 决定，并固定 DecisionCase、JobPosting、JobRequirementSnapshot、ResumeVersion 与模板精确版本。字段选择、顺序、标签、编辑值、模板哈希和生成器版本进入内容指纹，owner 范围幂等重放与冲突可稳定判断；认证 API 和 Vue 页面支持模板/变体列表、选择编辑排序、详情刷新恢复和登出清理。不修改主档或简历事实，不生成 PDF 且不执行外部写。"
+code_paths = [
+  "backend/app/domain/followup/resume_variant.py",
+  "backend/app/application/followup/resume_variant.py",
+  "backend/app/infrastructure/database/followup.py",
+  "backend/app/apps/api/routes/resume_variants.py",
+  "backend/alembic/versions/0016_resume_variants.py",
+  "frontend/src/views/TemplatesView.vue",
+  "frontend/src/views/ResumeCustomizeView.vue",
+  "frontend/src/views/ResumeVariantDetailView.vue",
+  "frontend/src/stores/variants.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/180"]

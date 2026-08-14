@@ -21,8 +21,10 @@ from app.infrastructure.database import (
     SqlAlchemyDecisionReportRepository,
     SqlAlchemyJobPostingRepository,
     SqlAlchemyJobRequirementSnapshotRepository,
+    SqlAlchemyResumeVariantRepository,
     SqlAlchemyResumeVersionRepository,
     SqlAlchemySourceDocumentRepository,
+    SqlAlchemyTemplateDefinitionRepository,
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.jd_fetch import JdFetchAdapter
@@ -34,7 +36,11 @@ from app.ports.decision import (
     DecisionCaseRepository,
     DecisionReportRepository,
 )
-from app.ports.followup import ApplicationDecisionRepository
+from app.ports.followup import (
+    ApplicationDecisionRepository,
+    ResumeVariantRepository,
+    TemplateDefinitionRepository,
+)
 from app.ports.governance import AuditEventRepository
 from app.ports.jd_input import JdInputPort
 from app.ports.knowledge import ArtifactRepository, ArtifactStorage, SourceDocumentRepository
@@ -160,6 +166,20 @@ def get_application_decision_repository(
     """组装当前认证用户范围内的 ApplicationDecision Repository。"""
 
     return SqlAlchemyApplicationDecisionRepository(session, user.id)
+
+
+def get_resume_variant_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ResumeVariantRepository:
+    return SqlAlchemyResumeVariantRepository(session, user.id)
+
+
+def get_template_definition_repository(
+    session: AsyncSession = Depends(get_session),
+    _user: User = Depends(get_current_user),
+) -> TemplateDefinitionRepository:
+    return SqlAlchemyTemplateDefinitionRepository(session)
 
 
 def get_jd_input_adapter() -> JdInputPort:

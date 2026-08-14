@@ -104,4 +104,24 @@ describe("API client", () => {
     const decisionHeaders = new Headers(fetchMock.mock.calls[6]?.[1]?.headers)
     expect(decisionHeaders.get("Idempotency-Key")).toBe("decision-key")
   })
+
+  it("uses exact template versions and an idempotent resume variant contract", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({})))
+
+    await api.listTemplates()
+    await api.getTemplate("template/1", 2)
+    await api.listResumeVariants(2, 10)
+    await api.getResumeVariant("variant/1")
+    await api.createResumeVariant({} as never, "variant-key")
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
+      ["/api/templates", "GET"],
+      ["/api/templates/template%2F1/versions/2", "GET"],
+      ["/api/resume-variants?page=2&page_size=10", "GET"],
+      ["/api/resume-variants/variant%2F1", "GET"],
+      ["/api/resume-variants", "POST"],
+    ])
+    const variantHeaders = new Headers(fetchMock.mock.calls[4]?.[1]?.headers)
+    expect(variantHeaders.get("Idempotency-Key")).toBe("variant-key")
+  })
 })

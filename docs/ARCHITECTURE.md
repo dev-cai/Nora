@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163。
-- 当前代码：M0/M1 与既有输入/Web 基线已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、Vue Web、前端 CI、JD 输入契约与基础浏览器 E2E。
+- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -225,7 +225,7 @@ erDiagram
     ResumeVariant }o--|| DecisionCase : "针对岗位"
 ```
 
-修改 `CandidateProfile` 不会重写历史 `ResumeVersion`；用户显式发布后生成新 `ResumeVersion`。`ResumeVariant` 固定引用一个 `ResumeVersion`、一个 `DecisionCase`、一个模板版本和一个渲染器版本。
+修改 `CandidateProfile` 不会重写历史 `ResumeVersion`；用户显式发布后生成新 `ResumeVersion`。`ResumeVariant` 固定引用一个 apply `ApplicationDecision`、`DecisionCase`、`ResumeVersion`、`JobPosting`/`JobRequirementSnapshot` 精确版本、模板版本和生成器版本。
 
 ### ApplicationDecision 状态机
 
@@ -248,13 +248,14 @@ stateDiagram-v2
 
 状态转换必须记录操作者、时间、输入报告版本和幂等键。`message_drafted` 不代表消息已发送；只有用户确认外部网站或渠道已完成投递，才能进入 `applied`。
 
-M3 Current 只交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecision` 属于 Application & Follow-up 上下文，是引用一条不可变 `DecisionReport` 的不可变业务事实。记录固定报告 ID/版本、DecisionCase、分析所用 ResumeVersion、操作者、决定时间、原因和幂等键；每个用户范围内的一份报告最多存在一条决定。相同语义重放返回既有记录，复用幂等键提交不同内容或对同一报告提交不同决定返回稳定 `409`。`skip` 必须保存原因，`apply` 只表达投递意图，不创建 ResumeVariant、PDF、MessageDraft 或外部写。公开接口为 `GET /reports/{id}/decision` 与 `POST /reports/{id}/decision`；跨用户与不存在报告统一返回 `404`，未决定的读取返回 `204`。
+M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecision` 属于 Application & Follow-up 上下文，是引用一条不可变 `DecisionReport` 的不可变业务事实。记录固定报告 ID/版本、DecisionCase、分析所用 ResumeVersion、操作者、决定时间、原因和幂等键；每个用户范围内的一份报告最多存在一条决定。相同语义重放返回既有记录，复用幂等键提交不同内容或对同一报告提交不同决定返回稳定 `409`。`skip` 必须保存原因，`apply` 只表达投递意图；决定创建本身不自动生成材料或执行外部写，但可作为后续 ResumeVariant 创建的必要输入。公开接口为 `GET /reports/{id}/decision` 与 `POST /reports/{id}/decision`；跨用户与不存在报告统一返回 `404`，未决定的读取返回 `204`。
 
 ### 简历模板、PDF 与 MessageDraft
 
-- 模板采用声明式 JSON `TemplateDefinition`：页面设置、样式 Token、区块顺序、允许字段和必填字段；不执行任意 HTML、JavaScript 或 Jinja。
-- 模板发布后不可变。`ResumeVariant` 固定模板版本、`ResumeVersion`、`DecisionCase`、字段映射和生成器版本；模板更新不会重算历史 PDF。
-- 初版 PDF 统一使用 WeasyPrint Adapter，将受限模板转换为 HTML/CSS 后渲染；输出文件写入 Object Storage，保存 SHA-256、模板版本、来源版本和用户归属，构建产物不得进入 Git。
+- Current 模板采用声明式 JSON `TemplateDefinition`：页面尺寸、密度、强调色、区块顺序、允许字段和必填字段。模板发布后不可变，只接受受控枚举与结构化字段路径，不执行 Python、HTML、JavaScript、Jinja，也不加载外部脚本或网络资源。
+- Current `ResumeVariant` 只允许从 apply 决定创建，固定 `ApplicationDecision`、`DecisionCase`、`ResumeVersion`、`JobPosting`/`JobRequirementSnapshot` 和模板的精确版本。用户选择、顺序、标签、编辑值、模板定义哈希及生成器版本共同参与内容指纹；同一 owner 范围的幂等键支持语义重放，不同载荷稳定冲突。历史源对象或模板升级不会重算或改写既有变体。
+- 公开接口为 `GET /templates`、`GET /templates/{id}/versions/{version}`、`POST /resume-variants`、`GET /resume-variants` 与 `GET /resume-variants/{id}`。对象按 owner 隔离，跨用户与不存在对象统一不可见；创建只写 PostgreSQL 结构化事实，不修改 CandidateProfile/ResumeVersion，不生成文件且不执行外部写。
+- PDF 仍由 #92 交付：初版计划使用 WeasyPrint Adapter，将受限模板转换为 HTML/CSS 后渲染；输出文件写入 Object Storage，保存 SHA-256、模板版本、来源版本和用户归属，构建产物不得进入 Git。
 - `MessageDraft` 是一条可编辑纯文本，默认 `professional` 风格，另支持 `concise` 和用户提供内推上下文的 `referral` 风格；输入只允许已确认主档、JD、公司 Evidence 和用户备注，初版不做平台适配、不自动发送。
 
 ### 公司情报与决策报告版本边界（D-014）

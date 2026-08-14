@@ -30,7 +30,7 @@ async function login(page: Page, user: User): Promise<void> {
   await expect(page).toHaveURL(/\/$/)
 }
 
-async function prepareProfileAndResume(page: Page): Promise<void> {
+async function prepareProfileAndResume(page: Page): Promise<string> {
   await page.goto("/profile")
   await page.getByLabel("姓名").fill("M3 决策用户")
   await page.getByLabel("当前所在地").fill("上海")
@@ -47,6 +47,7 @@ async function prepareProfileAndResume(page: Page): Promise<void> {
   await page.getByLabel("简历标题").fill("M3 Python 工程师简历")
   await page.getByRole("button", { name: "发布不可变版本" }).click()
   await expect(page).toHaveURL(/\/resumes\/[0-9a-f]{8}-/)
+  return page.url().match(/\/resumes\/([0-9a-f-]+)/)![1]
 }
 
 async function prepareJobRequirements(page: Page): Promise<string> {
@@ -137,4 +138,49 @@ test("M3 决策闭环：真实 Compose 主流程、刷新与重新登录恢复�
   await expect(page.getByRole("heading", { name: "暂不投递" })).toBeVisible()
   await expect(page.getByText("关键岗位要求尚未确认")).toBeVisible()
   await expect(page.getByText("报告 v1 · 简历 v1", { exact: false })).toBeVisible()
+})
+
+test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户隔离", async ({ page }) => {
+  const userA = newUser("m4-variant-a")
+  await registerAndLogin(page, userA)
+  const resumeId = await prepareProfileAndResume(page)
+  const jobId = await prepareJobRequirements(page)
+
+  await page.goto(`/analysis/new?jobId=${jobId}`)
+  await page.getByRole("button", { name: "开始分析" }).click()
+  await expect(page).toHaveURL(/\/analysis\/[0-9a-f]{8}-/)
+  await page.getByRole("button", { name: "生成报告" }).click()
+  await expect(page).toHaveURL(/\/reports\/[0-9a-f]{8}-/)
+
+  await page.getByRole("button", { name: "投递" }).click()
+  await page.getByRole("button", { name: "确认决定" }).click()
+  await expect(page.getByRole("heading", { name: "准备投递" })).toBeVisible()
+  await page.getByRole("main").getByRole("link", { name: "定制简历" }).click()
+  await expect(page).toHaveURL(new RegExp(`/resumes/${resumeId}/customize\\?decision=[0-9a-f-]+`))
+
+  await expect(page.getByRole("heading", { name: "选择、编辑与排序" })).toBeVisible()
+  await page.getByLabel("字段内容").first().fill("M4 定制用户")
+  await page.getByRole("button", { name: "下移" }).first().click()
+  await page.getByRole("button", { name: "创建不可变变体" }).click()
+  await expect(page).toHaveURL(/\/resume-variants\/[0-9a-f]{8}-/)
+  const variantId = page.url().match(/\/resume-variants\/([0-9a-f-]+)/)![1]
+  await expect(page.getByRole("heading", { name: /M3 Python 工程师简历 · 定制版/ })).toBeVisible()
+  await expect(page.getByText("M4 定制用户", { exact: true })).toBeVisible()
+
+  await page.reload()
+  await expect(page.getByRole("heading", { name: /M3 Python 工程师简历 · 定制版/ })).toBeVisible()
+  await expect(page.getByText("M4 定制用户", { exact: true })).toBeVisible()
+  await expect(page.getByText("版本已固定")).toBeVisible()
+
+  await page.getByRole("button", { name: "退出登录" }).click()
+  const userB = newUser("m4-variant-b")
+  await registerAndLogin(page, userB)
+  await page.goto(`/resume-variants/${variantId}`)
+  await expect(page.getByText("对象不存在或无权访问")).toBeVisible()
+
+  const userBSession = await page.evaluate(() => JSON.parse(sessionStorage.getItem("nora.auth.session") || "{}"))
+  const foreignRead = await page.request.get(`/api/resume-variants/${variantId}`, {
+    headers: { Authorization: `Bearer ${userBSession.token}` },
+  })
+  expect(foreignRead.status()).toBe(404)
 })

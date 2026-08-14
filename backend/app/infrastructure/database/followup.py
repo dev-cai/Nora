@@ -1,6 +1,7 @@
-"""ApplicationDecision ORM model and user-scoped repository."""
+"""Application & Follow-up ORM models and user-scoped repositories."""
 
 from datetime import datetime, timezone
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -12,15 +13,26 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     select,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
 from app.domain.base.exceptions import InfrastructureError
-from app.domain.followup import ApplicationDecision, ApplicationDecisionStatus
+from app.domain.followup import (
+    ApplicationDecision,
+    ApplicationDecisionStatus,
+    ResumeVariant,
+    TemplateAccent,
+    TemplateDefinition,
+    TemplateDensity,
+    TemplatePageSize,
+    VariantBlock,
+)
 from app.infrastructure.database.base import Base
 
 
@@ -29,6 +41,14 @@ class ApplicationDecisionRecord(Base):
     __table_args__ = (
         UniqueConstraint("owner_id", "report_id", name="uq_application_decision_owner_report"),
         UniqueConstraint("owner_id", "idempotency_key", name="uq_application_decision_owner_key"),
+        UniqueConstraint(
+            "id",
+            "decision_case_id",
+            "resume_version_id",
+            "resume_version",
+            "owner_id",
+            name="uq_application_decision_variant_input",
+        ),
         CheckConstraint("report_version >= 1", name="ck_application_decision_report_version"),
         CheckConstraint("resume_version >= 1", name="ck_application_decision_resume_version"),
         CheckConstraint("status IN ('apply', 'skip')", name="ck_application_decision_status"),
@@ -167,6 +187,15 @@ class SqlAlchemyApplicationDecisionRepository:
         )
         return None if record is None else self._to_domain(record)
 
+    async def get_by_id(self, decision_id: UUID) -> ApplicationDecision | None:
+        record = await self.session.scalar(
+            select(ApplicationDecisionRecord).where(
+                ApplicationDecisionRecord.owner_id == self.owner_id,
+                ApplicationDecisionRecord.id == decision_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
     async def get_by_idempotency_key(self, key: str) -> ApplicationDecision | None:
         record = await self.session.scalar(
             select(ApplicationDecisionRecord).where(
@@ -175,6 +204,273 @@ class SqlAlchemyApplicationDecisionRepository:
             )
         )
         return None if record is None else self._to_domain(record)
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
+
+class TemplateDefinitionRecord(Base):
+    __tablename__ = "template_definitions"
+    __table_args__ = (
+        UniqueConstraint("template_id", "version", name="uq_template_definition_identity"),
+        CheckConstraint("version >= 1", name="ck_template_definition_version"),
+        CheckConstraint("length(definition_hash) = 64", name="ck_template_definition_hash"),
+        CheckConstraint("jsonb_typeof(definition) = 'object'", name="ck_template_definition_json"),
+    )
+
+    record_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    template_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    definition: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    definition_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ResumeVariantRecord(Base):
+    __tablename__ = "resume_variants"
+    __table_args__ = (
+        UniqueConstraint("id", "version", "owner_id", name="uq_resume_variant_identity"),
+        UniqueConstraint("owner_id", "idempotency_key", name="uq_resume_variant_owner_key"),
+        CheckConstraint("version >= 1", name="ck_resume_variant_version"),
+        CheckConstraint("job_posting_version >= 1", name="ck_resume_variant_job_version"),
+        CheckConstraint(
+            "job_requirement_snapshot_version >= 1",
+            name="ck_resume_variant_requirement_version",
+        ),
+        CheckConstraint("resume_version >= 1", name="ck_resume_variant_resume_version"),
+        CheckConstraint("template_version >= 1", name="ck_resume_variant_template_version"),
+        CheckConstraint("jsonb_typeof(blocks) = 'array'", name="ck_resume_variant_blocks"),
+        CheckConstraint("length(content_fingerprint) = 64", name="ck_resume_variant_fingerprint"),
+        ForeignKeyConstraint(
+            [
+                "application_decision_id",
+                "decision_case_id",
+                "resume_version_id",
+                "resume_version",
+                "owner_id",
+            ],
+            [
+                "application_decisions.id",
+                "application_decisions.decision_case_id",
+                "application_decisions.resume_version_id",
+                "application_decisions.resume_version",
+                "application_decisions.owner_id",
+            ],
+            name="fk_resume_variant_apply_decision",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["decision_case_id", "job_posting_id", "job_posting_version", "owner_id"],
+            [
+                "decision_cases.id",
+                "decision_cases.job_posting_id",
+                "decision_cases.job_posting_version",
+                "decision_cases.owner_id",
+            ],
+            name="fk_resume_variant_job_input",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            [
+                "decision_case_id",
+                "job_requirement_snapshot_id",
+                "job_requirement_snapshot_version",
+                "owner_id",
+            ],
+            [
+                "decision_cases.id",
+                "decision_cases.job_requirement_snapshot_id",
+                "decision_cases.job_requirement_snapshot_version",
+                "decision_cases.owner_id",
+            ],
+            name="fk_resume_variant_requirement_input",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["resume_version_id", "resume_version", "owner_id"],
+            ["resume_versions.id", "resume_versions.version", "resume_versions.owner_id"],
+            name="fk_resume_variant_resume_input",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["template_id", "template_version"],
+            ["template_definitions.template_id", "template_definitions.version"],
+            name="fk_resume_variant_template_input",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    application_decision_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    decision_case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    job_posting_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    job_posting_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    job_requirement_snapshot_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    job_requirement_snapshot_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    resume_version_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resume_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    template_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    template_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    blocks: Mapped[list[dict[str, str]]] = mapped_column(JSONB, nullable=False)
+    generator_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    variant_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class SqlAlchemyTemplateDefinitionRepository:
+    @staticmethod
+    def _to_domain(record: TemplateDefinitionRecord) -> TemplateDefinition:
+        value = record.definition
+        section_order = cast(list[object], value["section_order"])
+        allowed_fields = cast(list[object], value["allowed_fields"])
+        required_fields = cast(list[object], value["required_fields"])
+        template = TemplateDefinition.create(
+            template_id=record.template_id,
+            version=record.version,
+            name=record.name,
+            page_size=TemplatePageSize(str(value["page_size"])),
+            density=TemplateDensity(str(value["density"])),
+            accent=TemplateAccent(str(value["accent"])),
+            section_order=tuple(str(item) for item in section_order),
+            allowed_fields=tuple(str(item) for item in allowed_fields),
+            required_fields=tuple(str(item) for item in required_fields),
+            published_at=_as_utc(record.published_at),
+        )
+        if template.definition_hash != record.definition_hash:
+            raise InfrastructureError(
+                "Template definition hash is invalid", error_code="template_definition_invalid"
+            )
+        return template
+
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def list(self) -> list[TemplateDefinition]:
+        records = await self.session.scalars(
+            select(TemplateDefinitionRecord).order_by(
+                TemplateDefinitionRecord.name, TemplateDefinitionRecord.version.desc()
+            )
+        )
+        return [self._to_domain(record) for record in records]
+
+    async def get_by_identity(self, template_id: UUID, version: int) -> TemplateDefinition | None:
+        record = await self.session.scalar(
+            select(TemplateDefinitionRecord).where(
+                TemplateDefinitionRecord.template_id == template_id,
+                TemplateDefinitionRecord.version == version,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+
+class SqlAlchemyResumeVariantRepository:
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(record: ResumeVariantRecord) -> ResumeVariant:
+        return ResumeVariant.restore(
+            variant_id=record.id,
+            owner_id=record.owner_id,
+            version=record.version,
+            application_decision_id=record.application_decision_id,
+            decision_case_id=record.decision_case_id,
+            job_posting_id=record.job_posting_id,
+            job_posting_version=record.job_posting_version,
+            job_requirement_snapshot_id=record.job_requirement_snapshot_id,
+            job_requirement_snapshot_version=record.job_requirement_snapshot_version,
+            resume_version_id=record.resume_version_id,
+            resume_version=record.resume_version,
+            template_id=record.template_id,
+            template_version=record.template_version,
+            title=record.title,
+            blocks=tuple(VariantBlock.create(**item) for item in record.blocks),
+            generator_version=record.generator_version,
+            content_fingerprint=record.content_fingerprint,
+            idempotency_key=record.idempotency_key,
+            created_at=_as_utc(record.variant_created_at),
+        )
+
+    async def add(self, variant: ResumeVariant) -> ResumeVariant:
+        if variant.owner_id != self.owner_id:
+            raise InfrastructureError("Resume variant not found", error_code="entity_not_found")
+        record = ResumeVariantRecord(
+            id=variant.id,
+            owner_id=variant.owner_id,
+            version=variant.version,
+            application_decision_id=variant.application_decision_id,
+            decision_case_id=variant.decision_case_id,
+            job_posting_id=variant.job_posting_id,
+            job_posting_version=variant.job_posting_version,
+            job_requirement_snapshot_id=variant.job_requirement_snapshot_id,
+            job_requirement_snapshot_version=variant.job_requirement_snapshot_version,
+            resume_version_id=variant.resume_version_id,
+            resume_version=variant.resume_version,
+            template_id=variant.template_id,
+            template_version=variant.template_version,
+            title=variant.title,
+            blocks=[
+                {"source_path": item.source_path, "label": item.label, "value": item.value}
+                for item in variant.blocks
+            ],
+            generator_version=variant.generator_version,
+            content_fingerprint=variant.content_fingerprint,
+            idempotency_key=variant.idempotency_key,
+            variant_created_at=variant.created_at,
+        )
+        self.session.add(record)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise InfrastructureError(
+                "Resume variant already exists", error_code="resume_variant_key_taken"
+            ) from exc
+        return self._to_domain(record)
+
+    async def get_by_id(self, variant_id: UUID) -> ResumeVariant | None:
+        record = await self.session.scalar(
+            select(ResumeVariantRecord).where(
+                ResumeVariantRecord.id == variant_id,
+                ResumeVariantRecord.owner_id == self.owner_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_by_idempotency_key(self, key: str) -> ResumeVariant | None:
+        record = await self.session.scalar(
+            select(ResumeVariantRecord).where(
+                ResumeVariantRecord.owner_id == self.owner_id,
+                ResumeVariantRecord.idempotency_key == key,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def list(self, *, offset: int, limit: int) -> list[ResumeVariant]:
+        records = await self.session.scalars(
+            select(ResumeVariantRecord)
+            .where(ResumeVariantRecord.owner_id == self.owner_id)
+            .order_by(ResumeVariantRecord.variant_created_at.desc(), ResumeVariantRecord.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return [self._to_domain(record) for record in records]
+
+    async def count(self) -> int:
+        value = await self.session.scalar(
+            select(func.count())
+            .select_from(ResumeVariantRecord)
+            .where(ResumeVariantRecord.owner_id == self.owner_id)
+        )
+        return int(value or 0)
 
     async def commit(self) -> None:
         await self.session.commit()

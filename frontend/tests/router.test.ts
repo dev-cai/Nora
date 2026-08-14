@@ -52,4 +52,20 @@ describe("route guards", () => {
 
     expect(router.currentRoute.value.params.id).toBe("report-2")
   })
+
+  it("protects and resolves resume customization and variant detail routes", async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const auth = useAuthStore(pinia)
+    auth.$patch({ token: "runtime-token", user: { id: "1", username: "alice", email: "alice@example.com" } })
+    const router = createAppRouter(pinia)
+
+    await router.push("/resumes/resume-1/customize?decision=decision-1")
+    expect(router.currentRoute.value.name).toBe("resume-customize")
+    expect(router.currentRoute.value.query.decision).toBe("decision-1")
+
+    await router.push("/resume-variants/variant-1")
+    expect(router.currentRoute.value.name).toBe("resume-variant-detail")
+    expect(router.currentRoute.value.meta.requiresAuth).toBe(true)
+  })
 })
