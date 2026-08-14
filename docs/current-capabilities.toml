@@ -48,7 +48,7 @@ id = "job-posting-snapshots"
 name = "不可变岗位快照"
 milestone = "M1-M2"
 status = "current"
-summary = "支持认证后的岗位快照创建、列表、详情、幂等请求、创建审计和 M2 公开字段契约；创建用例通过共享请求级事务原子提交岗位、幂等记录与审计事件，并在失败或并发冲突恢复前整段回滚。"
+summary = "支持认证后的岗位快照创建、列表、详情、幂等请求、创建审计和 M2 公开字段契约；创建用例只以完整六字段规范化 SHA-256 指纹判定重放与冲突，通过共享请求级事务原子提交岗位、幂等记录与审计事件，并在失败或并发冲突恢复前整段回滚。"
 code_paths = [
   "backend/app/apps/api/routes/job_postings.py",
   "backend/app/application/opportunity/service.py",
