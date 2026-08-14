@@ -14,7 +14,7 @@ Windows
   └─ WSL2 Ubuntu
       ├─ 项目代码：~/projects/Nora
       ├─ Git + Docker CLI
-      └─ Compose 容器：Node.js、Web、Python/uv、API、PostgreSQL、Redis、MinIO
+      └─ Compose 容器：Node.js、Web、Python/uv、API、PostgreSQL、MinIO
 ```
 
 宿主不安装项目 Python、uv、pytest、ruff、mypy 或 Alembic。Docker Desktop 必须启用目标 WSL 发行版集成；
@@ -95,7 +95,6 @@ Compose 会启动：
 - `web`：Vue 3 工作台，监听 `localhost:5173`，浏览器内的 `/api` 请求代理到 API
 - `api`：FastAPI API，监听 `localhost:8000`
 - `db`：PostgreSQL 16
-- `redis`：Redis 7 骨架；M5 仅在性能、重试或故障隔离指标成立时评估进入业务路径
 - `storage`：私有 MinIO，对象字节只通过认证后的 Artifact API 访问
 - `storage-init`：一次性创建私有 Bucket、最小权限 Policy 和应用账户，成功后 API 才启动
 
@@ -144,7 +143,6 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `POSTGRES_PASSWORD` | `change-me-local` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 仅限本地示例；真实值不得提交或输出到日志 |
 | `POSTGRES_DB` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 数据库名称，不是宿主地址 |
 | `POSTGRES_PORT` | `5432` | 仅 Compose 宿主端口；映射到 `db:5432` | 容器间连接始终使用固定端口 `5432` |
-| `REDIS_PORT` | `6379` | 仅 Compose 宿主端口；映射到 `redis:6379` | Redis 当前只是骨架，不进入应用 Settings |
 | `STORAGE_PORT` | `9000` | 仅 Compose 宿主 S3 API 端口；映射到 `storage:9000` | 仅用于开发调试；浏览器和前端不得直连 |
 | `STORAGE_CONSOLE_PORT` | `9001` | 仅 Compose 宿主控制台端口；映射到 `storage:9001` | 不应暴露到不可信网络 |
 | `MINIO_ROOT_USER` | `minioadmin` | Compose 只注入 `storage` 容器 | 公开值仅限本地，生产环境必须替换 |
@@ -167,7 +165,7 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 
 容器内服务发现使用 Compose 服务名：API 连接 PostgreSQL 时主机是 `db`，测试容器连接 `test-db`。从 WSL 宿主
 直接连接开发 PostgreSQL 时才使用 `localhost:${POSTGRES_PORT}`。`localhost` 在 API 容器内指向 API 容器自身，不能替代
-`db`。同理，宿主访问 API、Redis 和 MinIO 时使用对应宿主端口，容器间访问使用服务名和固定容器端口。
+`db`。同理，宿主访问 API 和 MinIO 时使用对应宿主端口，容器间访问使用服务名和固定容器端口。
 
 Settings 还提供以下应用级默认值，但当前 Compose 没有把它们列入根 `.env` 配置面：
 
@@ -498,8 +496,8 @@ docker compose --profile test run --rm test \
 
 ### 镜像版本升级与回滚
 
-Dockerfile 和 Compose 中的 Python、uv、PostgreSQL、Redis 与 MinIO 镜像均固定到 manifest digest；Python、uv、
-PostgreSQL 和 Redis 同时保留可读版本标签。容器构建门禁（CI `containers` job）只依赖 Docker 构建上下文，不要求
+Dockerfile 和 Compose 中的 Python、uv、PostgreSQL 与 MinIO 镜像均固定到 manifest digest；Python、uv 和
+PostgreSQL 同时保留可读版本标签。容器构建门禁（CI `containers` job）只依赖 Docker 构建上下文，不要求
 Runner 或开发宿主预装 Python、uv；后端 `quality` job 则通过 `actions/setup-python` 与 `astral-sh/setup-uv`
 在运行时按需安装，同样不依赖预装环境。
 
@@ -510,14 +508,13 @@ docker buildx imagetools inspect <image>:<version> --format '{{json .Manifest.Di
 ```
 
 在同一个 PR 中更新全部重复引用，尤其是 PostgreSQL 在 `docker-compose.yml`、`docker-compose.override.yml` 和
-`.github/workflows/pr-conventions.yml` 中的 digest，以及 uv 在 `docker/Dockerfile.api`、`docker/Dockerfile.worker`
-和 `.github/workflows/pr-conventions.yml` 中的版本标签与 digest。然后从仓库根目录执行完整解析和重建：
+`.github/workflows/pr-conventions.yml` 中的 digest，以及 uv 在 `docker/Dockerfile.api` 和
+`.github/workflows/pr-conventions.yml` 中的版本标签与 digest。然后从仓库根目录执行完整解析和重建：
 
 ```bash
 docker compose --profile test config --quiet
 docker compose --profile test build --no-cache api tools test
 docker build --no-cache --file docker/Dockerfile.api --target runtime --tag nora-api-runtime:verify .
-docker build --no-cache --file docker/Dockerfile.worker --tag nora-worker:verify .
 docker compose --profile test run --rm test
 docker compose up -d db api
 docker compose exec api alembic upgrade head
@@ -615,10 +612,10 @@ docker info
 检查端口：
 
 ```bash
-ss -ltnp | grep -E ':8000|:5432|:6379|:9000|:9001'
+ss -ltnp | grep -E ':8000|:5432|:9000|:9001'
 ```
 
-修改 `.env` 中的 `API_PORT`、`POSTGRES_PORT`、`REDIS_PORT`、`STORAGE_PORT` 或 `STORAGE_CONSOLE_PORT` 后重建服务：
+修改 `.env` 中的 `API_PORT`、`POSTGRES_PORT`、`STORAGE_PORT` 或 `STORAGE_CONSOLE_PORT` 后重建服务：
 
 ```bash
 docker compose down

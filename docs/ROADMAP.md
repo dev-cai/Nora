@@ -41,7 +41,7 @@ flowchart LR
 ### 边界
 
 - 不实现业务功能；
-- Redis 和 MinIO 只允许作为 Compose 骨架，不进入业务事实路径；
+- MinIO 只作为 Artifact 字节存储进入 Compose；Redis 未达 M5 指标前不引入运行时；
 - 不引入 LLM、RAG、Agent 或 Web 客户端。
 
 ### 状态

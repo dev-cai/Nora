@@ -759,7 +759,7 @@ M3: Vue Web     → API → PostgreSQL（确定性报告）
 M4: Vue Web     → API → PostgreSQL / Object Storage（投递材料与记录）
 ```
 
-- Docker Compose 提供 API、PostgreSQL、私有 MinIO 和 Redis；M4 Artifact/Source 使用 MinIO，Redis/Celery 仍不进入业务路径。
+- Docker Compose 提供 API、PostgreSQL 和私有 MinIO；M4 Artifact/Source 使用 MinIO，Redis/Celery 未达 M5 指标前不进入运行时。
 - 只发布 API 端口，数据库和其他基础设施保持内部可见。
 - M3 的最小 Demo 不配置 Model Provider，不依赖 pgvector、Embedding、Reranker 或 LLM。
 
