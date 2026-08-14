@@ -902,10 +902,10 @@ FastAPI 路由、Pydantic 请求/响应模型和显式 response 声明是 HTTP C
 许可证并由 `openapi-ts/openapi-typescript` 项目维护，锁文件必须固定传递依赖。拒绝 Orval 8.24.0：当前只需要 schema 类型和轻量 fetch
 绑定，Orval 会引入多 client/plugin 生成面、配置和显著更多工具依赖；继续手写后端 DTO 镜像同样被拒绝。
 
-生成命令从 `create_app(Settings()).openapi()` 导出 key 排序、UTF-8、稳定缩进的
+`backend/scripts/export_openapi.py` 已使用隔离于常规运行时环境变量的默认 Settings 调用 `create_app(...).openapi()`，导出 key 排序、UTF-8、稳定缩进的
 `frontend/src/api/generated/openapi.json`，再由 `openapi-typescript` 生成同目录的 `schema.d.ts`；两者均提交并标明 generated / do not
-edit。JSON 是 FastAPI 真源的可审计派生产物，不接受手工维护。前端提供 `api:generate` 与 `api:check` 命令，后者在 CI 重新导出和
-生成后对 generated 目录执行 `git diff --exit-code`；OpenAPI 任意漂移、生成器版本漂移或人工修改生成文件都必须失败。生成脚本和 CI
+edit。JSON 是 FastAPI 真源的可审计派生产物，不接受手工维护。前端已提供 `api:generate` 与 `api:check` 命令，后者在 CI 重新导出和
+生成后验证两个预期文件均被追踪、执行 `git diff --exit-code` 并拒绝未追踪输出；OpenAPI 任意漂移、生成器版本漂移、漏交生成物或人工修改都必须失败。生成脚本和 CI
 使用仓库锁定的 Python、Node 与 npm 版本，不通过网络读取运行中 API。
 
 `openapi-fetch` 只消费 generated `paths` 提供 path、method、query、header、body 和 response 类型。手写 `transport` Adapter 仍唯一拥有：
@@ -916,14 +916,14 @@ edit。JSON 是 FastAPI 真源的可审计派生产物，不接受手工维护�
 - `204` 的 `undefined` 传输语义到 Store/ViewModel 所需 `null` 的边界转换；
 - 二进制响应的 `Blob` 解析、Content-Type/Disposition 使用和对象 URL 生命周期。
 
-认证、超时、错误、Blob 或 UI 文案不得生成进 `schema.d.ts`。当前 OpenAPI 3.1 PoC 可生成 45 个 path、97 个 schema，并正确保留枚举、
+认证、超时、错误、Blob 或 UI 文案不得生成进 `schema.d.ts`。Current OpenAPI 3.1 生成物包含 45 个 path、97 个 schema，并正确保留枚举、
 可选字段与 `string | null`；但 Artifact/PDF 下载的 `200` 仍被错误描述为空 `application/json`。任何 Blob 端点迁移前必须先在 FastAPI
 声明真实 media type 与 binary schema，并加入 OpenAPI contract test；不得用类型断言掩盖错误 Schema。稳定业务错误目前也未作为可枚举
 response schema 暴露，由 #187 在 D-017 生成链路合并后定义。
 
 迁移按可独立回退的切片进行：
 
-1. 建立导出/生成命令、generated 目录、精确依赖和 CI drift gate，不改现有调用行为；
+1. **Current：** 建立导出/生成命令、generated 目录、精确依赖和 CI drift gate，未改现有调用行为；
 2. 选择认证、JobPosting 等 JSON 端点验证 body、query、自定义幂等 header、nullable、错误和 `204`，保持手写 transport 行为；
 3. 修正下载 OpenAPI 后迁移 Artifact/PDF Blob，再按 bounded context 逐批替换 `client.ts` 的泛型断言；
 4. 所有消费者迁移且前端/E2E 通过后，删除 `types.ts` 中与后端同构的 DTO，只保留命名明确的 UI/ViewModel 类型。

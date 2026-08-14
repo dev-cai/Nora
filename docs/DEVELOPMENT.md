@@ -375,12 +375,19 @@ docker compose exec api alembic upgrade head
 
 ```bash
 npm ci
+npm run api:generate
+npm run api:check
 npm run dev
 npm run lint
 npm run typecheck
 npm run test
 npm run build
 ```
+
+`api:generate` 使用 `backend/scripts/export_openapi.py` 离线调用 FastAPI 应用工厂，再以锁定的
+`openapi-typescript@7.13.0` 重建 `frontend/src/api/generated/openapi.json` 与 `schema.d.ts`；不启动 API、连接数据库或读取常规
+Nora 运行时环境变量。该命令需要仓库锁定的 Python 3.11、uv 0.11.3、Node 24.18.1 与 npm 11 环境；CI 会显式安装这些版本。
+`api:check` 重建后验证两个文件已被 Git 追踪、无 diff 且目录没有未追踪输出。修改 FastAPI 路由或 Pydantic 响应契约时必须同时提交重建结果。
 
 登录 Token 与当前用户只在标签页级 `sessionStorage` 中受控保存；刷新后通过 `/auth/me` 校验恢复，登出、`401` 或校验失败会彻底清除。前端只通过公开 HTTP API 访问 Nora，
 不得连接数据库、导入后端模块或读取后端内部文件。
