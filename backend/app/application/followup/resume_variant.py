@@ -115,7 +115,7 @@ class ResumeVariantUseCases:
             stored = await self.variants.add(candidate)
             await self.variants.commit()
         except InfrastructureError as exc:
-            if exc.error_code != "resume_variant_key_taken":
+            if exc.error_code is not ErrorCode.RESUME_VARIANT_KEY_TAKEN:
                 raise
             existing = await self.variants.get_by_idempotency_key(candidate.idempotency_key)
             if existing is None:

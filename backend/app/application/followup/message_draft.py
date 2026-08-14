@@ -206,7 +206,7 @@ class MessageDraftUseCases:
             await self.drafts.commit()
             return MessageDraftMutationResult(draft=stored, replayed=False)
         except InfrastructureError as exc:
-            if exc.error_code != "message_draft_conflict":
+            if exc.error_code is not ErrorCode.MESSAGE_DRAFT_CONFLICT:
                 raise
             existing = await self.drafts.get_by_idempotency_key(candidate.idempotency_key)
             if existing is None and candidate.version == 1:

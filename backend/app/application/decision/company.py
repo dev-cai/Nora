@@ -98,7 +98,7 @@ class CompanyAssessmentUseCases:
             stored = await self.assessments.add(candidate)
             await self.assessments.commit()
         except InfrastructureError as exc:
-            if exc.error_code != "company_assessment_conflict":
+            if exc.error_code is not ErrorCode.COMPANY_ASSESSMENT_CONFLICT:
                 raise
             replay = await self.assessments.get_by_generation(candidate.generation_identity)
             if replay is None:

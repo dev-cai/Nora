@@ -121,7 +121,7 @@ class CreateDecisionCaseUseCase:
             stored = await self.repository.add(candidate)
             await self.repository.commit()
         except InfrastructureError as exc:
-            if exc.error_code != "decision_case_conflict":
+            if exc.error_code is not ErrorCode.DECISION_CASE_CONFLICT:
                 raise
             replay = await self.repository.get_by_input_fingerprint(candidate.input_fingerprint)
             if replay is None:

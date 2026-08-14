@@ -149,7 +149,7 @@ class CompanySnapshotUseCases:
             await self.snapshots.commit()
             return stored
         except InfrastructureError as exc:
-            if exc.error_code == "company_snapshot_version_conflict":
+            if exc.error_code is ErrorCode.COMPANY_SNAPSHOT_VERSION_CONFLICT:
                 raise ApplicationError(
                     "Company snapshot version conflict",
                     error_code=ErrorCode.COMPANY_SNAPSHOT_VERSION_CONFLICT,

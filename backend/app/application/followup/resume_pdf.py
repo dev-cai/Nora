@@ -76,7 +76,7 @@ class ResumePdfService:
                 pdf = await self.pdfs.add(candidate)
                 await self.pdfs.commit()
             except InfrastructureError as exc:
-                if exc.error_code != "resume_pdf_conflict":
+                if exc.error_code is not ErrorCode.RESUME_PDF_CONFLICT:
                     raise
                 pdf = await self.pdfs.get_by_generation_identity(candidate.generation_identity)
                 if pdf is None:

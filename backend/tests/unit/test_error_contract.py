@@ -112,6 +112,13 @@ def test_production_code_uses_only_typed_error_codes() -> None:
         source = path.read_text(encoding="utf-8")
         assert "JdInputErrorCode" not in source
         for node in ast.walk(ast.parse(source)):
+            if (
+                isinstance(node, ast.Compare)
+                and isinstance(node.left, ast.Attribute)
+                and node.left.attr == "error_code"
+                and any(isinstance(comparator, ast.Constant) for comparator in node.comparators)
+            ):
+                violations.append(f"{path.relative_to(app_root)}:{node.lineno}")
             if not isinstance(node, ast.Call):
                 continue
             for keyword in node.keywords:

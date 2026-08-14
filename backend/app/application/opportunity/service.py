@@ -116,7 +116,7 @@ class CreateJobPostingUseCase:
             await self.transaction.commit()
         except InfrastructureError as exc:
             await self.transaction.rollback()
-            if exc.error_code != "idempotency_key_taken":
+            if exc.error_code is not ErrorCode.IDEMPOTENCY_KEY_TAKEN:
                 raise
             existing = await self.repository.get_by_idempotency_key(idempotency_key)
             if existing is None:

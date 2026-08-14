@@ -83,7 +83,7 @@ class SaveJobRequirementSnapshotUseCase:
             stored = await self.repository.add(candidate)
             await self.repository.commit()
         except InfrastructureError as exc:
-            if exc.error_code != "job_requirement_version_conflict":
+            if exc.error_code is not ErrorCode.JOB_REQUIREMENT_VERSION_CONFLICT:
                 raise
             raise InfrastructureError(
                 "Job requirement snapshot version conflict",
