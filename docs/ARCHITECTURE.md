@@ -869,6 +869,10 @@ Application -X-> FastAPI / SQLAlchemy / 具体 Repository
 Module A -X-> Module B 的 ORM、私有 API 或 Infrastructure
 ```
 
+上述规则由 `backend/tests/architecture/test_dependency_rules.py` 对 `app/` 全包的绝对与相对 import 执行 AST 检查，并用负向夹具证明
+Domain、Ports、Application、Infrastructure、Apps 与跨 Context Infrastructure 规则会真实失败。Current 横向数据库结构只保留两个精确、
+带理由且必须实际存在的历史例外：career 和 opportunity ORM 为 owner 行锁引用 identity `UserRecord`；模块迁移完成后删除对应例外。
+
 API Schema、Application Command/Query/DTO、Domain Entity 与 SQLAlchemy ORM Model 是不同类型。跨模块交互使用稳定 ID、
 显式 DTO、领域事件或 Application Service，不共享 ORM Model。FastAPI `Depends` 只允许出现在 API/Composition 边界；
 本决策不引入第三方依赖注入容器。
