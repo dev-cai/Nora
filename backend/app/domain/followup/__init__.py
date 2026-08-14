@@ -12,6 +12,7 @@ from .message_draft import (
     MessageDraftSource,
     MessageDraftStyle,
     edit_request_fingerprint,
+    normalize_message_draft_idempotency_key,
 )
 from .resume_pdf import PDF_CONTENT_TYPE, ResumePdf, ResumePdfStatus
 from .resume_variant import (
@@ -45,4 +46,5 @@ __all__ = (
     "TemplatePageSize",
     "VariantBlock",
     "edit_request_fingerprint",
+    "normalize_message_draft_idempotency_key",
 )

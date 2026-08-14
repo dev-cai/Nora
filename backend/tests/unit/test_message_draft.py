@@ -118,6 +118,21 @@ def test_message_draft_edit_appends_version_without_overwriting_generated_text()
     assert "随时开始" not in original.text
 
 
+def test_message_draft_rejects_company_industry_without_snapshot_identity() -> None:
+    with pytest.raises(DomainError) as invalid:
+        MessageDraft.generate(
+            owner_id=uuid4(),
+            source=replace(_source(), company_industry="Software"),
+            style=MessageDraftStyle.PROFESSIONAL,
+            user_note=None,
+            referral_context=None,
+            idempotency_key="orphan-industry",
+            now=NOW,
+        )
+
+    assert invalid.value.error_code == "invalid_message_draft_source"
+
+
 @pytest.mark.asyncio
 async def test_message_draft_use_case_replays_generation_and_versions_edits() -> None:
     inputs = _inputs()
@@ -140,7 +155,7 @@ async def test_message_draft_use_case_replays_generation_and_versions_edits() ->
             draft_id=generated.draft.id,
             base_version=1,
             text=f"{generated.draft.text}\n\n期待回复。",
-            idempotency_key="edit-1",
+            idempotency_key=" edit  request ",
         )
     )
     edit_replay = await use_cases.edit(
@@ -149,7 +164,7 @@ async def test_message_draft_use_case_replays_generation_and_versions_edits() ->
             draft_id=generated.draft.id,
             base_version=1,
             text=f"{generated.draft.text}\n\n期待回复。",
-            idempotency_key="edit-1",
+            idempotency_key=" edit  request ",
         )
     )
 
@@ -157,6 +172,7 @@ async def test_message_draft_use_case_replays_generation_and_versions_edits() ->
     assert replay.replayed is True
     assert replay.draft.id == generated.draft.id
     assert edited.draft.version == 2
+    assert edited.draft.idempotency_key == "edit  request"
     assert edit_replay.replayed is True
     assert len(await drafts.list_versions(generated.draft.id)) == 2
 

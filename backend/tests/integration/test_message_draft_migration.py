@@ -63,6 +63,17 @@ def test_message_draft_migration_round_trip_and_constraints(database_url: str) -
         await engine.dispose()
         return result
 
+    async def constraint_definition(name: str) -> str:
+        engine = create_async_engine(database_url)
+        async with engine.connect() as connection:
+            definition = await connection.scalar(
+                text("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = :name"),
+                {"name": name},
+            )
+        await engine.dispose()
+        assert isinstance(definition, str)
+        return definition
+
     try:
         command.upgrade(configuration, "0017_resume_pdfs")
         command.upgrade(configuration, "0018_message_drafts")
@@ -77,6 +88,9 @@ def test_message_draft_migration_round_trip_and_constraints(database_url: str) -
             "fk_message_draft_previous_version",
         }
         assert "ck_message_draft_revision_chain" in constraints
+        assert "company_industry IS NULL" in asyncio.run(
+            constraint_definition("ck_message_draft_company_identity")
+        )
         assert "uq_message_draft_owner_generation" in asyncio.run(index_names())
 
         command.downgrade(configuration, "0017_resume_pdfs")

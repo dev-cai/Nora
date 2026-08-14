@@ -12,6 +12,7 @@ from app.domain.followup import (
     MessageDraftSource,
     MessageDraftStyle,
     edit_request_fingerprint,
+    normalize_message_draft_idempotency_key,
 )
 from app.domain.opportunity import CompanyFieldStatus
 from app.ports.career import ResumeVersionRepository
@@ -179,7 +180,8 @@ class MessageDraftUseCases:
         request_fingerprint = edit_request_fingerprint(
             command.draft_id, command.base_version, command.text
         )
-        existing_key = await self.drafts.get_by_idempotency_key(command.idempotency_key.strip())
+        idempotency_key = normalize_message_draft_idempotency_key(command.idempotency_key)
+        existing_key = await self.drafts.get_by_idempotency_key(idempotency_key)
         if existing_key is not None:
             if existing_key.owner_id != command.owner_id:
                 raise ApplicationError("Message draft not found", error_code="entity_not_found")
@@ -190,9 +192,7 @@ class MessageDraftUseCases:
                 "Message draft version conflict",
                 error_code="message_draft_version_conflict",
             )
-        return await self._store(
-            current.edit(text=command.text, idempotency_key=command.idempotency_key)
-        )
+        return await self._store(current.edit(text=command.text, idempotency_key=idempotency_key))
 
     async def _store(self, candidate: MessageDraft) -> MessageDraftMutationResult:
         try:

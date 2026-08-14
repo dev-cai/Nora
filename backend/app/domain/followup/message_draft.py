@@ -53,17 +53,24 @@ class MessageDraftSource:
     company_industry: str | None = None
 
     def normalized(self) -> "MessageDraftSource":
+        company_freshness = _text(self.company_freshness, 32)
+        company_industry = _text(self.company_industry, 200)
         company_values = (
             self.company_snapshot_id,
             self.company_snapshot_version,
             self.company_snapshot_hash,
-            self.company_freshness,
+            company_freshness,
         )
         if any(value is not None for value in company_values) and not all(
             value is not None for value in company_values
         ):
             raise DomainError(
                 "Company snapshot identity is incomplete",
+                error_code="invalid_message_draft_source",
+            )
+        if self.company_snapshot_id is None and company_industry is not None:
+            raise DomainError(
+                "Company industry requires a fixed snapshot identity",
                 error_code="invalid_message_draft_source",
             )
         return replace(
@@ -86,8 +93,8 @@ class MessageDraftSource:
             company_snapshot_hash=(
                 None if self.company_snapshot_hash is None else _sha256(self.company_snapshot_hash)
             ),
-            company_freshness=_text(self.company_freshness, 32),
-            company_industry=_text(self.company_industry, 200),
+            company_freshness=company_freshness,
+            company_industry=company_industry,
         )
 
     def identity_values(self) -> dict[str, object]:
@@ -191,7 +198,7 @@ class MessageDraft:
             content_fingerprint=_content_fingerprint(identity, 1, text),
             revision_type=MessageDraftRevisionType.GENERATED,
             previous_version=None,
-            idempotency_key=_text(idempotency_key, 255, required=True) or "",
+            idempotency_key=normalize_message_draft_idempotency_key(idempotency_key),
             request_fingerprint=identity,
             created_at=_utc(now),
         )
@@ -213,7 +220,7 @@ class MessageDraft:
             content_fingerprint=_content_fingerprint(self.generation_identity, next_version, value),
             revision_type=MessageDraftRevisionType.EDITED,
             previous_version=self.version,
-            idempotency_key=_text(idempotency_key, 255, required=True) or "",
+            idempotency_key=normalize_message_draft_idempotency_key(idempotency_key),
             request_fingerprint=request_fingerprint,
             created_at=_utc(now),
         )
@@ -281,7 +288,7 @@ class MessageDraft:
             content_fingerprint=fingerprint,
             revision_type=normalized_revision,
             previous_version=previous_version,
-            idempotency_key=_text(idempotency_key, 255, required=True) or "",
+            idempotency_key=normalize_message_draft_idempotency_key(idempotency_key),
             request_fingerprint=_sha256(request_fingerprint),
             created_at=_utc(created_at),
         )
@@ -295,6 +302,21 @@ def edit_request_fingerprint(draft_id: UUID, base_version: int, text: str) -> st
             "text": _plain_text(text, MAX_DRAFT_TEXT_LENGTH, required=True),
         }
     )
+
+
+def normalize_message_draft_idempotency_key(value: str) -> str:
+    if not isinstance(value, str):
+        raise DomainError(
+            "Message draft idempotency key must be text",
+            error_code="invalid_idempotency_key",
+        )
+    normalized = value.strip()
+    if not normalized or len(normalized) > 255:
+        raise DomainError(
+            "Message draft idempotency key is invalid",
+            error_code="invalid_idempotency_key",
+        )
+    return normalized
 
 
 def _render(

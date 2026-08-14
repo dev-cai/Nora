@@ -814,7 +814,7 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
         edited_text = f"{draft['text']}\n\n期待您的回复。"
         edited = client.post(
             f"/message-drafts/{draft['id']}/revisions",
-            headers={**alice, "Idempotency-Key": "draft-edit-1"},
+            headers={**alice, "Idempotency-Key": "draft  edit  1"},
             json={"base_version": 1, "text": edited_text},
         )
         assert edited.status_code == 201, edited.text
@@ -823,7 +823,7 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
         assert edited.json()["revision_type"] == "edited"
         edit_replay = client.post(
             f"/message-drafts/{draft['id']}/revisions",
-            headers={**alice, "Idempotency-Key": "draft-edit-1"},
+            headers={**alice, "Idempotency-Key": "draft  edit  1"},
             json={"base_version": 1, "text": edited_text},
         )
         assert edit_replay.status_code == 200

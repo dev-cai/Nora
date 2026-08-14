@@ -89,7 +89,8 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "(company_snapshot_id IS NULL AND company_snapshot_version IS NULL AND "
-            "company_snapshot_hash IS NULL AND company_freshness IS NULL) OR "
+            "company_snapshot_hash IS NULL AND company_freshness IS NULL AND "
+            "company_industry IS NULL) OR "
             "(company_snapshot_id IS NOT NULL AND company_snapshot_version >= 1 AND "
             "length(company_snapshot_hash) = 64 AND company_freshness IS NOT NULL)",
             name="ck_message_draft_company_identity",
