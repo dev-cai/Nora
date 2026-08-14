@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183、#184、#185、#186、#187。
-- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、Vue Web、Artifact/Source 基础和公司情报后端切片。
+- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -256,14 +256,14 @@ erDiagram
     JobRequirementSnapshot }o--|| DecisionCase : "固定版本引用"
     DecisionCase ||--o{ DecisionReport : "版本化报告"
     DecisionCase ||--o{ ApplicationDecision : "可重审"
-    ApplicationDecision ||--o| ApplicationRecord : "用户确认后"
+    ApplicationDecision ||--o| ApplicationRecord : "用户建立投递计划"
     ApplicationRecord ||--o{ InterviewCase : "面试流程"
     ResumeVariant }o--|| DecisionCase : "针对岗位"
 ```
 
 修改 `CandidateProfile` 不会重写历史 `ResumeVersion`；用户显式发布后生成新 `ResumeVersion`。`ResumeVariant` 固定引用一个 apply `ApplicationDecision`、`DecisionCase`、`ResumeVersion`、`JobPosting`/`JobRequirementSnapshot` 精确版本、模板版本和生成器版本。
 
-### ApplicationDecision 状态机
+### ApplicationDecision 与 ApplicationRecord 状态机
 
 ```mermaid
 stateDiagram-v2
@@ -271,20 +271,24 @@ stateDiagram-v2
     analyzed --> skip: 用户选择不投
     analyzed --> apply: 用户选择投递
     skip --> analyzed: 新报告重新评估
-    apply --> message_drafted: 生成草稿
-    message_drafted --> applied: 用户确认已手动投递
+    apply --> planned: 用户选择材料并创建记录
+    planned --> applied: 用户确认已手动投递
+    planned --> withdrawn: 用户撤回计划
     applied --> interviewing: 收到面试通知
     applied --> rejected: 收到拒信
     applied --> withdrawn: 用户撤回
     interviewing --> offer_received: 收到 Offer
     interviewing --> rejected: 流程结束
-    offer_received --> accepted: 用户接受
-    offer_received --> declined: 用户拒绝
+    interviewing --> withdrawn: 用户撤回
 ```
 
-状态转换必须记录操作者、时间、输入报告版本和幂等键。`message_drafted` 不代表消息已发送；只有用户确认外部网站或渠道已完成投递，才能进入 `applied`。
+ApplicationRecord 状态转换必须记录操作者、业务发生时间、用户确认来源、渠道、可选备注和幂等键。生成 PDF、生成 MessageDraft 或创建 `planned` 记录都不代表消息已发送；只有用户确认外部网站或渠道已完成投递，才能进入 `applied`。
 
 M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecision` 属于 Application & Follow-up 上下文，是引用一条不可变 `DecisionReport` 的不可变业务事实。记录固定报告 ID/版本、DecisionCase、分析所用 ResumeVersion、操作者、决定时间、原因和幂等键；每个用户范围内的一份报告最多存在一条决定。相同语义重放返回既有记录，复用幂等键提交不同内容或对同一报告提交不同决定返回稳定 `409`。`skip` 必须保存原因，`apply` 只表达投递意图；决定创建本身不自动生成材料或执行外部写，但可作为后续 ResumeVariant 创建的必要输入。公开接口为 `GET /reports/{id}/decision` 与 `POST /reports/{id}/decision`；跨用户与不存在报告统一返回 `404`，未决定的读取返回 `204`。
+
+M4 Current `ApplicationRecord` 只允许从 apply 决定和属于该决定的不可变 ResumeVariant 创建，初始状态固定为 `planned`。记录固化 ResumeVariant ID/版本/内容指纹，并按用户显式选择固化可用 ResumePdf、Artifact 和 MessageDraft 的精确 ID、版本与哈希；未选择的可选材料统一保存为空，不在之后追随“最新版本”。每条 apply 决定最多一条记录。
+
+创建与转换均使用 owner 范围幂等键；转换以 `base_version` 做乐观并发控制，非法状态边稳定返回 `application_record_transition_conflict/409`，过期或并发失败返回 `application_record_version_conflict/409`。业务记录、只追加转换事件和 AuditEvent 由 Application 顶层通过共享 `Transaction` 一次提交；任何写入失败整段回滚，冲突恢复必须先 rollback 再读取赢家。公开接口为 `POST/GET /application-records`、`GET /application-records/{id}` 以及 `POST/GET /application-records/{id}/transitions`，全部按 owner 隔离。系统没有招聘平台写 Adapter，不读取外部投递结果，也不会从未知外部状态自动推进记录。
 
 ### 简历模板、PDF 与 MessageDraft
 
@@ -729,7 +733,7 @@ savepoint，也不得给 Repository Port 增加通用 savepoint / rollback 方�
 
 1. **事务基础与审计幂等参考切片（#195 已实现）。** `Transaction` Port、SQLAlchemy Adapter 和 composition dependency
    已落地；JobPosting + AuditEvent、ApplicationDecision + AuditEvent 两条写路径由顶层 Use Case 显式提交或回滚，并覆盖成功、
-   失败和并发矩阵。#94 ApplicationRecord 使用该事务契约，不得复制旧的 Repository 提交模式。
+   失败和并发矩阵。#94 ApplicationRecord 已使用同一事务契约原子写入记录、转换事件与 AuditEvent，没有复制旧的 Repository 提交模式。
 2. **其余纯 PostgreSQL 写路径。** 按业务模块迁移 Identity、Career、Opportunity、Decision、Follow-up 与 Knowledge 元数据用例；
    每迁移一个 Use Case，就同时从对应 Port、Adapter 和测试替身移除 `commit()` / 通用 `rollback()`。
 3. **外部副作用状态机与最终清理。** 最后迁移 Artifact、ResumePdf 等跨对象存储或渲染器的多事务段流程，保持 D-013 的

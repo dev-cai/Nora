@@ -1,6 +1,15 @@
 """Application & Follow-up domain exports."""
 
 from .application_decision import ApplicationDecision, ApplicationDecisionStatus
+from .application_record import (
+    ApplicationRecord,
+    ApplicationRecordStatus,
+    ApplicationRecordTransition,
+    ApplicationTransitionSource,
+    application_record_request_fingerprint,
+    application_transition_request_fingerprint,
+    normalize_application_idempotency_key,
+)
 from .message_draft import (
     MAX_DRAFT_TEXT_LENGTH,
     MAX_REFERRAL_CONTEXT_LENGTH,
@@ -27,6 +36,10 @@ from .resume_variant import (
 __all__ = (
     "ApplicationDecision",
     "ApplicationDecisionStatus",
+    "ApplicationRecord",
+    "ApplicationRecordStatus",
+    "ApplicationRecordTransition",
+    "ApplicationTransitionSource",
     "MAX_DRAFT_TEXT_LENGTH",
     "MAX_REFERRAL_CONTEXT_LENGTH",
     "MAX_USER_NOTE_LENGTH",
@@ -45,6 +58,9 @@ __all__ = (
     "TemplateDensity",
     "TemplatePageSize",
     "VariantBlock",
+    "application_record_request_fingerprint",
+    "application_transition_request_fingerprint",
     "edit_request_fingerprint",
     "normalize_message_draft_idempotency_key",
+    "normalize_application_idempotency_key",
 )

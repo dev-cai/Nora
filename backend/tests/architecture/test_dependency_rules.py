@@ -386,6 +386,8 @@ def test_api_composition_is_split_by_bounded_context_without_legacy_exports() ->
         },
         "followup.py": {
             "get_application_decision_repository",
+            "get_application_record_repository",
+            "get_application_record_transition_repository",
             "get_message_draft_repository",
             "get_resume_pdf_renderer",
             "get_resume_pdf_repository",

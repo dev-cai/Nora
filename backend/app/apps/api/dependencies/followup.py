@@ -7,6 +7,8 @@ from app.apps.api.dependencies.common import get_current_user, get_session
 from app.domain.identity import User
 from app.infrastructure.database import (
     SqlAlchemyApplicationDecisionRepository,
+    SqlAlchemyApplicationRecordRepository,
+    SqlAlchemyApplicationRecordTransitionRepository,
     SqlAlchemyMessageDraftRepository,
     SqlAlchemyResumePdfRepository,
     SqlAlchemyResumeVariantRepository,
@@ -15,6 +17,8 @@ from app.infrastructure.database import (
 from app.infrastructure.pdf_renderer import WeasyPrintResumePdfRenderer
 from app.ports.followup import (
     ApplicationDecisionRepository,
+    ApplicationRecordRepository,
+    ApplicationRecordTransitionRepository,
     MessageDraftRepository,
     ResumePdfRenderer,
     ResumePdfRepository,
@@ -28,6 +32,20 @@ def get_application_decision_repository(
     user: User = Depends(get_current_user),
 ) -> ApplicationDecisionRepository:
     return SqlAlchemyApplicationDecisionRepository(session, user.id)
+
+
+def get_application_record_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ApplicationRecordRepository:
+    return SqlAlchemyApplicationRecordRepository(session, user.id)
+
+
+def get_application_record_transition_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ApplicationRecordTransitionRepository:
+    return SqlAlchemyApplicationRecordTransitionRepository(session, user.id)
 
 
 def get_resume_variant_repository(

@@ -67,5 +67,13 @@ describe("route guards", () => {
     await router.push("/resume-variants/variant-1")
     expect(router.currentRoute.value.name).toBe("resume-variant-detail")
     expect(router.currentRoute.value.meta.requiresAuth).toBe(true)
+
+    await router.push("/applications/new?variant=variant-1")
+    expect(router.currentRoute.value.name).toBe("application-new")
+    expect(router.currentRoute.value.query.variant).toBe("variant-1")
+
+    await router.push("/applications/application-1")
+    expect(router.currentRoute.value.name).toBe("application-detail")
+    expect(router.currentRoute.value.meta.requiresAuth).toBe(true)
   })
 })

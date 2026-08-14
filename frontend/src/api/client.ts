@@ -1,9 +1,13 @@
 import type {
   ApplicationDecision,
+  ApplicationRecord,
+  ApplicationRecordList,
+  ApplicationRecordTransition,
   CandidateProfile,
   CandidateProfileInput,
   CreateDecisionCaseInput,
   CreateApplicationDecisionInput,
+  CreateApplicationRecordInput,
   CreateJobPostingInput,
   CreateResumeVariantInput,
   DecisionAnalysis,
@@ -25,6 +29,7 @@ import type {
   ResumeVariant,
   ResumeVariantList,
   TemplateDefinition,
+  TransitionApplicationRecordInput,
   TokenResponse,
   User,
 } from "./types"
@@ -69,6 +74,10 @@ const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
   invalid_confirmation_status: "确认状态无效",
   invalid_source_type: "字段来源无效",
   application_decision_conflict: "该报告已经记录了不同决定",
+  application_record_key_taken: "该操作标识已用于其他投递更新",
+  application_record_transition_conflict: "当前投递状态不允许此操作",
+  application_record_version_conflict: "投递记录已更新，请刷新后重试",
+  invalid_application_record: "投递记录的材料或确认信息无效",
   invalid_variant_field: "定制字段不在来源简历或模板允许范围内",
   required_variant_field: "定制内容缺少模板必填字段",
   pdf_generation_failed: "PDF 生成失败，请重试",
@@ -335,4 +344,32 @@ export const api = {
     headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify(input),
   }),
+  listApplicationRecords: (page = 1, pageSize = 20) =>
+    request<ApplicationRecordList>(
+      `/application-records?page=${page}&page_size=${pageSize}`,
+    ),
+  getApplicationRecord: (recordId: string) =>
+    request<ApplicationRecord>(`/application-records/${encodeURIComponent(recordId)}`),
+  listApplicationRecordTransitions: (recordId: string) =>
+    request<ApplicationRecordTransition[]>(
+      `/application-records/${encodeURIComponent(recordId)}/transitions`,
+    ),
+  createApplicationRecord: (input: CreateApplicationRecordInput, idempotencyKey: string) =>
+    request<ApplicationRecord>("/application-records", {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(input),
+    }),
+  transitionApplicationRecord: (
+    recordId: string,
+    input: TransitionApplicationRecordInput,
+    idempotencyKey: string,
+  ) => request<ApplicationRecord>(
+    `/application-records/${encodeURIComponent(recordId)}/transitions`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(input),
+    },
+  ),
 }

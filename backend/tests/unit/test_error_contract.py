@@ -17,7 +17,9 @@ from app.domain.base.exceptions import (
 EXPECTED_ERROR_CODES = frozenset(
     """
     application_decision_conflict application_decision_key_taken
-    application_decision_persistence_failed application_error artifact_conflict artifact_corrupt
+    application_decision_persistence_failed application_record_key_taken
+    application_record_persistence_failed application_record_transition_conflict
+    application_record_version_conflict application_error artifact_conflict artifact_corrupt
     artifact_delete_failed artifact_state_conflict artifact_storage_unavailable artifact_too_large
     artifact_unavailable authentication_failed company_assessment_conflict
     company_assessment_unavailable company_snapshot_version_conflict content_too_large
@@ -27,7 +29,8 @@ EXPECTED_ERROR_CODES = frozenset(
     email_conflict empty_content entity_not_found entity_not_persisted fetch_failed fetch_timeout
     idempotency_conflict idempotency_key_taken identity_persistence_failed image_too_large
     infrastructure_error internal_error invalid_application_decision_fingerprint
-    invalid_application_decision_status invalid_artifact_content_type invalid_artifact_sha256
+    invalid_application_decision_status invalid_application_record invalid_application_record_status
+    invalid_artifact_content_type invalid_artifact_sha256
     invalid_artifact_size invalid_audit_action invalid_audit_idempotency_key invalid_audit_summary
     invalid_audit_target_type invalid_audit_target_version invalid_company_assessment_status
     invalid_company_fact_status invalid_company_name invalid_company_text
@@ -61,7 +64,7 @@ EXPECTED_ERROR_CODES = frozenset(
 
 
 def test_error_code_registry_is_exact_complete_and_immutable() -> None:
-    assert len(EXPECTED_ERROR_CODES) == 144
+    assert len(EXPECTED_ERROR_CODES) == 150
     assert {code.value for code in ErrorCode} == EXPECTED_ERROR_CODES
     assert set(ErrorCode) == set(ERROR_CATEGORY_BY_CODE)
     with pytest.raises(TypeError):

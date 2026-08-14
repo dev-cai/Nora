@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue"
-import { ArrowLeft, Download, Eye, FileStack, FileText, MessageSquareText, RefreshCw, ShieldCheck } from "lucide-vue-next"
+import { ArrowLeft, ClipboardCheck, Download, Eye, FileStack, FileText, MessageSquareText, RefreshCw, ShieldCheck } from "lucide-vue-next"
 import { useRoute, useRouter } from "vue-router"
 
 import { api, userMessage } from "@/api/client"
@@ -127,6 +127,12 @@ onBeforeUnmount(() => { if (previewUrl.value) URL.revokeObjectURL(previewUrl.val
           </p><h2>{{ store.current.title }}</h2><p>创建于 {{ new Date(store.current.created_at).toLocaleString('zh-CN') }}</p>
         </div>
         <div class="detail-actions">
+          <RouterLink
+            class="button button-primary"
+            :to="`/applications/new?variant=${store.current.id}`"
+          >
+            <ClipboardCheck :size="17" /> 创建投递记录
+          </RouterLink>
           <span class="immutable-badge"><ShieldCheck :size="18" /><span><strong>变体 v{{ store.current.version }}</strong><small>{{ store.currentTemplate?.name || '模板' }} v{{ store.current.template_version }}</small></span></span>
           <button
             class="icon-button"

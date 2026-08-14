@@ -450,3 +450,22 @@ code_paths = [
   "frontend/src/stores/messages.ts",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/192"]
+
+[[capabilities]]
+id = "manual-application-records"
+name = "用户确认的手工投递记录"
+milestone = "M4"
+status = "current"
+summary = "支持从 apply 决定和所属不可变 ResumeVariant 创建 owner 范围 ApplicationRecord，初始 planned 只表达准备投递；用户可明确选择并固化可用 ResumePdf/Artifact 与 MessageDraft 精确版本。状态机仅允许 planned 到 applied/withdrawn、applied 到 interviewing/rejected/withdrawn、interviewing 到 offer_received/rejected/withdrawn；进入 applied 必须显式确认渠道与发生时间。创建和转换均幂等，base_version 保护并发更新，每次转换记录操作者、来源、渠道、时间和备注；记录、转换事件与 AuditEvent 在共享 PostgreSQL 事务中原子提交。认证 API 与 Vue 列表、材料确认、详情页面支持刷新恢复和双用户隔离；不包含招聘平台 Adapter、自动投递、外部结果读取或成功推断。"
+code_paths = [
+  "backend/app/domain/followup/application_record.py",
+  "backend/app/application/followup/application_records.py",
+  "backend/app/infrastructure/database/followup.py",
+  "backend/app/apps/api/routes/application_records.py",
+  "backend/alembic/versions/0020_application_records.py",
+  "frontend/src/views/ApplicationRecordsView.vue",
+  "frontend/src/views/ApplicationRecordCreateView.vue",
+  "frontend/src/views/ApplicationRecordDetailView.vue",
+  "frontend/src/stores/applications.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/214"]

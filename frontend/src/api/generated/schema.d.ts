@@ -4,6 +4,59 @@
  */
 
 export interface paths {
+    "/application-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Application Records */
+        get: operations["list_application_records_application_records_get"];
+        put?: never;
+        /** Create Application Record */
+        post: operations["create_application_record_application_records_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/application-records/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Application Record */
+        get: operations["get_application_record_application_records__record_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/application-records/{record_id}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Application Record Transitions */
+        get: operations["list_application_record_transitions_application_records__record_id__transitions_get"];
+        put?: never;
+        /** Transition Application Record */
+        post: operations["transition_application_record_application_records__record_id__transitions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/artifacts": {
         parameters: {
             query?: never;
@@ -867,6 +920,120 @@ export interface components {
          * @enum {string}
          */
         ApplicationDecisionStatus: "apply" | "skip";
+        /** ApplicationRecordListResponse */
+        ApplicationRecordListResponse: {
+            /** Items */
+            items: components["schemas"]["ApplicationRecordResponse"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
+        /** ApplicationRecordResponse */
+        ApplicationRecordResponse: {
+            /**
+             * Application Decision Id
+             * Format: uuid
+             */
+            application_decision_id: string;
+            /** Artifact Id */
+            artifact_id: string | null;
+            /** Artifact Sha256 */
+            artifact_sha256: string | null;
+            /** Artifact Version */
+            artifact_version: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /**
+             * Decision Case Id
+             * Format: uuid
+             */
+            decision_case_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Message Content Fingerprint */
+            message_content_fingerprint: string | null;
+            /** Message Draft Id */
+            message_draft_id: string | null;
+            /** Message Draft Version */
+            message_draft_version: number | null;
+            /** Resume Pdf Id */
+            resume_pdf_id: string | null;
+            /** Resume Pdf Version */
+            resume_pdf_version: number | null;
+            /**
+             * Resume Variant Id
+             * Format: uuid
+             */
+            resume_variant_id: string;
+            /** Resume Variant Version */
+            resume_variant_version: number;
+            status: components["schemas"]["ApplicationRecordStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Variant Content Fingerprint */
+            variant_content_fingerprint: string;
+            /** Version */
+            version: number;
+        };
+        /**
+         * ApplicationRecordStatus
+         * @enum {string}
+         */
+        ApplicationRecordStatus: "planned" | "applied" | "interviewing" | "offer_received" | "rejected" | "withdrawn";
+        /** ApplicationRecordTransitionResponse */
+        ApplicationRecordTransitionResponse: {
+            /**
+             * Actor Id
+             * Format: uuid
+             */
+            actor_id: string;
+            /** Channel */
+            channel: string | null;
+            from_status: components["schemas"]["ApplicationRecordStatus"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Note */
+            note: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Record Version */
+            record_version: number;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
+            source: components["schemas"]["ApplicationTransitionSource"];
+            to_status: components["schemas"]["ApplicationRecordStatus"];
+        };
+        /**
+         * ApplicationTransitionSource
+         * @enum {string}
+         */
+        ApplicationTransitionSource: "user_confirmation";
         /**
          * ArtifactKind
          * @enum {string}
@@ -1100,6 +1267,25 @@ export interface components {
             /** Reason */
             reason?: string | null;
             status: components["schemas"]["ApplicationDecisionStatus"];
+        };
+        /** CreateApplicationRecordRequest */
+        CreateApplicationRecordRequest: {
+            /**
+             * Application Decision Id
+             * Format: uuid
+             */
+            application_decision_id: string;
+            /** Message Draft Id */
+            message_draft_id?: string | null;
+            /** Message Draft Version */
+            message_draft_version?: number | null;
+            /** Resume Pdf Id */
+            resume_pdf_id?: string | null;
+            /**
+             * Resume Variant Id
+             * Format: uuid
+             */
+            resume_variant_id: string;
         };
         /** CreateCompanyAssessmentRequest */
         CreateCompanyAssessmentRequest: {
@@ -1399,7 +1585,7 @@ export interface components {
          * @description 系统边界使用的完整稳定错误码。
          * @enum {string}
          */
-        ErrorCode: "application_decision_conflict" | "application_decision_key_taken" | "application_decision_persistence_failed" | "application_error" | "artifact_conflict" | "artifact_corrupt" | "artifact_delete_failed" | "artifact_state_conflict" | "artifact_storage_unavailable" | "artifact_too_large" | "artifact_unavailable" | "authentication_failed" | "company_assessment_conflict" | "company_assessment_unavailable" | "company_snapshot_version_conflict" | "content_too_large" | "database_unavailable" | "decision_case_conflict" | "decision_case_immutable" | "decision_input_conflict" | "decision_input_unavailable" | "decision_persistence_failed" | "decision_report_generation_conflict" | "decision_report_version_conflict" | "decision_rule_input_mismatch" | "decode_failed" | "domain_error" | "email_conflict" | "empty_content" | "entity_not_found" | "entity_not_persisted" | "fetch_failed" | "fetch_timeout" | "idempotency_conflict" | "idempotency_key_taken" | "identity_persistence_failed" | "image_too_large" | "infrastructure_error" | "internal_error" | "invalid_application_decision_fingerprint" | "invalid_application_decision_status" | "invalid_artifact_content_type" | "invalid_artifact_sha256" | "invalid_artifact_size" | "invalid_audit_action" | "invalid_audit_idempotency_key" | "invalid_audit_summary" | "invalid_audit_target_type" | "invalid_audit_target_version" | "invalid_company_assessment_status" | "invalid_company_fact_status" | "invalid_company_name" | "invalid_company_text" | "invalid_confirmation_status" | "invalid_confirmation_transition" | "invalid_correlation_id" | "invalid_decision_case_state" | "invalid_decision_reason" | "invalid_draft_text" | "invalid_email" | "invalid_failure_code" | "invalid_failure_message" | "invalid_generation_identity" | "invalid_generator_version" | "invalid_idempotency_key" | "invalid_input_fingerprint" | "invalid_input_kind" | "invalid_jd_text" | "invalid_job_title" | "invalid_location" | "invalid_message_draft_fingerprint" | "invalid_message_draft_hash" | "invalid_message_draft_revision" | "invalid_message_draft_source" | "invalid_message_draft_style" | "invalid_object_key" | "invalid_pagination" | "invalid_password" | "invalid_profile" | "invalid_profile_field" | "invalid_profile_item_id" | "invalid_profile_version" | "invalid_referral_context" | "invalid_report_content" | "invalid_report_generator_version" | "invalid_report_rule_set_version" | "invalid_report_version" | "invalid_requirement" | "invalid_requirement_field" | "invalid_resume_content" | "invalid_resume_pdf_input" | "invalid_resume_pdf_state" | "invalid_resume_title" | "invalid_resume_version" | "invalid_rule_set_version" | "invalid_source_locator" | "invalid_source_metadata" | "invalid_source_range" | "invalid_source_sha256" | "invalid_source_type" | "invalid_source_url" | "invalid_template_field" | "invalid_template_section" | "invalid_timestamp" | "invalid_url" | "invalid_username" | "invalid_variant_blocks" | "invalid_variant_field" | "invalid_variant_fingerprint" | "invalid_variant_text" | "invalid_version" | "jd_text_too_long" | "job_posting_persistence_failed" | "job_requirement_version_conflict" | "message_draft_conflict" | "message_draft_input_unavailable" | "message_draft_version_conflict" | "nora_error" | "ocr_failed" | "pdf_generation_failed" | "pdf_render_failed" | "profile_has_no_confirmed_data" | "profile_version_conflict" | "referral_context_required" | "report_input_mismatch" | "required_variant_field" | "response_too_large" | "resume_pdf_conflict" | "resume_pdf_persistence_failed" | "resume_pdf_state_conflict" | "resume_variant_key_taken" | "resume_variant_persistence_failed" | "resume_version_conflict" | "skip_reason_required" | "source_conflict" | "template_definition_invalid" | "too_many_redirects" | "unsafe_url" | "unsupported_artifact_type" | "unsupported_image" | "unsupported_rule_set_version" | "username_conflict" | "validation_error" | "version_conflict";
+        ErrorCode: "application_decision_conflict" | "application_decision_key_taken" | "application_decision_persistence_failed" | "application_record_key_taken" | "application_record_persistence_failed" | "application_record_transition_conflict" | "application_record_version_conflict" | "application_error" | "artifact_conflict" | "artifact_corrupt" | "artifact_delete_failed" | "artifact_state_conflict" | "artifact_storage_unavailable" | "artifact_too_large" | "artifact_unavailable" | "authentication_failed" | "company_assessment_conflict" | "company_assessment_unavailable" | "company_snapshot_version_conflict" | "content_too_large" | "database_unavailable" | "decision_case_conflict" | "decision_case_immutable" | "decision_input_conflict" | "decision_input_unavailable" | "decision_persistence_failed" | "decision_report_generation_conflict" | "decision_report_version_conflict" | "decision_rule_input_mismatch" | "decode_failed" | "domain_error" | "email_conflict" | "empty_content" | "entity_not_found" | "entity_not_persisted" | "fetch_failed" | "fetch_timeout" | "idempotency_conflict" | "idempotency_key_taken" | "identity_persistence_failed" | "image_too_large" | "infrastructure_error" | "internal_error" | "invalid_application_decision_fingerprint" | "invalid_application_decision_status" | "invalid_application_record" | "invalid_application_record_status" | "invalid_artifact_content_type" | "invalid_artifact_sha256" | "invalid_artifact_size" | "invalid_audit_action" | "invalid_audit_idempotency_key" | "invalid_audit_summary" | "invalid_audit_target_type" | "invalid_audit_target_version" | "invalid_company_assessment_status" | "invalid_company_fact_status" | "invalid_company_name" | "invalid_company_text" | "invalid_confirmation_status" | "invalid_confirmation_transition" | "invalid_correlation_id" | "invalid_decision_case_state" | "invalid_decision_reason" | "invalid_draft_text" | "invalid_email" | "invalid_failure_code" | "invalid_failure_message" | "invalid_generation_identity" | "invalid_generator_version" | "invalid_idempotency_key" | "invalid_input_fingerprint" | "invalid_input_kind" | "invalid_jd_text" | "invalid_job_title" | "invalid_location" | "invalid_message_draft_fingerprint" | "invalid_message_draft_hash" | "invalid_message_draft_revision" | "invalid_message_draft_source" | "invalid_message_draft_style" | "invalid_object_key" | "invalid_pagination" | "invalid_password" | "invalid_profile" | "invalid_profile_field" | "invalid_profile_item_id" | "invalid_profile_version" | "invalid_referral_context" | "invalid_report_content" | "invalid_report_generator_version" | "invalid_report_rule_set_version" | "invalid_report_version" | "invalid_requirement" | "invalid_requirement_field" | "invalid_resume_content" | "invalid_resume_pdf_input" | "invalid_resume_pdf_state" | "invalid_resume_title" | "invalid_resume_version" | "invalid_rule_set_version" | "invalid_source_locator" | "invalid_source_metadata" | "invalid_source_range" | "invalid_source_sha256" | "invalid_source_type" | "invalid_source_url" | "invalid_template_field" | "invalid_template_section" | "invalid_timestamp" | "invalid_url" | "invalid_username" | "invalid_variant_blocks" | "invalid_variant_field" | "invalid_variant_fingerprint" | "invalid_variant_text" | "invalid_version" | "jd_text_too_long" | "job_posting_persistence_failed" | "job_requirement_version_conflict" | "message_draft_conflict" | "message_draft_input_unavailable" | "message_draft_version_conflict" | "nora_error" | "ocr_failed" | "pdf_generation_failed" | "pdf_render_failed" | "profile_has_no_confirmed_data" | "profile_version_conflict" | "referral_context_required" | "report_input_mismatch" | "required_variant_field" | "response_too_large" | "resume_pdf_conflict" | "resume_pdf_persistence_failed" | "resume_pdf_state_conflict" | "resume_variant_key_taken" | "resume_variant_persistence_failed" | "resume_version_conflict" | "skip_reason_required" | "source_conflict" | "template_definition_invalid" | "too_many_redirects" | "unsafe_url" | "unsupported_artifact_type" | "unsupported_image" | "unsupported_rule_set_version" | "username_conflict" | "validation_error" | "version_conflict";
         /** ExperienceInput */
         ExperienceInput: {
             achievements: components["schemas"]["LongTextListFactInput"];
@@ -2216,6 +2402,21 @@ export interface components {
              */
             token_type: string;
         };
+        /** TransitionApplicationRecordRequest */
+        TransitionApplicationRecordRequest: {
+            /** Base Version */
+            base_version: number;
+            /** Channel */
+            channel?: string | null;
+            /** Note */
+            note?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            to_status: components["schemas"]["ApplicationRecordStatus"];
+        };
         /**
          * UserResponse
          * @description 不包含密码的用户响应。
@@ -2262,6 +2463,442 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_application_records_application_records_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationRecordListResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    create_application_record_application_records_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApplicationRecordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationRecordResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    get_application_record_application_records__record_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationRecordResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    list_application_record_transitions_application_records__record_id__transitions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationRecordTransitionResponse"][];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    transition_application_record_application_records__record_id__transitions_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransitionApplicationRecordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationRecordResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
     upload_artifact_artifacts_post: {
         parameters: {
             query?: never;

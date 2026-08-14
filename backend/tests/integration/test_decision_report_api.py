@@ -1,13 +1,16 @@
 """Decision analysis and versioned report public API contract tests."""
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.apps.api import create_app
 from app.apps.api.dependencies.common import get_current_user
 from app.apps.api.dependencies.followup import get_resume_pdf_renderer
+from app.apps.api.dependencies.governance import get_audit_event_repository
 from app.apps.api.dependencies.knowledge import get_artifact_storage
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.domain.followup import (
     TemplateAccent,
     TemplateDefinition,
@@ -16,10 +19,17 @@ from app.domain.followup import (
 )
 from app.domain.identity import User
 from app.infrastructure.config import Settings
-from app.infrastructure.database import Base, TemplateDefinitionRecord
+from app.infrastructure.database import (
+    ApplicationRecordRow,
+    ApplicationRecordTransitionRow,
+    AuditEventRecord,
+    Base,
+    TemplateDefinitionRecord,
+)
 from app.ports.followup import RenderedPdf
 from app.ports.knowledge import ArtifactStorageError, StoredObject, StoredObjectInfo
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
@@ -56,6 +66,11 @@ class DeterministicPdfRenderer:
 
 class UpgradedDeterministicPdfRenderer(DeterministicPdfRenderer):
     renderer_version = "weasyprint-69.0-pango-1.56.3-api-test-v2"
+
+
+class FailingAuditRepository:
+    async def add(self, _event) -> None:
+        raise InfrastructureError("audit unavailable", error_code=ErrorCode.DATABASE_UNAVAILABLE)
 
 
 def _reset_database(database_url: str) -> None:
@@ -110,6 +125,35 @@ def _seed_resume_template(database_url: str) -> TemplateDefinition:
 
     asyncio.run(seed())
     return template
+
+
+def _application_fact_counts(database_url: str, record_id: str) -> tuple[int, int, int]:
+    async def count() -> tuple[int, int, int]:
+        engine = create_async_engine(database_url)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            records = await session.scalar(
+                select(func.count())
+                .select_from(ApplicationRecordRow)
+                .where(ApplicationRecordRow.id == UUID(record_id))
+            )
+            transitions = await session.scalar(
+                select(func.count())
+                .select_from(ApplicationRecordTransitionRow)
+                .where(ApplicationRecordTransitionRow.application_record_id == UUID(record_id))
+            )
+            audits = await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRecord)
+                .where(
+                    AuditEventRecord.target_type == "application_record",
+                    AuditEventRecord.target_id == UUID(record_id),
+                )
+            )
+        await engine.dispose()
+        return int(records or 0), int(transitions or 0), int(audits or 0)
+
+    return asyncio.run(count())
 
 
 def _register_and_login(client: TestClient, username: str) -> dict[str, str]:
@@ -848,6 +892,186 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
         assert drafts.json()["total"] == 2
         assert client.get("/message-drafts", headers=bob).json()["total"] == 0
         assert client.get(f"/message-drafts/{draft['id']}", headers=bob).status_code == 404
+
+        application_payload = {
+            "application_decision_id": apply.json()["id"],
+            "resume_variant_id": body["id"],
+            "resume_pdf_id": pdf["id"],
+            "message_draft_id": draft["id"],
+            "message_draft_version": 2,
+        }
+        assert client.post("/application-records", json=application_payload).status_code == 401
+        assert (
+            client.post(
+                "/application-records",
+                headers={**bob, "Idempotency-Key": "foreign-application"},
+                json=application_payload,
+            ).status_code
+            == 404
+        )
+        created_application = client.post(
+            "/application-records",
+            headers={**alice, "Idempotency-Key": " application  one "},
+            json=application_payload,
+        )
+        assert created_application.status_code == 201, created_application.text
+        application = created_application.json()
+        assert application["status"] == "planned"
+        assert application["version"] == 1
+        assert application["resume_pdf_id"] == pdf["id"]
+        assert application["artifact_id"] == pdf["artifact_id"]
+        assert application["artifact_sha256"] == pdf["artifact_sha256"]
+        assert application["message_draft_id"] == draft["id"]
+        assert application["message_draft_version"] == 2
+        assert application["message_content_fingerprint"] == edited.json()["content_fingerprint"]
+        application_replay = client.post(
+            "/application-records",
+            headers={**alice, "Idempotency-Key": "application  one"},
+            json=application_payload,
+        )
+        assert application_replay.status_code == 200
+        assert application_replay.json()["id"] == application["id"]
+        assert client.get("/application-records", headers=alice).json()["total"] == 1
+        assert client.get("/application-records", headers=bob).json()["total"] == 0
+        assert (
+            client.get(f"/application-records/{application['id']}", headers=bob).status_code == 404
+        )
+        assert (
+            client.get(
+                f"/application-records/{application['id']}/transitions", headers=alice
+            ).json()
+            == []
+        )
+
+        occurred_at = "2026-08-15T08:30:00+08:00"
+        missing_channel = client.post(
+            f"/application-records/{application['id']}/transitions",
+            headers={**alice, "Idempotency-Key": "application-missing-channel"},
+            json={
+                "base_version": 1,
+                "to_status": "applied",
+                "occurred_at": occurred_at,
+                "channel": None,
+            },
+        )
+        assert missing_channel.status_code == 400
+        assert missing_channel.json()["error_code"] == "invalid_application_record"
+        illegal_transition = client.post(
+            f"/application-records/{application['id']}/transitions",
+            headers={**alice, "Idempotency-Key": "application-illegal"},
+            json={
+                "base_version": 1,
+                "to_status": "interviewing",
+                "occurred_at": occurred_at,
+            },
+        )
+        assert illegal_transition.status_code == 409
+        assert illegal_transition.json()["error_code"] == "application_record_transition_conflict"
+        applied = client.post(
+            f"/application-records/{application['id']}/transitions",
+            headers={**alice, "Idempotency-Key": " application  applied "},
+            json={
+                "base_version": 1,
+                "to_status": "applied",
+                "occurred_at": occurred_at,
+                "channel": "company  website",
+                "note": "user  confirmed",
+            },
+        )
+        assert applied.status_code == 201, applied.text
+        assert applied.json()["status"] == "applied"
+        assert applied.json()["version"] == 2
+        applied_replay = client.post(
+            f"/application-records/{application['id']}/transitions",
+            headers={**alice, "Idempotency-Key": "application  applied"},
+            json={
+                "base_version": 1,
+                "to_status": "applied",
+                "occurred_at": occurred_at,
+                "channel": "company website",
+                "note": "user confirmed",
+            },
+        )
+        assert applied_replay.status_code == 200
+        assert applied_replay.json()["version"] == 2
+        stale_transition = client.post(
+            f"/application-records/{application['id']}/transitions",
+            headers={**alice, "Idempotency-Key": "application-stale"},
+            json={
+                "base_version": 1,
+                "to_status": "withdrawn",
+                "occurred_at": occurred_at,
+            },
+        )
+        assert stale_transition.status_code == 409
+        assert stale_transition.json()["error_code"] == "application_record_version_conflict"
+        transitions = client.get(
+            f"/application-records/{application['id']}/transitions", headers=alice
+        )
+        assert transitions.status_code == 200
+        assert len(transitions.json()) == 1
+        assert transitions.json()[0]["source"] == "user_confirmation"
+        assert transitions.json()[0]["channel"] == "company website"
+        assert transitions.json()[0]["actor_id"] == apply.json()["actor_id"]
+        refreshed_application = client.get(
+            f"/application-records/{application['id']}", headers=alice
+        )
+        assert refreshed_application.json()["status"] == "applied"
+        assert refreshed_application.json()["version"] == 2
+
+        app.dependency_overrides[get_audit_event_repository] = FailingAuditRepository
+        audit_failure = client.post(
+            f"/application-records/{application['id']}/transitions",
+            headers={**alice, "Idempotency-Key": "application-audit-failure"},
+            json={
+                "base_version": 2,
+                "to_status": "interviewing",
+                "occurred_at": occurred_at,
+                "channel": "招聘平台",
+            },
+        )
+        assert audit_failure.status_code == 503
+        assert audit_failure.json()["error_code"] == "database_unavailable"
+        app.dependency_overrides.pop(get_audit_event_repository)
+        after_audit_failure = client.get(f"/application-records/{application['id']}", headers=alice)
+        assert after_audit_failure.json()["status"] == "applied"
+        assert after_audit_failure.json()["version"] == 2
+        assert (
+            len(
+                client.get(
+                    f"/application-records/{application['id']}/transitions", headers=alice
+                ).json()
+            )
+            == 1
+        )
+        assert _application_fact_counts(database_url, application["id"]) == (1, 1, 2)
+
+        def submit_concurrent_transition(target: str) -> tuple[int, dict[str, object]]:
+            response = client.post(
+                f"/application-records/{application['id']}/transitions",
+                headers={**alice, "Idempotency-Key": f"application-concurrent-{target}"},
+                json={
+                    "base_version": 2,
+                    "to_status": target,
+                    "occurred_at": occurred_at,
+                    "channel": "招聘平台",
+                },
+            )
+            return response.status_code, response.json()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            concurrent_results = list(
+                executor.map(submit_concurrent_transition, ["interviewing", "rejected"])
+            )
+        assert sorted(status for status, _body in concurrent_results) == [201, 409]
+        loser = next(body for status, body in concurrent_results if status == 409)
+        assert loser["error_code"] == "application_record_version_conflict"
+        concurrent_winner = client.get(
+            f"/application-records/{application['id']}", headers=alice
+        ).json()
+        assert concurrent_winner["version"] == 3
+        assert concurrent_winner["status"] in {"interviewing", "rejected"}
+        assert _application_fact_counts(database_url, application["id"]) == (1, 2, 3)
 
         app.dependency_overrides[get_resume_pdf_renderer] = UpgradedDeterministicPdfRenderer
         upgraded = client.post(f"/resume-variants/{body['id']}/pdf", headers=alice)

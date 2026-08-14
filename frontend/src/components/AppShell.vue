@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
+  ClipboardList,
   FileText,
   LayoutTemplate,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
 
 import { useAuthStore } from "@/stores/auth"
 import { useAnalysisStore } from "@/stores/analysis"
+import { useApplicationsStore } from "@/stores/applications"
 import { useJobsStore } from "@/stores/jobs"
 import { useMessagesStore } from "@/stores/messages"
 import { useProfileStore } from "@/stores/profile"
@@ -22,6 +24,7 @@ import { useVariantsStore } from "@/stores/variants"
 
 const auth = useAuthStore()
 const analysis = useAnalysisStore()
+const applications = useApplicationsStore()
 const jobs = useJobsStore()
 const messages = useMessagesStore()
 const profile = useProfileStore()
@@ -37,6 +40,7 @@ function logout(): void {
   profile.reset()
   resumes.reset()
   analysis.reset()
+  applications.reset()
   variants.reset()
   messages.reset()
   void router.push({ name: "login" })
@@ -95,6 +99,14 @@ function logout(): void {
           <span>录入岗位</span>
         </RouterLink>
         <span class="nav-divider">工作资产</span>
+        <RouterLink
+          class="nav-item"
+          :class="{ active: route.name === 'applications' || route.name === 'application-new' || route.name === 'application-detail' }"
+          to="/applications"
+        >
+          <ClipboardList :size="18" />
+          <span>投递记录</span>
+        </RouterLink>
         <RouterLink
           class="nav-item"
           :class="{ active: route.name === 'profile' }"
