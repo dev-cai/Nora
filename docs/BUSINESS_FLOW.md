@@ -4,8 +4,7 @@
 > 与当前项目实现的**差距分析**以及调整方向。本文不独立定义技术实现边界；任何落地都必须遵守
 > [`ARCHITECTURE.md`](ARCHITECTURE.md) 的变更规则和仓库交付门禁。
 >
-> 相关真源：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)、[`ROADMAP.md`](ROADMAP.md)、
-> [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md)。建立基线：2026-08-02；M2-M5 规划同步：2026-08-06。
+> 相关真源：[`PRODUCT_VISION.md`](PRODUCT_VISION.md)、[`ROADMAP.md`](ROADMAP.md)。建立基线：2026-08-02。
 
 ---
 
@@ -49,29 +48,20 @@
 
 ## 4. 与当前项目实现的差距
 
-### 4.1 当前已有基线
+### 4.1 Current 导航
 
-> 以下只作导航，逐项 Current 能力、代码路径和合并证据只见
-> [`current-capabilities.toml`](current-capabilities.toml)。M2/M3 已关闭，以下摘要不替代逐项 Current 证据。
+本文不维护 Current 能力清单。默认分支已有能力、代码路径和合并证据只见
+[`current-capabilities.toml`](current-capabilities.toml)。
 
-- 本地账号认证、用户范围隔离和不可变 `JobPosting` 文本快照；
-- 岗位公开契约、幂等、创建审计和事务一致性；
-- `CandidateProfile` 与不可变 `ResumeVersion`；
-- Vue 3 工作台的认证、岗位、主档和简历页面；
-- 后端、前端、容器和基础浏览器质量门禁；
-- 结构化岗位要求的真实 API/Web 调用路径，以及截图 OCR/链接受控抓取 API；
-- 固定版本 DecisionCase、确定性规则、版本化报告、apply/skip 与 Compose 浏览器 E2E。
+### 4.2 目标能力缺口
 
-### 4.2 功能缺口
-
-| 缺口 | 当前状态 | 归属 |
-| :--- | :--- | :--- |
-| Artifact/Source、公司情报、投递材料与记录 | M4.1-M4.13 | M4 |
-| Beta 部署、认证、安全、恢复、CD 与浏览器 E2E | M4.14-M4.18 | M4 |
-| Provider、评测、Embedding/pgvector、Chunk 与 Gateway | M5.1-M5.8 | M5 |
-| 检索、Evidence Pack 与增强报告 | M5.9-M5.11 | M5 |
-| Reranker、性能、Redis 与 Worker | M5.12-M5.15，先评估且允许不引入 | M5 条件项 |
-| Evidence/增强报告跨任务 E2E | M5.16 | M5 |
+| 缺口 | 目标边界 |
+| :--- | :--- |
+| 投递闭环 | 版本化投递材料、手工投递记录和最小面试通知 |
+| Beta 运行 | 部署、认证、安全、恢复、持续交付与真实浏览器验收 |
+| Evidence 基础 | 版本化来源、确定性 Chunk、检索评测和 Evidence Pack |
+| 可选模型增强 | Provider 隔离、Schema 校验、版本化增强与确定性降级 |
+| 条件规模化 | Reranker、缓存和 Worker 只在指标证明必要时引入 |
 
 ### 4.3 越界与收敛
 
@@ -94,12 +84,11 @@
 
 M6+ 已取消为主动 Milestone。未来能力进入 [`ROADMAP.md`](ROADMAP.md) 的触发式候选池，而不是继续按编号预排。
 
-## 6. Issue 映射原则
+## 6. 规划交接原则
 
-1. M2/M3 已关闭，已交付范围只通过 Current 台账追踪；
-2. M4 按 M4.1-M4.18 的依赖顺序交付 Artifact/Source、材料、投递记录、Beta 安全运行与 E2E；
-3. M5 按 M5.1-M5.16 先完成 Provider/评测和 Embedding/pgvector 决策，再实现检索、Evidence 与增强；
-4. 条件组件只完成评估；达到阈值后另建 Architecture 与 Implementation Issue；
-5. 每项一分支一 PR；前置决策未合并时，不提前创建锁定 Schema 的实现 Issue。
-
-完整原子顺序、依赖和验收以 [`MILESTONE_PLAN.md`](MILESTONE_PLAN.md) 为准。
+1. 本文只固定业务流程和产品决策，不记录交付状态；
+2. [`ROADMAP.md`](ROADMAP.md) 只固定里程碑结果、边界和退出目标；
+3. 原子工作、依赖、顺序和状态只记录在 GitHub Milestones/Issues；
+4. 已交付范围只通过 [`current-capabilities.toml`](current-capabilities.toml) 追踪；
+5. 需要改变数据所有权、运行时组件或外部写边界时，先建立 Architecture Issue；
+6. 条件组件未达到量化阈值时可以形成不引入结论。

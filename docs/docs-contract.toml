@@ -11,27 +11,19 @@ categories = [
   "reference",
 ]
 
-[planning_baseline]
-active_milestones = ["M2", "M3", "M4", "M5"]
-retired_milestones = ["M6", "M6+"]
-
-[[planning_baseline.documents]]
-id = "roadmap"
-level2_headings = [
+[roadmap_contract]
+document_id = "roadmap"
+milestone_headings = [
+  "M0：工程基础与 CI 门禁",
+  "M1：Identity 与岗位快照纵向切片",
   "M2：分析就绪的输入基线",
   "M3：确定性求职决策 MVP",
   "M4：可部署的投递闭环 Beta",
   "M5：Evidence、AI 与规模化增强",
 ]
-
-[[planning_baseline.documents]]
-id = "milestone-plan"
-level2_headings = [
-  "5. M2：分析就绪的输入基线",
-  "6. M3：确定性求职决策 MVP",
-  "7. M4：可部署的投递闭环 Beta",
-  "8. M5：Evidence、AI 与规模化增强",
-]
+required_subheadings = ["结果", "边界", "退出目标"]
+allow_issue_references = false
+allow_task_checklists = false
 
 [[documents]]
 id = "readme"
@@ -55,7 +47,7 @@ path = "docs/BUSINESS_FLOW.md"
 category = "product"
 reviewer = "area:docs"
 owns = ["confirmed business flow", "business decision baseline", "capability gaps"]
-allowed_summaries = ["product-vision", "user-experience", "roadmap", "milestone-plan"]
+allowed_summaries = ["product-vision", "user-experience", "roadmap"]
 
 [[documents]]
 id = "user-experience"
@@ -86,16 +78,8 @@ id = "roadmap"
 path = "docs/ROADMAP.md"
 category = "planning"
 reviewer = "area:docs"
-owns = ["milestone outcomes", "roadmap boundaries"]
+owns = ["milestone outcomes", "roadmap boundaries", "milestone exit goals"]
 allowed_summaries = ["readme"]
-
-[[documents]]
-id = "milestone-plan"
-path = "docs/MILESTONE_PLAN.md"
-category = "planning"
-reviewer = "area:docs"
-owns = ["atomic delivery order", "milestone acceptance mapping"]
-allowed_summaries = ["roadmap"]
 
 [[documents]]
 id = "development"
