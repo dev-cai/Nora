@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163。
-- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、Vue Web、Artifact/Source 基础和公司情报后端切片。
+- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -217,6 +217,7 @@ erDiagram
     CandidateProfile ||--o{ ResumeVersion : "事实快照"
     ResumeVersion ||--o{ ResumeVariant : "岗位定制"
     ResumeVariant ||--o{ ResumePdf : "确定性生成"
+    ResumeVariant ||--o{ MessageDraft : "确定性生成与修订"
     JobPosting ||--o{ JobRequirementSnapshot : "确认解释"
     JobRequirementSnapshot }o--|| DecisionCase : "固定版本引用"
     DecisionCase ||--o{ DecisionReport : "版本化报告"
@@ -259,7 +260,9 @@ M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecis
 - Current `ResumePdf` 以 `pending -> available`、`pending/failed -> pending` 和 `pending -> failed` 记录可观察生成状态。生成身份固定 ResumeVariant ID/版本/内容指纹、模板 ID/版本/定义哈希、WeasyPrint/Pango Adapter 版本、Noto CJK 字体集版本、`zh-CN` 区域和 `UTC` 时区；同一身份重放复用同一 PDF 与 Artifact，模板、输入或渲染器升级产生不同身份，不覆盖历史产物。
 - WeasyPrint Adapter 只把声明式模板和经 HTML 转义的纯文本转换为内部 HTML/CSS，拒绝所有 URL/resource fetch，不接受用户 HTML、脚本、Jinja、本地文件或网络资源。锁定容器固定 WeasyPrint、Pango、Noto CJK、`SOURCE_DATE_EPOCH` 和 PDF identifier；确定性承诺限于该锁定环境，相同生成身份必须产生相同 SHA-256。
 - PDF 元数据先写入 PostgreSQL，再调用既有 `ArtifactService` 发布私有 `application/pdf` Artifact。只有 Artifact 为 `available` 且 generation identity、生成器、size 与 SHA-256 完整校验后，`ResumePdf` 才转为 `available`；渲染、对象存储或数据库发布失败保持不可下载并标为 `failed`，重试沿用同一身份。公开接口为 `POST /resume-variants/{id}/pdf`、`GET /resume-variants/{id}/pdf`、`GET /resume-pdfs/{id}` 与 `GET /resume-pdfs/{id}/content`，下载按 owner 隔离并使用私有缓存与安全文件名/header。
-- `MessageDraft` 是一条可编辑纯文本，默认 `professional` 风格，另支持 `concise` 和用户提供内推上下文的 `referral` 风格；输入只允许已确认主档、JD、公司 Evidence 和用户备注，初版不做平台适配、不自动发送。
+- Current `MessageDraft` 从一条不可变 ResumeVariant 生成纯文本，固定 apply `ApplicationDecision`、报告与 DecisionCase、CandidateProfile/ResumeVersion、JobPosting、ResumeVariant 内容指纹，以及可选 CompanySnapshot 的精确版本、哈希和时效。生成身份还包含风格、用户备注、模板与生成器版本；相同身份幂等复用，输入或模板变化产生独立草稿，不覆盖历史。
+- 风格限于 `professional`、`concise` 和 `referral`；`referral` 必须由用户显式提供上下文，系统不推断内推关系。公司快照即使为 stale、unknown 或 conflicted 也只固定来源身份，不进入文本；只有附件状态为 `available` 且行业字段为 `confirmed` 时才可写入。生成和编辑均只接受纯文本，编辑以 `draft_id + base_version + text` 幂等追加修订，生成版本保持不可变。
+- MessageDraft 公开接口为 `POST /resume-variants/{id}/message-drafts`、`GET /resume-variants/{id}/message-draft`、`GET /message-drafts`、`GET /message-drafts/{id}`、`GET /message-drafts/{id}/versions`、`GET /message-drafts/{id}/versions/{version}` 与 `POST /message-drafts/{id}/revisions`。所有对象按 owner 隔离；复制只发生在用户浏览器，不存在发送 Port、招聘平台 Adapter、模型调用、RAG 或外部写。
 
 ### 公司情报与决策报告版本边界（D-014）
 

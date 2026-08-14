@@ -1,11 +1,12 @@
 """Application & Follow-up repository contracts."""
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, Sequence
 from uuid import UUID
 
 from app.domain.followup import (
     ApplicationDecision,
+    MessageDraft,
     ResumePdf,
     ResumeVariant,
     TemplateDefinition,
@@ -60,6 +61,28 @@ class ResumePdfRepository(Protocol):
     async def commit(self) -> None: ...
 
     async def rollback(self) -> None: ...
+
+
+class MessageDraftRepository(Protocol):
+    async def add(self, draft: MessageDraft) -> MessageDraft: ...
+
+    async def get_latest(self, draft_id: UUID) -> MessageDraft | None: ...
+
+    async def get_version(self, draft_id: UUID, version: int) -> MessageDraft | None: ...
+
+    async def get_by_idempotency_key(self, key: str) -> MessageDraft | None: ...
+
+    async def get_by_generation_identity(self, identity: str) -> MessageDraft | None: ...
+
+    async def get_latest_by_variant(self, variant_id: UUID) -> MessageDraft | None: ...
+
+    async def list(self, *, offset: int, limit: int) -> list[MessageDraft]: ...
+
+    async def list_versions(self, draft_id: UUID) -> Sequence[MessageDraft]: ...
+
+    async def count(self) -> int: ...
+
+    async def commit(self) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,5 +1,13 @@
 """Application & Follow-up use-case exports."""
 
+from .message_draft import (
+    EditMessageDraftCommand,
+    GenerateMessageDraftCommand,
+    ListMessageDraftsQuery,
+    ListMessageDraftsResult,
+    MessageDraftMutationResult,
+    MessageDraftUseCases,
+)
 from .resume_pdf import (
     GenerateResumePdfCommand,
     GenerateResumePdfResult,
@@ -27,6 +35,8 @@ __all__ = (
     "CreateApplicationDecisionUseCase",
     "GetApplicationDecisionQuery",
     "GetApplicationDecisionUseCase",
+    "EditMessageDraftCommand",
+    "GenerateMessageDraftCommand",
     "GenerateResumePdfCommand",
     "GenerateResumePdfResult",
     "ResumePdfDownload",
@@ -35,5 +45,9 @@ __all__ = (
     "CreateResumeVariantResult",
     "ListResumeVariantsQuery",
     "ListResumeVariantsResult",
+    "ListMessageDraftsQuery",
+    "ListMessageDraftsResult",
+    "MessageDraftMutationResult",
+    "MessageDraftUseCases",
     "ResumeVariantUseCases",
 )

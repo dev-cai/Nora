@@ -378,3 +378,21 @@ code_paths = [
   "frontend/src/stores/variants.ts",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/181"]
+
+[[capabilities]]
+id = "deterministic-message-drafts"
+name = "确定性消息草稿"
+milestone = "M4"
+status = "current"
+summary = "支持从不可变 ResumeVariant 生成用户范围的纯文本 MessageDraft：固定 apply 决定、报告、DecisionCase、主档/简历、岗位、变体内容指纹及可选公司快照精确版本。professional、concise 与需用户显式上下文的 referral 风格由版本化模板确定生成；缺失、过期、冲突或匿名公司信息不补猜，只有 available 且 confirmed 的行业可进入文本。生成身份和编辑请求均幂等，用户编辑追加修订而不覆盖生成版本；认证 API 与 Vue 页面支持生成、列表、详情、版本历史、编辑、刷新恢复、浏览器复制和双用户隔离。无模型、RAG、发送端口、招聘平台接入或外部写。"
+code_paths = [
+  "backend/app/domain/followup/message_draft.py",
+  "backend/app/application/followup/message_draft.py",
+  "backend/app/infrastructure/database/followup.py",
+  "backend/app/apps/api/routes/message_drafts.py",
+  "backend/alembic/versions/0018_message_drafts.py",
+  "frontend/src/views/ResumeVariantDetailView.vue",
+  "frontend/src/views/MessageDraftView.vue",
+  "frontend/src/stores/messages.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/192"]

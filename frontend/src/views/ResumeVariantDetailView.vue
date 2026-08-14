@@ -1,30 +1,64 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue"
-import { ArrowLeft, Download, Eye, FileStack, FileText, RefreshCw, ShieldCheck } from "lucide-vue-next"
-import { useRoute } from "vue-router"
+import { ArrowLeft, Download, Eye, FileStack, FileText, MessageSquareText, RefreshCw, ShieldCheck } from "lucide-vue-next"
+import { useRoute, useRouter } from "vue-router"
 
 import { api, userMessage } from "@/api/client"
+import type { MessageDraftStyle } from "@/api/types"
 import AppShell from "@/components/AppShell.vue"
 import StatePanel from "@/components/StatePanel.vue"
+import { useMessagesStore } from "@/stores/messages"
 import { useVariantsStore } from "@/stores/variants"
 
+const messageStyles: ReadonlyArray<readonly [MessageDraftStyle, string]> = [
+  ["professional", "专业"],
+  ["concise", "简洁"],
+  ["referral", "内推上下文"],
+]
+
 const route = useRoute()
+const router = useRouter()
 const store = useVariantsStore()
+const messages = useMessagesStore()
 const error = ref("")
 const pdfError = ref("")
 const previewUrl = ref("")
 const transferring = ref(false)
+const messageError = ref("")
+const messageStyle = ref<MessageDraftStyle>("professional")
+const userNote = ref("")
+const referralContext = ref("")
 const variantId = computed(() => String(route.params.id))
 
 async function load(): Promise<void> {
   error.value = ""
+  messages.latestForVariant = null
   try {
     const variant = await store.fetchVariant(variantId.value)
     await Promise.all([
       store.fetchTemplate(variant.template_id, variant.template_version),
       store.fetchLatestPdf(variant.id),
+      messages.fetchLatestForVariant(variant.id),
     ])
   } catch (reason) { error.value = userMessage(reason) }
+}
+
+async function generateMessageDraft(): Promise<void> {
+  messageError.value = ""
+  if (messageStyle.value === "referral" && !referralContext.value.trim()) {
+    messageError.value = "内推风格需要填写上下文"
+    return
+  }
+  try {
+    const value = await messages.generate(variantId.value, {
+      style: messageStyle.value,
+      user_note: userNote.value.trim() || null,
+      referral_context: messageStyle.value === "referral" ? referralContext.value.trim() : null,
+    })
+    await router.push(`/messages/${value.id}`)
+  } catch (reason) {
+    messageError.value = userMessage(reason)
+  }
 }
 
 async function generatePdf(): Promise<void> {
@@ -192,6 +226,77 @@ onBeforeUnmount(() => { if (previewUrl.value) URL.revokeObjectURL(previewUrl.val
           :src="previewUrl"
           title="定制简历 PDF 预览"
         />
+      </section>
+      <section class="message-draft-band">
+        <div class="pdf-band-heading">
+          <span class="metric-icon green"><MessageSquareText :size="19" /></span>
+          <div>
+            <p class="eyebrow">
+              确定性纯文本
+            </p>
+            <h3>消息草稿</h3>
+          </div>
+          <RouterLink
+            v-if="messages.latestForVariant"
+            class="button button-secondary"
+            :to="`/messages/${messages.latestForVariant.id}`"
+          >
+            打开 v{{ messages.latestForVariant.version }}
+          </RouterLink>
+        </div>
+        <div
+          class="message-style-control"
+          role="group"
+          aria-label="消息草稿风格"
+        >
+          <button
+            v-for="option in messageStyles"
+            :key="option[0]"
+            type="button"
+            :class="{ active: messageStyle === option[0] }"
+            @click="messageStyle = option[0]"
+          >
+            {{ option[1] }}
+          </button>
+        </div>
+        <div class="message-inputs">
+          <label>
+            <span>用户备注</span>
+            <textarea
+              v-model="userNote"
+              aria-label="用户备注"
+              rows="3"
+              maxlength="1000"
+            />
+          </label>
+          <label v-if="messageStyle === 'referral'">
+            <span>内推上下文</span>
+            <textarea
+              v-model="referralContext"
+              aria-label="内推上下文"
+              rows="3"
+              maxlength="1000"
+              required
+            />
+          </label>
+        </div>
+        <p
+          v-if="messageError"
+          class="form-error"
+          role="alert"
+        >
+          {{ messageError }}
+        </p>
+        <div class="pdf-actions">
+          <button
+            class="button button-primary"
+            type="button"
+            :disabled="messages.generating"
+            @click="generateMessageDraft"
+          >
+            <MessageSquareText :size="17" /> {{ messages.generating ? '正在生成…' : '生成草稿' }}
+          </button>
+        </div>
       </section>
       <section class="locked-band">
         <ShieldCheck :size="18" /><div><strong>版本已固定</strong><p>刷新只读取同一变体；来源简历或模板升级不会改写这份内容。</p></div>

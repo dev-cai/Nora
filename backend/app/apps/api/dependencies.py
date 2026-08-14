@@ -21,6 +21,7 @@ from app.infrastructure.database import (
     SqlAlchemyDecisionReportRepository,
     SqlAlchemyJobPostingRepository,
     SqlAlchemyJobRequirementSnapshotRepository,
+    SqlAlchemyMessageDraftRepository,
     SqlAlchemyResumePdfRepository,
     SqlAlchemyResumeVariantRepository,
     SqlAlchemyResumeVersionRepository,
@@ -40,6 +41,7 @@ from app.ports.decision import (
 )
 from app.ports.followup import (
     ApplicationDecisionRepository,
+    MessageDraftRepository,
     ResumePdfRenderer,
     ResumePdfRepository,
     ResumeVariantRepository,
@@ -177,6 +179,13 @@ def get_resume_variant_repository(
     user: User = Depends(get_current_user),
 ) -> ResumeVariantRepository:
     return SqlAlchemyResumeVariantRepository(session, user.id)
+
+
+def get_message_draft_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> MessageDraftRepository:
+    return SqlAlchemyMessageDraftRepository(session, user.id)
 
 
 def get_resume_pdf_repository(

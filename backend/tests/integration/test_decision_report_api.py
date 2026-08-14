@@ -726,6 +726,127 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
         assert client.get(f"/resume-pdfs/{pdf['id']}", headers=bob).status_code == 404
         assert client.get(f"/resume-pdfs/{pdf['id']}/content", headers=bob).status_code == 404
 
+        assert (
+            client.get(f"/resume-variants/{body['id']}/message-draft", headers=alice).status_code
+            == 204
+        )
+        draft_payload = {
+            "style": "professional",
+            "user_note": "可在本周沟通",
+            "referral_context": None,
+        }
+        assert (
+            client.post(
+                f"/resume-variants/{body['id']}/message-drafts", json=draft_payload
+            ).status_code
+            == 401
+        )
+        assert (
+            client.post(
+                f"/resume-variants/{body['id']}/message-drafts",
+                headers={**bob, "Idempotency-Key": "foreign-draft"},
+                json=draft_payload,
+            ).status_code
+            == 404
+        )
+        generated_draft = client.post(
+            f"/resume-variants/{body['id']}/message-drafts",
+            headers={**alice, "Idempotency-Key": "draft-professional"},
+            json=draft_payload,
+        )
+        assert generated_draft.status_code == 201, generated_draft.text
+        draft = generated_draft.json()
+        assert draft["version"] == 1
+        assert draft["revision_type"] == "generated"
+        assert draft["application_decision_id"] == apply.json()["id"]
+        assert draft["resume_variant_id"] == body["id"]
+        assert draft["candidate_profile_id"] == inputs["candidate_profile_id"]
+        assert draft["resume_version_id"] == inputs["resume_version_id"]
+        assert "Alice" in draft["text"]
+        assert "Python" in draft["text"]
+        assert "unknown" not in draft["text"]
+        assert "补充说明：可在本周沟通" in draft["text"]
+        draft_replay = client.post(
+            f"/resume-variants/{body['id']}/message-drafts",
+            headers={**alice, "Idempotency-Key": "draft-professional"},
+            json=draft_payload,
+        )
+        assert draft_replay.status_code == 200
+        assert draft_replay.json()["id"] == draft["id"]
+        same_generation = client.post(
+            f"/resume-variants/{body['id']}/message-drafts",
+            headers={**alice, "Idempotency-Key": "draft-professional-replay"},
+            json=draft_payload,
+        )
+        assert same_generation.status_code == 200
+        assert same_generation.json()["id"] == draft["id"]
+        draft_conflict = client.post(
+            f"/resume-variants/{body['id']}/message-drafts",
+            headers={**alice, "Idempotency-Key": "draft-professional"},
+            json={**draft_payload, "user_note": "不同内容"},
+        )
+        assert draft_conflict.status_code == 409
+        assert draft_conflict.json()["error_code"] == "idempotency_conflict"
+        missing_referral = client.post(
+            f"/resume-variants/{body['id']}/message-drafts",
+            headers={**alice, "Idempotency-Key": "draft-referral-missing"},
+            json={"style": "referral", "referral_context": None},
+        )
+        assert missing_referral.status_code == 400
+        assert missing_referral.json()["error_code"] == "referral_context_required"
+        referral = client.post(
+            f"/resume-variants/{body['id']}/message-drafts",
+            headers={**alice, "Idempotency-Key": "draft-referral"},
+            json={
+                "style": "referral",
+                "referral_context": "经张女士建议，我来联系您。",
+            },
+        )
+        assert referral.status_code == 201
+        assert "经张女士建议" in referral.json()["text"]
+        assert referral.json()["generation_identity"] != draft["generation_identity"]
+        latest_for_variant = client.get(
+            f"/resume-variants/{body['id']}/message-draft", headers=alice
+        )
+        assert latest_for_variant.status_code == 200
+        assert latest_for_variant.json()["id"] == referral.json()["id"]
+
+        edited_text = f"{draft['text']}\n\n期待您的回复。"
+        edited = client.post(
+            f"/message-drafts/{draft['id']}/revisions",
+            headers={**alice, "Idempotency-Key": "draft  edit  1"},
+            json={"base_version": 1, "text": edited_text},
+        )
+        assert edited.status_code == 201, edited.text
+        assert edited.json()["version"] == 2
+        assert edited.json()["previous_version"] == 1
+        assert edited.json()["revision_type"] == "edited"
+        edit_replay = client.post(
+            f"/message-drafts/{draft['id']}/revisions",
+            headers={**alice, "Idempotency-Key": "draft  edit  1"},
+            json={"base_version": 1, "text": edited_text},
+        )
+        assert edit_replay.status_code == 200
+        assert edit_replay.json()["content_fingerprint"] == edited.json()["content_fingerprint"]
+        stale_edit = client.post(
+            f"/message-drafts/{draft['id']}/revisions",
+            headers={**alice, "Idempotency-Key": "draft-edit-stale"},
+            json={"base_version": 1, "text": "过期编辑"},
+        )
+        assert stale_edit.status_code == 409
+        assert stale_edit.json()["error_code"] == "message_draft_version_conflict"
+        assert client.get(f"/message-drafts/{draft['id']}", headers=alice).json()["version"] == 2
+        versions = client.get(f"/message-drafts/{draft['id']}/versions", headers=alice)
+        assert [item["version"] for item in versions.json()] == [2, 1]
+        original = client.get(f"/message-drafts/{draft['id']}/versions/1", headers=alice)
+        assert original.status_code == 200
+        assert original.json()["text"] == draft["text"]
+        drafts = client.get("/message-drafts", headers=alice)
+        assert drafts.status_code == 200
+        assert drafts.json()["total"] == 2
+        assert client.get("/message-drafts", headers=bob).json()["total"] == 0
+        assert client.get(f"/message-drafts/{draft['id']}", headers=bob).status_code == 404
+
         app.dependency_overrides[get_resume_pdf_renderer] = UpgradedDeterministicPdfRenderer
         upgraded = client.post(f"/resume-variants/{body['id']}/pdf", headers=alice)
         assert upgraded.status_code == 201
