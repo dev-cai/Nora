@@ -9,7 +9,8 @@ Verifies:
 
 3. docs/docs-contract.toml has valid ownership and impact declarations.
 4. docs/current-capabilities.toml contains only locally evidenced Current facts.
-5. Canonical planning documents retain the declared M2-M5 headings and no retired milestone heading.
+5. ROADMAP retains the declared milestone outcome/boundary/exit-goal
+   structure without atomic task tracking.
 
 This complements check_links.py by giving targeted diagnostics for the
 document index and machine-readable contract. Uses only the Python standard library.

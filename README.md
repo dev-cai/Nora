@@ -21,7 +21,6 @@
   <img src="https://img.shields.io/badge/Vue%203-0d1117?style=flat-square&labelColor=0d1117&logo=vuedotjs&logoColor=22d3ee&color=22d3ee" alt="Vue 3">
   <img src="https://img.shields.io/badge/PostgreSQL%2016-0d1117?style=flat-square&labelColor=0d1117&logo=postgresql&logoColor=22d3ee&color=22d3ee" alt="PostgreSQL 16">
   <img src="https://img.shields.io/badge/Docker-0d1117?style=flat-square&labelColor=0d1117&logo=docker&logoColor=22d3ee&color=22d3ee" alt="Docker">
-  <img src="https://img.shields.io/badge/Status-M0~M3%20done%20%7C%20M4-22d3ee?style=flat-square&labelColor=0d1117&color=4ade80" alt="M0–M3 已完成，M4 进行中">
 </p>
 
 ---
@@ -74,16 +73,18 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 
 ## 里程碑
 
-| 里程碑 | 交付物 | 状态 |
-|--------|--------|------|
-| **M0** | 工程骨架 · CI 门禁 · Docker Compose | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
-| **M1** | 本地认证 · 岗位快照 · 幂等 · 审计 | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
-| **M2** | 可确认的岗位要求 · OCR/链接输入 · 分析就绪 E2E | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
-| **M3** | 确定性决策报告 · apply/skip（无模型密钥可运行） | ![已完成](https://img.shields.io/badge/-done-4ade80?style=flat-square&labelColor=0d1117) |
-| **M4** | 定制材料 · 手工投递/面试记录 · 可部署 Beta | ![进行中](https://img.shields.io/badge/-building-22d3ee?style=flat-square&labelColor=0d1117) |
-| **M5** | Evidence · 检索 · 可选 AI 与指标触发的规模化 | ![规划中](https://img.shields.io/badge/-planned-64748b?style=flat-square&labelColor=0d1117) |
+| 里程碑 | 目标结果 |
+|--------|----------|
+| **M0** | 工程骨架 · CI 门禁 · Docker Compose |
+| **M1** | 本地认证 · 岗位快照 · 幂等 · 审计 |
+| **M2** | 可确认的岗位要求 · OCR/链接输入 · 分析就绪 E2E |
+| **M3** | 确定性决策报告 · apply/skip（无模型密钥可运行） |
+| **M4** | 定制材料 · 手工投递/面试记录 · 可部署 Beta |
+| **M5** | Evidence · 检索 · 可选 AI 与指标触发的规模化 |
 
-> 规划状态以 GitHub Milestone 与 [`docs/ROADMAP.md`](docs/ROADMAP.md) 为准；当前可运行能力、代码路径与合并证据只见 [`docs/current-capabilities.toml`](docs/current-capabilities.toml)，不要从路线图反推已交付能力。
+> 结果、边界和退出目标见 [`docs/ROADMAP.md`](docs/ROADMAP.md)；状态、依赖和顺序见
+> [GitHub Milestones](https://github.com/dev-cai/Nora/milestones) 与 [GitHub Issues](https://github.com/dev-cai/Nora/issues)；
+> 当前可运行能力、代码路径与合并证据只见 [`docs/current-capabilities.toml`](docs/current-capabilities.toml)。
 
 ## 快速开始
 
@@ -121,7 +122,7 @@ curl http://localhost:8000/health   # {"status":"healthy"}
 | 产品 / 用户 | [`PRODUCT_VISION.md`](docs/PRODUCT_VISION.md) · [`BUSINESS_FLOW.md`](docs/BUSINESS_FLOW.md) · [`USER_EXPERIENCE.md`](docs/USER_EXPERIENCE.md) |
 | 后端开发 | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`DEVELOPMENT.md`](docs/DEVELOPMENT.md) · [`WORKFLOW.md`](docs/WORKFLOW.md) · [`ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) |
 | 前端开发 | [`FRONTEND.md`](docs/FRONTEND.md) · [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`DEVELOPMENT.md`](docs/DEVELOPMENT.md) |
-| 规划与治理 | [`ROADMAP.md`](docs/ROADMAP.md) · [`MILESTONE_PLAN.md`](docs/MILESTONE_PLAN.md) · [`ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) · [`WORKFLOW.md`](docs/WORKFLOW.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| 规划与治理 | [`ROADMAP.md`](docs/ROADMAP.md) · [`ISSUE_WORKFLOW.md`](docs/ISSUE_WORKFLOW.md) · [`WORKFLOW.md`](docs/WORKFLOW.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | 安全 | [`SECURITY.md`](SECURITY.md) · [`JD_INPUT_SECURITY.md`](docs/JD_INPUT_SECURITY.md) |
 
 ### 完整文档索引
@@ -131,8 +132,7 @@ curl http://localhost:8000/health   # {"status":"healthy"}
 | [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md) | 产品愿景、用户旅程与能力状态 |
 | [`docs/BUSINESS_FLOW.md`](docs/BUSINESS_FLOW.md) | 已确认业务流程与技术决策基线 |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 架构边界、数据所有权与依赖方向 |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | 里程碑范围与验收条件 |
-| [`docs/MILESTONE_PLAN.md`](docs/MILESTONE_PLAN.md) | 里程碑原子交付执行计划 |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | 里程碑结果、边界与退出目标 |
 | [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | 环境、测试、迁移与排障 |
 | [`docs/FRONTEND.md`](docs/FRONTEND.md) | 前端技术与 HTTP 集成契约 |
 | [`docs/USER_EXPERIENCE.md`](docs/USER_EXPERIENCE.md) | 用户体验场景与交互目标 |

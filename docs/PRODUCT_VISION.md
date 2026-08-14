@@ -146,11 +146,12 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
 | 产品目标、用户旅程、能力目录 | 本文 | `README.md` | 摘要只链接本文件，不复制会演化的完整能力契约 |
 | 当前已交付能力、代码路径与 PR 证据 | [`current-capabilities.toml`](current-capabilities.toml) | `README.md`、产品、架构、前端和开发文档 | 台账只记录默认分支已有的 Current 能力；Planned 进度留在 GitHub Milestone/Issue |
 | 文档分类、事实所有权、允许摘要和路径影响 | [`docs-contract.toml`](docs-contract.toml) | 本文、[`WORKFLOW.md`](WORKFLOW.md)、Agent 指南 | 代码变更按契约更新规范文档或在 PR 中给出具体豁免理由，CI 负责阻断缺失声明 |
-| 已确认业务流程、技术决策基线、缺口分析 | [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) | `PRODUCT_VISION.md`、`USER_EXPERIENCE.md`、里程碑文档 | 操作流程与决策基线以本文为真源，其他文档只链接不重述 |
+| 已确认业务流程、技术决策基线、缺口分析 | [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) | `PRODUCT_VISION.md`、`USER_EXPERIENCE.md`、`ROADMAP.md` | 操作流程与决策基线以本文为真源，其他文档只链接不重述 |
 | 用户体验场景与交互目标 | [`USER_EXPERIENCE.md`](USER_EXPERIENCE.md) | 产品与前端文档 | 只描述设计目标，不证明功能已交付 |
 | 架构、模块边界、数据所有权、依赖方向 | [`ARCHITECTURE.md`](ARCHITECTURE.md) 与已合并 Architecture Issue | `README.md`、AI 指南 | 边界变更必须先审查 Architecture Issue，摘要不得另立规则 |
 | 前端技术与 HTTP 集成契约 | [`FRONTEND.md`](FRONTEND.md) | 架构与路线图 | 当前/目标目录和 API 必须明确区分，不伪造 Planned 能力 |
-| 里程碑范围与顺序 | [`ROADMAP.md`](ROADMAP.md) 与 GitHub Milestone | `README.md` | 在线 Milestone/Issue 状态优先于静态时间表 |
+| 里程碑结果、边界与退出目标 | [`ROADMAP.md`](ROADMAP.md) | `README.md` | 路线图不记录任务状态、依赖或执行顺序 |
+| 进行中工作、Issue 状态、依赖与执行顺序 | GitHub Milestones/Issues | `ROADMAP.md`、`README.md` | 长期文档只链接，不复制在线规划数据 |
 | 历史 M0 Issue 映射 | GitHub Issue #9–#15 与 M0 [Milestone](https://github.com/dev-cai/Nora/milestone/1) | 路线图 | 保留历史交付路径，不为目标结构改写已发生事实 |
 | 本地环境、配置、迁移和测试命令 | [`DEVELOPMENT.md`](DEVELOPMENT.md) | `README.md`、[`WORKFLOW.md`](WORKFLOW.md) | 命令只有在默认分支文件与容器中可执行后才能标为 Current |
 | Issue 类型、标签、状态和关系 | [`ISSUE_WORKFLOW.md`](ISSUE_WORKFLOW.md) | [`../CONTRIBUTING.md`](../CONTRIBUTING.md)、[`WORKFLOW.md`](WORKFLOW.md)、项目 Skills | 摘要必须与真源一致；自动化校验规则同步修改 |
@@ -160,7 +161,7 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
 | 已实现行为 | 默认分支代码、迁移、公开契约和测试 | 所有文档 | 文档与实现冲突时通过 Issue 修正，不能静默选择或把计划写成已实现 |
 
 摘要的职责是帮助目标读者导航，不是复制真源。状态表、目录契约、操作步骤和治理规则发生变化时，必须先修改对应真源，
-再检查引用它的摘要；历史计划文档保留当时事实，不追改为未来目标布局。物理目录不是事实所有权边界：新增文档先在
+再检查引用它的摘要；历史执行记录保留在 GitHub Issue、PR 和 Milestone 中，不建立 Markdown 平行台账。物理目录不是事实所有权边界：新增文档先在
 `docs-contract.toml` 登记，再按逻辑分类放置，已有路径只有在具备兼容入口时才迁移。
 
 ## 10. 非目标

@@ -48,87 +48,94 @@ def _level2_headings(path: Path) -> list[str]:
     ]
 
 
-def _validate_planning_baseline(
+def _milestone_sections(path: Path) -> dict[str, tuple[list[str], list[str]]]:
+    """Return level-three headings and body lines for each milestone section."""
+    sections: dict[str, tuple[list[str], list[str]]] = {}
+    current: tuple[list[str], list[str]] | None = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## ") and not line.startswith("### "):
+            heading = line[3:].strip()
+            current = ([], []) if MILESTONE_HEADING.match(heading) else None
+            if current is not None:
+                sections[heading] = current
+            continue
+        if current is None:
+            continue
+        if line.startswith("### "):
+            current[0].append(line[4:].strip())
+        current[1].append(line)
+    return sections
+
+
+def _validate_roadmap_contract(
     root: Path,
-    planning: object,
+    roadmap: object,
     document_paths: dict[str, str],
 ) -> list[str]:
-    """Validate canonical planning headings and retired milestone boundaries."""
-    prefix = "docs-contract.toml: planning_baseline"
-    if not isinstance(planning, dict):
+    """Keep the Roadmap limited to milestone outcomes, boundaries, and exit goals."""
+    prefix = "docs-contract.toml: roadmap_contract"
+    if not isinstance(roadmap, dict):
         return [f"{prefix} must be a table"]
 
     errors: list[str] = []
-    active = planning.get("active_milestones")
-    retired = planning.get("retired_milestones")
-    if not _string_list(active):
-        errors.append(f"{prefix}.active_milestones must be a non-empty string list")
-        active = []
-    if not _string_list(retired):
-        errors.append(f"{prefix}.retired_milestones must be a non-empty string list")
-        retired = []
-    if set(active) & set(retired):
-        errors.append(f"{prefix} active and retired milestones must not overlap")
+    document_id = roadmap.get("document_id")
+    expected = roadmap.get("milestone_headings")
+    required_subheadings = roadmap.get("required_subheadings")
+    allow_issue_references = roadmap.get("allow_issue_references")
+    allow_task_checklists = roadmap.get("allow_task_checklists")
+    if not isinstance(document_id, str) or not document_id:
+        errors.append(f"{prefix}.document_id must be a non-empty string")
+    elif document_id not in document_paths:
+        errors.append(f"{prefix} references unknown document: {document_id}")
+    if not _string_list(expected):
+        errors.append(f"{prefix}.milestone_headings must be a non-empty string list")
+        expected = []
+    if not _string_list(required_subheadings):
+        errors.append(f"{prefix}.required_subheadings must be a non-empty string list")
+        required_subheadings = []
+    if not isinstance(allow_issue_references, bool):
+        errors.append(f"{prefix}.allow_issue_references must be a boolean")
+    if not isinstance(allow_task_checklists, bool):
+        errors.append(f"{prefix}.allow_task_checklists must be a boolean")
+    if not isinstance(document_id, str) or document_id not in document_paths:
+        return errors
 
-    planning_documents = planning.get("documents")
-    if not isinstance(planning_documents, list) or not planning_documents:
-        return [*errors, f"{prefix}.documents must be a non-empty table array"]
+    path = root / document_paths[document_id]
+    if not path.is_file():
+        return errors
+    try:
+        sections = _milestone_sections(path)
+        roadmap_text = path.read_text(encoding="utf-8")
+        actual = [
+            heading
+            for heading in _level2_headings(path)
+            if MILESTONE_HEADING.match(heading) is not None
+        ]
+    except (OSError, UnicodeError) as error:
+        errors.append(f"{prefix} cannot read {path.relative_to(root)}: {error}")
+        return errors
 
-    seen_ids: set[str] = set()
-    for index, entry in enumerate(planning_documents, start=1):
-        entry_prefix = f"{prefix}.documents[{index}]"
-        if not isinstance(entry, dict):
-            errors.append(f"{entry_prefix} must be a table")
+    if actual != expected:
+        errors.append(
+            f"{path.relative_to(root)}: milestone headings must match the contract in order; "
+            f"expected {expected}, found {actual}"
+        )
+    issue_reference = re.compile(r"(?<![\w/])#[1-9][0-9]*\b")
+    task_checklist = re.compile(r"^\s*-\s+\[[ xX]\]", re.MULTILINE)
+    if allow_issue_references is False and issue_reference.search(roadmap_text):
+        errors.append(f"{path.relative_to(root)}: must not copy atomic Issue references")
+    if allow_task_checklists is False and task_checklist.search(roadmap_text):
+        errors.append(f"{path.relative_to(root)}: must not track task completion")
+    for heading in expected:
+        section = sections.get(heading)
+        if section is None:
             continue
-        document_id = entry.get("id")
-        expected = entry.get("level2_headings")
-        if not isinstance(document_id, str) or not document_id:
-            errors.append(f"{entry_prefix}.id must be a non-empty string")
-            continue
-        if document_id in seen_ids:
-            errors.append(f"{entry_prefix}.id is duplicated: {document_id}")
-            continue
-        seen_ids.add(document_id)
-        if document_id not in document_paths:
-            errors.append(f"{entry_prefix} references unknown document: {document_id}")
-            continue
-        if not _string_list(expected):
-            errors.append(f"{entry_prefix}.level2_headings must be a non-empty string list")
-            continue
-
-        expected_milestones = {
-            match.group(1)
-            for heading in expected
-            if (match := MILESTONE_HEADING.match(heading)) is not None
-        }
-        if expected_milestones != set(active):
+        subheadings, _ = section
+        if subheadings != required_subheadings:
             errors.append(
-                f"{entry_prefix}.level2_headings must declare exactly the active milestones: "
-                f"{', '.join(active)}"
+                f"{path.relative_to(root)}: {heading} must contain only these level-three "
+                f"headings in order: {', '.join(required_subheadings)}"
             )
-
-        path = root / document_paths[document_id]
-        if not path.is_file():
-            continue
-        try:
-            actual = _level2_headings(path)
-        except (OSError, UnicodeError) as error:
-            errors.append(f"{entry_prefix} cannot read {path.relative_to(root)}: {error}")
-            continue
-        for heading in expected:
-            count = actual.count(heading)
-            if count != 1:
-                errors.append(
-                    f"{path.relative_to(root)}: expected level-two heading exactly once: "
-                    f"{heading} (found {count})"
-                )
-        for heading in actual:
-            match = MILESTONE_HEADING.match(heading)
-            if match is not None and match.group(1) in retired:
-                errors.append(
-                    f"{path.relative_to(root)}: retired milestone must not be a "
-                    f"level-two heading: {heading}"
-                )
     return errors
 
 
@@ -198,9 +205,24 @@ def validate_contract(root: Path, contract: dict[str, Any]) -> list[str]:
                     f"{summary_id}"
                 )
 
-    errors += _validate_planning_baseline(
+    roadmap_value = contract.get("roadmap_contract")
+    roadmap_document_id = (
+        roadmap_value.get("document_id") if isinstance(roadmap_value, dict) else None
+    )
+    planning_document_ids = {
+        document.get("id")
+        for document in documents
+        if isinstance(document, dict) and document.get("category") == "planning"
+    }
+    if isinstance(roadmap_document_id, str) and planning_document_ids != {roadmap_document_id}:
+        errors.append(
+            "docs-contract.toml: ROADMAP must be the only planning document; "
+            f"found {sorted(str(item) for item in planning_document_ids)}"
+        )
+
+    errors += _validate_roadmap_contract(
         root,
-        contract.get("planning_baseline"),
+        contract.get("roadmap_contract"),
         document_paths_by_id,
     )
 

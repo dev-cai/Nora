@@ -131,7 +131,7 @@ Current 响应尚未包含 `error_category`；D-018 实施后，前端从 OpenAP
 ### M2-M4 Current 与后续 Planned
 
 - M2 分析就绪状态与输入 E2E（Current）；
-- M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，对应 `MILESTONE_PLAN.md` §6.6-§6.9）；
+- M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，证据见 `current-capabilities.toml`）；
 - M4 声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载和 MessageDraft 生成/编辑/复制（Current）；手工投递记录、最小面试通知和 Beta 流程仍为 Planned；
 - M5 Evidence、检索引用和可选模型增强版本；
 - 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
@@ -142,9 +142,10 @@ Current 响应尚未包含 `error_category`；D-018 实施后，前端从 OpenAP
 
 ## 第二部分：前端详细设计（基于已确认业务流程）
 
-> 本章把已确认的业务流程（[`BUSINESS_FLOW.md`](BUSINESS_FLOW.md)）与里程碑计划
-> （[`MILESTONE_PLAN.md`](MILESTONE_PLAN.md)）翻译为 Vue 前端的页面、路由、状态、组件与 API
-> 映射。目标用户为软件工程专业应届生（以校招为主）。各表以 `Current` 和 `Planned` 明确区分默认分支已有能力与目标设计。
+> 本章把已确认的业务流程（[`BUSINESS_FLOW.md`](BUSINESS_FLOW.md)）与里程碑边界
+> （[`ROADMAP.md`](ROADMAP.md)）翻译为 Vue 前端的页面、路由、状态、组件与 API 映射。目标用户为软件工程专业应届生
+> （以校招为主）。`Current` 仅作前端契约摘要，逐项证据以 `current-capabilities.toml` 为准；`Planned` 的状态、依赖和顺序以
+> GitHub Milestones/Issues 为准。
 
 ## 8. 用户旅程 → 页面映射
 

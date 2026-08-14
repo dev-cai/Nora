@@ -21,7 +21,7 @@ from contract import validate_capabilities, validate_contract  # noqa: E402
 def sample_contract() -> dict[str, object]:
     return {
         "version": 1,
-        "categories": ["reference"],
+        "categories": ["planning", "reference"],
         "documents": [
             {
                 "id": "ledger",
@@ -34,26 +34,25 @@ def sample_contract() -> dict[str, object]:
             {
                 "id": "roadmap",
                 "path": "docs/roadmap.md",
-                "category": "reference",
+                "category": "planning",
                 "reviewer": "area:docs",
                 "owns": ["planning"],
                 "allowed_summaries": [],
             },
         ],
-        "planning_baseline": {
-            "active_milestones": ["M2", "M3", "M4", "M5"],
-            "retired_milestones": ["M6", "M6+"],
-            "documents": [
-                {
-                    "id": "roadmap",
-                    "level2_headings": [
-                        "M2：Inputs",
-                        "M3：Decision",
-                        "M4：Beta",
-                        "M5：AI",
-                    ],
-                }
+        "roadmap_contract": {
+            "document_id": "roadmap",
+            "milestone_headings": [
+                "M0：Foundation",
+                "M1：Identity",
+                "M2：Inputs",
+                "M3：Decision",
+                "M4：Beta",
+                "M5：AI",
             ],
+            "required_subheadings": ["结果", "边界", "退出目标"],
+            "allow_issue_references": False,
+            "allow_task_checklists": False,
         },
         "impact_rules": [
             {
@@ -64,6 +63,21 @@ def sample_contract() -> dict[str, object]:
             }
         ],
     }
+
+
+def sample_roadmap(*, m2_body: str = "") -> str:
+    sections = []
+    for heading in (
+        "M0：Foundation",
+        "M1：Identity",
+        "M2：Inputs",
+        "M3：Decision",
+        "M4：Beta",
+        "M5：AI",
+    ):
+        body = m2_body if heading.startswith("M2") else ""
+        sections.append(f"## {heading}\n\n### 结果\n\n{body}\n\n### 边界\n\n### 退出目标\n")
+    return "# Plan\n\n" + "\n".join(sections)
 
 
 def run_git(root: Path, *args: str) -> str:
@@ -85,7 +99,7 @@ class ContractValidationTests(unittest.TestCase):
             (root / "docs").mkdir()
             (root / "docs" / "ledger.toml").write_text("version = 1\n", encoding="utf-8")
             (root / "docs" / "roadmap.md").write_text(
-                "# Plan\n\n## M2：Inputs\n\n## M3：Decision\n\n## M4：Beta\n\n## M5：AI\n",
+                sample_roadmap(),
                 encoding="utf-8",
             )
             self.assertEqual(validate_contract(root, sample_contract()), [])
@@ -96,12 +110,11 @@ class ContractValidationTests(unittest.TestCase):
             (root / "docs").mkdir()
             (root / "docs" / "ledger.toml").write_text("version = 1\n", encoding="utf-8")
             (root / "docs" / "roadmap.md").write_text(
-                "# Plan\n\n## M2：Inputs\n\n## M3：Decision\n\n"
-                "## M4：Beta\n\n## M5：AI\n\n## M6+：Later\n",
+                sample_roadmap() + "\n## M6+：Later\n",
                 encoding="utf-8",
             )
             errors = validate_contract(root, sample_contract())
-        self.assertTrue(any("retired milestone" in error for error in errors))
+        self.assertTrue(any("milestone headings must match" in error for error in errors))
 
     def test_contract_rejects_changed_planning_heading(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -109,11 +122,49 @@ class ContractValidationTests(unittest.TestCase):
             (root / "docs").mkdir()
             (root / "docs" / "ledger.toml").write_text("version = 1\n", encoding="utf-8")
             (root / "docs" / "roadmap.md").write_text(
-                "# Plan\n\n## M2：Changed\n\n## M3：Decision\n\n## M4：Beta\n\n## M5：AI\n",
+                sample_roadmap().replace("M2：Inputs", "M2：Changed"),
                 encoding="utf-8",
             )
             errors = validate_contract(root, sample_contract())
-        self.assertTrue(any("expected level-two heading exactly once" in error for error in errors))
+        self.assertTrue(any("milestone headings must match" in error for error in errors))
+
+    def test_contract_rejects_atomic_planning_in_roadmap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs" / "ledger.toml").write_text("version = 1\n", encoding="utf-8")
+            (root / "docs" / "roadmap.md").write_text(
+                sample_roadmap(m2_body="- [x] Implemented by #42"),
+                encoding="utf-8",
+            )
+            errors = validate_contract(root, sample_contract())
+        self.assertTrue(any("must not copy atomic Issue references" in error for error in errors))
+        self.assertTrue(any("must not track task completion" in error for error in errors))
+
+    def test_contract_rejects_parallel_planning_document(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs" / "ledger.toml").write_text("version = 1\n", encoding="utf-8")
+            (root / "docs" / "roadmap.md").write_text(sample_roadmap(), encoding="utf-8")
+            (root / "docs" / "plan.md").write_text("# Parallel plan\n", encoding="utf-8")
+            contract = sample_contract()
+            documents = contract["documents"]
+            assert isinstance(documents, list)
+            documents.append(
+                {
+                    "id": "parallel-plan",
+                    "path": "docs/plan.md",
+                    "category": "planning",
+                    "reviewer": "area:docs",
+                    "owns": ["atomic delivery order"],
+                    "allowed_summaries": [],
+                }
+            )
+            errors = validate_contract(root, contract)
+        self.assertTrue(
+            any("ROADMAP must be the only planning document" in error for error in errors)
+        )
 
     def test_capability_rejects_missing_code_evidence(self) -> None:
         ledger = {
