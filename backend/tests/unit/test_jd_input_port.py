@@ -3,11 +3,11 @@
 from dataclasses import replace
 
 import pytest
+from app.domain.base.exceptions import ErrorCode
 from app.ports.jd_input import (
     MAX_JD_IMAGE_BYTES,
     JdImageInput,
     JdInputError,
-    JdInputErrorCode,
     JdInputKind,
     JdInputPort,
     JdInputResult,
@@ -28,7 +28,7 @@ class FakeJdInputAdapter:
         )
 
 
-def assert_error_code(error: pytest.ExceptionInfo[JdInputError], code: JdInputErrorCode) -> None:
+def assert_error_code(error: pytest.ExceptionInfo[JdInputError], code: ErrorCode) -> None:
     assert error.value.error_code == code
 
 
@@ -75,7 +75,7 @@ def test_image_contract_rejects_unsupported_or_mismatched_content(
 ) -> None:
     with pytest.raises(JdInputError) as error:
         JdImageInput(content=content, media_type=media_type)
-    assert_error_code(error, JdInputErrorCode.UNSUPPORTED_IMAGE)
+    assert_error_code(error, ErrorCode.UNSUPPORTED_IMAGE)
 
 
 def test_image_contract_rejects_payload_above_ten_mib() -> None:
@@ -84,7 +84,7 @@ def test_image_contract_rejects_payload_above_ten_mib() -> None:
             content=b"\x89PNG\r\n\x1a\n" + b"x" * MAX_JD_IMAGE_BYTES,
             media_type="image/png",
         )
-    assert_error_code(error, JdInputErrorCode.IMAGE_TOO_LARGE)
+    assert_error_code(error, ErrorCode.IMAGE_TOO_LARGE)
 
 
 def test_image_contract_copies_mutable_content_before_validation() -> None:
@@ -111,7 +111,7 @@ def test_image_contract_copies_mutable_content_before_validation() -> None:
 def test_url_contract_rejects_invalid_urls(url: str) -> None:
     with pytest.raises(JdInputError) as error:
         JdUrlInput(url)
-    assert_error_code(error, JdInputErrorCode.INVALID_URL)
+    assert_error_code(error, ErrorCode.INVALID_URL)
 
 
 @pytest.mark.parametrize(
@@ -127,7 +127,7 @@ def test_url_contract_rejects_invalid_urls(url: str) -> None:
 def test_url_contract_rejects_local_and_private_targets(url: str) -> None:
     with pytest.raises(JdInputError) as error:
         JdUrlInput(url)
-    assert_error_code(error, JdInputErrorCode.UNSAFE_URL)
+    assert_error_code(error, ErrorCode.UNSAFE_URL)
 
 
 @pytest.mark.parametrize(
@@ -140,7 +140,7 @@ def test_url_contract_rejects_local_and_private_targets(url: str) -> None:
 def test_url_contract_rechecks_hosts_after_idna_normalization(url: str) -> None:
     with pytest.raises(JdInputError) as error:
         JdUrlInput(url)
-    assert_error_code(error, JdInputErrorCode.UNSAFE_URL)
+    assert_error_code(error, ErrorCode.UNSAFE_URL)
 
 
 def test_url_contract_normalizes_public_url_without_losing_query() -> None:
@@ -154,14 +154,14 @@ def test_fetch_policy_rejects_any_non_public_dns_answer() -> None:
 
     with pytest.raises(JdInputError) as error:
         policy.ensure_public_addresses(["93.184.216.34", "10.0.0.7"])
-    assert_error_code(error, JdInputErrorCode.UNSAFE_URL)
+    assert_error_code(error, ErrorCode.UNSAFE_URL)
 
 
 @pytest.mark.parametrize("address", ["224.0.0.1", "239.255.255.250", "ff02::1"])
 def test_fetch_policy_rejects_multicast_dns_answers(address: str) -> None:
     with pytest.raises(JdInputError) as error:
         JdUrlFetchPolicy().ensure_public_addresses([address])
-    assert_error_code(error, JdInputErrorCode.UNSAFE_URL)
+    assert_error_code(error, ErrorCode.UNSAFE_URL)
 
 
 def test_fetch_policy_enforces_redirect_and_response_limits() -> None:
@@ -171,11 +171,11 @@ def test_fetch_policy_enforces_redirect_and_response_limits() -> None:
 
     with pytest.raises(JdInputError) as redirects:
         policy.ensure_redirect_count(4)
-    assert_error_code(redirects, JdInputErrorCode.TOO_MANY_REDIRECTS)
+    assert_error_code(redirects, ErrorCode.TOO_MANY_REDIRECTS)
 
     with pytest.raises(JdInputError) as response:
         policy.ensure_response_size(policy.max_response_bytes + 1)
-    assert_error_code(response, JdInputErrorCode.RESPONSE_TOO_LARGE)
+    assert_error_code(response, ErrorCode.RESPONSE_TOO_LARGE)
 
 
 @pytest.mark.parametrize(
@@ -206,21 +206,21 @@ def test_fetch_policy_copies_a_mutable_scheme_collection() -> None:
     assert policy.allowed_schemes == frozenset({"https"})
     with pytest.raises(JdInputError) as error:
         JdUrlInput("file://public.example/path", policy=policy)
-    assert_error_code(error, JdInputErrorCode.INVALID_URL)
+    assert_error_code(error, ErrorCode.INVALID_URL)
 
 
 def test_result_requires_text_and_url_provenance() -> None:
     with pytest.raises(JdInputError) as empty:
         JdInputResult(jd_text="  ", kind=JdInputKind.IMAGE)
-    assert_error_code(empty, JdInputErrorCode.EMPTY_CONTENT)
+    assert_error_code(empty, ErrorCode.EMPTY_CONTENT)
 
     with pytest.raises(JdInputError) as source:
         JdInputResult(jd_text="Role", kind=JdInputKind.URL)
-    assert_error_code(source, JdInputErrorCode.INVALID_URL)
+    assert_error_code(source, ErrorCode.INVALID_URL)
 
     with pytest.raises(JdInputError) as string_url:
         JdInputResult(jd_text="Role", kind="url")  # type: ignore[arg-type]
-    assert_error_code(string_url, JdInputErrorCode.INVALID_URL)
+    assert_error_code(string_url, ErrorCode.INVALID_URL)
 
     with pytest.raises(JdInputError) as string_image:
         JdInputResult(
@@ -228,11 +228,11 @@ def test_result_requires_text_and_url_provenance() -> None:
             kind="image",  # type: ignore[arg-type]
             source_url="https://jobs.example.com/role",
         )
-    assert_error_code(string_image, JdInputErrorCode.INVALID_URL)
+    assert_error_code(string_image, ErrorCode.INVALID_URL)
 
     with pytest.raises(JdInputError) as invalid_kind:
         JdInputResult(jd_text="Role", kind="document")  # type: ignore[arg-type]
-    assert_error_code(invalid_kind, JdInputErrorCode.INVALID_INPUT_KIND)
+    assert_error_code(invalid_kind, ErrorCode.INVALID_INPUT_KIND)
 
     url_result = JdInputResult(
         jd_text="Role",
@@ -246,4 +246,4 @@ def test_result_requires_text_and_url_provenance() -> None:
             JdInputResult(jd_text="Role", kind=JdInputKind.IMAGE),
             jd_text="x" * 100_001,
         )
-    assert_error_code(too_large, JdInputErrorCode.CONTENT_TOO_LARGE)
+    assert_error_code(too_large, ErrorCode.CONTENT_TOO_LARGE)

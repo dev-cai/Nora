@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.base.exceptions import InfrastructureError, NoraError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError, NoraError
 from app.domain.identity import User
 from app.infrastructure.database.base import AuditMixin, Base
 from app.ports.identity import StoredCredential
@@ -49,12 +49,14 @@ class SqlAlchemyUserRepository:
             await self.session.rollback()
             if await self._exists_by_username(user.username):
                 raise NoraError(
-                    "Username is already registered", error_code="username_conflict"
+                    "Username is already registered", error_code=ErrorCode.USERNAME_CONFLICT
                 ) from exc
             if await self.exists_by_email(user.email):
-                raise NoraError("Email is already registered", error_code="email_conflict") from exc
+                raise NoraError(
+                    "Email is already registered", error_code=ErrorCode.EMAIL_CONFLICT
+                ) from exc
             raise InfrastructureError(
-                "Could not persist user", error_code="identity_persistence_failed"
+                "Could not persist user", error_code=ErrorCode.IDENTITY_PERSISTENCE_FAILED
             ) from exc
         return user
 

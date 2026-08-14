@@ -3,7 +3,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.domain.base.exceptions import NoraError
+from app.domain.base.exceptions import ErrorCode, NoraError
 from app.domain.identity import User
 from app.ports.identity import UserRepository
 
@@ -39,12 +39,16 @@ class IdentityService:
 
     async def register(self, username: str, email: str, password: str) -> User:
         if not 8 <= len(password) <= 256:
-            raise NoraError("Password must contain 8-256 characters", error_code="invalid_password")
+            raise NoraError(
+                "Password must contain 8-256 characters", error_code=ErrorCode.INVALID_PASSWORD
+            )
         user = User.create(username, email)
         if await self.repository.get_by_username(user.username) is not None:
-            raise NoraError("Username is already registered", error_code="username_conflict")
+            raise NoraError(
+                "Username is already registered", error_code=ErrorCode.USERNAME_CONFLICT
+            )
         if await self.repository.exists_by_email(user.email):
-            raise NoraError("Email is already registered", error_code="email_conflict")
+            raise NoraError("Email is already registered", error_code=ErrorCode.EMAIL_CONFLICT)
         stored = await self.repository.add(user, self.password_hasher.hash(password))
         await self.repository.commit()
         return stored
@@ -54,12 +58,14 @@ class IdentityService:
         if credential is None or not self.password_hasher.verify(
             password, credential.password_hash
         ):
-            raise NoraError("Invalid username or password", error_code="authentication_failed")
+            raise NoraError(
+                "Invalid username or password", error_code=ErrorCode.AUTHENTICATION_FAILED
+            )
         return self.token_issuer.issue(credential.user.id)
 
     async def current_user(self, token: str) -> User:
         user_id = self.token_issuer.decode(token)
         user = await self.repository.get_by_id(user_id)
         if user is None:
-            raise NoraError("Authentication required", error_code="authentication_failed")
+            raise NoraError("Authentication required", error_code=ErrorCode.AUTHENTICATION_FAILED)
         return user

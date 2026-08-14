@@ -5,12 +5,12 @@ from uuid import uuid4
 
 from app.apps.api import create_app
 from app.apps.api.dependencies.opportunity import get_jd_input_adapter, get_jd_ocr_adapter
+from app.domain.base.exceptions import ErrorCode
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Base
 from app.ports.jd_input import (
     JdImageInput,
     JdInputError,
-    JdInputErrorCode,
     JdInputKind,
     JdInputPort,
     JdInputResult,
@@ -44,7 +44,7 @@ def _register_and_login(client: TestClient, username: str) -> dict[str, str]:
 
 class FakeFetchAdapter(JdInputPort):
     async def extract_image(self, request: JdImageInput) -> JdInputResult:
-        raise JdInputError("not implemented", JdInputErrorCode.OCR_FAILED)
+        raise JdInputError("not implemented", ErrorCode.OCR_FAILED)
 
     async def fetch_url(self, request: JdUrlInput) -> JdInputResult:
         return JdInputResult(
@@ -62,7 +62,7 @@ class FakeOcrAdapter(JdInputPort):
         )
 
     async def fetch_url(self, request: JdUrlInput) -> JdInputResult:
-        raise JdInputError("not implemented", JdInputErrorCode.FETCH_FAILED)
+        raise JdInputError("not implemented", ErrorCode.FETCH_FAILED)
 
 
 def _app_with_fake_adapter(database_url: str) -> TestClient:

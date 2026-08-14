@@ -10,6 +10,7 @@ from minio import Minio
 from minio.commonconfig import CopySource
 from minio.error import MinioException
 
+from app.domain.base.exceptions import ErrorCode
 from app.ports.knowledge import ArtifactStorageError, StoredObject, StoredObjectInfo
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,8 @@ class MinioArtifactStorage:
                 or stored_digest != digest
             ):
                 raise ArtifactStorageError(
-                    "Object storage verification failed", error_code="artifact_storage_unavailable"
+                    "Object storage verification failed",
+                    error_code=ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE,
                 )
             await asyncio.to_thread(
                 self.client.copy_object,
@@ -69,11 +71,12 @@ class MinioArtifactStorage:
             ):
                 await asyncio.to_thread(self.client.remove_object, self.bucket, object_key)
                 raise ArtifactStorageError(
-                    "Object storage verification failed", error_code="artifact_storage_unavailable"
+                    "Object storage verification failed",
+                    error_code=ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE,
                 )
         except MinioException as exc:
             primary_error = ArtifactStorageError(
-                "Object storage write failed", error_code="artifact_storage_unavailable"
+                "Object storage write failed", error_code=ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE
             )
             raise primary_error from exc
         except Exception as exc:
@@ -107,7 +110,7 @@ class MinioArtifactStorage:
             )
         except MinioException as exc:
             raise ArtifactStorageError(
-                "Object storage read failed", error_code="artifact_storage_unavailable"
+                "Object storage read failed", error_code=ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE
             ) from exc
         finally:
             if response is not None:
@@ -120,7 +123,7 @@ class MinioArtifactStorage:
             await asyncio.to_thread(self.client.remove_object, self.bucket, object_key)
         except MinioException as exc:
             raise ArtifactStorageError(
-                "Object storage delete failed", error_code="artifact_storage_unavailable"
+                "Object storage delete failed", error_code=ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE
             ) from exc
 
     async def list(self) -> list[StoredObjectInfo]:
@@ -130,7 +133,7 @@ class MinioArtifactStorage:
             )
         except MinioException as exc:
             raise ArtifactStorageError(
-                "Object storage list failed", error_code="artifact_storage_unavailable"
+                "Object storage list failed", error_code=ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE
             ) from exc
         return [
             StoredObjectInfo(object_key=item.object_name, last_modified=item.last_modified)
@@ -140,7 +143,9 @@ class MinioArtifactStorage:
     @staticmethod
     def _validate_key(value: str) -> None:
         if not value or value.startswith("/") or ".." in value.split("/"):
-            raise ArtifactStorageError("Object key is invalid", error_code="invalid_object_key")
+            raise ArtifactStorageError(
+                "Object key is invalid", error_code=ErrorCode.INVALID_OBJECT_KEY
+            )
 
 
 def create_minio_storage(

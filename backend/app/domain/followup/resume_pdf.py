@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 from app.domain.followup.resume_variant import ResumeVariant, TemplateDefinition
 
 PDF_CONTENT_TYPE = "application/pdf"
@@ -60,7 +60,7 @@ class ResumePdf:
         if (variant.template_id, variant.template_version) != (template.id, template.version):
             raise DomainError(
                 "Resume PDF template does not match variant",
-                error_code="invalid_resume_pdf_input",
+                error_code=ErrorCode.INVALID_RESUME_PDF_INPUT,
             )
         renderer = _text(renderer_version, 100)
         fonts = _text(font_set_version, 100)
@@ -146,12 +146,12 @@ class ResumePdf:
             if any(value is None for value in artifact_values):
                 raise DomainError(
                     "Available Resume PDF requires an Artifact",
-                    error_code="invalid_resume_pdf_state",
+                    error_code=ErrorCode.INVALID_RESUME_PDF_STATE,
                 )
         elif any(value is not None for value in artifact_values):
             raise DomainError(
                 "Unavailable Resume PDF cannot expose an Artifact",
-                error_code="invalid_resume_pdf_state",
+                error_code=ErrorCode.INVALID_RESUME_PDF_STATE,
             )
         return cls(
             id=pdf_id,
@@ -182,7 +182,7 @@ class ResumePdf:
     def retry(self, now: datetime | None = None) -> "ResumePdf":
         if self.status not in {ResumePdfStatus.PENDING, ResumePdfStatus.FAILED}:
             raise DomainError(
-                "Resume PDF cannot be retried", error_code="resume_pdf_state_conflict"
+                "Resume PDF cannot be retried", error_code=ErrorCode.RESUME_PDF_STATE_CONFLICT
             )
         return replace(
             self,
@@ -205,7 +205,7 @@ class ResumePdf:
     ) -> "ResumePdf":
         if self.status is not ResumePdfStatus.PENDING:
             raise DomainError(
-                "Resume PDF cannot be published", error_code="resume_pdf_state_conflict"
+                "Resume PDF cannot be published", error_code=ErrorCode.RESUME_PDF_STATE_CONFLICT
             )
         return replace(
             self,
@@ -219,7 +219,9 @@ class ResumePdf:
 
     def fail(self, now: datetime | None = None) -> "ResumePdf":
         if self.status not in {ResumePdfStatus.PENDING, ResumePdfStatus.FAILED}:
-            raise DomainError("Resume PDF cannot fail", error_code="resume_pdf_state_conflict")
+            raise DomainError(
+                "Resume PDF cannot fail", error_code=ErrorCode.RESUME_PDF_STATE_CONFLICT
+            )
         return replace(
             self,
             status=ResumePdfStatus.FAILED,
@@ -234,27 +236,35 @@ class ResumePdf:
 def _text(value: str, maximum: int) -> str:
     normalized = " ".join(value.split())
     if not normalized or len(normalized) > maximum:
-        raise DomainError("Resume PDF text is invalid", error_code="invalid_resume_pdf_input")
+        raise DomainError(
+            "Resume PDF text is invalid", error_code=ErrorCode.INVALID_RESUME_PDF_INPUT
+        )
     return normalized
 
 
 def _positive(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise DomainError("Resume PDF version is invalid", error_code="invalid_resume_pdf_input")
+        raise DomainError(
+            "Resume PDF version is invalid", error_code=ErrorCode.INVALID_RESUME_PDF_INPUT
+        )
     return value
 
 
 def _sha256(value: str) -> str:
     normalized = value.strip().lower()
     if len(normalized) != 64 or any(char not in "0123456789abcdef" for char in normalized):
-        raise DomainError("Resume PDF hash is invalid", error_code="invalid_resume_pdf_input")
+        raise DomainError(
+            "Resume PDF hash is invalid", error_code=ErrorCode.INVALID_RESUME_PDF_INPUT
+        )
     return normalized
 
 
 def _utc(value: datetime | None) -> datetime:
     result = value or datetime.now(timezone.utc)
     if result.tzinfo is None or result.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return result.astimezone(timezone.utc)
 
 

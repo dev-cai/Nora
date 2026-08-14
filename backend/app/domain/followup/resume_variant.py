@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 MAX_VARIANT_TITLE_LENGTH = 200
 MAX_BLOCK_TEXT_LENGTH = 4_000
@@ -60,13 +60,15 @@ class TemplateDefinition:
         published_at: datetime,
     ) -> "TemplateDefinition":
         normalized_name = _text(name, 100)
-        sections = _unique_values(section_order, _ALLOWED_SECTIONS, "invalid_template_section")
+        sections = _unique_values(
+            section_order, _ALLOWED_SECTIONS, ErrorCode.INVALID_TEMPLATE_SECTION
+        )
         allowed = _unique_paths(allowed_fields)
         required = _unique_paths(required_fields)
         if any(not any(_matches(pattern, field) for pattern in allowed) for field in required):
             raise DomainError(
                 "Required template fields must be allowed",
-                error_code="invalid_template_field",
+                error_code=ErrorCode.INVALID_TEMPLATE_FIELD,
             )
         normalized_version = _positive(version)
         content = {
@@ -251,28 +253,29 @@ class ResumeVariant:
         )
         if not normalized_blocks or len(normalized_blocks) > 100:
             raise DomainError(
-                "Resume variant blocks are invalid", error_code="invalid_variant_blocks"
+                "Resume variant blocks are invalid", error_code=ErrorCode.INVALID_VARIANT_BLOCKS
             )
         paths = tuple(item.source_path for item in normalized_blocks)
         if len(paths) != len(set(paths)):
             raise DomainError(
-                "Resume variant fields must be unique", error_code="invalid_variant_blocks"
+                "Resume variant fields must be unique", error_code=ErrorCode.INVALID_VARIANT_BLOCKS
             )
         source_paths = _resume_leaf_paths(resume_content)
         if any(path not in source_paths for path in paths):
             raise DomainError(
-                "Resume variant field is unavailable", error_code="invalid_variant_field"
+                "Resume variant field is unavailable", error_code=ErrorCode.INVALID_VARIANT_FIELD
             )
         if any(not _template_allows(template, path) for path in paths):
             raise DomainError(
-                "Resume variant field is not allowed", error_code="invalid_variant_field"
+                "Resume variant field is not allowed", error_code=ErrorCode.INVALID_VARIANT_FIELD
             )
         if any(
             not any(_matches(required, path) for path in paths)
             for required in template.required_fields
         ):
             raise DomainError(
-                "Resume variant misses a required field", error_code="required_variant_field"
+                "Resume variant misses a required field",
+                error_code=ErrorCode.REQUIRED_VARIANT_FIELD,
             )
         normalized_job_version = _positive(job_posting_version)
         normalized_requirement_version = _positive(job_requirement_snapshot_version)
@@ -371,19 +374,23 @@ def _field_path(value: str, *, allow_wildcard: bool) -> str:
             for part in parts
         )
     ):
-        raise DomainError("Template field path is invalid", error_code="invalid_template_field")
+        raise DomainError(
+            "Template field path is invalid", error_code=ErrorCode.INVALID_TEMPLATE_FIELD
+        )
     return path
 
 
 def _unique_paths(values: tuple[str, ...]) -> tuple[str, ...]:
     paths = tuple(_field_path(value, allow_wildcard=True) for value in values)
     if not paths or len(paths) != len(set(paths)):
-        raise DomainError("Template fields are invalid", error_code="invalid_template_field")
+        raise DomainError(
+            "Template fields are invalid", error_code=ErrorCode.INVALID_TEMPLATE_FIELD
+        )
     return paths
 
 
 def _unique_values(
-    values: tuple[str, ...], allowed: frozenset[str], error_code: str
+    values: tuple[str, ...], allowed: frozenset[str], error_code: ErrorCode
 ) -> tuple[str, ...]:
     normalized = tuple(value.strip() for value in values)
     if not normalized or len(normalized) != len(set(normalized)) or not set(normalized) <= allowed:
@@ -393,23 +400,25 @@ def _unique_values(
 
 def _text(value: str, maximum: int) -> str:
     if not isinstance(value, str):
-        raise DomainError("Text value is invalid", error_code="invalid_variant_text")
+        raise DomainError("Text value is invalid", error_code=ErrorCode.INVALID_VARIANT_TEXT)
     normalized = " ".join(value.split())
     if not normalized or len(normalized) > maximum:
-        raise DomainError("Text value is invalid", error_code="invalid_variant_text")
+        raise DomainError("Text value is invalid", error_code=ErrorCode.INVALID_VARIANT_TEXT)
     return normalized
 
 
 def _positive(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise DomainError("Version must be positive", error_code="invalid_version")
+        raise DomainError("Version must be positive", error_code=ErrorCode.INVALID_VERSION)
     return value
 
 
 def _utc(value: datetime | None) -> datetime:
     result = value or datetime.now(timezone.utc)
     if result.tzinfo is None or result.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return result.astimezone(timezone.utc)
 
 
@@ -421,5 +430,7 @@ def _digest(value: object) -> str:
 def _sha256(value: str) -> str:
     normalized = value.strip().lower()
     if len(normalized) != 64 or any(char not in "0123456789abcdef" for char in normalized):
-        raise DomainError("Fingerprint is invalid", error_code="invalid_variant_fingerprint")
+        raise DomainError(
+            "Fingerprint is invalid", error_code=ErrorCode.INVALID_VARIANT_FINGERPRINT
+        )
     return normalized

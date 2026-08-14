@@ -15,6 +15,8 @@ from app.apps.api.dependencies.knowledge import (
     get_artifact_storage,
     get_source_document_repository,
 )
+from app.apps.api.errors import problem_responses
+from app.domain.base.exceptions import ApplicationError, ErrorCategory, ErrorCode
 from app.domain.identity import User
 from app.domain.knowledge import Artifact, ArtifactKind, ArtifactStatus, SourceDocument, SourceKind
 from app.ports.governance import AuditEventRepository
@@ -88,7 +90,16 @@ def _service(
     )
 
 
-@router.post("/artifacts", response_model=ArtifactResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/artifacts",
+    response_model=ArtifactResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=problem_responses(
+        ErrorCategory.PAYLOAD_TOO_LARGE,
+        ErrorCategory.UNSUPPORTED_MEDIA_TYPE,
+        categories=(),
+    ),
+)
 async def upload_artifact(
     request: Request,
     file: Annotated[UploadFile, File()],
@@ -199,9 +210,9 @@ async def _read_limited(file: UploadFile, max_size: int) -> bytes:
     while chunk := await file.read(min(64 * 1024, max_size + 1 - total)):
         total += len(chunk)
         if total > max_size:
-            from app.domain.base.exceptions import ApplicationError
-
-            raise ApplicationError("Artifact size is invalid", error_code="artifact_too_large")
+            raise ApplicationError(
+                "Artifact size is invalid", error_code=ErrorCode.ARTIFACT_TOO_LARGE
+            )
         chunks.append(chunk)
     return b"".join(chunks)
 

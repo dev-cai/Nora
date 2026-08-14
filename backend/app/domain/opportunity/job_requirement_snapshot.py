@@ -8,7 +8,7 @@ from hashlib import sha256
 from typing import Any, TypeVar
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 MAX_SKILL_NAME_LENGTH = 100
 MAX_SKILL_COUNT = 50
@@ -163,13 +163,15 @@ class JobRequirementSnapshot:
 def _utc_timestamp(value: datetime | None) -> datetime:
     timestamp = value or datetime.now(timezone.utc)
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return timestamp.astimezone(timezone.utc)
 
 
 def _positive_int(value: int, message: str) -> int:
     if not isinstance(value, int) or value < 1:
-        raise DomainError(message, error_code="invalid_version")
+        raise DomainError(message, error_code=ErrorCode.INVALID_VERSION)
     return value
 
 
@@ -178,7 +180,8 @@ def _canonical_content(content: dict[str, Any]) -> str:
         return json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
     except (TypeError, ValueError) as exc:
         raise DomainError(
-            "Requirement content must be JSON serializable", error_code="invalid_requirement"
+            "Requirement content must be JSON serializable",
+            error_code=ErrorCode.INVALID_REQUIREMENT,
         ) from exc
 
 
@@ -190,12 +193,14 @@ def _normalize_content(content: dict[str, Any]) -> dict[str, Any]:
     """校验五个字段的事实结构并返回规范化的内容字典。"""
 
     if not isinstance(content, dict):
-        raise DomainError("Requirement content must be an object", error_code="invalid_requirement")
+        raise DomainError(
+            "Requirement content must be an object", error_code=ErrorCode.INVALID_REQUIREMENT
+        )
     missing = [field for field in _REQUIRED_FIELDS if field not in content]
     if missing:
         raise DomainError(
             f"Requirement content is missing fields: {', '.join(missing)}",
-            error_code="invalid_requirement",
+            error_code=ErrorCode.INVALID_REQUIREMENT,
         )
 
     normalized: dict[str, Any] = {}
@@ -204,7 +209,7 @@ def _normalize_content(content: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(fact, dict):
             raise DomainError(
                 f"Requirement field {field} must be an object",
-                error_code="invalid_requirement_field",
+                error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
             )
         normalized[field] = _normalize_fact(field, fact)
     return normalized
@@ -214,23 +219,23 @@ def _normalize_fact(field: str, fact: dict[str, Any]) -> dict[str, Any]:
     status = _enum_or_error(
         RequirementConfirmationStatus,
         fact.get("confirmation_status"),
-        "invalid_confirmation_status",
+        ErrorCode.INVALID_CONFIRMATION_STATUS,
     )
     source_type = _enum_or_error(
         RequirementSourceType,
         fact.get("source_type"),
-        "invalid_source_type",
+        ErrorCode.INVALID_SOURCE_TYPE,
     )
     source_range = fact.get("source_range")
     if source_range is not None:
         if not isinstance(source_range, str) or not source_range.strip():
             raise DomainError(
-                "Source range must be a non-empty string", error_code="invalid_source_range"
+                "Source range must be a non-empty string", error_code=ErrorCode.INVALID_SOURCE_RANGE
             )
         if len(source_range) > MAX_SOURCE_RANGE_LENGTH:
             raise DomainError(
                 f"Source range cannot exceed {MAX_SOURCE_RANGE_LENGTH} characters",
-                error_code="invalid_source_range",
+                error_code=ErrorCode.INVALID_SOURCE_RANGE,
             )
         source_range = source_range.strip()
 
@@ -248,13 +253,13 @@ def _normalize_field_value(field: str, value: Any, status: RequirementConfirmati
         if value is not None and value != []:
             raise DomainError(
                 f"Unknown field {field} must not carry a value",
-                error_code="invalid_requirement_field",
+                error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
             )
         return None
     if value is None:
         raise DomainError(
             f"Field {field} requires a value when not unknown",
-            error_code="invalid_requirement_field",
+            error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
         )
 
     if field == "required_skills":
@@ -268,24 +273,26 @@ def _normalize_field_value(field: str, value: Any, status: RequirementConfirmati
 
 def _normalize_skills(value: Any) -> list[str]:
     if not isinstance(value, list):
-        raise DomainError("required_skills must be a list", error_code="invalid_requirement_field")
+        raise DomainError(
+            "required_skills must be a list", error_code=ErrorCode.INVALID_REQUIREMENT_FIELD
+        )
     if len(value) > MAX_SKILL_COUNT:
         raise DomainError(
             f"required_skills cannot exceed {MAX_SKILL_COUNT} items",
-            error_code="invalid_requirement_field",
+            error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
         )
     normalized: list[str] = []
     for item in value:
         if not isinstance(item, str) or not item.strip():
             raise DomainError(
                 "required_skills items must be non-empty strings",
-                error_code="invalid_requirement_field",
+                error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
             )
         collapsed = " ".join(item.split())
         if len(collapsed) > MAX_SKILL_NAME_LENGTH:
             raise DomainError(
                 f"Skill name cannot exceed {MAX_SKILL_NAME_LENGTH} characters",
-                error_code="invalid_requirement_field",
+                error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
             )
         normalized.append(collapsed)
     return normalized
@@ -295,7 +302,7 @@ def _normalize_experience_years(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise DomainError(
             "minimum_experience_years must be a non-negative integer",
-            error_code="invalid_requirement_field",
+            error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
         )
     return value
 
@@ -308,20 +315,20 @@ def _normalize_work_mode(value: Any) -> WorkMode:
     except (TypeError, ValueError) as exc:
         raise DomainError(
             "work_mode must be one of onsite, hybrid, remote or unknown",
-            error_code="invalid_requirement_field",
+            error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
         ) from exc
 
 
 def _normalize_text(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise DomainError(
-            f"{field} must be a non-empty string", error_code="invalid_requirement_field"
+            f"{field} must be a non-empty string", error_code=ErrorCode.INVALID_REQUIREMENT_FIELD
         )
     collapsed = " ".join(value.split())
     if len(collapsed) > MAX_TEXT_VALUE_LENGTH:
         raise DomainError(
             f"{field} cannot exceed {MAX_TEXT_VALUE_LENGTH} characters",
-            error_code="invalid_requirement_field",
+            error_code=ErrorCode.INVALID_REQUIREMENT_FIELD,
         )
     return collapsed
 
@@ -329,7 +336,7 @@ def _normalize_text(value: Any, field: str) -> str:
 _EnumT = TypeVar("_EnumT", bound=StrEnum)
 
 
-def _enum_or_error(enum_type: type[_EnumT], value: Any, error_code: str) -> _EnumT:
+def _enum_or_error(enum_type: type[_EnumT], value: Any, error_code: ErrorCode) -> _EnumT:
     try:
         return enum_type(value)
     except (TypeError, ValueError) as exc:

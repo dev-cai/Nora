@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 
 class CompanyAssessmentStatus(StrEnum):
@@ -52,13 +52,13 @@ class CompanyAssessment:
         if not generator or len(generator) > 100:
             raise DomainError(
                 "Company assessment generator is invalid",
-                error_code="invalid_generator_version",
+                error_code=ErrorCode.INVALID_GENERATOR_VERSION,
             )
         reason = " ".join(status_reason.split())
         if not reason or len(reason) > 200:
             raise DomainError(
                 "Company assessment status reason is invalid",
-                error_code="invalid_company_assessment_status",
+                error_code=ErrorCode.INVALID_COMPANY_ASSESSMENT_STATUS,
             )
         report_version_value = _positive(report_version)
         snapshot_version_value = _positive(company_snapshot_version)
@@ -94,12 +94,14 @@ class CompanyAssessment:
 
 def _positive(value: int) -> int:
     if isinstance(value, bool) or value < 1:
-        raise DomainError("Version must be positive", error_code="invalid_version")
+        raise DomainError("Version must be positive", error_code=ErrorCode.INVALID_VERSION)
     return value
 
 
 def _utc(value: datetime | None) -> datetime:
     result = value or datetime.now(timezone.utc)
     if result.tzinfo is None or result.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return result.astimezone(timezone.utc)

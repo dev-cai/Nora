@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.followup import (
     ApplicationDecisionStatus,
     ResumeVariant,
@@ -73,7 +73,9 @@ class ResumeVariantUseCases:
             or decision.owner_id != command.owner_id
             or decision.status is not ApplicationDecisionStatus.APPLY
         ):
-            raise ApplicationError("Apply decision not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Apply decision not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         decision_case = await self.cases.get_by_id(decision.decision_case_id)
         resume = await self.resumes.get_by_identity(
             decision.resume_version_id, decision.resume_version
@@ -88,7 +90,9 @@ class ResumeVariantUseCases:
             or resume.owner_id != command.owner_id
             or template is None
         ):
-            raise ApplicationError("Resume variant input not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Resume variant input not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         candidate = ResumeVariant.create(
             owner_id=command.owner_id,
             application_decision_id=decision.id,
@@ -117,7 +121,7 @@ class ResumeVariantUseCases:
             if existing is None:
                 raise InfrastructureError(
                     "Could not recover resume variant",
-                    error_code="resume_variant_persistence_failed",
+                    error_code=ErrorCode.RESUME_VARIANT_PERSISTENCE_FAILED,
                 ) from exc
             return _replay(existing, candidate)
         return CreateResumeVariantResult(variant=stored, replayed=False)
@@ -125,12 +129,14 @@ class ResumeVariantUseCases:
     async def get(self, owner_id: UUID, variant_id: UUID) -> ResumeVariant:
         variant = await self.variants.get_by_id(variant_id)
         if variant is None or variant.owner_id != owner_id:
-            raise ApplicationError("Resume variant not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Resume variant not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         return variant
 
     async def list(self, query: ListResumeVariantsQuery) -> ListResumeVariantsResult:
         if query.page < 1 or not 1 <= query.page_size <= 100:
-            raise ApplicationError("Pagination is invalid", error_code="invalid_pagination")
+            raise ApplicationError("Pagination is invalid", error_code=ErrorCode.INVALID_PAGINATION)
         return ListResumeVariantsResult(
             items=tuple(
                 await self.variants.list(
@@ -147,6 +153,6 @@ def _replay(existing: ResumeVariant, candidate: ResumeVariant) -> CreateResumeVa
     if existing.content_fingerprint != candidate.content_fingerprint:
         raise ApplicationError(
             "Idempotency key was already used with different content",
-            error_code="idempotency_conflict",
+            error_code=ErrorCode.IDEMPOTENCY_CONFLICT,
         )
     return CreateResumeVariantResult(variant=existing, replayed=True)

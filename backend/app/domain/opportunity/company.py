@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 
 class CompanyFieldStatus(StrEnum):
@@ -65,11 +65,15 @@ class CompanySourceReference:
         license_value = _text(license_note, 500, required=True) or ""
         digest = content_sha256.strip().lower()
         if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
-            raise DomainError("Source SHA-256 is invalid", error_code="invalid_source_sha256")
+            raise DomainError(
+                "Source SHA-256 is invalid", error_code=ErrorCode.INVALID_SOURCE_SHA256
+            )
         acquired = _utc(acquired_at)
         published = _utc(published_at) if published_at else None
         if published is not None and published > acquired:
-            raise DomainError("Published time is after acquisition", error_code="invalid_timestamp")
+            raise DomainError(
+                "Published time is after acquisition", error_code=ErrorCode.INVALID_TIMESTAMP
+            )
         return cls(
             source_id=source_id,
             source_version=_positive(source_version),
@@ -222,7 +226,7 @@ class CompanySnapshot:
         if freshness is Freshness.STALE and CompanyFieldStatus.CONFIRMED in statuses:
             raise DomainError(
                 "Stale company data cannot be a confirmed current fact",
-                error_code="invalid_company_fact_status",
+                error_code=ErrorCode.INVALID_COMPANY_FACT_STATUS,
             )
         if (
             source.source_tier is CompanySourceTier.ANONYMOUS_PLATFORM
@@ -230,7 +234,7 @@ class CompanySnapshot:
         ):
             raise DomainError(
                 "Anonymous sources cannot provide confirmed facts",
-                error_code="invalid_company_fact_status",
+                error_code=ErrorCode.INVALID_COMPANY_FACT_STATUS,
             )
         content = {
             "company_name": name,
@@ -269,7 +273,8 @@ class CompanySnapshot:
 def _validate_field(value: str | None, status: CompanyFieldStatus) -> None:
     if (value is None) != (status is CompanyFieldStatus.UNKNOWN):
         raise DomainError(
-            "Company field value and status conflict", error_code="invalid_company_fact_status"
+            "Company field value and status conflict",
+            error_code=ErrorCode.INVALID_COMPANY_FACT_STATUS,
         )
 
 
@@ -287,18 +292,20 @@ def _freshness(acquired_at: datetime, published_at: datetime | None) -> Freshnes
 def _text(value: str | None, maximum: int, *, required: bool = False) -> str | None:
     normalized = " ".join(value.split()) if value is not None else None
     if (required and not normalized) or (normalized is not None and len(normalized) > maximum):
-        raise DomainError("Company text is invalid", error_code="invalid_company_text")
+        raise DomainError("Company text is invalid", error_code=ErrorCode.INVALID_COMPANY_TEXT)
     return normalized or None
 
 
 def _positive(value: int) -> int:
     if isinstance(value, bool) or value < 1:
-        raise DomainError("Version must be positive", error_code="invalid_version")
+        raise DomainError("Version must be positive", error_code=ErrorCode.INVALID_VERSION)
     return value
 
 
 def _utc(value: datetime | None) -> datetime:
     result = value or datetime.now(timezone.utc)
     if result.tzinfo is None or result.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return result.astimezone(timezone.utc)

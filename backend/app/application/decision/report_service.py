@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.career import CandidateProfile
 from app.domain.decision import DecisionCase, DecisionReport, evaluate_decision_rules
 from app.domain.opportunity import JobRequirementSnapshot
@@ -37,7 +37,7 @@ class GenerateDecisionReportUseCase:
         requirements: JobRequirementSnapshot,
     ) -> GenerateDecisionReportResult:
         if decision_case.owner_id != command.owner_id:
-            raise ApplicationError("Decision case not found", error_code="entity_not_found")
+            raise ApplicationError("Decision case not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         generator_version = DecisionReport.normalize_generator_version(command.generator_version)
         existing = await self.repository.get_by_generation(
             decision_case.id,

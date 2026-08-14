@@ -9,10 +9,20 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.apps.api.errors import (
+    HTTP_STATUS_BY_CATEGORY,
+    ApiProblem,
+    database_problem,
+    internal_problem,
+    problem_from_error,
+    problem_responses,
+    validation_problem,
+)
 from app.apps.api.routes.artifacts import router as artifacts_router
 from app.apps.api.routes.auth import router as auth_router
 from app.apps.api.routes.companies import router as companies_router
@@ -25,7 +35,7 @@ from app.apps.api.routes.profile import router as profile_router
 from app.apps.api.routes.resume_pdfs import router as resume_pdfs_router
 from app.apps.api.routes.resume_variants import template_router, variant_router
 from app.apps.api.routes.resumes import router as resumes_router
-from app.domain.base.exceptions import NoraError
+from app.domain.base.exceptions import ErrorCategory, ErrorCode, NoraError
 from app.infrastructure.config import Settings, get_settings
 from app.infrastructure.database import create_database_engine, create_session_factory
 from app.infrastructure.logging import (
@@ -69,20 +79,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await _app.state.database_engine.dispose()
 
     app = FastAPI(title="Nora API", lifespan=lifespan)
-    app.include_router(auth_router)
-    app.include_router(artifacts_router)
-    app.include_router(companies_router)
-    app.include_router(decision_router)
-    app.include_router(report_router)
-    app.include_router(job_inputs_router)
-    app.include_router(job_postings_router)
-    app.include_router(job_requirements_router)
-    app.include_router(message_drafts_router)
-    app.include_router(profile_router)
-    app.include_router(resumes_router)
-    app.include_router(resume_pdfs_router)
-    app.include_router(template_router)
-    app.include_router(variant_router)
+    common_responses = problem_responses()
+    app.include_router(auth_router, responses=common_responses)
+    app.include_router(artifacts_router, responses=common_responses)
+    app.include_router(companies_router, responses=common_responses)
+    app.include_router(decision_router, responses=common_responses)
+    app.include_router(report_router, responses=common_responses)
+    app.include_router(
+        job_inputs_router,
+        responses=problem_responses(
+            ErrorCategory.UPSTREAM_FAILURE,
+            ErrorCategory.UPSTREAM_TIMEOUT,
+        ),
+    )
+    app.include_router(job_postings_router, responses=common_responses)
+    app.include_router(job_requirements_router, responses=common_responses)
+    app.include_router(message_drafts_router, responses=common_responses)
+    app.include_router(profile_router, responses=common_responses)
+    app.include_router(resumes_router, responses=common_responses)
+    app.include_router(resume_pdfs_router, responses=common_responses)
+    app.include_router(template_router, responses=common_responses)
+    app.include_router(variant_router, responses=common_responses)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -101,13 +118,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             request_id = str(uuid4())
             return JSONResponse(
                 status_code=400,
-                content={
-                    "error_code": "invalid_correlation_id",
-                    "message": (
+                content=ApiProblem(
+                    error_code=ErrorCode.INVALID_CORRELATION_ID,
+                    error_category=ErrorCategory.INVALID_INPUT,
+                    message=(
                         "X-Request-ID must be 1-128 characters using ASCII letters, "
                         "digits, '.', '_' or '-'"
                     ),
-                },
+                ).model_dump(mode="json"),
                 headers={"X-Request-ID": request_id},
             )
 
@@ -121,55 +139,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     @app.exception_handler(NoraError)
-    async def nora_error_handler(_request: Request, exc: NoraError) -> JSONResponse:
-        status_code = {
-            "authentication_failed": 401,
-            "username_conflict": 409,
-            "email_conflict": 409,
-            "idempotency_conflict": 409,
-            "entity_not_found": 404,
-            "database_unavailable": 503,
-            "identity_persistence_failed": 503,
-            "job_posting_persistence_failed": 503,
-            "profile_version_conflict": 409,
-            "resume_version_conflict": 409,
-            "job_requirement_version_conflict": 409,
-            "decision_case_conflict": 409,
-            "decision_input_conflict": 409,
-            "decision_report_generation_conflict": 409,
-            "decision_report_version_conflict": 409,
-            "application_decision_conflict": 409,
-            "application_decision_key_taken": 409,
-            "application_decision_persistence_failed": 503,
-            "resume_variant_key_taken": 409,
-            "resume_variant_persistence_failed": 503,
-            "resume_pdf_conflict": 409,
-            "resume_pdf_persistence_failed": 503,
-            "message_draft_conflict": 409,
-            "message_draft_version_conflict": 409,
-            "message_draft_input_unavailable": 503,
-            "pdf_render_failed": 503,
-            "pdf_generation_failed": 503,
-            "company_snapshot_version_conflict": 409,
-            "company_assessment_conflict": 409,
-            "company_assessment_unavailable": 503,
-            "unsupported_rule_set_version": 409,
-            "decision_input_unavailable": 503,
-            "decision_persistence_failed": 503,
-            "fetch_failed": 502,
-            "ocr_failed": 502,
-            "fetch_timeout": 504,
-            "artifact_conflict": 409,
-            "source_conflict": 409,
-            "artifact_state_conflict": 409,
-            "artifact_storage_unavailable": 503,
-            "artifact_delete_failed": 503,
-            "artifact_corrupt": 503,
-            "artifact_too_large": 413,
-            "unsupported_artifact_type": 415,
-        }.get(exc.error_code, 400)
-        headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
-        return JSONResponse(status_code=status_code, content=exc.to_dict(), headers=headers)
+    async def nora_error_handler(request: Request, exc: NoraError) -> JSONResponse:
+        problem = problem_from_error(exc)
+        status_code = HTTP_STATUS_BY_CATEGORY[problem.error_category]
+        if problem.error_category is ErrorCategory.INTERNAL:
+            get_logger("nora.api").error(
+                "Internal Nora error reached API boundary",
+                error_code=exc.error_code,
+                request_id=getattr(request.state, "request_id", None),
+            )
+        headers = (
+            {"WWW-Authenticate": "Bearer"}
+            if problem.error_category is ErrorCategory.AUTHENTICATION
+            else None
+        )
+        return JSONResponse(
+            status_code=status_code,
+            content=problem.model_dump(mode="json"),
+            headers=headers,
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error_handler(
+        _request: Request, _exc: RequestValidationError
+    ) -> JSONResponse:
+        problem = validation_problem()
+        return JSONResponse(
+            status_code=HTTP_STATUS_BY_CATEGORY[problem.error_category],
+            content=problem.model_dump(mode="json"),
+        )
 
     @app.exception_handler(SQLAlchemyError)
     async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
@@ -178,12 +176,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             error_type=type(exc).__name__,
             request_id=getattr(request.state, "request_id", None),
         )
+        problem = database_problem()
         return JSONResponse(
-            status_code=503,
-            content={
-                "error_code": "database_unavailable",
-                "message": "Database is unavailable",
-            },
+            status_code=HTTP_STATUS_BY_CATEGORY[problem.error_category],
+            content=problem.model_dump(mode="json"),
         )
 
     @app.exception_handler(Exception)
@@ -194,9 +190,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             get_logger("nora.api").exception("Unhandled API exception", exc_info=exc)
         finally:
             clear_log_context()
+        problem = internal_problem()
         return JSONResponse(
-            status_code=500,
-            content={"error_code": "internal_error", "message": "Internal server error"},
+            status_code=HTTP_STATUS_BY_CATEGORY[problem.error_category],
+            content=problem.model_dump(mode="json"),
             headers={"X-Request-ID": request_id},
         )
 

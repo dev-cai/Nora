@@ -20,6 +20,7 @@ from app.apps.api.dependencies.followup import (
     get_resume_variant_repository,
     get_template_definition_repository,
 )
+from app.domain.base.exceptions import ApplicationError, ErrorCode
 from app.domain.followup import ResumeVariant, TemplateDefinition, VariantBlock
 from app.domain.identity import User
 from app.ports.career import ResumeVersionRepository
@@ -165,11 +166,9 @@ async def get_template(
     _user: User = Depends(get_current_user),
     repository: TemplateDefinitionRepository = Depends(get_template_definition_repository),
 ) -> TemplateDefinitionResponse:
-    from app.domain.base.exceptions import ApplicationError
-
     template = await repository.get_by_identity(template_id, version)
     if template is None:
-        raise ApplicationError("Template not found", error_code="entity_not_found")
+        raise ApplicationError("Template not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
     return TemplateDefinitionResponse.from_domain(template)
 
 

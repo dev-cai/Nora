@@ -14,10 +14,10 @@ from typing import Protocol
 import httpx
 from PIL import Image
 
+from app.domain.base.exceptions import ErrorCode
 from app.ports.jd_input import (
     JdImageInput,
     JdInputError,
-    JdInputErrorCode,
     JdInputKind,
     JdInputPort,
     JdInputResult,
@@ -59,7 +59,7 @@ class BaiduOcrEngine:
         if not self._api_key or not self._secret_key:
             raise JdInputError(
                 "Baidu OCR credentials are not configured",
-                JdInputErrorCode.OCR_FAILED,
+                ErrorCode.OCR_FAILED,
             )
         access_token = _access_token(self._api_key, self._secret_key, self._transport)
         image_b64 = base64.b64encode(_image_to_bytes(image)).decode("ascii")
@@ -73,7 +73,7 @@ class BaiduOcrEngine:
         if "error_code" in payload:
             raise JdInputError(
                 f"Baidu OCR failed: {payload.get('error_msg', 'unknown error')}",
-                JdInputErrorCode.OCR_FAILED,
+                ErrorCode.OCR_FAILED,
             )
         words = [
             item["words"]
@@ -92,7 +92,7 @@ class JdOcrAdapter(JdInputPort):
     async def fetch_url(self, request: JdUrlInput) -> JdInputResult:
         raise JdInputError(
             "URL fetch is not implemented by this adapter",
-            JdInputErrorCode.FETCH_FAILED,
+            ErrorCode.FETCH_FAILED,
         )
 
     async def extract_image(self, request: JdImageInput) -> JdInputResult:
@@ -107,12 +107,12 @@ def _decode_image(request: JdImageInput) -> Image.Image:
         image = Image.open(io.BytesIO(request.content))
         image.load()
     except Exception as exc:
-        raise JdInputError("JD image could not be decoded", JdInputErrorCode.DECODE_FAILED) from exc
+        raise JdInputError("JD image could not be decoded", ErrorCode.DECODE_FAILED) from exc
     width, height = image.size
     if width > MAX_DIMENSION or height > MAX_DIMENSION:
         raise JdInputError(
             "JD image dimensions exceed the decode limit",
-            JdInputErrorCode.UNSUPPORTED_IMAGE,
+            ErrorCode.UNSUPPORTED_IMAGE,
         )
     return image.convert("RGB")
 
@@ -143,7 +143,7 @@ def _access_token(api_key: str, secret_key: str, transport: httpx.BaseTransport 
     if not token:
         raise JdInputError(
             "Baidu OCR token request failed",
-            JdInputErrorCode.OCR_FAILED,
+            ErrorCode.OCR_FAILED,
         )
     expires_in = int(payload.get("expires_in", 2_592_000))
     _TOKEN_CACHE[cache_key] = (token, now + expires_in - 300)

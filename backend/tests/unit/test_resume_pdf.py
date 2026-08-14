@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 import pytest
 from app.application.followup import GenerateResumePdfCommand, ResumePdfService
 from app.application.knowledge import ArtifactDownload
-from app.domain.base.exceptions import ApplicationError
+from app.domain.base.exceptions import ApplicationError, ErrorCode
 from app.domain.followup import (
     ResumePdf,
     ResumePdfStatus,
@@ -96,7 +96,8 @@ class MemoryArtifactService:
         if self.failures:
             self.failures -= 1
             raise ApplicationError(
-                "Artifact storage is unavailable", error_code="artifact_storage_unavailable"
+                "Artifact storage is unavailable",
+                error_code=ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE,
             )
         existing_id = self.by_key.get(command.idempotency_key)
         if existing_id is not None:
@@ -120,7 +121,7 @@ class MemoryArtifactService:
     async def download(self, owner_id: UUID, artifact_id: UUID) -> ArtifactDownload:
         artifact, data = self.artifacts[artifact_id]
         if artifact.owner_id != owner_id:
-            raise ApplicationError("Artifact not found", error_code="entity_not_found")
+            raise ApplicationError("Artifact not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         return ArtifactDownload(artifact=artifact, data=data)
 
 

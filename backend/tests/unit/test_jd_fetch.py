@@ -2,10 +2,10 @@
 
 import httpx
 import pytest
+from app.domain.base.exceptions import ErrorCode
 from app.infrastructure.jd_fetch import JdFetchAdapter, _resolve_and_verify
 from app.ports.jd_input import (
     JdInputError,
-    JdInputErrorCode,
     JdInputKind,
     JdUrlFetchPolicy,
     JdUrlInput,
@@ -28,7 +28,7 @@ async def test_resolve_and_verify_rejects_private_address() -> None:
     policy = JdUrlFetchPolicy()
     with pytest.raises(JdInputError) as error:
         await _resolve_and_verify(_resolver("127.0.0.1"), policy, "jobs.example.com", 443)
-    assert error.value.error_code == JdInputErrorCode.UNSAFE_URL
+    assert error.value.error_code == ErrorCode.UNSAFE_URL
 
 
 @pytest.mark.asyncio
@@ -38,7 +38,7 @@ async def test_resolve_and_verify_rejects_if_any_private_address() -> None:
         await _resolve_and_verify(
             _resolver("93.184.216.34", "10.0.0.1"), policy, "jobs.example.com", 443
         )
-    assert error.value.error_code == JdInputErrorCode.UNSAFE_URL
+    assert error.value.error_code == ErrorCode.UNSAFE_URL
 
 
 @pytest.mark.asyncio
@@ -53,7 +53,7 @@ async def test_resolve_and_verify_empty_resolution_fails() -> None:
     policy = JdUrlFetchPolicy()
     with pytest.raises(JdInputError) as error:
         await _resolve_and_verify(_resolver(), policy, "jobs.example.com", 443)
-    assert error.value.error_code == JdInputErrorCode.FETCH_FAILED
+    assert error.value.error_code == ErrorCode.FETCH_FAILED
 
 
 @pytest.mark.asyncio
@@ -118,7 +118,7 @@ async def test_fetch_rejects_too_many_redirects() -> None:
 
     with pytest.raises(JdInputError) as error:
         await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/a"))
-    assert error.value.error_code == JdInputErrorCode.TOO_MANY_REDIRECTS
+    assert error.value.error_code == ErrorCode.TOO_MANY_REDIRECTS
 
 
 @pytest.mark.asyncio
@@ -134,7 +134,7 @@ async def test_fetch_rejects_redirect_to_fragment() -> None:
 
     with pytest.raises(JdInputError) as error:
         await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/start"))
-    assert error.value.error_code == JdInputErrorCode.INVALID_URL
+    assert error.value.error_code == ErrorCode.INVALID_URL
 
 
 @pytest.mark.asyncio
@@ -146,7 +146,7 @@ async def test_fetch_rejects_redirect_to_private_host() -> None:
 
     with pytest.raises(JdInputError) as error:
         await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/start"))
-    assert error.value.error_code == JdInputErrorCode.UNSAFE_URL
+    assert error.value.error_code == ErrorCode.UNSAFE_URL
 
 
 @pytest.mark.asyncio
@@ -158,7 +158,7 @@ async def test_fetch_rejects_oversized_response() -> None:
     adapter = JdFetchAdapter(transport=httpx.MockTransport(handler))
     with pytest.raises(JdInputError) as error:
         await adapter.fetch_url(JdUrlInput("https://jobs.example.com/x", policy=policy))
-    assert error.value.error_code == JdInputErrorCode.RESPONSE_TOO_LARGE
+    assert error.value.error_code == ErrorCode.RESPONSE_TOO_LARGE
 
 
 @pytest.mark.asyncio
@@ -170,4 +170,4 @@ async def test_fetch_rejects_unsupported_content_type() -> None:
 
     with pytest.raises(JdInputError) as error:
         await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/resume.pdf"))
-    assert error.value.error_code == JdInputErrorCode.FETCH_FAILED
+    assert error.value.error_code == ErrorCode.FETCH_FAILED

@@ -974,8 +974,9 @@ Adapter 统一转换为新增 `validation_error/request_validation/422`，替代
 
 #### 当前错误码兼容清单
 
-以下清单以 `main@c25bb08` 的异常构造、动态 helper 参数、JD Input 枚举和 API handler 为证据，共覆盖 143 个现存候选 code；除明确的
-内部 fail-closed 项外，迁移不改字符串值和当前 HTTP status。每个分组就是目标 category 注册表，实施测试必须断言
+以下清单是 D-018 在 `main@c25bb08` 的初始盘点，共覆盖 143 个既有 code；Current 注册表保留全部字符串值，并增加
+`validation_error` 形成 144-code 闭集。除明确的内部 fail-closed 项外，实施不改既有公开 HTTP status。每个分组就是稳定 category 注册表，
+契约测试必须断言
 `set(ErrorCode) == set(ERROR_CATEGORY_BY_CODE)`，并扫描拒绝新的 `error_code="..."`：
 
 - `authentication`：`authentication_failed`。
@@ -1023,12 +1024,12 @@ Adapter 统一转换为新增 `validation_error/request_validation/422`，替代
 `http_error` 不是服务端响应，保留为手写 `TransportErrorCode`，不得加入后端 `ErrorCode` 或 OpenAPI；UI 可用生成的 code 做精确文案，
 再按生成的 category、HTTP status 和 transport code 依次回退。
 
-#### 实施、测试与回滚
+#### Current 实施、测试与回滚
 
-实施依赖 #202 的 D-017 生成与 drift Gate，随后在一个原子纵向切片中：建立完整 enum/注册表与 `ApiProblem`，机械迁移全部构造点，
+Current 实现基于 #202 的 D-017 生成与 drift Gate，已在一个原子纵向切片中建立完整 enum/注册表与 `ApiProblem`，迁移全部构造点，
 集中 category-to-status handler，声明 OpenAPI error responses，重新生成 TypeScript，并删除逐 code HTTP 字典、`JdInputErrorCode` 和前端
-后端镜像类型。禁止用长期 `str | ErrorCode`、未知 code fallback 或新旧 handler 双轨分批容忍遗漏；一个 PR 内通过静态检查和完整测试
-完成切换。回滚整体回退该切片与 generated diff，不保留 feature flag 或双响应结构。
+后端镜像类型。生产扫描拒绝 `error_code="..."`，异常构造运行时也拒绝非 `ErrorCode`；没有 `str | ErrorCode`、未知 code fallback、
+新旧 handler、feature flag 或双响应结构。回滚整体回退该切片与 generated diff，不保留兼容轨道。
 
 测试矩阵至少覆盖：注册表全集相等与 category/status 全分支；Domain/Application 不导入 HTTP；认证 401 与 header、owner 隐藏 404、
 冲突 409、上传 413/415、请求验证 422、上游 502/504、基础设施 503、内部 500 脱敏；全部既有 code 字符串；OpenAPI 两个 enum 与每类

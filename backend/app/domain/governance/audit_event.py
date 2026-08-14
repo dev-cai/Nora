@@ -6,7 +6,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 MAX_AUDIT_SUMMARY_LENGTH = 2_000
 MAX_TARGET_TYPE_LENGTH = 100
@@ -54,20 +54,22 @@ class AuditEvent:
         """规范化审计摘要并创建 UTC 事件。"""
 
         if not isinstance(action, AuditAction):
-            raise DomainError("Audit action is invalid", error_code="invalid_audit_action")
+            raise DomainError("Audit action is invalid", error_code=ErrorCode.INVALID_AUDIT_ACTION)
         normalized_target_type = _normalize_required_text(
             target_type,
             max_length=MAX_TARGET_TYPE_LENGTH,
-            error_code="invalid_audit_target_type",
+            error_code=ErrorCode.INVALID_AUDIT_TARGET_TYPE,
         )
         normalized_key = _normalize_optional_text(
             idempotency_key,
             max_length=MAX_IDEMPOTENCY_KEY_LENGTH,
-            error_code="invalid_audit_idempotency_key",
+            error_code=ErrorCode.INVALID_AUDIT_IDEMPOTENCY_KEY,
         )
         timestamp = now or datetime.now(timezone.utc)
         if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-            raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+            raise DomainError(
+                "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+            )
         if (
             isinstance(target_version, bool)
             or not isinstance(target_version, int)
@@ -75,7 +77,7 @@ class AuditEvent:
         ):
             raise DomainError(
                 "Target version must be a positive integer",
-                error_code="invalid_audit_target_version",
+                error_code=ErrorCode.INVALID_AUDIT_TARGET_VERSION,
             )
 
         return cls(
@@ -88,12 +90,12 @@ class AuditEvent:
             before_summary=_normalize_optional_text(
                 before_summary,
                 max_length=MAX_AUDIT_SUMMARY_LENGTH,
-                error_code="invalid_audit_summary",
+                error_code=ErrorCode.INVALID_AUDIT_SUMMARY,
             ),
             after_summary=_normalize_optional_text(
                 after_summary,
                 max_length=MAX_AUDIT_SUMMARY_LENGTH,
-                error_code="invalid_audit_summary",
+                error_code=ErrorCode.INVALID_AUDIT_SUMMARY,
             ),
             occurred_at=timestamp.astimezone(timezone.utc),
             idempotency_key=normalized_key,
@@ -116,7 +118,7 @@ class AuditEvent:
         }
 
 
-def _normalize_required_text(value: str, *, max_length: int, error_code: str) -> str:
+def _normalize_required_text(value: str, *, max_length: int, error_code: ErrorCode) -> str:
     normalized = " ".join(value.split())
     if not normalized or len(normalized) > max_length:
         raise DomainError("Audit text is invalid", error_code=error_code)
@@ -127,7 +129,7 @@ def _normalize_optional_text(
     value: str | None,
     *,
     max_length: int,
-    error_code: str,
+    error_code: ErrorCode,
 ) -> str | None:
     if value is None:
         return None

@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.followup import ApplicationDecision, ApplicationDecisionStatus
 from app.domain.governance import AuditAction, AuditEvent
 from app.ports.decision import DecisionCaseRepository, DecisionReportRepository
@@ -55,10 +55,12 @@ class CreateApplicationDecisionUseCase:
     ) -> CreateApplicationDecisionResult:
         report = await self.report_repository.get_by_id(command.report_id)
         if report is None or report.owner_id != command.owner_id:
-            raise ApplicationError("Decision report not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         decision_case = await self.case_repository.get_by_id(report.decision_case_id)
         if decision_case is None or decision_case.owner_id != command.owner_id:
-            raise ApplicationError("Decision case not found", error_code="entity_not_found")
+            raise ApplicationError("Decision case not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
 
         candidate = ApplicationDecision.create(
             owner_id=command.owner_id,
@@ -110,7 +112,7 @@ class CreateApplicationDecisionUseCase:
                 return _resolve_report_decision(existing_for_report, candidate)
             raise InfrastructureError(
                 "Could not recover application decision",
-                error_code="application_decision_persistence_failed",
+                error_code=ErrorCode.APPLICATION_DECISION_PERSISTENCE_FAILED,
             ) from exc
         except Exception:
             await self.transaction.rollback()
@@ -130,7 +132,9 @@ class GetApplicationDecisionUseCase:
     async def execute(self, query: GetApplicationDecisionQuery) -> ApplicationDecision | None:
         report = await self.report_repository.get_by_id(query.report_id)
         if report is None or report.owner_id != query.owner_id:
-            raise ApplicationError("Decision report not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         return await self.repository.get_by_report_id(query.report_id)
 
 
@@ -140,7 +144,7 @@ def _resolve_replay(
     if not existing.has_same_request(candidate):
         raise ApplicationError(
             "Idempotency key was already used with different content",
-            error_code="idempotency_conflict",
+            error_code=ErrorCode.IDEMPOTENCY_CONFLICT,
         )
     return CreateApplicationDecisionResult(decision=existing, replayed=True)
 
@@ -152,7 +156,7 @@ def _resolve_report_decision(
         return CreateApplicationDecisionResult(decision=existing, replayed=True)
     raise ApplicationError(
         "The report already has a different decision",
-        error_code="application_decision_conflict",
+        error_code=ErrorCode.APPLICATION_DECISION_CONFLICT,
     )
 
 

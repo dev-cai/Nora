@@ -5,7 +5,7 @@ from html import escape
 from importlib.metadata import version
 from typing import NoReturn
 
-from app.domain.base.exceptions import InfrastructureError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.domain.followup import ResumeVariant, TemplateDefinition
 from app.ports.followup import RenderedPdf
 
@@ -35,7 +35,7 @@ class WeasyPrintResumePdfRenderer:
     ) -> RenderedPdf:
         if (variant.template_id, variant.template_version) != (template.id, template.version):
             raise InfrastructureError(
-                "Resume PDF template mismatch", error_code="pdf_render_failed"
+                "Resume PDF template mismatch", error_code=ErrorCode.PDF_RENDER_FAILED
             )
         try:
             os.environ["SOURCE_DATE_EPOCH"] = SOURCE_DATE_EPOCH
@@ -55,11 +55,11 @@ class WeasyPrintResumePdfRenderer:
             )
         except Exception as exc:
             raise InfrastructureError(
-                "Resume PDF rendering failed", error_code="pdf_render_failed"
+                "Resume PDF rendering failed", error_code=ErrorCode.PDF_RENDER_FAILED
             ) from exc
         if not output.startswith(b"%PDF-") or len(output) < 100:
             raise InfrastructureError(
-                "Resume PDF output is invalid", error_code="pdf_render_failed"
+                "Resume PDF output is invalid", error_code=ErrorCode.PDF_RENDER_FAILED
             )
         return RenderedPdf(data=output)
 

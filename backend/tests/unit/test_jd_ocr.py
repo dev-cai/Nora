@@ -5,11 +5,11 @@ import io
 import app.infrastructure.jd_ocr as jd_ocr_module
 import httpx
 import pytest
+from app.domain.base.exceptions import ErrorCode
 from app.infrastructure.jd_ocr import BaiduOcrEngine, JdOcrAdapter
 from app.ports.jd_input import (
     JdImageInput,
     JdInputError,
-    JdInputErrorCode,
     JdInputKind,
 )
 from PIL import Image
@@ -44,7 +44,7 @@ async def test_extract_image_rejects_undecodable_content() -> None:
     adapter = JdOcrAdapter(engine=FakeEngine("ignored"))
     with pytest.raises(JdInputError) as error:
         await adapter.extract_image(JdImageInput(content=content, media_type="image/png"))
-    assert error.value.error_code == JdInputErrorCode.DECODE_FAILED
+    assert error.value.error_code == ErrorCode.DECODE_FAILED
 
 
 @pytest.mark.asyncio
@@ -53,7 +53,7 @@ async def test_extract_image_rejects_oversized_dimensions(monkeypatch) -> None:
     adapter = JdOcrAdapter(engine=FakeEngine("ignored"))
     with pytest.raises(JdInputError) as error:
         await adapter.extract_image(JdImageInput(content=_png_bytes(), media_type="image/png"))
-    assert error.value.error_code == JdInputErrorCode.UNSUPPORTED_IMAGE
+    assert error.value.error_code == ErrorCode.UNSUPPORTED_IMAGE
 
 
 @pytest.mark.asyncio
@@ -61,7 +61,7 @@ async def test_extract_image_empty_text_raises_empty_content() -> None:
     adapter = JdOcrAdapter(engine=FakeEngine("   \n  "))
     with pytest.raises(JdInputError) as error:
         await adapter.extract_image(JdImageInput(content=_png_bytes(), media_type="image/png"))
-    assert error.value.error_code == JdInputErrorCode.EMPTY_CONTENT
+    assert error.value.error_code == ErrorCode.EMPTY_CONTENT
 
 
 def _baidu_transport(words_result: list[dict[str, object]] | None = None):
@@ -92,7 +92,7 @@ def test_baidu_engine_missing_credentials() -> None:
     engine = BaiduOcrEngine(transport=_baidu_transport())
     with pytest.raises(JdInputError) as error:
         engine.extract_text(Image.new("RGB", (10, 10), "white"))
-    assert error.value.error_code == JdInputErrorCode.OCR_FAILED
+    assert error.value.error_code == ErrorCode.OCR_FAILED
 
 
 def test_baidu_engine_maps_upstream_error() -> None:
@@ -104,4 +104,4 @@ def test_baidu_engine_maps_upstream_error() -> None:
     engine = BaiduOcrEngine(api_key="a", secret_key="b", transport=httpx.MockTransport(handler))
     with pytest.raises(JdInputError) as error:
         engine.extract_text(Image.new("RGB", (10, 10), "white"))
-    assert error.value.error_code == JdInputErrorCode.OCR_FAILED
+    assert error.value.error_code == ErrorCode.OCR_FAILED

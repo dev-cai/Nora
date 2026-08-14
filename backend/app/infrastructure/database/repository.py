@@ -10,7 +10,7 @@ from sqlalchemy import update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.inspection import inspect
 
-from app.domain.base.exceptions import InfrastructureError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.ports.repository import Repository
 
 T = TypeVar("T")
@@ -63,7 +63,7 @@ class SqlAlchemyRepository(Repository[T], Generic[T]):
         state = cast(Any, inspect(dynamic_entity))
         if not state.identity:
             raise InfrastructureError(
-                "Cannot update a transient entity", error_code="entity_not_persisted"
+                "Cannot update a transient entity", error_code=ErrorCode.ENTITY_NOT_PERSISTED
             )
         entity_id = state.identity[0]
         old_version = dynamic_entity.version
@@ -86,7 +86,9 @@ class SqlAlchemyRepository(Repository[T], Generic[T]):
                 .values(**values)
             )
         if cast(Any, result).rowcount != 1:
-            raise InfrastructureError("Optimistic lock conflict", error_code="version_conflict")
+            raise InfrastructureError(
+                "Optimistic lock conflict", error_code=ErrorCode.VERSION_CONFLICT
+            )
         dynamic_entity.version = old_version + 1
         dynamic_entity.updated_at = values["updated_at"]
         await self.session.flush()
@@ -120,7 +122,9 @@ class SqlAlchemyUserScopedRepository(SqlAlchemyRepository[T], Generic[T]):
 
     def _validate_for_update(self, entity: T) -> None:
         if getattr(entity, "owner_id", None) != self.owner_id:
-            raise InfrastructureError("Entity is outside user scope", error_code="entity_not_found")
+            raise InfrastructureError(
+                "Entity is outside user scope", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
 
     def _excluded_update_fields(self) -> set[str]:
         return super()._excluded_update_fields() | {"owner_id"}

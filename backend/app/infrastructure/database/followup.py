@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
-from app.domain.base.exceptions import InfrastructureError
+from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.domain.followup import (
     ApplicationDecision,
     ApplicationDecisionStatus,
@@ -154,7 +154,7 @@ class SqlAlchemyApplicationDecisionRepository:
     async def add(self, decision: ApplicationDecision) -> ApplicationDecision:
         if decision.owner_id != self.owner_id:
             raise InfrastructureError(
-                "Application decision is outside user scope", error_code="entity_not_found"
+                "Application decision is outside user scope", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
         record = ApplicationDecisionRecord(
             id=decision.id,
@@ -177,9 +177,9 @@ class SqlAlchemyApplicationDecisionRepository:
         except IntegrityError as exc:
             constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
             error_code = (
-                "application_decision_key_taken"
+                ErrorCode.APPLICATION_DECISION_KEY_TAKEN
                 if constraint == "uq_application_decision_owner_key"
-                else "application_decision_conflict"
+                else ErrorCode.APPLICATION_DECISION_CONFLICT
             )
             raise InfrastructureError(
                 "Application decision already exists", error_code=error_code
@@ -566,7 +566,8 @@ class SqlAlchemyTemplateDefinitionRepository:
         )
         if template.definition_hash != record.definition_hash:
             raise InfrastructureError(
-                "Template definition hash is invalid", error_code="template_definition_invalid"
+                "Template definition hash is invalid",
+                error_code=ErrorCode.TEMPLATE_DEFINITION_INVALID,
             )
         return template
 
@@ -622,7 +623,9 @@ class SqlAlchemyResumeVariantRepository:
 
     async def add(self, variant: ResumeVariant) -> ResumeVariant:
         if variant.owner_id != self.owner_id:
-            raise InfrastructureError("Resume variant not found", error_code="entity_not_found")
+            raise InfrastructureError(
+                "Resume variant not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         record = ResumeVariantRecord(
             id=variant.id,
             owner_id=variant.owner_id,
@@ -653,7 +656,7 @@ class SqlAlchemyResumeVariantRepository:
         except IntegrityError as exc:
             await self.session.rollback()
             raise InfrastructureError(
-                "Resume variant already exists", error_code="resume_variant_key_taken"
+                "Resume variant already exists", error_code=ErrorCode.RESUME_VARIANT_KEY_TAKEN
             ) from exc
         return self._to_domain(record)
 
@@ -749,7 +752,9 @@ class SqlAlchemyMessageDraftRepository:
 
     async def add(self, draft: MessageDraft) -> MessageDraft:
         if draft.owner_id != self.owner_id:
-            raise InfrastructureError("Message draft not found", error_code="entity_not_found")
+            raise InfrastructureError(
+                "Message draft not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         record = MessageDraftRecord(record_id=uuid4(), **_message_draft_values(draft))
         self.session.add(record)
         try:
@@ -757,7 +762,7 @@ class SqlAlchemyMessageDraftRepository:
         except IntegrityError as exc:
             await self.session.rollback()
             raise InfrastructureError(
-                "Message draft already exists", error_code="message_draft_conflict"
+                "Message draft already exists", error_code=ErrorCode.MESSAGE_DRAFT_CONFLICT
             ) from exc
         return self._to_domain(record)
 
@@ -906,7 +911,7 @@ class SqlAlchemyResumePdfRepository:
         except IntegrityError as exc:
             await self.session.rollback()
             raise InfrastructureError(
-                "Resume PDF already exists", error_code="resume_pdf_conflict"
+                "Resume PDF already exists", error_code=ErrorCode.RESUME_PDF_CONFLICT
             ) from exc
         return self._to_domain(record)
 
@@ -921,7 +926,7 @@ class SqlAlchemyResumePdfRepository:
             .with_for_update()
         )
         if record is None:
-            raise InfrastructureError("Resume PDF not found", error_code="entity_not_found")
+            raise InfrastructureError("Resume PDF not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         for name, value in _resume_pdf_values(pdf).items():
             setattr(record, name, value)
         await self.session.flush()
@@ -965,7 +970,7 @@ class SqlAlchemyResumePdfRepository:
 
     def _check_owner(self, pdf: ResumePdf) -> None:
         if pdf.owner_id != self.owner_id:
-            raise InfrastructureError("Resume PDF not found", error_code="entity_not_found")
+            raise InfrastructureError("Resume PDF not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
 
 
 def _resume_pdf_values(value: ResumePdf) -> dict[str, object]:

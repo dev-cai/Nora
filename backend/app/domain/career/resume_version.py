@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 from app.domain.career.candidate_profile import CandidateProfile
 
 MAX_RESUME_TITLE_LENGTH = 200
@@ -45,13 +45,13 @@ class ResumeVersion:
         normalized_title = _normalize_title(title)
         if version < 1:
             raise DomainError(
-                "Resume version must be positive", error_code="invalid_resume_version"
+                "Resume version must be positive", error_code=ErrorCode.INVALID_RESUME_VERSION
             )
         content = _resume_content(profile.confirmed_data())
         if not content:
             raise DomainError(
                 "Candidate profile has no confirmed resume facts",
-                error_code="profile_has_no_confirmed_data",
+                error_code=ErrorCode.PROFILE_HAS_NO_CONFIRMED_DATA,
             )
         return cls(
             id=uuid4(),
@@ -82,7 +82,7 @@ class ResumeVersion:
         if version < 1 or profile_version < 1:
             raise DomainError(
                 "Resume and profile versions must be positive",
-                error_code="invalid_resume_version",
+                error_code=ErrorCode.INVALID_RESUME_VERSION,
             )
         return cls(
             id=resume_id,
@@ -101,7 +101,7 @@ def _normalize_title(value: str) -> str:
     if not normalized or len(normalized) > MAX_RESUME_TITLE_LENGTH:
         raise DomainError(
             f"Resume title must contain 1-{MAX_RESUME_TITLE_LENGTH} characters",
-            error_code="invalid_resume_title",
+            error_code=ErrorCode.INVALID_RESUME_TITLE,
         )
     return normalized
 
@@ -129,12 +129,14 @@ def _canonical_content(content: dict[str, Any]) -> str:
         return json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
     except (TypeError, ValueError) as exc:
         raise DomainError(
-            "Resume content must be JSON serializable", error_code="invalid_resume_content"
+            "Resume content must be JSON serializable", error_code=ErrorCode.INVALID_RESUME_CONTENT
         ) from exc
 
 
 def _utc_timestamp(value: datetime | None) -> datetime:
     timestamp = value or datetime.now(timezone.utc)
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return timestamp.astimezone(timezone.utc)

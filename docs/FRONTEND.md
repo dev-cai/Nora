@@ -104,7 +104,7 @@ flowchart LR
 
 ## 6. 错误与可观测性
 
-D-018 目标错误响应使用稳定结构：
+D-018 Current 错误响应使用稳定结构：
 
 ```json
 {
@@ -114,8 +114,8 @@ D-018 目标错误响应使用稳定结构：
 }
 ```
 
-Current 响应尚未包含 `error_category`；D-018 实施后，前端从 OpenAPI generated schema 获得 `ErrorCode` 与 `ErrorCategory` union，
-根据 `error_code` 选择可本地化提示，再按 category 与 status 保留通用失败回退。FastAPI 请求校验统一为
+前端从 OpenAPI generated schema 获得 `ErrorCode`、`ErrorCategory` 与 `ApiProblem`，根据 `error_code` 选择可本地化提示，再按
+category、status 和 transport/unknown 保留通用失败回退。FastAPI 请求校验统一为
 `validation_error/request_validation/422`，不再消费独立的 `HTTPValidationError.detail` 结构。
 响应中的 `X-Request-ID` 可显示在错误详情中用于排障，但不得替代用户可理解的提示，也不得包含敏感数据。
 
@@ -312,7 +312,7 @@ Current 响应尚未包含 `error_category`；D-018 实施后，前端从 OpenAP
   generated path 索引。
 - Generated 文件禁止手改；`api:generate` 负责重建，`api:check` 在 CI 生成后执行 tracked-file、diff 和未追踪文件 Gate。迁移期间每个端点只有一个实际
   请求实现，不进行手写/生成 client 双写。
-- D-018 实施后，后端 `ErrorCode` / `ErrorCategory` 只来自 generated schema；手写 UI 只拥有本地化文案与回退策略，不得声明同构
+- D-018 Current 实现中，后端 `ErrorCode` / `ErrorCategory` 只来自 generated schema；手写 UI 只拥有本地化文案与回退策略，不得声明同构
   union/Enum。浏览器产生的 `network_error`、`network_timeout`、`http_error` 是独立 `TransportErrorCode`，不伪装成后端响应码。
 - 错误码优先于 category/status 选择本地化提示（预留通用回退）：
   - `401` → 登录态失效，跳转登录；

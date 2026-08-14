@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError
+from app.domain.base.exceptions import ApplicationError, ErrorCode
 from app.domain.career import CandidateProfile
 from app.ports.career import CandidateProfileRepository
 
@@ -37,7 +37,9 @@ class PutCandidateProfileUseCase:
             profile = CandidateProfile.create(owner_id=command.owner_id, content=command.content)
         else:
             if current.owner_id != command.owner_id:
-                raise ApplicationError("Candidate profile not found", error_code="entity_not_found")
+                raise ApplicationError(
+                    "Candidate profile not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+                )
             profile = current.next_version(content=command.content)
         stored = await self.repository.add(profile)
         await self.repository.commit()
@@ -53,7 +55,7 @@ class GetCandidateProfileUseCase:
     async def execute(self, query: GetCandidateProfileQuery) -> CandidateProfile:
         if query.version is not None and query.version < 1:
             raise ApplicationError(
-                "Profile version must be positive", error_code="invalid_profile_version"
+                "Profile version must be positive", error_code=ErrorCode.INVALID_PROFILE_VERSION
             )
         profile = (
             await self.repository.get_latest()
@@ -61,7 +63,9 @@ class GetCandidateProfileUseCase:
             else await self.repository.get_version(query.version)
         )
         if profile is None or profile.owner_id != query.owner_id:
-            raise ApplicationError("Candidate profile not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Candidate profile not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         return profile
 
 

@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 
 class ConfirmationStatus(StrEnum):
@@ -110,7 +110,7 @@ class CandidateProfile:
 
         if version < 1:
             raise DomainError(
-                "Profile version must be positive", error_code="invalid_profile_version"
+                "Profile version must be positive", error_code=ErrorCode.INVALID_PROFILE_VERSION
             )
         return cls(
             id=profile_id,
@@ -131,7 +131,9 @@ class CandidateProfile:
 def _utc_timestamp(value: datetime | None) -> datetime:
     timestamp = value or datetime.now(timezone.utc)
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return timestamp.astimezone(timezone.utc)
 
 
@@ -140,7 +142,7 @@ def _canonical_content(content: dict[str, Any]) -> str:
         return json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
     except (TypeError, ValueError) as exc:
         raise DomainError(
-            "Profile content must be JSON serializable", error_code="invalid_profile"
+            "Profile content must be JSON serializable", error_code=ErrorCode.INVALID_PROFILE
         ) from exc
 
 
@@ -155,7 +157,7 @@ def _enrich_facts(value: Any, timestamp: datetime) -> Any:
             except (TypeError, ValueError) as exc:
                 raise DomainError(
                     "Profile field status or source is invalid",
-                    error_code="invalid_profile_field",
+                    error_code=ErrorCode.INVALID_PROFILE_FIELD,
                 ) from exc
             return {
                 "value": value["value"],
@@ -186,13 +188,13 @@ def _fact_path_items(
             if not isinstance(item, dict) or "id" not in item:
                 raise DomainError(
                     f"Profile collection item at index {index} must have an id",
-                    error_code="invalid_profile_item_id",
+                    error_code=ErrorCode.INVALID_PROFILE_ITEM_ID,
                 )
             identifier = str(item["id"])
             if identifier in identifiers:
                 raise DomainError(
                     "Profile collection item ids must be unique",
-                    error_code="invalid_profile_item_id",
+                    error_code=ErrorCode.INVALID_PROFILE_ITEM_ID,
                 )
             identifiers.add(identifier)
             result.update(_fact_path_items(item, (*path, identifier)))
@@ -212,7 +214,7 @@ def _validate_transitions(previous: dict[str, Any], current: dict[str, Any]) -> 
         if current_status not in _ALLOWED_TRANSITIONS[previous_status]:
             raise DomainError(
                 f"Confirmation status cannot transition from {previous_status} to {current_status}",
-                error_code="invalid_confirmation_transition",
+                error_code=ErrorCode.INVALID_CONFIRMATION_TRANSITION,
             )
 
 

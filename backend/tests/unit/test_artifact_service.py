@@ -5,7 +5,12 @@ from uuid import uuid4
 
 import pytest
 from app.application.knowledge import ArtifactService, UploadArtifactCommand
-from app.domain.base.exceptions import ApplicationError, DomainError, InfrastructureError
+from app.domain.base.exceptions import (
+    ApplicationError,
+    DomainError,
+    ErrorCode,
+    InfrastructureError,
+)
 from app.domain.knowledge import Artifact, ArtifactKind, ArtifactStatus
 from app.ports.knowledge import ArtifactStorageError, StoredObject, StoredObjectInfo
 
@@ -234,7 +239,7 @@ async def test_pending_repository_failure_is_not_reported_as_storage_unavailable
     storage = MemoryStorage()
     service, artifacts, _ = _service(storage)
     artifacts.fail_commit_at = 1
-    artifacts.commit_error = InfrastructureError("database failed", "database_unavailable")
+    artifacts.commit_error = InfrastructureError("database failed", ErrorCode.DATABASE_UNAVAILABLE)
 
     with pytest.raises(InfrastructureError, match="database failed") as error:
         await service.upload(
@@ -282,7 +287,7 @@ async def test_audit_publish_failure_removes_object_and_preserves_original_error
     storage = MemoryStorage()
     service, artifacts, audit = _service(storage)
     audit.fail_add_at = 1
-    audit.add_error = InfrastructureError("audit database failed", "database_unavailable")
+    audit.add_error = InfrastructureError("audit database failed", ErrorCode.DATABASE_UNAVAILABLE)
     owner = uuid4()
 
     with pytest.raises(InfrastructureError, match="audit database failed") as error:
@@ -303,7 +308,7 @@ async def test_domain_publish_failure_removes_object_and_preserves_domain_error(
     service, artifacts, _ = _service(storage)
 
     def fail_publish(_artifact: Artifact, _object_key: str) -> Artifact:
-        raise DomainError("invalid publish transition", "artifact_state_conflict")
+        raise DomainError("invalid publish transition", ErrorCode.ARTIFACT_STATE_CONFLICT)
 
     monkeypatch.setattr(Artifact, "publish", fail_publish)
     with pytest.raises(DomainError, match="invalid publish transition"):
@@ -324,7 +329,7 @@ async def test_known_compensation_delete_failure_is_logged_without_sensitive_dat
     )
     service, artifacts, audit = _service(storage)
     audit.fail_add_at = 1
-    original = InfrastructureError("audit failed", "database_unavailable")
+    original = InfrastructureError("audit failed", ErrorCode.DATABASE_UNAVAILABLE)
     audit.add_error = original
 
     with caplog.at_level("WARNING"):
@@ -349,7 +354,7 @@ async def test_unknown_compensation_failure_preserves_both_errors() -> None:
     storage = MemoryStorage(delete_error=RuntimeError("cleanup defect"))
     service, _, audit = _service(storage)
     audit.fail_add_at = 1
-    original = InfrastructureError("audit failed", "database_unavailable")
+    original = InfrastructureError("audit failed", ErrorCode.DATABASE_UNAVAILABLE)
     audit.add_error = original
 
     with pytest.raises(ExceptionGroup) as error:
@@ -393,7 +398,7 @@ async def test_delete_audit_failure_stays_pending_and_retry_recovers() -> None:
         UploadArtifactCommand(owner, ArtifactKind.SOURCE, "text/plain", b"alpha", "delete-audit")
     )
     audit.fail_add_at = audit.add_calls + 2
-    original = InfrastructureError("delete audit failed", "database_unavailable")
+    original = InfrastructureError("delete audit failed", ErrorCode.DATABASE_UNAVAILABLE)
     audit.add_error = original
 
     with pytest.raises(InfrastructureError, match="delete audit failed") as error:

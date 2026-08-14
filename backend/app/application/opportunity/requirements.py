@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.opportunity import JobRequirementSnapshot
 from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
 
@@ -72,7 +72,7 @@ class SaveJobRequirementSnapshotUseCase:
     ) -> SaveJobRequirementSnapshotResult:
         posting = await self.posting_repository.get_by_id(command.job_posting_id)
         if posting is None or posting.owner_id != command.owner_id:
-            raise ApplicationError("Job posting not found", error_code="entity_not_found")
+            raise ApplicationError("Job posting not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
 
         latest = await self.repository.get_latest(command.job_posting_id)
         candidate = self._build_version(latest, command)
@@ -87,7 +87,7 @@ class SaveJobRequirementSnapshotUseCase:
                 raise
             raise InfrastructureError(
                 "Job requirement snapshot version conflict",
-                error_code="job_requirement_version_conflict",
+                error_code=ErrorCode.JOB_REQUIREMENT_VERSION_CONFLICT,
             ) from exc
         return SaveJobRequirementSnapshotResult(snapshot=stored, replayed=False)
 
@@ -119,7 +119,7 @@ class GetJobRequirementSnapshotUseCase:
             snapshot = await self.repository.get_version(query.job_posting_id, query.version)
         if snapshot is None or snapshot.owner_id != query.owner_id:
             raise ApplicationError(
-                "Job requirement snapshot not found", error_code="entity_not_found"
+                "Job requirement snapshot not found", error_code=ErrorCode.ENTITY_NOT_FOUND
             )
         return snapshot
 
@@ -136,7 +136,7 @@ class ListJobRequirementSnapshotsUseCase:
         if query.page < 1 or not 1 <= query.page_size <= 100:
             raise ApplicationError(
                 "Page must be at least 1 and page_size must be between 1 and 100",
-                error_code="invalid_pagination",
+                error_code=ErrorCode.INVALID_PAGINATION,
             )
         offset = (query.page - 1) * query.page_size
         items = await self.repository.list(

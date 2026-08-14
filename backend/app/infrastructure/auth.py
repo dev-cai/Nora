@@ -7,7 +7,7 @@ import jwt
 from pwdlib import PasswordHash
 from pwdlib.exceptions import PwdlibError
 
-from app.domain.base.exceptions import NoraError
+from app.domain.base.exceptions import ErrorCode, NoraError
 
 
 class Argon2PasswordHasher:
@@ -59,4 +59,6 @@ class JwtTokenIssuer:
                 raise ValueError("invalid token type")
             return UUID(str(payload["sub"]))
         except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as exc:
-            raise NoraError("Authentication required", error_code="authentication_failed") from exc
+            raise NoraError(
+                "Authentication required", error_code=ErrorCode.AUTHENTICATION_FAILED
+            ) from exc

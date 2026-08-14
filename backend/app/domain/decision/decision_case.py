@@ -7,7 +7,7 @@ from enum import StrEnum
 from hashlib import sha256
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import DomainError
+from app.domain.base.exceptions import DomainError, ErrorCode
 
 MAX_RULE_SET_VERSION_LENGTH = 100
 MAX_FAILURE_CODE_LENGTH = 100
@@ -160,9 +160,11 @@ class DecisionCase:
         """把新建案例标记为失败并保存稳定错误信息。"""
 
         self._require_created()
-        code = _normalize_text(failure_code, MAX_FAILURE_CODE_LENGTH, "invalid_failure_code")
+        code = _normalize_text(
+            failure_code, MAX_FAILURE_CODE_LENGTH, ErrorCode.INVALID_FAILURE_CODE
+        )
         message = _normalize_text(
-            failure_message, MAX_FAILURE_MESSAGE_LENGTH, "invalid_failure_message"
+            failure_message, MAX_FAILURE_MESSAGE_LENGTH, ErrorCode.INVALID_FAILURE_MESSAGE
         )
         return replace(
             self,
@@ -175,7 +177,8 @@ class DecisionCase:
     def _require_created(self) -> None:
         if self.status is not DecisionCaseStatus.CREATED:
             raise DomainError(
-                "Decision case has already finished", error_code="invalid_decision_case_state"
+                "Decision case has already finished",
+                error_code=ErrorCode.INVALID_DECISION_CASE_STATE,
             )
 
     def _validate_state(self) -> None:
@@ -199,21 +202,22 @@ class DecisionCase:
         )
         if not (is_created or is_completed or is_failed):
             raise DomainError(
-                "Decision case state is inconsistent", error_code="invalid_decision_case_state"
+                "Decision case state is inconsistent",
+                error_code=ErrorCode.INVALID_DECISION_CASE_STATE,
             )
 
 
 def _positive_version(value: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise DomainError("Input version must be positive", error_code="invalid_version")
+        raise DomainError("Input version must be positive", error_code=ErrorCode.INVALID_VERSION)
     return value
 
 
 def _normalize_rule_set_version(value: str) -> str:
-    return _normalize_text(value, MAX_RULE_SET_VERSION_LENGTH, "invalid_rule_set_version")
+    return _normalize_text(value, MAX_RULE_SET_VERSION_LENGTH, ErrorCode.INVALID_RULE_SET_VERSION)
 
 
-def _normalize_text(value: str, maximum: int, error_code: str) -> str:
+def _normalize_text(value: str, maximum: int, error_code: ErrorCode) -> str:
     if not isinstance(value, str):
         raise DomainError("Value must be a string", error_code=error_code)
     normalized = " ".join(value.split())
@@ -225,7 +229,9 @@ def _normalize_text(value: str, maximum: int, error_code: str) -> str:
 def _normalize_fingerprint(value: str) -> str:
     normalized = value.lower()
     if len(normalized) != 64 or any(char not in "0123456789abcdef" for char in normalized):
-        raise DomainError("Input fingerprint is invalid", error_code="invalid_input_fingerprint")
+        raise DomainError(
+            "Input fingerprint is invalid", error_code=ErrorCode.INVALID_INPUT_FINGERPRINT
+        )
     return normalized
 
 
@@ -234,14 +240,16 @@ def _status(value: DecisionCaseStatus) -> DecisionCaseStatus:
         return DecisionCaseStatus(value)
     except (TypeError, ValueError) as exc:
         raise DomainError(
-            "Decision case status is invalid", error_code="invalid_decision_case_state"
+            "Decision case status is invalid", error_code=ErrorCode.INVALID_DECISION_CASE_STATE
         ) from exc
 
 
 def _utc_timestamp(value: datetime | None) -> datetime:
     timestamp = value or datetime.now(timezone.utc)
     if timestamp.tzinfo is None or timestamp.utcoffset() is None:
-        raise DomainError("Timestamp must include a timezone", error_code="invalid_timestamp")
+        raise DomainError(
+            "Timestamp must include a timezone", error_code=ErrorCode.INVALID_TIMESTAMP
+        )
     return timestamp.astimezone(timezone.utc)
 
 

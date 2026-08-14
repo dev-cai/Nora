@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.application.knowledge import ArtifactDownload, ArtifactService, UploadArtifactCommand
-from app.domain.base.exceptions import ApplicationError, InfrastructureError
+from app.domain.base.exceptions import ApplicationError, ErrorCode, InfrastructureError
 from app.domain.followup import PDF_CONTENT_TYPE, ResumePdf, ResumePdfStatus
 from app.domain.knowledge import ArtifactKind, ArtifactStatus
 from app.ports.followup import (
@@ -52,12 +52,16 @@ class ResumePdfService:
     async def generate(self, command: GenerateResumePdfCommand) -> GenerateResumePdfResult:
         variant = await self.variants.get_by_id(command.resume_variant_id)
         if variant is None or variant.owner_id != command.owner_id:
-            raise ApplicationError("Resume variant not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Resume variant not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         template = await self.templates.get_by_identity(
             variant.template_id, variant.template_version
         )
         if template is None:
-            raise ApplicationError("Resume template not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Resume template not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         candidate = ResumePdf.create(
             variant=variant,
             template=template,
@@ -78,7 +82,7 @@ class ResumePdfService:
                 if pdf is None:
                     raise InfrastructureError(
                         "Could not recover Resume PDF",
-                        error_code="resume_pdf_persistence_failed",
+                        error_code=ErrorCode.RESUME_PDF_PERSISTENCE_FAILED,
                     ) from exc
         else:
             pdf = pdf.retry()
@@ -111,7 +115,7 @@ class ResumePdfService:
             ):
                 raise ApplicationError(
                     "Resume PDF Artifact is invalid",
-                    error_code="pdf_generation_failed",
+                    error_code=ErrorCode.PDF_GENERATION_FAILED,
                 )
             available = pdf.publish(
                 artifact_id=artifact.id,
@@ -132,25 +136,27 @@ class ResumePdfService:
             if isinstance(exc, ApplicationError):
                 raise
             raise ApplicationError(
-                "Resume PDF generation failed", error_code="pdf_generation_failed"
+                "Resume PDF generation failed", error_code=ErrorCode.PDF_GENERATION_FAILED
             ) from exc
 
     async def get(self, owner_id: UUID, pdf_id: UUID) -> ResumePdf:
         pdf = await self.pdfs.get_by_id(pdf_id)
         if pdf is None or pdf.owner_id != owner_id:
-            raise ApplicationError("Resume PDF not found", error_code="entity_not_found")
+            raise ApplicationError("Resume PDF not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         return pdf
 
     async def get_latest(self, owner_id: UUID, variant_id: UUID) -> ResumePdf | None:
         variant = await self.variants.get_by_id(variant_id)
         if variant is None or variant.owner_id != owner_id:
-            raise ApplicationError("Resume variant not found", error_code="entity_not_found")
+            raise ApplicationError(
+                "Resume variant not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
         return await self.pdfs.get_latest_by_variant(variant_id)
 
     async def download(self, owner_id: UUID, pdf_id: UUID) -> ResumePdfDownload:
         pdf = await self.get(owner_id, pdf_id)
         if pdf.status is not ResumePdfStatus.AVAILABLE or pdf.artifact_id is None:
-            raise ApplicationError("Resume PDF not found", error_code="entity_not_found")
+            raise ApplicationError("Resume PDF not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
         result: ArtifactDownload = await self.artifacts.download(owner_id, pdf.artifact_id)
         artifact = result.artifact
         if (
@@ -164,6 +170,6 @@ class ResumePdfService:
         ):
             raise ApplicationError(
                 "Resume PDF Artifact integrity check failed",
-                error_code="artifact_corrupt",
+                error_code=ErrorCode.ARTIFACT_CORRUPT,
             )
         return ResumePdfDownload(pdf=pdf, data=result.data)
