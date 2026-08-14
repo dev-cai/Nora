@@ -384,6 +384,38 @@ textarea { min-height: 210px; resize: vertical; line-height: 1.55; }
 .icon-badge { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 6px; color: var(--green); background: var(--green-soft); }
 .form-footnote { color: var(--muted); font-size: 13px; text-align: center; }
 .form-footnote a { color: var(--green); font-weight: 700; }
+
+.application-list { border-top: 1px solid var(--line); }
+.application-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 18px; align-items: center; gap: 14px; padding: 17px 8px; border-bottom: 1px solid var(--line); }
+.application-row:hover { background: rgba(255,255,255,.7); }
+.application-row-main strong, .application-row-main small, .application-row-meta time, .application-row-meta small { display: block; }
+.application-row-main small, .application-row-meta { color: var(--muted); font-size: 12px; }
+.application-row-main small { margin-top: 5px; overflow-wrap: anywhere; }
+.application-row-meta { text-align: right; }
+.application-row-meta small { margin-top: 5px; }
+.application-confirmation { margin-top: 22px; padding: 24px; border: 1px solid var(--line); border-radius: 7px; background: white; }
+.application-source-row { display: grid; grid-template-columns: 20px 22px minmax(0, 1fr); align-items: center; gap: 12px; min-height: 74px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.application-source-row.required { grid-template-columns: 22px minmax(0, 1fr) auto; color: var(--green); }
+.application-source-row input { width: 17px; height: 17px; }
+.application-source-row strong, .application-source-row small { display: block; }
+.application-source-row strong { color: var(--ink); }
+.application-source-row small { margin-top: 4px; color: var(--muted); overflow-wrap: anywhere; }
+.application-source-row.required > span { font-size: 12px; font-weight: 800; }
+.application-confirmation > .form-error { margin-top: 18px; }
+.application-transition-band, .application-history-band { margin-top: 26px; padding: 24px 0; border-top: 1px solid var(--line); }
+.application-status-control { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.application-status-control button { min-height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: white; font-weight: 800; }
+.application-status-control button.active { border-color: var(--green); color: white; background: var(--green); }
+.application-transition-form { margin-top: 18px; }
+.application-note-field { grid-column: 1 / -1; }
+.application-transition-band > .form-error { margin-top: 16px; }
+.application-timeline { margin: 18px 0 0; padding: 0; list-style: none; }
+.application-timeline li { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 11px; padding: 0 0 22px; }
+.application-timeline li:not(:last-child)::before { position: absolute; top: 15px; bottom: -1px; left: 6px; width: 1px; background: var(--line); content: ""; }
+.timeline-marker { position: relative; z-index: 1; width: 13px; height: 13px; margin-top: 3px; border: 3px solid var(--green-soft); border-radius: 50%; background: var(--green); }
+.application-timeline strong, .application-timeline p, .application-timeline small { display: block; margin: 0; }
+.application-timeline p { margin-top: 5px; color: var(--muted); font-size: 13px; }
+.application-timeline small { margin-top: 4px; color: var(--muted); }
 .route-enter-active, .route-leave-active { transition: opacity .12s ease; }
 .route-enter-from, .route-leave-to { opacity: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -459,4 +491,11 @@ textarea { min-height: 210px; resize: vertical; line-height: 1.55; }
   .message-editor-actions { align-items: stretch; flex-wrap: wrap; }
   .message-editor-actions .text-counter { width: 100%; }
   .message-editor-actions .button { flex: 1; }
+  .application-row { grid-template-columns: 38px minmax(0, 1fr) 16px; }
+  .application-row-meta { grid-column: 2; text-align: left; }
+  .application-row > svg { grid-column: 3; grid-row: 1 / span 2; }
+  .application-confirmation { padding: 18px; }
+  .application-source-row { grid-template-columns: 18px 20px minmax(0, 1fr); }
+  .application-transition-form { grid-template-columns: 1fr; }
+  .application-note-field { grid-column: auto; }
 }

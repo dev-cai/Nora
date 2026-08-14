@@ -1,5 +1,13 @@
 """Application & Follow-up use-case exports."""
 
+from .application_records import (
+    ApplicationRecordListResult,
+    ApplicationRecordResult,
+    ApplicationRecordUseCases,
+    CreateApplicationRecordCommand,
+    ListApplicationRecordsQuery,
+    TransitionApplicationRecordCommand,
+)
 from .message_draft import (
     EditMessageDraftCommand,
     GenerateMessageDraftCommand,
@@ -30,9 +38,13 @@ from .service import (
 )
 
 __all__ = (
+    "ApplicationRecordListResult",
+    "ApplicationRecordResult",
+    "ApplicationRecordUseCases",
     "CreateApplicationDecisionCommand",
     "CreateApplicationDecisionResult",
     "CreateApplicationDecisionUseCase",
+    "CreateApplicationRecordCommand",
     "GetApplicationDecisionQuery",
     "GetApplicationDecisionUseCase",
     "EditMessageDraftCommand",
@@ -47,7 +59,9 @@ __all__ = (
     "ListResumeVariantsResult",
     "ListMessageDraftsQuery",
     "ListMessageDraftsResult",
+    "ListApplicationRecordsQuery",
     "MessageDraftMutationResult",
     "MessageDraftUseCases",
     "ResumeVariantUseCases",
+    "TransitionApplicationRecordCommand",
 )

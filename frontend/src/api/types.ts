@@ -443,3 +443,69 @@ export interface MessageDraftList {
   page_size: number
   total: number
 }
+
+export type ApplicationRecordStatus =
+  | "planned"
+  | "applied"
+  | "interviewing"
+  | "offer_received"
+  | "rejected"
+  | "withdrawn"
+
+export interface CreateApplicationRecordInput {
+  application_decision_id: string
+  resume_variant_id: string
+  resume_pdf_id: string | null
+  message_draft_id: string | null
+  message_draft_version: number | null
+}
+
+export interface TransitionApplicationRecordInput {
+  base_version: number
+  to_status: ApplicationRecordStatus
+  occurred_at: string
+  channel: string | null
+  note: string | null
+}
+
+export interface ApplicationRecord {
+  id: string
+  version: number
+  status: ApplicationRecordStatus
+  application_decision_id: string
+  decision_case_id: string
+  resume_variant_id: string
+  resume_variant_version: number
+  variant_content_fingerprint: string
+  resume_pdf_id: string | null
+  resume_pdf_version: number | null
+  artifact_id: string | null
+  artifact_version: number | null
+  artifact_sha256: string | null
+  message_draft_id: string | null
+  message_draft_version: number | null
+  message_content_fingerprint: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ApplicationRecordTransition {
+  id: string
+  record_version: number
+  actor_id: string
+  from_status: ApplicationRecordStatus
+  to_status: ApplicationRecordStatus
+  source: "user_confirmation"
+  channel: string | null
+  note: string | null
+  occurred_at: string
+  recorded_at: string
+}
+
+export interface ApplicationRecordList {
+  items: ApplicationRecord[]
+  page: number
+  page_size: number
+  total: number
+}

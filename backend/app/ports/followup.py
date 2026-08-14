@@ -6,6 +6,8 @@ from uuid import UUID
 
 from app.domain.followup import (
     ApplicationDecision,
+    ApplicationRecord,
+    ApplicationRecordTransition,
     MessageDraft,
     ResumePdf,
     ResumeVariant,
@@ -21,6 +23,32 @@ class ApplicationDecisionRepository(Protocol):
     async def get_by_id(self, decision_id: UUID) -> ApplicationDecision | None: ...
 
     async def get_by_idempotency_key(self, key: str) -> ApplicationDecision | None: ...
+
+
+class ApplicationRecordRepository(Protocol):
+    async def add(self, record: ApplicationRecord) -> ApplicationRecord: ...
+
+    async def update(
+        self, record: ApplicationRecord, *, expected_version: int
+    ) -> ApplicationRecord: ...
+
+    async def get_by_id(self, record_id: UUID) -> ApplicationRecord | None: ...
+
+    async def get_by_decision_id(self, decision_id: UUID) -> ApplicationRecord | None: ...
+
+    async def get_by_idempotency_key(self, key: str) -> ApplicationRecord | None: ...
+
+    async def list(self, *, offset: int, limit: int) -> list[ApplicationRecord]: ...
+
+    async def count(self) -> int: ...
+
+
+class ApplicationRecordTransitionRepository(Protocol):
+    async def add(self, transition: ApplicationRecordTransition) -> ApplicationRecordTransition: ...
+
+    async def get_by_idempotency_key(self, key: str) -> ApplicationRecordTransition | None: ...
+
+    async def list_for_record(self, record_id: UUID) -> list[ApplicationRecordTransition]: ...
 
 
 class TemplateDefinitionRepository(Protocol):

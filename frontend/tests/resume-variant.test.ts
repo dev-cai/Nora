@@ -120,6 +120,7 @@ describe("resume variants", () => {
     const router = createRouter({ history: createMemoryHistory(), routes: [
       { path: "/templates", component: { template: "<div />" } },
       { path: "/resume-variants/:id", component: ResumeVariantDetailView },
+      { path: "/applications/new", component: { template: "<div />" } },
     ] })
     await router.push("/resume-variants/variant-1")
     const wrapper = mount(ResumeVariantDetailView, { global: { plugins: [createPinia(), router], stubs } })
@@ -155,6 +156,7 @@ describe("resume variants", () => {
     const router = createRouter({ history: createMemoryHistory(), routes: [
       { path: "/templates", component: { template: "<div />" } },
       { path: "/resume-variants/:id", component: ResumeVariantDetailView },
+      { path: "/applications/new", component: { template: "<div />" } },
     ] })
     await router.push("/resume-variants/variant-1")
     const wrapper = mount(ResumeVariantDetailView, { global: { plugins: [createPinia(), router], stubs } })
@@ -183,6 +185,7 @@ describe("resume variants", () => {
     const router = createRouter({ history: createMemoryHistory(), routes: [
       { path: "/templates", component: { template: "<div />" } },
       { path: "/resume-variants/:id", component: ResumeVariantDetailView },
+      { path: "/applications/new", component: { template: "<div />" } },
       { path: "/messages/:id", component: { template: "<div />" } },
     ] })
     await router.push("/resume-variants/variant-1")

@@ -11,6 +11,10 @@ class ErrorCode(StrEnum):
     APPLICATION_DECISION_CONFLICT = "application_decision_conflict"
     APPLICATION_DECISION_KEY_TAKEN = "application_decision_key_taken"
     APPLICATION_DECISION_PERSISTENCE_FAILED = "application_decision_persistence_failed"
+    APPLICATION_RECORD_KEY_TAKEN = "application_record_key_taken"
+    APPLICATION_RECORD_PERSISTENCE_FAILED = "application_record_persistence_failed"
+    APPLICATION_RECORD_TRANSITION_CONFLICT = "application_record_transition_conflict"
+    APPLICATION_RECORD_VERSION_CONFLICT = "application_record_version_conflict"
     APPLICATION_ERROR = "application_error"
     ARTIFACT_CONFLICT = "artifact_conflict"
     ARTIFACT_CORRUPT = "artifact_corrupt"
@@ -49,6 +53,8 @@ class ErrorCode(StrEnum):
     INTERNAL_ERROR = "internal_error"
     INVALID_APPLICATION_DECISION_FINGERPRINT = "invalid_application_decision_fingerprint"
     INVALID_APPLICATION_DECISION_STATUS = "invalid_application_decision_status"
+    INVALID_APPLICATION_RECORD = "invalid_application_record"
+    INVALID_APPLICATION_RECORD_STATUS = "invalid_application_record_status"
     INVALID_ARTIFACT_CONTENT_TYPE = "invalid_artifact_content_type"
     INVALID_ARTIFACT_SHA256 = "invalid_artifact_sha256"
     INVALID_ARTIFACT_SIZE = "invalid_artifact_size"
@@ -182,6 +188,8 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
             ErrorCode.IMAGE_TOO_LARGE,
             ErrorCode.INVALID_APPLICATION_DECISION_FINGERPRINT,
             ErrorCode.INVALID_APPLICATION_DECISION_STATUS,
+            ErrorCode.INVALID_APPLICATION_RECORD,
+            ErrorCode.INVALID_APPLICATION_RECORD_STATUS,
             ErrorCode.INVALID_ARTIFACT_CONTENT_TYPE,
             ErrorCode.INVALID_ARTIFACT_SHA256,
             ErrorCode.INVALID_ARTIFACT_SIZE,
@@ -270,6 +278,9 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
         ErrorCategory.CONFLICT: (
             ErrorCode.APPLICATION_DECISION_CONFLICT,
             ErrorCode.APPLICATION_DECISION_KEY_TAKEN,
+            ErrorCode.APPLICATION_RECORD_KEY_TAKEN,
+            ErrorCode.APPLICATION_RECORD_TRANSITION_CONFLICT,
+            ErrorCode.APPLICATION_RECORD_VERSION_CONFLICT,
             ErrorCode.ARTIFACT_CONFLICT,
             ErrorCode.ARTIFACT_STATE_CONFLICT,
             ErrorCode.COMPANY_ASSESSMENT_CONFLICT,
@@ -298,6 +309,7 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
         ErrorCategory.UPSTREAM_TIMEOUT: (ErrorCode.FETCH_TIMEOUT,),
         ErrorCategory.SERVICE_UNAVAILABLE: (
             ErrorCode.APPLICATION_DECISION_PERSISTENCE_FAILED,
+            ErrorCode.APPLICATION_RECORD_PERSISTENCE_FAILED,
             ErrorCode.ARTIFACT_CORRUPT,
             ErrorCode.ARTIFACT_DELETE_FAILED,
             ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE,

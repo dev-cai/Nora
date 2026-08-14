@@ -23,6 +23,7 @@ from app.apps.api.errors import (
     problem_responses,
     validation_problem,
 )
+from app.apps.api.routes.application_records import router as application_records_router
 from app.apps.api.routes.artifacts import router as artifacts_router
 from app.apps.api.routes.auth import router as auth_router
 from app.apps.api.routes.companies import router as companies_router
@@ -82,6 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     common_responses = problem_responses()
     app.include_router(auth_router, responses=common_responses)
     app.include_router(artifacts_router, responses=common_responses)
+    app.include_router(application_records_router, responses=common_responses)
     app.include_router(companies_router, responses=common_responses)
     app.include_router(decision_router, responses=common_responses)
     app.include_router(report_router, responses=common_responses)

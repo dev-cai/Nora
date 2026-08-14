@@ -29,6 +29,10 @@ from app.domain.base.exceptions import ErrorCode, InfrastructureError
 from app.domain.followup import (
     ApplicationDecision,
     ApplicationDecisionStatus,
+    ApplicationRecord,
+    ApplicationRecordStatus,
+    ApplicationRecordTransition,
+    ApplicationTransitionSource,
     MessageDraft,
     MessageDraftRevisionType,
     MessageDraftSource,
@@ -57,6 +61,12 @@ class ApplicationDecisionRecord(Base):
             "resume_version",
             "owner_id",
             name="uq_application_decision_variant_input",
+        ),
+        UniqueConstraint(
+            "id",
+            "decision_case_id",
+            "owner_id",
+            name="uq_application_decision_record_input",
         ),
         CheckConstraint("report_version >= 1", name="ck_application_decision_report_version"),
         CheckConstraint("resume_version >= 1", name="ck_application_decision_resume_version"),
@@ -545,6 +555,159 @@ class MessageDraftRecord(Base):
     draft_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ApplicationRecordRow(Base):
+    __tablename__ = "application_records"
+    __table_args__ = (
+        UniqueConstraint("id", "owner_id", name="uq_application_record_identity"),
+        UniqueConstraint(
+            "owner_id", "application_decision_id", name="uq_application_record_owner_decision"
+        ),
+        UniqueConstraint("owner_id", "idempotency_key", name="uq_application_record_owner_key"),
+        CheckConstraint("version >= 1", name="ck_application_record_version"),
+        CheckConstraint(
+            "status IN ('planned', 'applied', 'interviewing', 'offer_received', "
+            "'rejected', 'withdrawn')",
+            name="ck_application_record_status",
+        ),
+        CheckConstraint("created_by = owner_id", name="ck_application_record_creator_owner"),
+        CheckConstraint(
+            "length(variant_content_fingerprint) = 64 AND length(request_fingerprint) = 64",
+            name="ck_application_record_hashes",
+        ),
+        CheckConstraint(
+            "(resume_pdf_id IS NULL AND resume_pdf_version IS NULL AND artifact_id IS NULL AND "
+            "artifact_version IS NULL AND artifact_sha256 IS NULL) OR "
+            "(resume_pdf_id IS NOT NULL AND resume_pdf_version >= 1 AND artifact_id IS NOT NULL "
+            "AND artifact_version >= 1 AND length(artifact_sha256) = 64)",
+            name="ck_application_record_pdf_reference",
+        ),
+        CheckConstraint(
+            "(message_draft_id IS NULL AND message_draft_version IS NULL AND "
+            "message_content_fingerprint IS NULL) OR (message_draft_id IS NOT NULL AND "
+            "message_draft_version >= 1 AND length(message_content_fingerprint) = 64)",
+            name="ck_application_record_draft_reference",
+        ),
+        ForeignKeyConstraint(
+            ["application_decision_id", "decision_case_id", "owner_id"],
+            [
+                "application_decisions.id",
+                "application_decisions.decision_case_id",
+                "application_decisions.owner_id",
+            ],
+            name="fk_application_record_apply_decision",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["resume_variant_id", "resume_variant_version", "owner_id"],
+            ["resume_variants.id", "resume_variants.version", "resume_variants.owner_id"],
+            name="fk_application_record_variant_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["resume_pdf_id", "resume_pdf_version", "owner_id"],
+            ["resume_pdfs.id", "resume_pdfs.version", "resume_pdfs.owner_id"],
+            name="fk_application_record_pdf_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["artifact_id", "artifact_version", "owner_id"],
+            ["artifacts.id", "artifacts.version", "artifacts.owner_id"],
+            name="fk_application_record_artifact_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["message_draft_id", "message_draft_version", "owner_id"],
+            ["message_drafts.id", "message_drafts.version", "message_drafts.owner_id"],
+            name="fk_application_record_draft_owner",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_by: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    application_decision_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    decision_case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resume_variant_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resume_variant_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    variant_content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    resume_pdf_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    resume_pdf_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    artifact_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    artifact_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    artifact_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    message_draft_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    message_draft_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    message_content_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    application_created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    application_updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class ApplicationRecordTransitionRow(Base):
+    __tablename__ = "application_record_transitions"
+    __table_args__ = (
+        UniqueConstraint(
+            "application_record_id",
+            "record_version",
+            name="uq_application_transition_record_version",
+        ),
+        UniqueConstraint("owner_id", "idempotency_key", name="uq_application_transition_owner_key"),
+        CheckConstraint("record_version >= 2", name="ck_application_transition_version"),
+        CheckConstraint(
+            "from_status IN ('planned', 'applied', 'interviewing', 'offer_received', "
+            "'rejected', 'withdrawn') AND to_status IN ('planned', 'applied', 'interviewing', "
+            "'offer_received', 'rejected', 'withdrawn') AND from_status <> to_status",
+            name="ck_application_transition_statuses",
+        ),
+        CheckConstraint("source = 'user_confirmation'", name="ck_application_transition_source"),
+        CheckConstraint("actor_id = owner_id", name="ck_application_transition_actor_owner"),
+        CheckConstraint(
+            "to_status <> 'applied' OR channel IS NOT NULL",
+            name="ck_application_transition_applied_channel",
+        ),
+        CheckConstraint(
+            "length(request_fingerprint) = 64", name="ck_application_transition_fingerprint"
+        ),
+        ForeignKeyConstraint(
+            ["application_record_id", "owner_id"],
+            ["application_records.id", "application_records.owner_id"],
+            name="fk_application_transition_record_owner",
+            ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    application_record_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    record_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    actor_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    from_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    to_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    channel: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
 class SqlAlchemyTemplateDefinitionRepository:
     @staticmethod
     def _to_domain(record: TemplateDefinitionRecord) -> TemplateDefinition:
@@ -871,6 +1034,203 @@ class SqlAlchemyMessageDraftRepository:
         await self.session.commit()
 
 
+class SqlAlchemyApplicationRecordRepository:
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(row: ApplicationRecordRow) -> ApplicationRecord:
+        return ApplicationRecord.restore(
+            record_id=row.id,
+            owner_id=row.owner_id,
+            created_by=row.created_by,
+            version=row.version,
+            status=ApplicationRecordStatus(row.status),
+            application_decision_id=row.application_decision_id,
+            decision_case_id=row.decision_case_id,
+            resume_variant_id=row.resume_variant_id,
+            resume_variant_version=row.resume_variant_version,
+            variant_content_fingerprint=row.variant_content_fingerprint,
+            resume_pdf_id=row.resume_pdf_id,
+            resume_pdf_version=row.resume_pdf_version,
+            artifact_id=row.artifact_id,
+            artifact_version=row.artifact_version,
+            artifact_sha256=row.artifact_sha256,
+            message_draft_id=row.message_draft_id,
+            message_draft_version=row.message_draft_version,
+            message_content_fingerprint=row.message_content_fingerprint,
+            idempotency_key=row.idempotency_key,
+            request_fingerprint=row.request_fingerprint,
+            created_at=_as_utc(row.application_created_at),
+            updated_at=_as_utc(row.application_updated_at),
+        )
+
+    async def add(self, record: ApplicationRecord) -> ApplicationRecord:
+        self._check_owner(record)
+        row = ApplicationRecordRow(**_application_record_values(record))
+        self.session.add(row)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+            error_code = (
+                ErrorCode.APPLICATION_RECORD_KEY_TAKEN
+                if constraint == "uq_application_record_owner_key"
+                else ErrorCode.APPLICATION_RECORD_TRANSITION_CONFLICT
+            )
+            raise InfrastructureError(
+                "Application record already exists", error_code=error_code
+            ) from exc
+        return self._to_domain(row)
+
+    async def update(
+        self, record: ApplicationRecord, *, expected_version: int
+    ) -> ApplicationRecord:
+        self._check_owner(record)
+        row = await self.session.scalar(
+            select(ApplicationRecordRow)
+            .where(
+                ApplicationRecordRow.id == record.id,
+                ApplicationRecordRow.owner_id == self.owner_id,
+            )
+            .with_for_update()
+        )
+        if row is None:
+            raise InfrastructureError(
+                "Application record not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
+        if row.version != expected_version:
+            raise InfrastructureError(
+                "Application record version changed",
+                error_code=ErrorCode.APPLICATION_RECORD_VERSION_CONFLICT,
+            )
+        for name, value in _application_record_values(record).items():
+            setattr(row, name, value)
+        await self.session.flush()
+        return self._to_domain(row)
+
+    async def get_by_id(self, record_id: UUID) -> ApplicationRecord | None:
+        row = await self.session.scalar(
+            select(ApplicationRecordRow).where(
+                ApplicationRecordRow.id == record_id,
+                ApplicationRecordRow.owner_id == self.owner_id,
+            )
+        )
+        return None if row is None else self._to_domain(row)
+
+    async def get_by_decision_id(self, decision_id: UUID) -> ApplicationRecord | None:
+        row = await self.session.scalar(
+            select(ApplicationRecordRow).where(
+                ApplicationRecordRow.application_decision_id == decision_id,
+                ApplicationRecordRow.owner_id == self.owner_id,
+            )
+        )
+        return None if row is None else self._to_domain(row)
+
+    async def get_by_idempotency_key(self, key: str) -> ApplicationRecord | None:
+        row = await self.session.scalar(
+            select(ApplicationRecordRow).where(
+                ApplicationRecordRow.idempotency_key == key,
+                ApplicationRecordRow.owner_id == self.owner_id,
+            )
+        )
+        return None if row is None else self._to_domain(row)
+
+    async def list(self, *, offset: int, limit: int) -> list[ApplicationRecord]:
+        rows = await self.session.scalars(
+            select(ApplicationRecordRow)
+            .where(ApplicationRecordRow.owner_id == self.owner_id)
+            .order_by(
+                ApplicationRecordRow.application_updated_at.desc(),
+                ApplicationRecordRow.id.desc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return [self._to_domain(row) for row in rows]
+
+    async def count(self) -> int:
+        value = await self.session.scalar(
+            select(func.count())
+            .select_from(ApplicationRecordRow)
+            .where(ApplicationRecordRow.owner_id == self.owner_id)
+        )
+        return int(value or 0)
+
+    def _check_owner(self, record: ApplicationRecord) -> None:
+        if record.owner_id != self.owner_id:
+            raise InfrastructureError(
+                "Application record not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
+
+
+class SqlAlchemyApplicationRecordTransitionRepository:
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(row: ApplicationRecordTransitionRow) -> ApplicationRecordTransition:
+        return ApplicationRecordTransition.restore(
+            transition_id=row.id,
+            owner_id=row.owner_id,
+            application_record_id=row.application_record_id,
+            record_version=row.record_version,
+            actor_id=row.actor_id,
+            from_status=ApplicationRecordStatus(row.from_status),
+            to_status=ApplicationRecordStatus(row.to_status),
+            source=ApplicationTransitionSource(row.source),
+            channel=row.channel,
+            note=row.note,
+            occurred_at=_as_utc(row.occurred_at),
+            recorded_at=_as_utc(row.recorded_at),
+            idempotency_key=row.idempotency_key,
+            request_fingerprint=row.request_fingerprint,
+        )
+
+    async def add(self, transition: ApplicationRecordTransition) -> ApplicationRecordTransition:
+        if transition.owner_id != self.owner_id:
+            raise InfrastructureError(
+                "Application transition not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
+        row = ApplicationRecordTransitionRow(**_application_transition_values(transition))
+        self.session.add(row)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+            error_code = (
+                ErrorCode.APPLICATION_RECORD_KEY_TAKEN
+                if constraint == "uq_application_transition_owner_key"
+                else ErrorCode.APPLICATION_RECORD_VERSION_CONFLICT
+            )
+            raise InfrastructureError(
+                "Application transition already exists", error_code=error_code
+            ) from exc
+        return self._to_domain(row)
+
+    async def get_by_idempotency_key(self, key: str) -> ApplicationRecordTransition | None:
+        row = await self.session.scalar(
+            select(ApplicationRecordTransitionRow).where(
+                ApplicationRecordTransitionRow.owner_id == self.owner_id,
+                ApplicationRecordTransitionRow.idempotency_key == key,
+            )
+        )
+        return None if row is None else self._to_domain(row)
+
+    async def list_for_record(self, record_id: UUID) -> list[ApplicationRecordTransition]:
+        rows = await self.session.scalars(
+            select(ApplicationRecordTransitionRow)
+            .where(
+                ApplicationRecordTransitionRow.owner_id == self.owner_id,
+                ApplicationRecordTransitionRow.application_record_id == record_id,
+            )
+            .order_by(ApplicationRecordTransitionRow.record_version)
+        )
+        return [self._to_domain(row) for row in rows]
+
+
 class SqlAlchemyResumePdfRepository:
     def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
         self.session = session
@@ -996,6 +1356,54 @@ def _resume_pdf_values(value: ResumePdf) -> dict[str, object]:
         "artifact_size_bytes": value.artifact_size_bytes,
         "pdf_created_at": value.created_at,
         "pdf_updated_at": value.updated_at,
+    }
+
+
+def _application_record_values(value: ApplicationRecord) -> dict[str, object]:
+    return {
+        "id": value.id,
+        "owner_id": value.owner_id,
+        "created_by": value.created_by,
+        "version": value.version,
+        "status": value.status.value,
+        "application_decision_id": value.application_decision_id,
+        "decision_case_id": value.decision_case_id,
+        "resume_variant_id": value.resume_variant_id,
+        "resume_variant_version": value.resume_variant_version,
+        "variant_content_fingerprint": value.variant_content_fingerprint,
+        "resume_pdf_id": value.resume_pdf_id,
+        "resume_pdf_version": value.resume_pdf_version,
+        "artifact_id": value.artifact_id,
+        "artifact_version": value.artifact_version,
+        "artifact_sha256": value.artifact_sha256,
+        "message_draft_id": value.message_draft_id,
+        "message_draft_version": value.message_draft_version,
+        "message_content_fingerprint": value.message_content_fingerprint,
+        "idempotency_key": value.idempotency_key,
+        "request_fingerprint": value.request_fingerprint,
+        "application_created_at": value.created_at,
+        "application_updated_at": value.updated_at,
+    }
+
+
+def _application_transition_values(
+    value: ApplicationRecordTransition,
+) -> dict[str, object]:
+    return {
+        "id": value.id,
+        "owner_id": value.owner_id,
+        "application_record_id": value.application_record_id,
+        "record_version": value.record_version,
+        "actor_id": value.actor_id,
+        "from_status": value.from_status.value,
+        "to_status": value.to_status.value,
+        "source": value.source.value,
+        "channel": value.channel,
+        "note": value.note,
+        "occurred_at": value.occurred_at,
+        "recorded_at": value.recorded_at,
+        "idempotency_key": value.idempotency_key,
+        "request_fingerprint": value.request_fingerprint,
     }
 
 
