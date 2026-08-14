@@ -200,7 +200,8 @@ docker compose run --rm -e TEST_ARTIFACT_STORAGE_ENDPOINT=storage:9000 \
 或对象存在性判断业务状态，PostgreSQL 中的 Artifact 生命周期始终是唯一事实源。
 
 如需覆盖这些 Settings-only 值，应在受审查的 Compose environment 或进程环境中显式提供；只把它们写进仓库根 `.env`
-不会自动注入 API。此 Issue 不定义生产秘密管理或部署拓扑。
+不会自动注入 API。Beta 的秘密管理、单主机 Compose 拓扑和发布边界由 [`ARCHITECTURE.md`](ARCHITECTURE.md)
+的 D-019 定义；本节公开示例值和本地端口不得用于 Beta。
 
 ### 对照验证
 

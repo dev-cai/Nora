@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183、#184、#185、#186、#187。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#171、#183、#184、#185、#186、#187。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -60,6 +60,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-016 | DecisionCase 身份 | Decision & Reporting 拥有的不可变 ID，不预留常量版本字段 | #185 / M4 | CompanyAssessment 只引用 case ID；迁移双向重算生成身份并删除公开固定版本字段 |
 | D-017 | 前端 HTTP 契约 | FastAPI OpenAPI + `openapi-typescript` / `openapi-fetch` | #186 / M4 | 生成类型只镜像传输契约；手写 transport 保留认证、超时、错误与 Blob 策略，CI 阻止漂移 |
 | D-018 | 类型化错误契约 | 协议无关 `ErrorCode` + `ErrorCategory` 注册表 | #187 / M4 | API 只按 category 映射 HTTP；OpenAPI 枚举是前端类型真源，未知异常固定脱敏 500 |
+| D-019 | Beta 部署与发布 | 单区域 Linux 主机 + Docker Compose；GitHub Actions 为唯一 CD 控制面 | #171 / M4 | 同源 TLS、私有数据服务、GHCR 摘要、受控 Secret、跨故障域备份和前向迁移失败边界 |
 
 ## 5. 系统上下文
 
@@ -1076,9 +1077,158 @@ M3: Vue Web     → API → PostgreSQL（确定性报告）
 M4: Vue Web     → API → PostgreSQL / Object Storage（投递材料与记录）
 ```
 
-- Docker Compose 提供 API、PostgreSQL 和私有 MinIO；M4 Artifact/Source 使用 MinIO，Redis/Celery 未达 M5 指标前不进入运行时。
-- 只发布 API 端口，数据库和其他基础设施保持内部可见。
+- Docker Compose 提供 Web、API、PostgreSQL 和私有 MinIO；M4 Artifact/Source 使用 MinIO，Redis/Celery 未达 M5 指标前不进入运行时。
+- Beta 只通过同一 TLS 入口发布 Web 和 API；PostgreSQL、MinIO、管理控制面和其他基础设施保持内部可见。
 - M3 的最小 Demo 不配置 Model Provider，不依赖 pgvector、Embedding、Reranker 或 LLM。
+
+### Beta 部署、Secret 与发布边界（D-019）
+
+#### 决策依据与被拒绝方案
+
+截至 #171，没有已选云账户、强制数据驻留区域、组织 Jenkins、私网专线或禁止 GitHub Actions 的 Release Policy 证据。
+因此 Beta 固定为可移植的单主机 Compose 拓扑，并以 GitHub Actions 作为唯一 CD 控制面；云厂商和产品 SKU 是不改变本节
+边界的部署参数，不得据此切换托管数据库、托管对象存储或第二套发布控制面。首次供应资源时，#138 必须在部署证据中记录
+实际 provider、region、主机规格和数据驻留结论；所有运行数据和恢复副本位于法律允许、距唯一 Beta 用户最近的同一地理区域。
+更换 provider/region 视为新环境恢复，不是普通原地发布。
+
+| 方案 | 结论 | 依据与代价 |
+| :--- | :--- | :--- |
+| 单 Linux 主机运行 Docker Compose | 选择 | 与 Current Compose、MinIO Adapter 和模块化单体一致；单用户 Beta 接受维护窗口和主机级故障停机 |
+| GitHub Actions + 专用部署 Runner | 选择 | 复用现有 CI、分支与 Environment Gate；Runner 仅出站连接 GitHub，不增加公网管理入口 |
+| Jenkins | 拒绝 | 当前没有组织强制、既有安全运维能力或网络不可达证据；会增加控制器、Agent、Credentials、升级和备份成本 |
+| 手工 SSH 发布 | 仅紧急接管 | 不能提供稳定的并发锁、产物校验和发布证据，不作为正常 CD |
+| Kubernetes、微服务、多区域或生产 HA | 拒绝 | 当前容量、隔离和可用性目标不足以支付额外控制面与数据一致性成本 |
+| 托管 PostgreSQL 或公有云 S3 替换 MinIO | 本阶段拒绝 | 会让 #138 在 Task 中重新选择数据服务；后续只有独立 Architecture Issue 可替换 D-010/D-019 |
+
+#### 目标、拓扑、区域与成本
+
+Beta 目标是一个提供持久块存储和可恢复快照的 Linux VM/VPS。一个受审查的 Compose Project 在该主机运行反向代理、Web、
+API、PostgreSQL 16 和私有 MinIO；部署 Runner 以独立 OS 身份运行在同一主机，只能调用 root 拥有的固定发布入口。
+PostgreSQL 与 MinIO 使用相互独立的持久卷，容器文件系统和 Runner 工作目录不保存业务事实。该拓扑没有热备或自动故障转移；
+主机、区域或数据卷故障通过新主机恢复处理。
+
+```text
+Internet
+   |
+   v
+DNS -> TLS ingress :443 -> Web static assets
+                          `-> /api/* -> API
+                                           |
+                      private Compose network
+                         |                 |
+                         v                 v
+                    PostgreSQL          MinIO
+
+GitHub Actions -> protected Environment -> deployment Runner (outbound HTTPS only)
+                                              `-> fixed deploy entrypoint
+```
+
+区域边界是一个 provider 下的一个 region/数据中心；计算、数据库卷和对象存储卷必须同区，禁止透明跨区复制。备份目的地必须在
+同一法律驻留范围内但与运行主机/主卷处于不同故障域。没有经审查的数据驻留证据时不得跨国家或地区复制。
+
+成本边界只包含一个 Beta 环境的以下类别：一台容器主机、两个持久数据卷、DNS/TLS、出站流量、跨故障域备份容量、
+GHCR/GitHub Actions 超出免费额度的用量，以及最小日志和告警。#138 在供应前记录月度预算和告警阈值；备份保留按实测
+RPO/RTO 设置上限。Beta 不为 Jenkins 控制器、Kubernetes 控制面、托管数据服务、多区域副本、热备或自动扩缩容付费。
+
+| 责任方 | 拥有的责任 | 不拥有的责任 |
+| :--- | :--- | :--- |
+| Beta operator | provider/region 记录、DNS、主机、Secret、备份、恢复、发布授权和人工接管 | 修改应用领域事实或绕过审查发布任意镜像 |
+| GitHub | 仓库、Actions、Environment Gate、GHCR 和工作流审计记录 | Beta 数据、运行时 Secret、数据库恢复和应用可用性 |
+| 基础设施 provider | VM、网络、卷和 provider 级快照的可用性边界 | Nora 迁移、Artifact 引用一致性或发布回滚 |
+| Nora 应用 | readiness、迁移、owner 隔离、Artifact 状态机和脱敏日志 | 基础设施快照原子性、证书签发或 provider 灾难恢复 |
+
+#### 网络、TLS 与防火墙
+
+| 路径 | 规则 |
+| :--- | :--- |
+| 浏览器 -> ingress | 公网只允许 `443/tcp`；`80/tcp` 只能重定向到 HTTPS。TLS 1.2+，证书自动续期并监控到期 |
+| ingress -> Web/API | 仅私有 Compose 网络；Web 与 `/api/*` 同源，API 容器端口不绑定公网地址 |
+| API -> PostgreSQL | 仅私有网络 `5432/tcp`，只用应用数据库身份；数据库不得绑定公网或宿主全接口 |
+| API -> MinIO | 仅私有网络 S3 API；Bucket 私有。MinIO Console、root API 和对象端口不得公网暴露 |
+| deployment Runner -> GitHub/GHCR | 仅出站 `443/tcp`，用于取 Job、拉取固定摘要和发布审计；不接收入站 GitHub 连接 |
+| 运行时出站 | 默认拒绝；按功能逐项允许 DNS、NTP、证书续期和已配置的 OCR/受审查 Provider 目标，不允许任意扫描或私网访问 |
+| 运维入口 | 日常发布不开放 SSH；紧急访问只经 provider Console、VPN 或固定管理员 allowlist，并使用短期密钥与独立审计 |
+
+反向代理是唯一 TLS 终止点，必须设置 HSTS、安全响应头、请求体上限和真实客户端地址信任边界。内部明文流量仅限单主机隔离网络；
+若任一数据服务迁出主机，则迁移必须先经 Architecture Review，并使用双向认证或 provider 私网 TLS，不得直接开放公网端口。
+
+#### 镜像、SBOM 与部署身份
+
+- API、Web 和迁移命令只使用 GHCR 中由受保护 `main` Commit 构建的一次性镜像；部署清单必须引用 OCI manifest digest，
+  tag 只用于阅读，不能决定运行版本。PostgreSQL、MinIO 和构建基础镜像继续固定上游 digest。
+- 同一次受信构建产出每个镜像的 SBOM、来源证明和漏洞扫描结果。发布证据固定
+  `commit -> workflow run -> image digest -> SBOM digest -> migration revision -> environment release`；任一引用缺失或验证失败即停止。
+- GitHub Actions 只在 PR CI 成功且目标 Commit 位于受保护 `main` 后创建部署；`beta` GitHub Environment 提供人工授权、
+  单并发锁和审计。部署 Runner 只接受该 Environment 的已批准 Job，不运行普通 PR Job。
+- Runner 使用独立非登录 OS 用户和临时 GitHub Runner token 注册；不得持有数据库、MinIO root、应用认证或备份解密 Secret。
+  它只能读取 GHCR 所需的短期只读凭据，并通过最小 sudo 规则调用 root 拥有、不可由 Runner 修改的发布入口。
+- 优先使用 GitHub OIDC/短期令牌；GHCR 或 provider 不支持时才保存可撤销的最小范围凭据。任何长期 PAT 不得拥有仓库写权限，
+  不得进入镜像层、Compose 文件、Actions Artifact、命令参数或日志。
+
+#### Secret 生命周期与最小权限
+
+运行时 Secret 的事实源是主机上 root 拥有的 Secret 目录，不是 GitHub、Compose YAML、仓库 `.env`、
+镜像或数据库。发布入口把每个 Secret 以只读文件挂载到唯一消费者的 `/run/secrets`；不把值写入 Compose 渲染输出、进程参数、
+Shell trace 或日志。GitHub Environment 只保存触发发布所需的短期控制面凭据，不保存 Nora 业务数据 Secret。
+
+| Secret 类别 | 创建与读取者 | 轮换与撤销边界 |
+| :--- | :--- | :--- |
+| TLS 私钥 | 反向代理的受控 ACME/证书流程；仅 ingress 可读 | 自动续期；私钥泄露立即撤销证书并重新签发，API/Web 不持有私钥 |
+| `AUTH_SECRET_KEY` | operator 通过 CSPRNG 创建；仅 API 可读 | 轮换会使现有 Token 失效，先安排维护窗口再替换；泄露立即轮换并审计登出影响 |
+| PostgreSQL 管理身份 | operator/数据库初始化入口 | 不注入 API；只用于建库、恢复和受控迁移，泄露时撤销并检查角色授权 |
+| PostgreSQL 应用身份 | operator 创建；仅 API 和显式迁移命令可读 | 新旧凭据短时重叠，验证新连接后撤销旧角色/密码；权限只覆盖 Nora Schema 必需动作 |
+| MinIO root 身份 | operator 创建；仅初始化/恢复入口可读 | 不注入 API/Runner；轮换后复验 Bucket policy，泄露立即撤销并检查对象访问日志 |
+| MinIO 应用身份 | 初始化入口创建；仅 API 可读 | 先签发目标 Bucket 最小读写删身份，切换验证后撤销旧身份；不得管理用户、Policy 或其他 Bucket |
+| 备份身份/密钥 | operator 创建；仅备份或隔离恢复入口可读 | 写入身份不能删除/覆盖历史备份；恢复读取与解密身份分离，按演练轮换并验证旧备份可恢复 |
+| 可选 OCR/外部 Provider | operator 创建；仅启用对应 Adapter 的 API 可读 | 未配置时保持既有确定性失败/降级；撤销后禁用能力，不得影响 M4 核心流程 |
+
+Secret 创建、轮换和撤销必须生成不含值的操作记录，包含类别、版本、操作者、时间、消费者和验证结果。每次发布先校验必需文件
+存在、权限正确且非公开示例值；Secret 更新与镜像发布是两个独立动作，回滚镜像不会自动恢复旧 Secret。
+
+#### 持久化、备份与恢复
+
+- PostgreSQL 仍是业务事实源，MinIO 只保存 Artifact 字节；两个数据卷不得与容器生命周期绑定，也不得存放在 Runner 工作目录。
+- 备份使用 D-013 的一致性屏障：暂停写入或采用经演练等价机制，生成 PostgreSQL 备份、MinIO 对象副本/快照、
+  `available` Artifact 清单和删除台账。清单只用于核验，不成为第二事实源。
+- 备份加密后写入与主机和主卷不同故障域的私有目的地。备份身份只允许追加新恢复点，不能删除既有恢复点；删除/保留由独立
+  operator 身份执行。备份目录、对象键、签名 URL 和解密材料不得进入应用日志或仓库。
+- 恢复只能先进入隔离环境：使用不同 DNS、不同运行时 Secret、关闭外部写和公网入口，且不能复用 Beta 的数据库、Bucket 或
+  用户 Token。恢复后运行 Schema 版本、owner/版本、Artifact size/SHA-256、删除台账、`/live`、`/ready` 和主路径 smoke 核验。
+- 缺失或损坏 Artifact 不得恢复为 `available`；无 PostgreSQL 元数据的对象进入隔离清单；任何一致性核验失败都阻止环境晋升。
+  只有 operator 明确接受恢复点和数据损失窗口后，才可切换 DNS/入口。
+- #138 通过真实首次备份与恢复演练记录 RPO、RTO、保留期、恢复点位置、实际成本和责任人；未演练前不得宣称可恢复。
+
+#### 发布、失败停止与回滚顺序
+
+正常发布固定为以下单并发状态机，#153 不得改变顺序或另建发布入口：
+
+1. `preflight`：获取 `beta` Environment 锁，确认目标 Commit 位于 `main`，验证镜像 digest、SBOM/来源证明、迁移 revision、
+   Secret 文件权限和磁盘余量，并记录当前最后健康 release。
+2. `backup`：存在 Schema 或数据迁移时创建可恢复的发布前联合恢复点；失败即停止，当前版本继续服务。
+3. `pull`：只拉取清单中的摘要并再次核对；失败即停止，不能改写当前 Compose release。
+4. `migrate`：进入维护窗口、停止 Web/API 新流量，保持 PostgreSQL/MinIO 运行；使用候选 API 镜像执行一次前向
+   `alembic upgrade head`。迁移失败时保持维护状态并转人工恢复，禁止继续启动候选版本。
+5. `start`：以同一清单启动 API/Web，先检查 `/live`，再等待 `/ready`；就绪前 ingress 不导入业务流量。
+6. `smoke`：执行认证、API/Web 与 Artifact 上传/读取的无外部写 smoke；失败即停止晋升。
+7. `promote`：恢复入口流量，记录 Commit、全部 digest、SBOM、migration revision、时间和 smoke 结果，释放环境锁。
+
+迁移前失败不改变最后健康版本。迁移成功后的应用失败只能在“上一镜像已声明兼容新 Schema”时自动回退镜像摘要；数据库迁移
+默认只前进，不自动执行 Alembic downgrade。破坏性 Schema 变更必须使用跨发布 expand/migrate/contract，且 contract 前保留一个
+已验证恢复窗口。兼容性不明、迁移部分失败、Secret 轮换失败或数据校验失败时保持维护状态，由 operator 从发布前恢复点在隔离环境
+验证后恢复；不得把应用回滚伪装成数据库恢复。回滚同样执行 readiness/smoke 并形成新 release 记录。
+
+人工接管先取消/禁用当前 workflow、取得同一 Environment 锁并保留现场证据；operator 只能对固定摘要调用同一发布入口或执行
+文档化恢复流程，不允许用临时 Compose 文件、可变 tag 或未审查命令覆盖环境。接管结束必须记录原因、动作、结果和后续修复。
+
+#### 后续 Issue 的消费契约
+
+| Issue | 必须实现或验证 | 不得重新选择 |
+| :--- | :--- | :--- |
+| #138 | 单主机 Compose 运行基线、非 root/最小权限、同源 TLS、Secret 文件消费、安全扫描/SBOM、联合备份与隔离恢复、RPO/RTO/成本证据 | provider 特有托管数据库/S3、第二地域、Kubernetes、Jenkins 或另一 Secret 事实源 |
+| #153 | GitHub Actions `beta` Environment、专用部署 Runner、GHCR 摘要清单、单并发锁、上述七阶段状态机、兼容性受限镜像回滚和人工接管 | Jenkins、手工主发布路径、可变 tag、自动数据库 downgrade、蓝绿/灰度发布 |
+
+Issue #138 若发现目标 provider/region 无法提供持久卷、跨故障域私有备份或安全运维入口，或 #153 证明 GitHub Runner 无法出站访问
+GitHub/GHCR，必须带可核验证据重新开启 Architecture 决策；不得在 Task 内静默改用 Jenkins、托管数据服务或公网数据库。
 
 ### M5 Evidence、AI 与条件异步边界
 
