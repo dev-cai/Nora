@@ -20,10 +20,10 @@ const response = await fetchReady("/")
 if (!response.ok) throw new Error(`Web returned ${response.status}`)
 const html = await response.text()
 if (!html.includes("Nora")) throw new Error("Web shell did not contain Nora")
-const health = await fetchReady("/api/health")
-if (!health.ok) throw new Error(`API proxy returned ${health.status}`)
-const payload = await health.json()
-if (payload.status !== "healthy") throw new Error(`Unexpected API health: ${JSON.stringify(payload)}`)
+const readiness = await fetchReady("/api/ready")
+if (!readiness.ok) throw new Error(`API proxy returned ${readiness.status}`)
+const payload = await readiness.json()
+if (payload.status !== "ready") throw new Error(`Unexpected API readiness: ${JSON.stringify(payload)}`)
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const username = `smoke-${suffix}`
 const password = "smoke-password-123"
