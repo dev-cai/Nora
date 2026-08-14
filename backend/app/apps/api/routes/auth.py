@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
 from app.application.identity import IdentityService
-from app.apps.api.dependencies import get_current_user, get_identity_service
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.identity import get_identity_service
 from app.domain.identity import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])

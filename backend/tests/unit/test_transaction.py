@@ -1,12 +1,11 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from app.apps.api.dependencies import (
-    get_application_decision_repository,
-    get_audit_event_repository,
-    get_job_posting_repository,
-    get_transaction,
-)
+from app.apps.api.dependencies.common import get_session
+from app.apps.api.dependencies.followup import get_application_decision_repository
+from app.apps.api.dependencies.governance import get_audit_event_repository
+from app.apps.api.dependencies.opportunity import get_job_posting_repository
+from app.apps.api.dependencies.transaction import get_transaction
 from app.domain.base.exceptions import InfrastructureError
 from app.domain.identity import User
 from app.infrastructure.database import (
@@ -15,6 +14,8 @@ from app.infrastructure.database import (
     SqlAlchemyJobPostingRepository,
     SqlAlchemyTransaction,
 )
+from fastapi import Depends, FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,3 +63,39 @@ def test_composition_reuses_one_session_for_transaction_and_repositories() -> No
     assert job_postings.session is session
     assert decisions.session is session
     assert audits.session is session
+
+
+def test_request_dependencies_share_and_close_one_session() -> None:
+    app = FastAPI()
+    session = AsyncMock(spec=AsyncSession)
+    context_calls = 0
+    exited = False
+
+    class SessionContext:
+        async def __aenter__(self) -> AsyncSession:
+            return session
+
+        async def __aexit__(self, *_args: object) -> None:
+            nonlocal exited
+            exited = True
+
+    def session_factory() -> SessionContext:
+        nonlocal context_calls
+        context_calls += 1
+        return SessionContext()
+
+    app.state.session_factory = session_factory
+
+    @app.get("/session-identity")
+    async def session_identity(
+        first: AsyncSession = Depends(get_session),
+        second: AsyncSession = Depends(get_session),
+    ) -> dict[str, bool]:
+        return {"shared": first is second}
+
+    with TestClient(app) as client:
+        response = client.get("/session-identity")
+
+    assert response.json() == {"shared": True}
+    assert context_calls == 1
+    assert exited

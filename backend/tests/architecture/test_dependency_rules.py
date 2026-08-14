@@ -230,6 +230,13 @@ def class_method_names(path: Path, class_name: str) -> set[str]:
     raise AssertionError(f"{class_name} not found in {path}")
 
 
+def module_function_names(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return {
+        node.name for node in tree.body if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+
+
 @pytest.mark.parametrize("rule", LAYER_RULES, ids=lambda rule: rule.name)
 def test_package_dependency_rule_accepts_current_tree(rule: LayerRule) -> None:
     assert (ROOT / rule.relative_path).is_dir()
@@ -355,3 +362,60 @@ def test_reference_repositories_do_not_own_transaction_boundaries() -> None:
         (ports_path / "followup.py", "ApplicationDecisionRepository"),
     ):
         assert class_method_names(path, class_name).isdisjoint({"commit", "rollback"})
+
+
+def test_api_composition_is_split_by_bounded_context_without_legacy_exports() -> None:
+    api_path = ROOT / "app" / "apps" / "api"
+    dependencies_path = api_path / "dependencies"
+    expected_functions = {
+        "_lifecycle.py": {"get_session", "get_settings"},
+        "common.py": {"get_current_user"},
+        "identity.py": {"get_identity_service"},
+        "career.py": {"get_candidate_profile_repository", "get_resume_version_repository"},
+        "opportunity.py": {
+            "get_company_snapshot_repository",
+            "get_jd_input_adapter",
+            "get_jd_ocr_adapter",
+            "get_job_posting_repository",
+            "get_job_requirement_snapshot_repository",
+        },
+        "decision.py": {
+            "get_company_assessment_repository",
+            "get_decision_case_repository",
+            "get_decision_report_repository",
+        },
+        "followup.py": {
+            "get_application_decision_repository",
+            "get_message_draft_repository",
+            "get_resume_pdf_renderer",
+            "get_resume_pdf_repository",
+            "get_resume_variant_repository",
+            "get_template_definition_repository",
+        },
+        "governance.py": {"get_audit_event_repository"},
+        "knowledge.py": {
+            "get_artifact_repository",
+            "get_artifact_storage",
+            "get_source_document_repository",
+        },
+        "transaction.py": {"get_transaction"},
+    }
+
+    assert not (api_path / "dependencies.py").exists()
+    init_path = dependencies_path / "__init__.py"
+    init_tree = ast.parse(init_path.read_text(encoding="utf-8"))
+    assert module_function_names(init_path) == set()
+    assert not any(isinstance(node, ast.Import | ast.ImportFrom) for node in ast.walk(init_tree))
+    assert {path.name for path in dependencies_path.glob("*.py")} == {
+        "__init__.py",
+        *expected_functions,
+    }
+    for filename, functions in expected_functions.items():
+        assert module_function_names(dependencies_path / filename) == functions
+
+    for source_path in (api_path / "routes").glob("*.py"):
+        tree = ast.parse(source_path.read_text(encoding="utf-8"))
+        assert not any(
+            isinstance(node, ast.ImportFrom) and node.module == "app.apps.api.dependencies"
+            for node in ast.walk(tree)
+        )

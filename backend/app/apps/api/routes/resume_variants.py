@@ -12,12 +12,12 @@ from app.application.followup import (
     ListResumeVariantsQuery,
     ResumeVariantUseCases,
 )
-from app.apps.api.dependencies import (
+from app.apps.api.dependencies.career import get_resume_version_repository
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.decision import get_decision_case_repository
+from app.apps.api.dependencies.followup import (
     get_application_decision_repository,
-    get_current_user,
-    get_decision_case_repository,
     get_resume_variant_repository,
-    get_resume_version_repository,
     get_template_definition_repository,
 )
 from app.domain.followup import ResumeVariant, TemplateDefinition, VariantBlock

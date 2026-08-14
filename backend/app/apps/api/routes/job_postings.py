@@ -15,12 +15,10 @@ from app.application.opportunity import (
     ListJobPostingsQuery,
     ListJobPostingsUseCase,
 )
-from app.apps.api.dependencies import (
-    get_audit_event_repository,
-    get_current_user,
-    get_job_posting_repository,
-    get_transaction,
-)
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.governance import get_audit_event_repository
+from app.apps.api.dependencies.opportunity import get_job_posting_repository
+from app.apps.api.dependencies.transaction import get_transaction
 from app.domain.identity import User
 from app.domain.opportunity import (
     UNKNOWN_COMPANY_NAME,

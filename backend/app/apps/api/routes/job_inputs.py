@@ -5,11 +5,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel, StringConstraints
 
-from app.apps.api.dependencies import (
-    get_current_user,
-    get_jd_input_adapter,
-    get_jd_ocr_adapter,
-)
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.opportunity import get_jd_input_adapter, get_jd_ocr_adapter
 from app.domain.identity import User
 from app.ports.jd_input import (
     JdImageInput,

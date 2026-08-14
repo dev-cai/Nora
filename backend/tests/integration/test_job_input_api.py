@@ -4,7 +4,7 @@ import asyncio
 from uuid import uuid4
 
 from app.apps.api import create_app
-from app.apps.api.dependencies import get_jd_input_adapter, get_jd_ocr_adapter
+from app.apps.api.dependencies.opportunity import get_jd_input_adapter, get_jd_ocr_adapter
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Base
 from app.ports.jd_input import (

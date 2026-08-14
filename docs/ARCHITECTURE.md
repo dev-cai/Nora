@@ -787,6 +787,8 @@ backend/
 │   │   └── opportunity/
 │   ├── apps/
 │   │   └── api/              # FastAPI 路由与 composition
+│   │       ├── routes/       # HTTP 路由与传输 DTO
+│   │       └── dependencies/ # 按 bounded context 拆分的显式接线
 │   ├── domain/               # 领域对象与规则（按业务子模块）
 │   │   ├── base/
 │   │   ├── career/
@@ -854,6 +856,11 @@ Nora/
 ### 模块职责
 
 - `api/` 只负责 HTTP 输入、认证上下文、调用 Use Case 和稳定响应/错误映射，不包含业务规则或 SQL。
+- `apps/api/dependencies/` 是 FastAPI composition root：Identity、Career、Opportunity、Decision、Follow-up、Knowledge 与
+  Governance 各自拥有 Repository、Service 和外部 Adapter 接线；`common.py` 的公开依赖面只包含 Settings、唯一 AsyncSession
+  和认证用户，生命周期实现由私有 `_lifecycle.py` 承载以避免与 Identity Service 装配形成循环导入。Identity 仍拥有 Service
+  构造，其他 Context 直接复用 common 中的同一函数对象以保持 FastAPI override 身份；#195 已交付的 Transaction 接线单独
+  保留在 `transaction.py`，本结构拆分不迁移事务所有权。
 - `application/` 负责编排 Use Case 与事务，依赖 Domain 和 Ports，不导入 FastAPI、SQLAlchemy 或具体 Adapter。
 - `domain/` 只包含本模块的领域对象和规则，仅依赖 Python 标准库及本模块领域类型。
 - `ports/` 定义 Repository、Gateway、Clock、Queue 等 Protocol；Infrastructure 实现这些端口。

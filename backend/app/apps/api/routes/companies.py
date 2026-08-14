@@ -12,12 +12,12 @@ from app.application.opportunity import (
     CreateCompanySnapshotCommand,
     GetCompanySnapshotQuery,
 )
-from app.apps.api.dependencies import (
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.knowledge import (
     get_artifact_repository,
-    get_company_snapshot_repository,
-    get_current_user,
     get_source_document_repository,
 )
+from app.apps.api.dependencies.opportunity import get_company_snapshot_repository
 from app.domain.identity import User
 from app.domain.opportunity import (
     CompanyFieldStatus,

@@ -9,16 +9,18 @@ from pydantic import BaseModel
 
 from app.application.followup import GenerateResumePdfCommand, ResumePdfService
 from app.application.knowledge import ArtifactService
-from app.apps.api.dependencies import (
-    get_artifact_repository,
-    get_artifact_storage,
-    get_audit_event_repository,
-    get_current_user,
+from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.followup import (
     get_resume_pdf_renderer,
     get_resume_pdf_repository,
     get_resume_variant_repository,
-    get_source_document_repository,
     get_template_definition_repository,
+)
+from app.apps.api.dependencies.governance import get_audit_event_repository
+from app.apps.api.dependencies.knowledge import (
+    get_artifact_repository,
+    get_artifact_storage,
+    get_source_document_repository,
 )
 from app.domain.followup import ResumePdf, ResumePdfStatus
 from app.domain.identity import User
