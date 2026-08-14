@@ -1,15 +1,23 @@
 """Artifact upload, download, source metadata, and deletion coordination."""
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from app.domain.base.exceptions import ApplicationError
+from app.domain.base.exceptions import ApplicationError, InfrastructureError
 from app.domain.governance import AuditAction, AuditEvent
 from app.domain.knowledge import Artifact, ArtifactKind, ArtifactStatus, SourceDocument, SourceKind
 from app.ports.governance import AuditEventRepository
-from app.ports.knowledge import ArtifactRepository, ArtifactStorage, SourceDocumentRepository
+from app.ports.knowledge import (
+    ArtifactRepository,
+    ArtifactStorage,
+    ArtifactStorageError,
+    SourceDocumentRepository,
+)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,40 +109,41 @@ class ArtifactService:
             await self.artifacts.commit()
 
         object_key = f"{command.owner_id}/{artifact.id}/{artifact.version}/{uuid4().hex}"
-        stored = False
         try:
             await self.storage.put(
                 object_key=object_key, data=command.data, content_type=content_type
             )
-            stored = True
-            artifact = artifact.publish(object_key)
-            await self.artifacts.update(artifact)
+        except ArtifactStorageError as exc:
+            failed = artifact.fail()
+            cleanup_errors = await self._persist_compensation_state(
+                failed,
+                action=AuditAction.CREATE,
+                result="storage_failed",
+                idempotency_key=command.idempotency_key,
+            )
+            self._raise_cleanup_errors(
+                "Artifact upload failure persistence failed", exc, cleanup_errors
+            )
+            raise ApplicationError(
+                "Artifact storage is unavailable", error_code="artifact_storage_unavailable"
+            ) from exc
+
+        try:
+            published = artifact.publish(object_key)
+            await self.artifacts.update(published)
             await self._audit(
                 actor_id=command.owner_id,
                 action=AuditAction.CREATE,
-                artifact=artifact,
+                artifact=published,
                 result="available",
                 idempotency_key=command.idempotency_key,
             )
             await self.artifacts.commit()
-            return artifact
+            return published
         except Exception as exc:
-            await self.artifacts.rollback()
-            if stored:
-                try:
-                    await self.storage.delete(object_key=object_key)
-                except Exception:
-                    pass
-            else:
-                try:
-                    failed = artifact.fail()
-                    await self.artifacts.update(failed)
-                    await self.artifacts.commit()
-                except Exception:
-                    await self.artifacts.rollback()
-            raise ApplicationError(
-                "Artifact storage is unavailable", error_code="artifact_storage_unavailable"
-            ) from exc
+            cleanup_errors = await self._compensate_failed_publish(artifact, object_key)
+            self._raise_cleanup_errors("Artifact publish compensation failed", exc, cleanup_errors)
+            raise
 
     async def get(self, owner_id: UUID, artifact_id: UUID) -> Artifact:
         artifact = await self.artifacts.get_by_id(artifact_id)
@@ -254,6 +263,21 @@ class ArtifactService:
         try:
             if artifact.object_key:
                 await self.storage.delete(object_key=artifact.object_key)
+        except ArtifactStorageError as exc:
+            failed = artifact.deletion_failed()
+            cleanup_errors = await self._persist_compensation_state(
+                failed,
+                action=AuditAction.DELETE,
+                result="delete_failed",
+            )
+            self._raise_cleanup_errors(
+                "Artifact delete failure persistence failed", exc, cleanup_errors
+            )
+            raise ApplicationError(
+                "Artifact deletion will be retried", error_code="artifact_delete_failed"
+            ) from exc
+
+        try:
             deleted = artifact.mark_deleted()
             await self.artifacts.update(deleted)
             await self._audit(
@@ -265,13 +289,73 @@ class ArtifactService:
             await self.artifacts.commit()
             return deleted
         except Exception as exc:
-            await self.artifacts.rollback()
-            failed = artifact.deletion_failed()
-            await self.artifacts.update(failed)
+            cleanup_errors = await self._rollback_compensation("delete_publish", artifact)
+            self._raise_cleanup_errors(
+                "Artifact delete publish rollback failed", exc, cleanup_errors
+            )
+            raise
+
+    async def _compensate_failed_publish(
+        self, artifact: Artifact, object_key: str
+    ) -> list[Exception]:
+        errors = await self._rollback_compensation("upload_publish", artifact)
+        try:
+            await self.storage.delete(object_key=object_key)
+        except ArtifactStorageError as exc:
+            self._log_compensation_failure("object_delete", artifact, exc)
+        except Exception as exc:
+            errors.append(exc)
+        return errors
+
+    async def _persist_compensation_state(
+        self,
+        artifact: Artifact,
+        *,
+        action: AuditAction,
+        result: str,
+        idempotency_key: str | None = None,
+    ) -> list[Exception]:
+        errors: list[Exception] = []
+        try:
+            await self.artifacts.update(artifact)
+            await self._audit(
+                actor_id=artifact.owner_id,
+                action=action,
+                artifact=artifact,
+                result=result,
+                idempotency_key=idempotency_key,
+            )
             await self.artifacts.commit()
-            raise ApplicationError(
-                "Artifact deletion will be retried", error_code="artifact_delete_failed"
-            ) from exc
+            return errors
+        except InfrastructureError as exc:
+            self._log_compensation_failure("state_publish", artifact, exc)
+        except Exception as exc:
+            errors.append(exc)
+        errors.extend(await self._rollback_compensation("state_publish", artifact))
+        return errors
+
+    async def _rollback_compensation(self, stage: str, artifact: Artifact) -> list[Exception]:
+        try:
+            await self.artifacts.rollback()
+        except InfrastructureError as exc:
+            self._log_compensation_failure(f"{stage}_rollback", artifact, exc)
+        except Exception as exc:
+            return [exc]
+        return []
+
+    @staticmethod
+    def _raise_cleanup_errors(message: str, original: Exception, errors: list[Exception]) -> None:
+        if errors:
+            raise ExceptionGroup(message, [original, *errors]) from original
+
+    @staticmethod
+    def _log_compensation_failure(stage: str, artifact: Artifact, error: Exception) -> None:
+        logger.warning(
+            "Artifact compensation failed artifact_id=%s compensation_stage=%s error_type=%s",
+            artifact.id,
+            stage,
+            type(error).__name__,
+        )
 
     async def _audit(
         self,
