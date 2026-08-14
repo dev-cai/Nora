@@ -84,7 +84,7 @@ flowchart LR
 - `GET /message-drafts/{id}/versions`
 - `GET /message-drafts/{id}/versions/{version}`
 - `POST /message-drafts/{id}/revisions`
-- `GET /health`
+- `GET /live`
 - `GET /ready`
 
 简历版本、声明式模板、ResumeVariant、确定性 PDF 与 MessageDraft 接口均属于 Current。分析、报告与投/不投决定的后端 API 及浏览器页面也属于 Current。外部投递仍未交付；前端不得根据路线图伪造响应或绕过未交付 API。

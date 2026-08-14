@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -35,14 +36,15 @@ from app.infrastructure.logging import (
 )
 
 _CORRELATION_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
+_READINESS_TIMEOUT_SECONDS = 2.0
 
 
-def _resolve_correlation_id(request: Request, header_name: str) -> str:
-    value = request.headers.get(header_name)
+def _resolve_request_id(request: Request) -> str:
+    value = request.headers.get("X-Request-ID")
     if value is None:
         return str(uuid4())
     if _CORRELATION_ID_PATTERN.fullmatch(value) is None:
-        raise ValueError(header_name)
+        raise ValueError
     return value
 
 
@@ -94,30 +96,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         try:
-            request_id = _resolve_correlation_id(request, "X-Request-ID")
-            trace_id = _resolve_correlation_id(request, "X-Trace-ID")
-        except ValueError as exc:
-            header_name = str(exc)
+            request_id = _resolve_request_id(request)
+        except ValueError:
+            request_id = str(uuid4())
             return JSONResponse(
                 status_code=400,
                 content={
                     "error_code": "invalid_correlation_id",
                     "message": (
-                        f"{header_name} must be 1-128 characters using ASCII letters, "
+                        "X-Request-ID must be 1-128 characters using ASCII letters, "
                         "digits, '.', '_' or '-'"
                     ),
                 },
+                headers={"X-Request-ID": request_id},
             )
 
         request.state.request_id = request_id
-        request.state.trace_id = trace_id
-        bind_log_context(request_id=request_id, trace_id=trace_id)
+        bind_log_context(request_id=request_id)
         try:
             response = await call_next(request)
         finally:
             clear_log_context()
         response.headers["X-Request-ID"] = request_id
-        response.headers["X-Trace-ID"] = trace_id
         return response
 
     @app.exception_handler(NoraError)
@@ -177,7 +177,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "Database operation unavailable",
             error_type=type(exc).__name__,
             request_id=getattr(request.state, "request_id", None),
-            trace_id=getattr(request.state, "trace_id", None),
         )
         return JSONResponse(
             status_code=503,
@@ -190,8 +189,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(Exception)
     async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
         request_id = getattr(request.state, "request_id", str(uuid4()))
-        trace_id = getattr(request.state, "trace_id", str(uuid4()))
-        bind_log_context(request_id=request_id, trace_id=trace_id)
+        bind_log_context(request_id=request_id)
         try:
             get_logger("nora.api").exception("Unhandled API exception", exc_info=exc)
         finally:
@@ -199,22 +197,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse(
             status_code=500,
             content={"error_code": "internal_error", "message": "Internal server error"},
-            headers={"X-Request-ID": request_id, "X-Trace-ID": trace_id},
+            headers={"X-Request-ID": request_id},
         )
 
-    @app.get("/health")
-    async def health() -> dict[str, str]:
-        if app.state.database_engine is not None:
-            try:
-                async with app.state.database_engine.connect() as connection:
-                    await connection.exec_driver_sql("SELECT 1")
-            except Exception:
-                return {"status": "degraded", "database": "unavailable"}
-        return {"status": "healthy"}
+    @app.get("/live")
+    async def live() -> dict[str, str]:
+        return {"status": "live"}
 
     @app.get("/ready")
-    async def ready() -> dict[str, str]:
-        return {"status": "ready"}
+    async def ready() -> JSONResponse:
+        if app.state.database_engine is not None:
+            try:
+                async with asyncio.timeout(_READINESS_TIMEOUT_SECONDS):
+                    async with app.state.database_engine.connect() as connection:
+                        await connection.exec_driver_sql("SELECT 1")
+            except Exception:
+                pass
+            else:
+                return JSONResponse(status_code=200, content={"status": "ready"})
+
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "database": "unavailable"},
+        )
 
     return app
 

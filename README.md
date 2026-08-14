@@ -99,7 +99,8 @@ docker compose exec api alembic upgrade head
 验证：
 
 ```bash
-curl http://localhost:8000/health   # {"status":"healthy"}
+curl http://localhost:8000/live    # {"status":"live"}
+curl --fail http://localhost:8000/ready  # {"status":"ready"}
 # 前端工作台：http://localhost:5173
 ```
 

@@ -759,7 +759,7 @@ savepoint，也不得给 Repository Port 增加通用 savepoint / rollback 方�
 
 最小上下文字段：
 
-- `request_id`、`trace_id`、`user_id_hash`；
+- `request_id`、`user_id_hash`；
 - `case_id`、`run_id`、`task_id`、`tool_call_id`；
 - `source_version`、`artifact_version`、`prompt_version`、`model_id`；
 - 延迟、重试次数、停止原因和稳定错误码。
@@ -890,7 +890,7 @@ API Schema、Application Command/Query/DTO、Domain Entity 与 SQLAlchemy ORM Mo
 
 ### API 版本与兼容性
 
-`/api/v1` 是后续目标版本边界。当前已经发布的 `/auth/*`、`/job-postings/*`、`/health` 和 `/ready` 路由在独立兼容性
+`/api/v1` 是后续目标版本边界。当前已经发布的 `/auth/*`、`/job-postings/*`、`/live` 和 `/ready` 路由在独立兼容性
 Issue 合并前保持不变；Architecture 文档不能替代路由迁移、兼容期和前端切换测试。
 
 ### OpenAPI 驱动的前端 HTTP 契约（D-017）

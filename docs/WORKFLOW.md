@@ -38,7 +38,7 @@ git clone git@github.com:dev-cai/Nora.git
 cd Nora
 cp backend/.env.example .env
 docker compose up
-curl http://localhost:8000/health
+curl --fail http://localhost:8000/ready
 ```
 
 详见 `docs/DEVELOPMENT.md`。
@@ -176,7 +176,7 @@ git checkout -b nora/<type>-<subject>
 
 ```bash
 docker compose up -d
-curl http://localhost:8000/health    # 验证服务就绪
+curl --fail http://localhost:8000/ready    # 验证 PostgreSQL 与 API 已就绪
 ```
 
 新克隆仓库还需要启用本地 hook：

@@ -102,19 +102,23 @@ Compose 会启动：
 
 ```bash
 cd "$HOME/projects/Nora"
-curl http://localhost:8000/health
-curl http://localhost:8000/ready
+curl http://localhost:8000/live
+curl --fail http://localhost:8000/ready
 curl http://localhost:5173
 docker compose ps
 ```
 
 首次启动和拉取到新迁移后都要执行 `alembic upgrade head`。API 不会在启动时自动修改数据库结构。
 
-数据库可用时，健康检查应返回：
+API 进程存活时 `/live` 返回：
 
 ```json
-{"status":"healthy"}
+{"status":"live"}
 ```
+
+`/live` 不检查外部依赖。PostgreSQL 可连接且 `SELECT 1` 成功时 `/ready` 返回 `200` 与
+`{"status":"ready"}`；未配置、连接失败、查询失败或超时时返回 `503` 与
+`{"status":"not_ready","database":"unavailable"}`。
 
 ## 环境变量与 Compose 对照
 
@@ -414,19 +418,17 @@ npm run e2e
 - 每次运行使用隔离随机账号，不在业务数据中制造冲突。
 - CI：`.github/workflows/e2e.yml` 在每个 PR 和 main push 上启动 Compose、迁移隔离数据库、执行 Web/API smoke 与同一套浏览器用例，并在成功或失败后通过 `docker compose down --volumes --remove-orphans` 清理隔离环境。
 
-### 请求与追踪标识
+### 请求关联标识
 
-API 为每个请求维护两个结构化日志字段：
+API 为每个请求维护 `request_id` 结构化日志字段，用于定位单次 HTTP 请求的响应和日志。
 
-- `request_id` 标识一次 HTTP 请求，用于定位单次请求的响应和日志。
-- `trace_id` 标识调用链；客户端重试或后续服务调用可继续传递同一值。
-
-客户端可以分别通过 `X-Request-ID` 和 `X-Trace-ID` 传入标识。缺失时服务端生成 UUID，并通过同名响应头回传。
+客户端可以通过 `X-Request-ID` 传入标识。缺失时服务端生成 UUID，并通过同名响应头回传。
 传入值必须为 1–128 位，只能包含 ASCII 字母、数字、点、下划线和连字符，且首位必须是字母或数字；非法值返回
-`400` 和稳定错误码 `invalid_correlation_id`。标识不得包含 Token、Cookie、请求正文、邮箱或其他个人数据。
+`400` 和稳定错误码 `invalid_correlation_id`，该错误响应仍携带服务端生成的有效 `X-Request-ID`。标识不得包含 Token、
+Cookie、请求正文、邮箱或其他个人数据。
 
-排障时先从响应头取得 `X-Request-ID` 定位单次请求，再用 `X-Trace-ID` 关联同一调用链。请求结束后服务端会清理
-两个字段，避免上下文泄漏到后续请求。
+`X-Trace-ID` 不属于当前契约：服务端忽略调用方传入值，也不生成、记录或回传伪 Trace ID。排障时从响应头取得
+`X-Request-ID` 定位单次请求；请求结束后服务端会清理字段，避免上下文泄漏到后续请求。
 
 查看容器状态和资源：
 
@@ -518,7 +520,7 @@ docker build --no-cache --file docker/Dockerfile.api --target runtime --tag nora
 docker compose --profile test run --rm test
 docker compose up -d db api
 docker compose exec api alembic upgrade head
-curl --fail http://localhost:8000/health
+curl --fail http://localhost:8000/ready
 ```
 
 这些 CI 构建命令只解析配置和构建镜像，不启动 Compose 服务，也不会创建或写入 PostgreSQL、MinIO 命名卷。人工健康

@@ -13,7 +13,7 @@ from app.infrastructure.logging import (
 def test_json_log_contains_timestamp_level_message_and_context() -> None:
     stream = StringIO()
     configure_logging(Settings(log_format=LogFormat.JSON), stream=stream)
-    bind_log_context(request_id="req-123", trace_id="trace-456")
+    bind_log_context(request_id="req-123")
     try:
         get_logger("test").info("request completed", user_id="u-1")
     finally:
@@ -24,14 +24,14 @@ def test_json_log_contains_timestamp_level_message_and_context() -> None:
     assert record["level"] == "info"
     assert record["message"] == "request completed"
     assert record["request_id"] == "req-123"
-    assert record["trace_id"] == "trace-456"
+    assert "trace_id" not in record
 
 
 def test_cleared_log_context_does_not_leak_to_next_operation() -> None:
     stream = StringIO()
     configure_logging(Settings(log_format=LogFormat.JSON), stream=stream)
 
-    bind_log_context(request_id="req-first", trace_id="trace-first")
+    bind_log_context(request_id="req-first")
     get_logger("test").info("first operation")
     clear_log_context()
     bind_log_context(request_id="req-second")
@@ -42,7 +42,7 @@ def test_cleared_log_context_does_not_leak_to_next_operation() -> None:
 
     first, second = (json.loads(line) for line in stream.getvalue().splitlines())
     assert first["request_id"] == "req-first"
-    assert first["trace_id"] == "trace-first"
+    assert "trace_id" not in first
     assert second["request_id"] == "req-second"
     assert "trace_id" not in second
 
