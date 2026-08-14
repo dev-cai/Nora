@@ -27,6 +27,7 @@ class MinioArtifactStorage:
     async def put(self, *, object_key: str, data: bytes, content_type: str) -> None:
         self._validate_key(object_key)
         temporary_key = f".pending/{uuid4().hex}"
+        primary_error: Exception | None = None
         try:
             await self.ensure_bucket()
             await asyncio.to_thread(
@@ -71,20 +72,28 @@ class MinioArtifactStorage:
                     "Object storage verification failed", error_code="artifact_storage_unavailable"
                 )
         except MinioException as exc:
-            raise ArtifactStorageError(
+            primary_error = ArtifactStorageError(
                 "Object storage write failed", error_code="artifact_storage_unavailable"
-            ) from exc
+            )
+            raise primary_error from exc
+        except Exception as exc:
+            primary_error = exc
+            raise
         finally:
             try:
                 await asyncio.to_thread(self.client.remove_object, self.bucket, temporary_key)
             except MinioException as exc:
                 logger.warning(
-                    "Artifact storage cleanup failed",
-                    extra={
-                        "compensation_stage": "temporary_object_delete",
-                        "error_type": type(exc).__name__,
-                    },
+                    "Artifact storage cleanup failed compensation_stage=%s error_type=%s",
+                    "temporary_object_delete",
+                    type(exc).__name__,
                 )
+            except Exception as exc:
+                if primary_error is not None:
+                    raise ExceptionGroup(
+                        "Artifact storage temporary cleanup failed", [primary_error, exc]
+                    ) from primary_error
+                raise
 
     async def get(self, *, object_key: str) -> StoredObject:
         self._validate_key(object_key)

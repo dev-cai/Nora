@@ -351,12 +351,10 @@ class ArtifactService:
     @staticmethod
     def _log_compensation_failure(stage: str, artifact: Artifact, error: Exception) -> None:
         logger.warning(
-            "Artifact compensation failed",
-            extra={
-                "artifact_id": str(artifact.id),
-                "compensation_stage": stage,
-                "error_type": type(error).__name__,
-            },
+            "Artifact compensation failed artifact_id=%s compensation_stage=%s error_type=%s",
+            artifact.id,
+            stage,
+            type(error).__name__,
         )
 
     async def _audit(

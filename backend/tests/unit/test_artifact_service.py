@@ -337,10 +337,9 @@ async def test_known_compensation_delete_failure_is_logged_without_sensitive_dat
 
     artifact = next(iter(artifacts.values.values()))
     assert error.value is original
-    record = caplog.records[0]
-    assert record.artifact_id == str(artifact.id)
-    assert record.compensation_stage == "object_delete"
-    assert record.error_type == "ArtifactStorageError"
+    assert str(artifact.id) in caplog.text
+    assert "compensation_stage=object_delete" in caplog.text
+    assert "error_type=ArtifactStorageError" in caplog.text
     assert "owner/object/key" not in caplog.text
     assert "private content" not in caplog.text
 
