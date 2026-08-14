@@ -27,6 +27,7 @@ from app.infrastructure.database import (
     SqlAlchemyResumeVersionRepository,
     SqlAlchemySourceDocumentRepository,
     SqlAlchemyTemplateDefinitionRepository,
+    SqlAlchemyTransaction,
     SqlAlchemyUserRepository,
 )
 from app.infrastructure.jd_fetch import JdFetchAdapter
@@ -55,6 +56,7 @@ from app.ports.opportunity import (
     JobPostingRepository,
     JobRequirementSnapshotRepository,
 )
+from app.ports.transaction import Transaction
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -67,6 +69,12 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
         raise NoraError("Database is not configured", error_code="database_unavailable")
     async with session_factory() as session:
         yield session
+
+
+def get_transaction(session: AsyncSession = Depends(get_session)) -> Transaction:
+    """Bind the Application transaction port to the request-scoped session."""
+
+    return SqlAlchemyTransaction(session)
 
 
 def get_identity_service(

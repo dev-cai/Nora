@@ -155,7 +155,6 @@ class SqlAlchemyJobPostingRepository:
         try:
             await self.session.flush()
         except IntegrityError as exc:
-            await self.session.rollback()
             raise InfrastructureError(
                 "Idempotency key is already in use",
                 error_code="idempotency_key_taken",
@@ -208,9 +207,6 @@ class SqlAlchemyJobPostingRepository:
             .where(JobPostingRecord.owner_id == self.owner_id)
         )
         return int(total or 0)
-
-    async def commit(self) -> None:
-        await self.session.commit()
 
 
 def _as_utc(value: datetime) -> datetime:

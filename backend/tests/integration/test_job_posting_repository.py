@@ -43,7 +43,7 @@ async def test_job_posting_repository_round_trip_and_user_scope(
             source_url="https://jobs.example.com/backend",
         )
         stored = await repository_a.add(posting)
-        await repository_a.commit()
+        await session.commit()
         posting_id = stored.id
 
         repository_b = SqlAlchemyJobPostingRepository(session, owner_b.id)

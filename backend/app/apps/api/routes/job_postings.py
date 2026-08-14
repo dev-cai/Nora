@@ -19,6 +19,7 @@ from app.apps.api.dependencies import (
     get_audit_event_repository,
     get_current_user,
     get_job_posting_repository,
+    get_transaction,
 )
 from app.domain.identity import User
 from app.domain.opportunity import (
@@ -31,6 +32,7 @@ from app.domain.opportunity import (
 )
 from app.ports.governance import AuditEventRepository
 from app.ports.opportunity import JobPostingRepository
+from app.ports.transaction import Transaction
 
 router = APIRouter(prefix="/job-postings", tags=["job-postings"])
 MetadataField = Annotated[
@@ -104,8 +106,9 @@ async def create_job_posting(
     user: User = Depends(get_current_user),
     repository: JobPostingRepository = Depends(get_job_posting_repository),
     audit_repository: AuditEventRepository = Depends(get_audit_event_repository),
+    transaction: Transaction = Depends(get_transaction),
 ) -> JobPostingResponse:
-    result = await CreateJobPostingUseCase(repository, audit_repository).execute(
+    result = await CreateJobPostingUseCase(repository, audit_repository, transaction).execute(
         CreateJobPostingCommand(
             owner_id=user.id,
             idempotency_key=idempotency_key,

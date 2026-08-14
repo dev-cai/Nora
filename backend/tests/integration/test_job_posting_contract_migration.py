@@ -14,6 +14,7 @@ from app.domain.base.exceptions import ApplicationError
 from app.infrastructure.database import (
     SqlAlchemyAuditEventRepository,
     SqlAlchemyJobPostingRepository,
+    SqlAlchemyTransaction,
 )
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import DBAPIError
@@ -107,7 +108,11 @@ def test_job_posting_public_contract_migrates_legacy_metadata(database_url: str)
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory() as session:
             repository = SqlAlchemyJobPostingRepository(session, owner_id)
-            use_case = CreateJobPostingUseCase(repository, SqlAlchemyAuditEventRepository(session))
+            use_case = CreateJobPostingUseCase(
+                repository,
+                SqlAlchemyAuditEventRepository(session),
+                SqlAlchemyTransaction(session),
+            )
             replayed = await use_case.execute(
                 CreateJobPostingCommand(
                     owner_id=owner_id,

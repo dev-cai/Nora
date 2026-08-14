@@ -44,11 +44,13 @@ id = "job-posting-snapshots"
 name = "不可变岗位快照"
 milestone = "M1-M2"
 status = "current"
-summary = "支持认证后的岗位快照创建、列表、详情、幂等请求、创建审计和 M2 公开字段契约。"
+summary = "支持认证后的岗位快照创建、列表、详情、幂等请求、创建审计和 M2 公开字段契约；创建用例通过共享请求级事务原子提交岗位、幂等记录与审计事件，并在失败或并发冲突恢复前整段回滚。"
 code_paths = [
   "backend/app/apps/api/routes/job_postings.py",
   "backend/app/application/opportunity/service.py",
   "backend/app/domain/opportunity/job_posting.py",
+  "backend/app/ports/transaction.py",
+  "backend/app/infrastructure/database/transaction.py",
   "frontend/src/views/JobsView.vue",
   "frontend/src/views/JobCreateView.vue",
   "frontend/src/views/JobDetailView.vue",
@@ -294,11 +296,13 @@ id = "application-decision"
 name = "最小投不投决定"
 milestone = "M3"
 status = "current"
-summary = "支持用户对不可变 DecisionReport 记录 apply 或 skip：决定固定报告、DecisionCase 与分析所用 ResumeVersion，保存操作者、时间、原因和幂等键；skip 原因必填，相同语义重放幂等，不同决定稳定冲突。报告页 DecisionBar 可提交并在刷新后恢复；apply 只表达意图，不生成材料、不调用 RAG 且不执行外部写。"
+summary = "支持用户对不可变 DecisionReport 记录 apply 或 skip：决定固定报告、DecisionCase 与分析所用 ResumeVersion，保存操作者、时间、原因和幂等键；skip 原因必填，相同语义重放幂等，不同决定稳定冲突。决定、幂等语义与审计事件通过共享请求级事务原子提交，失败或并发冲突恢复前整段回滚。报告页 DecisionBar 可提交并在刷新后恢复；apply 只表达意图，不生成材料、不调用 RAG 且不执行外部写。"
 code_paths = [
   "backend/app/domain/followup/application_decision.py",
   "backend/app/application/followup/service.py",
+  "backend/app/ports/transaction.py",
   "backend/app/infrastructure/database/followup.py",
+  "backend/app/infrastructure/database/transaction.py",
   "backend/app/apps/api/routes/decisions.py",
   "frontend/src/components/DecisionBar.vue",
   "frontend/src/stores/analysis.ts",

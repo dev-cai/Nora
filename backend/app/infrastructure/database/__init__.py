@@ -46,6 +46,7 @@ from .opportunity import (
     SqlAlchemyJobRequirementSnapshotRepository,
 )
 from .repository import SqlAlchemyRepository, SqlAlchemyUserScopedRepository
+from .transaction import SqlAlchemyTransaction
 
 __all__ = (
     "AuditMixin",
@@ -75,6 +76,7 @@ __all__ = (
     "SqlAlchemyResumePdfRepository",
     "SqlAlchemyResumeVariantRepository",
     "SqlAlchemyTemplateDefinitionRepository",
+    "SqlAlchemyTransaction",
     "SqlAlchemyArtifactRepository",
     "SqlAlchemyCandidateProfileRepository",
     "SqlAlchemyCompanyAssessmentRepository",

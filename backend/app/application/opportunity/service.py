@@ -10,6 +10,7 @@ from app.domain.governance import AuditAction, AuditEvent
 from app.domain.opportunity import JobPosting, JobSourceType
 from app.ports.governance import AuditEventRepository
 from app.ports.opportunity import JobPostingRepository
+from app.ports.transaction import Transaction
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,9 +69,11 @@ class CreateJobPostingUseCase:
         self,
         repository: JobPostingRepository,
         audit_repository: AuditEventRepository,
+        transaction: Transaction,
     ) -> None:
         self.repository = repository
         self.audit_repository = audit_repository
+        self.transaction = transaction
 
     async def execute(self, command: CreateJobPostingCommand) -> CreateJobPostingResult:
         idempotency_key = _normalize_idempotency_key(command.idempotency_key)
@@ -112,8 +115,9 @@ class CreateJobPostingUseCase:
                     idempotency_key=idempotency_key,
                 )
             )
-            await self.repository.commit()
+            await self.transaction.commit()
         except InfrastructureError as exc:
+            await self.transaction.rollback()
             if exc.error_code != "idempotency_key_taken":
                 raise
             existing = await self.repository.get_by_idempotency_key(idempotency_key)
@@ -128,6 +132,9 @@ class CreateJobPostingUseCase:
                 request_fingerprint,
                 legacy_request_fingerprint,
             )
+        except Exception:
+            await self.transaction.rollback()
+            raise
 
         return CreateJobPostingResult(job_posting=stored, replayed=False)
 

@@ -58,7 +58,7 @@ async def _create_posting(session, owner_id) -> str:
         company_name="Example Corp",
     )
     stored = await repository.add(posting)
-    await repository.commit()
+    await session.commit()
     return stored.id
 
 
