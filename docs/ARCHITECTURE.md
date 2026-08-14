@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183、#184。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183、#184、#185。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -57,6 +57,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-013 | Artifact 与 Source 生命周期 | PostgreSQL 元数据事实源 + 私有对象存储字节 + 应用层补偿 | M4 | MinIO/S3 是首个真实 Adapter；逻辑删除先撤销访问，物理删除与孤儿清理由可重试任务完成 |
 | D-014 | PostgreSQL 事务所有权 | Application 注入最小 `Transaction` Port，Repository 只查询、写入与 `flush` | #183 / M4 | 顶层写 Use Case 划分提交/回滚边界；SQLAlchemy Adapter 与 Repository 共享同一请求会话 |
 | D-015 | JobPosting 幂等指纹 | 只接受当前完整字段指纹，不保留 M1 运行时双轨 | #184 / M4 | 无生产或稳定客户端迁移义务；直接删除 legacy 分支，旧格式记录按同键异请求返回冲突 |
+| D-016 | DecisionCase 身份 | Decision & Reporting 拥有的不可变 ID，不预留常量版本字段 | #185 / M4 | CompanyAssessment 只引用 case ID；迁移双向重算生成身份并删除公开固定版本字段 |
 
 ## 5. 系统上下文
 
@@ -130,7 +131,7 @@ flowchart TB
 | :--- | :--- | :--- | :--- |
 | Identity & Preferences | 用户身份、租户映射、时区、语言、隐私与出行偏好 | User、ExternalIdentity、UserPreference | 简历事实、岗位结论、第三方凭据正文 |
 | Career Profile | 简历版本、已确认经历、技能和能力证据 | ResumeVersion、CandidateProfile、CapabilityEvidence | 岗位评分、面试状态和模型推断事实化 |
-| Opportunity Intelligence | 公司与岗位快照、风险 Evidence、人岗分析输入 | CompanySnapshot、JobPosting、JobRequirementSnapshot、DecisionCase | 投递状态、报告发布和消息发送 |
+| Opportunity Intelligence | 公司与岗位快照、风险 Evidence、人岗分析输入 | CompanySnapshot、JobPosting、JobRequirementSnapshot | 投递状态、报告发布和消息发送 |
 | Application & Follow-up | 用户对机会的决定、投递产物和投递进度 | ApplicationDecision、ResumeVariant、MessageDraft、ApplicationRecord | 修改个人主档、自动发送外部消息或自动投递 |
 | Interview Journey | 面试计划、准备材料、题目、出行方案和复盘 | InterviewPlan、QuestionSet、TravelPlan、InterviewReview | 公司事实源和长期画像直接修改 |
 | Decision & Reporting | 汇总经校验的分析结果，生成版本化决策报告 | DecisionCase、CompanyAssessment、Recommendation、DecisionReport | 原始抓取、任意模型调用和外部写执行 |
@@ -295,7 +296,7 @@ M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecis
 - 风格限于 `professional`、`concise` 和 `referral`；`referral` 必须由用户显式提供上下文，系统不推断内推关系。公司快照即使为 stale、unknown 或 conflicted 也只固定来源身份，不进入文本；只有附件状态为 `available` 且行业字段为 `confirmed` 时才可写入。生成和编辑均只接受纯文本，编辑以 `draft_id + base_version + text` 幂等追加修订，生成版本保持不可变。
 - MessageDraft 公开接口为 `POST /resume-variants/{id}/message-drafts`、`GET /resume-variants/{id}/message-draft`、`GET /message-drafts`、`GET /message-drafts/{id}`、`GET /message-drafts/{id}/versions`、`GET /message-drafts/{id}/versions/{version}` 与 `POST /message-drafts/{id}/revisions`。所有对象按 owner 隔离；复制只发生在用户浏览器，不存在发送 Port、招聘平台 Adapter、模型调用、RAG 或外部写。
 
-### 公司情报与决策报告版本边界（D-014）
+### 公司情报与决策报告版本边界
 
 `CompanySnapshot` 属于 Opportunity Intelligence Context，`CompanyAssessment` 属于 Decision & Reporting Context。两者均按用户归属和正整数版本追加，版本发布后不可原地覆盖。
 
@@ -309,8 +310,9 @@ M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecis
 #### 与 M3 决策和报告的关系
 
 - M3 `DecisionCase` 的四类输入、`input_fingerprint` 和 `rule_set_version` 保持不变。公司情报不追加到既有 DecisionCase 输入，不改变 M3 规则执行、幂等键或历史恢复。
-- `CompanyAssessment` 是可选的独立版本化附件，固定 `owner_id`、`decision_case_id`/其精确版本、`company_snapshot_id`/版本、生成器版本和生成身份；它只能引用已存在且属于同一用户的对象。
-- 当前 M3 `DecisionCase` 没有独立版本列，持久化身份为不可变 ID；为保持 D-014 附件引用结构显式且不修改 M3 身份，`CompanyAssessment.decision_case_version` 兼容固定为 `1`。未来若案例引入独立版本，必须另行 Architecture Review 和迁移。
+- `CompanyAssessment` 是可选的独立版本化附件，固定 `owner_id`、`decision_case_id`、`company_snapshot_id`/版本、生成器版本和生成身份；它只能引用已存在且属于同一用户的对象。
+- 当前 M3 `DecisionCase` 没有独立版本列，持久化身份为不可变 ID；CompanyAssessment 按下述 D-016 只保存案例 ID，
+  不预留固定为 `1` 的版本字段。
 - `DecisionReport` 的 M3 五类分区和生成身份保持不变。公开报告可在独立的兼容扩展字段中返回 `company_assessment_id`、版本、状态和来源引用；没有附件时返回 `unknown`/缺失，不读取“最新公司快照”填充历史报告。
 - 公司快照或评估新版本不会静默重算或覆盖旧报告。刷新必须显式创建新的 `CompanyAssessment`，需要新的报告组合时由后续 Task 定义新的报告版本和生成身份；旧报告继续返回原有内容。
 
@@ -325,6 +327,40 @@ M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecis
 - #79 负责 CompanySnapshot/CompanyAssessment 的 Domain、Application、Repository、认证 API 和报告兼容 DTO；不修改 M3 DecisionCase/Report 的既有字段和持久化身份。
 - #169 只消费固定版本 API，提供录入、版本查看、状态和报告附件展示；页面刷新或重新登录不得切换到“最新版本”覆盖历史。
 - 本决策不引入自动全网采集、RAG、Embedding、LLM 或外部写。
+
+#### DecisionCase 不可变身份（D-016）
+
+`DecisionCase` 由 Decision & Reporting Context 唯一拥有。它以 owner-scoped UUID 表达一组不可变分析输入；没有案例内版本序列，
+精确引用只需要 `decision_case_id` 与 `owner_id`。CompanyAssessment 已通过 `(decision_case_id, owner_id)` 外键约束案例归属，且
+`(report_id, report_version, decision_case_id, owner_id)` 外键同时证明附件报告与案例一致，因此固定为 `1` 的
+`decision_case_version` 不增加完整性。
+
+截至 #185 决策，Nora 没有 Git tag、GitHub Release、已完成的 Beta/生产部署或已登记的稳定 API 客户端；该字段只由 PR #179
+后的仓库代码与测试消费。因此选择在首个实现切片中直接删除，不建立 DTO 兼容期、别名字段、wrapper 或替代占位版本。公开
+CompanyAssessment 响应移除 `decision_case_version`；未来只有出现“同一案例身份下必须追加且独立引用多个输入修订”的真实需求时，
+才能通过新的 Architecture Issue 为 DecisionCase 设计版本序列和迁移，不能复用本常量字段。
+
+Schema upgrade 在删除列前先按新身份对象重算每条 CompanyAssessment 的 `generation_identity`：
+
+```json
+{
+  "company_snapshot_id": "<uuid>",
+  "company_snapshot_version": 1,
+  "decision_case_id": "<uuid>",
+  "generator_version": "<normalized value>",
+  "report_id": "<uuid>",
+  "report_version": 1
+}
+```
+
+序列化继续使用 key 排序、紧凑 JSON、ASCII 转义和 UTF-8 SHA-256。重算完成后删除
+`ck_company_assessment_case_compat_version`、`ck_company_assessment_case_version` 与 `decision_case_version` 列；其余外键、唯一约束
+和 owner 隔离保持不变。迁移必须在一个数据库事务中校验所有新身份仍唯一，任何读取、重算或约束失败都停止升级，不留下半迁移状态。
+
+Downgrade 先以默认值 `1` 加回非空列，按旧身份对象（包含 `"decision_case_version": 1`）重算全部生成身份，再恢复两个 Check
+Constraint 并移除临时 server default。这样旧应用重放既有附件时仍得到原算法身份；upgrade/downgrade 都不删除
+CompanyAssessment、DecisionCase 或报告数据。后续实现同时移除 Domain 字段与构造参数、Application 固定值、Port/Adapter 映射、
+API DTO、ORM 列、迁移测试和固定值断言，不修改 CompanySnapshot、DecisionReport 或 Artifact 的版本契约。
 
 ### 公司网评 Evidence 与历史跳过检索
 
