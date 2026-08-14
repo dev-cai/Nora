@@ -119,6 +119,26 @@ evidence = [
 ]
 
 [[capabilities]]
+id = "openapi-contract-generation"
+name = "OpenAPI 生成与契约漂移门禁"
+milestone = "M4"
+status = "current"
+summary = "FastAPI OpenAPI 作为唯一 HTTP Contract 真源，可在不启动服务、连接数据库或读取常规运行时环境变量的情况下确定性导出；锁定的 openapi-typescript 生成可审计 TypeScript schema，前端 CI 重建并通过 tracked-file、Git diff 与未追踪文件检查阻止漂移。当前只交付生成基础，现有端点仍由单一手写 transport 调用。"
+code_paths = [
+  "backend/scripts/export_openapi.py",
+  "backend/tests/unit/test_openapi_export.py",
+  "frontend/src/api/generated/openapi.json",
+  "frontend/src/api/generated/schema.d.ts",
+  "frontend/scripts/check-api-drift.mjs",
+  "frontend/tests/api-generated-drift.test.ts",
+  ".github/workflows/frontend-ci.yml",
+]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/201",
+  "https://github.com/dev-cai/Nora/pull/212",
+]
+
+[[capabilities]]
 id = "jd-input-contract"
 name = "JD 输入安全契约"
 milestone = "M2"
@@ -140,7 +160,7 @@ id = "quality-gates"
 name = "全量质量与浏览器门禁"
 milestone = "M0-M4"
 status = "current"
-summary = "PR 和 main push 运行后端质量/测试、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备、M3 固定版本分析/报告/决定，以及 M4 apply 后的 ResumeVariant 编辑排序、详情刷新恢复和双用户读写隔离；运行后清理容器、网络与数据卷。"
+summary = "PR 和 main push 运行后端质量/测试、OpenAPI 离线重建与漂移检查、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备、M3 固定版本分析/报告/决定，以及 M4 apply 后的 ResumeVariant 编辑排序、详情刷新恢复和双用户读写隔离；运行后清理容器、网络与数据卷。"
 code_paths = [
   ".github/workflows/pr-conventions.yml",
   ".github/workflows/frontend-ci.yml",
@@ -159,6 +179,8 @@ evidence = [
   "https://github.com/dev-cai/Nora/pull/160",
   "https://github.com/dev-cai/Nora/pull/162",
   "https://github.com/dev-cai/Nora/pull/180",
+  "https://github.com/dev-cai/Nora/pull/201",
+  "https://github.com/dev-cai/Nora/pull/212",
 ]
 
 [[capabilities]]

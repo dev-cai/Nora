@@ -148,6 +148,10 @@ python scripts/docs/check_consistency.py
 Current 能力、代码路径与证据只维护在 [`current-capabilities.toml`](current-capabilities.toml)；临时进度只维护在 GitHub
 Issue/Milestone。CI 使用同一契约复算 diff，Agent 的推送前检查不能替代 CI。
 
+Frontend quality gate 会在 lint、typecheck、test 和 build 前运行 `npm run api:check`：使用锁定的 Python/uv/Node/npm 环境离线重建
+FastAPI OpenAPI 与 TypeScript 声明，再通过 tracked-file、`git diff --exit-code` 和未追踪文件检查阻止契约漂移。generated 文件必须与
+后端 Schema 同一 PR 提交，禁止人工编辑或从运行中服务下载。
+
 Milestone 关闭前执行一次收口审计：逐项核对 Current 能力台账、默认分支代码路径、测试和已合并 PR 证据；随后运行完整文档门禁。
 计划进度以 GitHub Milestone/Issue 为准，不为封版结果再创建平行的 Markdown 状态表。
 

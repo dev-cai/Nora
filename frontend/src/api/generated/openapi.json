@@ -1,0 +1,6315 @@
+{
+  "components": {
+    "schemas": {
+      "AppendCompanySnapshotRequest": {
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "industry_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "review_summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Summary"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "size_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_tier": {
+            "$ref": "#/components/schemas/CompanySourceTier"
+          },
+          "source_version": {
+            "minimum": 1.0,
+            "title": "Source Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size_status",
+          "industry_status",
+          "review_status",
+          "source_id",
+          "source_version",
+          "source_tier",
+          "expected_version"
+        ],
+        "title": "AppendCompanySnapshotRequest",
+        "type": "object"
+      },
+      "ApplicationDecisionResponse": {
+        "properties": {
+          "actor_id": {
+            "format": "uuid",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          },
+          "decision_case_id": {
+            "format": "uuid",
+            "title": "Decision Case Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "report_id": {
+            "format": "uuid",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "report_version": {
+            "title": "Report Version",
+            "type": "integer"
+          },
+          "resume_version": {
+            "title": "Resume Version",
+            "type": "integer"
+          },
+          "resume_version_id": {
+            "format": "uuid",
+            "title": "Resume Version Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ApplicationDecisionStatus"
+          }
+        },
+        "required": [
+          "id",
+          "report_id",
+          "report_version",
+          "decision_case_id",
+          "resume_version_id",
+          "resume_version",
+          "status",
+          "reason",
+          "actor_id",
+          "decided_at"
+        ],
+        "title": "ApplicationDecisionResponse",
+        "type": "object"
+      },
+      "ApplicationDecisionStatus": {
+        "description": "The two explicit outcomes available after analysis.",
+        "enum": [
+          "apply",
+          "skip"
+        ],
+        "title": "ApplicationDecisionStatus",
+        "type": "string"
+      },
+      "ArtifactKind": {
+        "enum": [
+          "source",
+          "generated"
+        ],
+        "title": "ArtifactKind",
+        "type": "string"
+      },
+      "ArtifactResponse": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ArtifactKind"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ArtifactStatus"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "kind",
+          "content_type",
+          "size_bytes",
+          "sha256",
+          "status",
+          "created_at",
+          "deleted_at"
+        ],
+        "title": "ArtifactResponse",
+        "type": "object"
+      },
+      "ArtifactStatus": {
+        "enum": [
+          "pending",
+          "available",
+          "failed",
+          "delete_pending",
+          "delete_failed",
+          "deleted"
+        ],
+        "title": "ArtifactStatus",
+        "type": "string"
+      },
+      "BasicInformationInput": {
+        "properties": {
+          "current_location": {
+            "$ref": "#/components/schemas/StringFactInput"
+          },
+          "display_name": {
+            "$ref": "#/components/schemas/StringFactInput"
+          }
+        },
+        "required": [
+          "display_name",
+          "current_location"
+        ],
+        "title": "BasicInformationInput",
+        "type": "object"
+      },
+      "BasicInformationResponse": {
+        "properties": {
+          "current_location": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "display_name": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          }
+        },
+        "required": [
+          "display_name",
+          "current_location"
+        ],
+        "title": "BasicInformationResponse",
+        "type": "object"
+      },
+      "Body_ocr_job_posting_image_job_postings_image_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_ocr_job_posting_image_job_postings_image_post",
+        "type": "object"
+      },
+      "Body_upload_artifact_artifacts_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "generation_identity": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Identity"
+          },
+          "generator_version": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generator Version"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ArtifactKind",
+            "default": "source"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_artifact_artifacts_post",
+        "type": "object"
+      },
+      "BooleanFactInput": {
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/ConfirmationStatus",
+            "default": "unconfirmed"
+          },
+          "value": {
+            "title": "Value",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "BooleanFactInput",
+        "type": "object"
+      },
+      "CandidateProfileContentInput": {
+        "properties": {
+          "basic_information": {
+            "$ref": "#/components/schemas/BasicInformationInput"
+          },
+          "education": {
+            "items": {
+              "$ref": "#/components/schemas/EducationInput"
+            },
+            "maxItems": 50,
+            "title": "Education",
+            "type": "array"
+          },
+          "experiences": {
+            "items": {
+              "$ref": "#/components/schemas/ExperienceInput"
+            },
+            "maxItems": 50,
+            "title": "Experiences",
+            "type": "array"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/JobPreferencesInput"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/SkillInput"
+            },
+            "maxItems": 100,
+            "title": "Skills",
+            "type": "array"
+          }
+        },
+        "required": [
+          "basic_information",
+          "preferences"
+        ],
+        "title": "CandidateProfileContentInput",
+        "type": "object"
+      },
+      "CandidateProfileContentResponse": {
+        "properties": {
+          "basic_information": {
+            "$ref": "#/components/schemas/BasicInformationResponse"
+          },
+          "education": {
+            "items": {
+              "$ref": "#/components/schemas/EducationResponse"
+            },
+            "title": "Education",
+            "type": "array"
+          },
+          "experiences": {
+            "items": {
+              "$ref": "#/components/schemas/ExperienceResponse"
+            },
+            "title": "Experiences",
+            "type": "array"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/JobPreferencesResponse"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/SkillResponse"
+            },
+            "title": "Skills",
+            "type": "array"
+          }
+        },
+        "required": [
+          "basic_information",
+          "preferences",
+          "education",
+          "experiences",
+          "skills"
+        ],
+        "title": "CandidateProfileContentResponse",
+        "type": "object"
+      },
+      "CandidateProfileResponse": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/CandidateProfileContentResponse"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "owner_id": {
+            "format": "uuid",
+            "title": "Owner Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "owner_id",
+          "version",
+          "content",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CandidateProfileResponse",
+        "type": "object"
+      },
+      "CompanyAssessmentResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision_case_id": {
+            "format": "uuid",
+            "title": "Decision Case Id",
+            "type": "string"
+          },
+          "generation_identity": {
+            "title": "Generation Identity",
+            "type": "string"
+          },
+          "generator_version": {
+            "title": "Generator Version",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "report_id": {
+            "format": "uuid",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "report_version": {
+            "title": "Report Version",
+            "type": "integer"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/CompanySnapshotResponse"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CompanyAssessmentStatus"
+          },
+          "status_reason": {
+            "title": "Status Reason",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "report_id",
+          "report_version",
+          "decision_case_id",
+          "status",
+          "status_reason",
+          "generator_version",
+          "generation_identity",
+          "snapshot",
+          "created_at"
+        ],
+        "title": "CompanyAssessmentResponse",
+        "type": "object"
+      },
+      "CompanyAssessmentStatus": {
+        "enum": [
+          "available",
+          "unknown",
+          "conflicted",
+          "stale"
+        ],
+        "title": "CompanyAssessmentStatus",
+        "type": "string"
+      },
+      "CompanyFieldStatus": {
+        "enum": [
+          "confirmed",
+          "unconfirmed",
+          "unknown",
+          "conflicted",
+          "superseded"
+        ],
+        "title": "CompanyFieldStatus",
+        "type": "string"
+      },
+      "CompanySnapshotResponse": {
+        "properties": {
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/Freshness"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "industry_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "review_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Summary"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "size_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "source": {
+            "$ref": "#/components/schemas/CompanySourceReferenceResponse"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "company_name",
+          "size",
+          "size_status",
+          "industry",
+          "industry_status",
+          "review_summary",
+          "review_status",
+          "source",
+          "freshness",
+          "content_sha256",
+          "created_at"
+        ],
+        "title": "CompanySnapshotResponse",
+        "type": "object"
+      },
+      "CompanySourceReferenceResponse": {
+        "properties": {
+          "acquired_at": {
+            "format": "date-time",
+            "title": "Acquired At",
+            "type": "string"
+          },
+          "acquisition_method": {
+            "title": "Acquisition Method",
+            "type": "string"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "license_note": {
+            "title": "License Note",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/CompanySourceTier"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "tier",
+          "kind",
+          "acquisition_method",
+          "license_note",
+          "acquired_at",
+          "published_at",
+          "content_sha256"
+        ],
+        "title": "CompanySourceReferenceResponse",
+        "type": "object"
+      },
+      "CompanySourceTier": {
+        "enum": [
+          "official/company",
+          "reputable_media",
+          "verified_platform",
+          "anonymous_platform"
+        ],
+        "title": "CompanySourceTier",
+        "type": "string"
+      },
+      "ConfirmationStatus": {
+        "description": "主档字段的确认状态。",
+        "enum": [
+          "unconfirmed",
+          "confirmed",
+          "rejected",
+          "superseded"
+        ],
+        "title": "ConfirmationStatus",
+        "type": "string"
+      },
+      "CreateApplicationDecisionRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ApplicationDecisionStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "CreateApplicationDecisionRequest",
+        "type": "object"
+      },
+      "CreateCompanyAssessmentRequest": {
+        "properties": {
+          "company_snapshot_id": {
+            "format": "uuid",
+            "title": "Company Snapshot Id",
+            "type": "string"
+          },
+          "company_snapshot_version": {
+            "minimum": 1.0,
+            "title": "Company Snapshot Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "company_snapshot_id",
+          "company_snapshot_version"
+        ],
+        "title": "CreateCompanyAssessmentRequest",
+        "type": "object"
+      },
+      "CreateCompanySnapshotRequest": {
+        "properties": {
+          "company_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Company Name",
+            "type": "string"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "industry_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "review_summary": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Summary"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "size_status": {
+            "$ref": "#/components/schemas/CompanyFieldStatus"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_tier": {
+            "$ref": "#/components/schemas/CompanySourceTier"
+          },
+          "source_version": {
+            "minimum": 1.0,
+            "title": "Source Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size_status",
+          "industry_status",
+          "review_status",
+          "source_id",
+          "source_version",
+          "source_tier",
+          "company_name"
+        ],
+        "title": "CreateCompanySnapshotRequest",
+        "type": "object"
+      },
+      "CreateDecisionCaseRequest": {
+        "properties": {
+          "candidate_profile_id": {
+            "format": "uuid",
+            "title": "Candidate Profile Id",
+            "type": "string"
+          },
+          "candidate_profile_version": {
+            "minimum": 1.0,
+            "title": "Candidate Profile Version",
+            "type": "integer"
+          },
+          "job_posting_id": {
+            "format": "uuid",
+            "title": "Job Posting Id",
+            "type": "string"
+          },
+          "job_posting_version": {
+            "minimum": 1.0,
+            "title": "Job Posting Version",
+            "type": "integer"
+          },
+          "job_requirement_snapshot_id": {
+            "format": "uuid",
+            "title": "Job Requirement Snapshot Id",
+            "type": "string"
+          },
+          "job_requirement_snapshot_version": {
+            "minimum": 1.0,
+            "title": "Job Requirement Snapshot Version",
+            "type": "integer"
+          },
+          "resume_version": {
+            "minimum": 1.0,
+            "title": "Resume Version",
+            "type": "integer"
+          },
+          "resume_version_id": {
+            "format": "uuid",
+            "title": "Resume Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_posting_id",
+          "job_posting_version",
+          "job_requirement_snapshot_id",
+          "job_requirement_snapshot_version",
+          "candidate_profile_id",
+          "candidate_profile_version",
+          "resume_version_id",
+          "resume_version"
+        ],
+        "title": "CreateDecisionCaseRequest",
+        "type": "object"
+      },
+      "CreateJobPostingRequest": {
+        "description": "手工或 URL 来源的岗位正文快照输入。",
+        "properties": {
+          "company_name": {
+            "default": "未提供公司",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Company Name",
+            "type": "string"
+          },
+          "jd_text": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Jd Text",
+            "type": "string"
+          },
+          "job_title": {
+            "default": "未提供职位",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Job Title",
+            "type": "string"
+          },
+          "location": {
+            "default": "未提供地点",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Location",
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/JobSourceType",
+            "default": "manual"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          }
+        },
+        "required": [
+          "jd_text"
+        ],
+        "title": "CreateJobPostingRequest",
+        "type": "object"
+      },
+      "CreateResumeVariantRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "application_decision_id": {
+            "format": "uuid",
+            "title": "Application Decision Id",
+            "type": "string"
+          },
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/VariantBlockRequest"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Blocks",
+            "type": "array"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          },
+          "template_version": {
+            "minimum": 1.0,
+            "title": "Template Version",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "application_decision_id",
+          "template_id",
+          "template_version",
+          "title",
+          "blocks"
+        ],
+        "title": "CreateResumeVariantRequest",
+        "type": "object"
+      },
+      "CreateSourceRequest": {
+        "properties": {
+          "acquired_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acquired At"
+          },
+          "acquisition_method": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Acquisition Method",
+            "type": "string"
+          },
+          "artifact_id": {
+            "format": "uuid",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "license_note": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "License Note",
+            "type": "string"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locator"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/SourceKind"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "source_kind",
+          "acquisition_method",
+          "license_note"
+        ],
+        "title": "CreateSourceRequest",
+        "type": "object"
+      },
+      "DateFactInput": {
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/ConfirmationStatus",
+            "default": "unconfirmed"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "DateFactInput",
+        "type": "object"
+      },
+      "DecisionAnalysisResponse": {
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/DecisionCaseResponse"
+          },
+          "rule_results": {
+            "items": {
+              "$ref": "#/components/schemas/RuleResultResponse"
+            },
+            "title": "Rule Results",
+            "type": "array"
+          },
+          "rule_set_version": {
+            "title": "Rule Set Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "rule_set_version",
+          "rule_results"
+        ],
+        "title": "DecisionAnalysisResponse",
+        "type": "object"
+      },
+      "DecisionCaseResponse": {
+        "properties": {
+          "candidate_profile_id": {
+            "format": "uuid",
+            "title": "Candidate Profile Id",
+            "type": "string"
+          },
+          "candidate_profile_version": {
+            "title": "Candidate Profile Version",
+            "type": "integer"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "failure_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Message"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_posting_id": {
+            "format": "uuid",
+            "title": "Job Posting Id",
+            "type": "string"
+          },
+          "job_posting_version": {
+            "title": "Job Posting Version",
+            "type": "integer"
+          },
+          "job_requirement_snapshot_id": {
+            "format": "uuid",
+            "title": "Job Requirement Snapshot Id",
+            "type": "string"
+          },
+          "job_requirement_snapshot_version": {
+            "title": "Job Requirement Snapshot Version",
+            "type": "integer"
+          },
+          "resume_version": {
+            "title": "Resume Version",
+            "type": "integer"
+          },
+          "resume_version_id": {
+            "format": "uuid",
+            "title": "Resume Version Id",
+            "type": "string"
+          },
+          "rule_set_version": {
+            "title": "Rule Set Version",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DecisionCaseStatus"
+          }
+        },
+        "required": [
+          "id",
+          "job_posting_id",
+          "job_posting_version",
+          "job_requirement_snapshot_id",
+          "job_requirement_snapshot_version",
+          "candidate_profile_id",
+          "candidate_profile_version",
+          "resume_version_id",
+          "resume_version",
+          "rule_set_version",
+          "status",
+          "created_at",
+          "completed_at",
+          "failure_code",
+          "failure_message"
+        ],
+        "title": "DecisionCaseResponse",
+        "type": "object"
+      },
+      "DecisionCaseStatus": {
+        "description": "DecisionCase 的持久化生命周期。",
+        "enum": [
+          "created",
+          "completed",
+          "failed"
+        ],
+        "title": "DecisionCaseStatus",
+        "type": "string"
+      },
+      "DecisionReportListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionReportResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ],
+        "title": "DecisionReportListResponse",
+        "type": "object"
+      },
+      "DecisionReportResponse": {
+        "properties": {
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/ReportCitationResponse"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "company_assessment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompanyAssessmentResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decision_case_id": {
+            "format": "uuid",
+            "title": "Decision Case Id",
+            "type": "string"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/ReportFactResponse"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "gaps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Gaps",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "generator_version": {
+            "title": "Generator Version",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "next_steps": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Next Steps",
+            "type": "array"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRecommendationResponse"
+            },
+            "title": "Recommendations",
+            "type": "array"
+          },
+          "risks": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Risks",
+            "type": "array"
+          },
+          "rule_results": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRuleResultResponse"
+            },
+            "title": "Rule Results",
+            "type": "array"
+          },
+          "rule_set_version": {
+            "title": "Rule Set Version",
+            "type": "string"
+          },
+          "satisfied_conditions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Satisfied Conditions",
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MatchSummaryResponse"
+          },
+          "unknowns": {
+            "items": {
+              "$ref": "#/components/schemas/ReportUnknownResponse"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "decision_case_id",
+          "version",
+          "rule_set_version",
+          "generator_version",
+          "summary",
+          "facts",
+          "rule_results",
+          "unknowns",
+          "recommendations",
+          "citations",
+          "satisfied_conditions",
+          "gaps",
+          "risks",
+          "next_steps",
+          "generated_at"
+        ],
+        "title": "DecisionReportResponse",
+        "type": "object"
+      },
+      "EditMessageDraftRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "base_version": {
+            "minimum": 1.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "base_version",
+          "text"
+        ],
+        "title": "EditMessageDraftRequest",
+        "type": "object"
+      },
+      "EducationInput": {
+        "properties": {
+          "degree": {
+            "$ref": "#/components/schemas/StringFactInput"
+          },
+          "end_date": {
+            "$ref": "#/components/schemas/DateFactInput"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "major": {
+            "$ref": "#/components/schemas/StringFactInput"
+          },
+          "school": {
+            "$ref": "#/components/schemas/StringFactInput"
+          },
+          "start_date": {
+            "$ref": "#/components/schemas/DateFactInput"
+          }
+        },
+        "required": [
+          "id",
+          "school",
+          "degree",
+          "major",
+          "start_date",
+          "end_date"
+        ],
+        "title": "EducationInput",
+        "type": "object"
+      },
+      "EducationResponse": {
+        "properties": {
+          "degree": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "end_date": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "major": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "school": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "start_date": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          }
+        },
+        "required": [
+          "id",
+          "school",
+          "degree",
+          "major",
+          "start_date",
+          "end_date"
+        ],
+        "title": "EducationResponse",
+        "type": "object"
+      },
+      "ExperienceInput": {
+        "properties": {
+          "achievements": {
+            "$ref": "#/components/schemas/LongTextListFactInput"
+          },
+          "company": {
+            "$ref": "#/components/schemas/StringFactInput"
+          },
+          "end_date": {
+            "$ref": "#/components/schemas/DateFactInput"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_title": {
+            "$ref": "#/components/schemas/StringFactInput"
+          },
+          "responsibilities": {
+            "$ref": "#/components/schemas/LongTextListFactInput"
+          },
+          "start_date": {
+            "$ref": "#/components/schemas/DateFactInput"
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "job_title",
+          "start_date",
+          "end_date",
+          "responsibilities",
+          "achievements"
+        ],
+        "title": "ExperienceInput",
+        "type": "object"
+      },
+      "ExperienceResponse": {
+        "properties": {
+          "achievements": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "company": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "end_date": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_title": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "responsibilities": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "start_date": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          }
+        },
+        "required": [
+          "id",
+          "company",
+          "job_title",
+          "start_date",
+          "end_date",
+          "responsibilities",
+          "achievements"
+        ],
+        "title": "ExperienceResponse",
+        "type": "object"
+      },
+      "FetchJobPostingRequest": {
+        "description": "受控链接抓取的 URL 输入。",
+        "properties": {
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "FetchJobPostingRequest",
+        "type": "object"
+      },
+      "Freshness": {
+        "enum": [
+          "fresh",
+          "aging",
+          "stale",
+          "unknown"
+        ],
+        "title": "Freshness",
+        "type": "string"
+      },
+      "GenerateMessageDraftRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "referral_context": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referral Context"
+          },
+          "style": {
+            "$ref": "#/components/schemas/MessageDraftStyle",
+            "default": "professional"
+          },
+          "user_note": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Note"
+          }
+        },
+        "title": "GenerateMessageDraftRequest",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "JdInputKind": {
+        "description": "产生 JD 文本的输入方式。",
+        "enum": [
+          "image",
+          "url"
+        ],
+        "title": "JdInputKind",
+        "type": "string"
+      },
+      "JdInputPreviewResponse": {
+        "description": "抓取成功后的正文预览，供用户确认后再进入既有创建路径。",
+        "properties": {
+          "jd_text": {
+            "title": "Jd Text",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JdInputKind"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          }
+        },
+        "required": [
+          "jd_text",
+          "source_url",
+          "kind"
+        ],
+        "title": "JdInputPreviewResponse",
+        "type": "object"
+      },
+      "JobPostingListResponse": {
+        "description": "用户范围岗位快照的稳定分页响应。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobPostingResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ],
+        "title": "JobPostingListResponse",
+        "type": "object"
+      },
+      "JobPostingResponse": {
+        "description": "岗位快照的稳定公开字段。",
+        "properties": {
+          "company_name": {
+            "title": "Company Name",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "jd_text": {
+            "title": "Jd Text",
+            "type": "string"
+          },
+          "job_title": {
+            "title": "Job Title",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/JobSourceType"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobPostingStatus"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "jd_text",
+          "job_title",
+          "company_name",
+          "location",
+          "summary",
+          "source_type",
+          "source_url",
+          "status",
+          "version",
+          "created_at"
+        ],
+        "title": "JobPostingResponse",
+        "type": "object"
+      },
+      "JobPostingStatus": {
+        "description": "岗位快照状态。",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "JobPostingStatus",
+        "type": "string"
+      },
+      "JobPreferencesInput": {
+        "properties": {
+          "accepts_remote": {
+            "$ref": "#/components/schemas/BooleanFactInput"
+          },
+          "target_locations": {
+            "$ref": "#/components/schemas/StringListFactInput"
+          },
+          "target_roles": {
+            "$ref": "#/components/schemas/StringListFactInput"
+          }
+        },
+        "required": [
+          "target_locations",
+          "accepts_remote",
+          "target_roles"
+        ],
+        "title": "JobPreferencesInput",
+        "type": "object"
+      },
+      "JobPreferencesResponse": {
+        "properties": {
+          "accepts_remote": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "target_locations": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "target_roles": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          }
+        },
+        "required": [
+          "target_locations",
+          "accepts_remote",
+          "target_roles"
+        ],
+        "title": "JobPreferencesResponse",
+        "type": "object"
+      },
+      "JobRequirementSnapshotListResponse": {
+        "description": "岗位要求快照版本的稳定分页响应。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/JobRequirementSnapshotResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ],
+        "title": "JobRequirementSnapshotListResponse",
+        "type": "object"
+      },
+      "JobRequirementSnapshotResponse": {
+        "description": "岗位要求快照版本的稳定公开字段。",
+        "properties": {
+          "content": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RequirementFactModel"
+            },
+            "title": "Content",
+            "type": "object"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_posting_id": {
+            "format": "uuid",
+            "title": "Job Posting Id",
+            "type": "string"
+          },
+          "job_posting_version": {
+            "title": "Job Posting Version",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "job_posting_id",
+          "job_posting_version",
+          "version",
+          "content",
+          "content_hash",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobRequirementSnapshotResponse",
+        "type": "object"
+      },
+      "JobSourceType": {
+        "description": "当前支持的岗位来源类型。",
+        "enum": [
+          "manual",
+          "url"
+        ],
+        "title": "JobSourceType",
+        "type": "string"
+      },
+      "LoginRequest": {
+        "description": "登录请求。",
+        "properties": {
+          "password": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 3,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "LongTextListFactInput": {
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/ConfirmationStatus",
+            "default": "unconfirmed"
+          },
+          "value": {
+            "items": {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Value",
+            "type": "array"
+          }
+        },
+        "title": "LongTextListFactInput",
+        "type": "object"
+      },
+      "MatchSummaryResponse": {
+        "properties": {
+          "match": {
+            "title": "Match",
+            "type": "integer"
+          },
+          "mismatch": {
+            "title": "Mismatch",
+            "type": "integer"
+          },
+          "partial": {
+            "title": "Partial",
+            "type": "integer"
+          },
+          "unknown": {
+            "title": "Unknown",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "match",
+          "partial",
+          "mismatch",
+          "unknown"
+        ],
+        "title": "MatchSummaryResponse",
+        "type": "object"
+      },
+      "MessageDraftListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MessageDraftResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ],
+        "title": "MessageDraftListResponse",
+        "type": "object"
+      },
+      "MessageDraftResponse": {
+        "properties": {
+          "application_decision_id": {
+            "format": "uuid",
+            "title": "Application Decision Id",
+            "type": "string"
+          },
+          "candidate_profile_id": {
+            "format": "uuid",
+            "title": "Candidate Profile Id",
+            "type": "string"
+          },
+          "candidate_profile_version": {
+            "title": "Candidate Profile Version",
+            "type": "integer"
+          },
+          "company_freshness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Freshness"
+          },
+          "company_snapshot_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Snapshot Hash"
+          },
+          "company_snapshot_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Snapshot Id"
+          },
+          "company_snapshot_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Snapshot Version"
+          },
+          "content_fingerprint": {
+            "title": "Content Fingerprint",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision_case_id": {
+            "format": "uuid",
+            "title": "Decision Case Id",
+            "type": "string"
+          },
+          "generation_identity": {
+            "title": "Generation Identity",
+            "type": "string"
+          },
+          "generator_version": {
+            "title": "Generator Version",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_posting_id": {
+            "format": "uuid",
+            "title": "Job Posting Id",
+            "type": "string"
+          },
+          "job_posting_version": {
+            "title": "Job Posting Version",
+            "type": "integer"
+          },
+          "previous_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Version"
+          },
+          "referral_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referral Context"
+          },
+          "report_id": {
+            "format": "uuid",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "report_version": {
+            "title": "Report Version",
+            "type": "integer"
+          },
+          "resume_variant_id": {
+            "format": "uuid",
+            "title": "Resume Variant Id",
+            "type": "string"
+          },
+          "resume_variant_version": {
+            "title": "Resume Variant Version",
+            "type": "integer"
+          },
+          "resume_version": {
+            "title": "Resume Version",
+            "type": "integer"
+          },
+          "resume_version_id": {
+            "format": "uuid",
+            "title": "Resume Version Id",
+            "type": "string"
+          },
+          "revision_type": {
+            "$ref": "#/components/schemas/MessageDraftRevisionType"
+          },
+          "style": {
+            "$ref": "#/components/schemas/MessageDraftStyle"
+          },
+          "template_version": {
+            "title": "Template Version",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "user_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Note"
+          },
+          "variant_content_fingerprint": {
+            "title": "Variant Content Fingerprint",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "application_decision_id",
+          "report_id",
+          "report_version",
+          "decision_case_id",
+          "resume_variant_id",
+          "resume_variant_version",
+          "variant_content_fingerprint",
+          "candidate_profile_id",
+          "candidate_profile_version",
+          "resume_version_id",
+          "resume_version",
+          "job_posting_id",
+          "job_posting_version",
+          "company_snapshot_id",
+          "company_snapshot_version",
+          "company_snapshot_hash",
+          "company_freshness",
+          "style",
+          "user_note",
+          "referral_context",
+          "generator_version",
+          "template_version",
+          "generation_identity",
+          "text",
+          "content_fingerprint",
+          "revision_type",
+          "previous_version",
+          "created_at"
+        ],
+        "title": "MessageDraftResponse",
+        "type": "object"
+      },
+      "MessageDraftRevisionType": {
+        "enum": [
+          "generated",
+          "edited"
+        ],
+        "title": "MessageDraftRevisionType",
+        "type": "string"
+      },
+      "MessageDraftStyle": {
+        "enum": [
+          "professional",
+          "concise",
+          "referral"
+        ],
+        "title": "MessageDraftStyle",
+        "type": "string"
+      },
+      "OptionalStringFactInput": {
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/ConfirmationStatus",
+            "default": "unconfirmed"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "OptionalStringFactInput",
+        "type": "object"
+      },
+      "ProfileFactResponse": {
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/ConfirmationStatus"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/ProfileSourceType"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value",
+          "confirmation_status",
+          "source_type",
+          "updated_at"
+        ],
+        "title": "ProfileFactResponse",
+        "type": "object"
+      },
+      "ProfileSourceType": {
+        "description": "M2 支持的主档事实来源。",
+        "enum": [
+          "user_input"
+        ],
+        "title": "ProfileSourceType",
+        "type": "string"
+      },
+      "PublishResumeVersionRequest": {
+        "description": "从指定主档版本发布简历的请求。",
+        "properties": {
+          "profile_version": {
+            "minimum": 1.0,
+            "title": "Profile Version",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "profile_version"
+        ],
+        "title": "PublishResumeVersionRequest",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "description": "注册请求。",
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 3,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "type": "object"
+      },
+      "ReportCitationResponse": {
+        "properties": {
+          "citation_id": {
+            "title": "Citation Id",
+            "type": "string"
+          },
+          "field_path": {
+            "title": "Field Path",
+            "type": "string"
+          },
+          "object_id": {
+            "format": "uuid",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/RuleInputSource"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "citation_id",
+          "source",
+          "object_id",
+          "version",
+          "field_path"
+        ],
+        "title": "ReportCitationResponse",
+        "type": "object"
+      },
+      "ReportFactResponse": {
+        "properties": {
+          "citation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Citation Ids",
+            "type": "array"
+          },
+          "fact_id": {
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fact_id",
+          "label",
+          "citation_ids"
+        ],
+        "title": "ReportFactResponse",
+        "type": "object"
+      },
+      "ReportRecommendationResponse": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "recommendation_id": {
+            "title": "Recommendation Id",
+            "type": "string"
+          },
+          "source_rule_id": {
+            "title": "Source Rule Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recommendation_id",
+          "action",
+          "rationale",
+          "source_rule_id"
+        ],
+        "title": "ReportRecommendationResponse",
+        "type": "object"
+      },
+      "ReportRuleResultResponse": {
+        "properties": {
+          "citation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Citation Ids",
+            "type": "array"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "rule_version": {
+            "title": "Rule Version",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RuleStatus"
+          }
+        },
+        "required": [
+          "rule_id",
+          "rule_version",
+          "status",
+          "reason",
+          "citation_ids"
+        ],
+        "title": "ReportRuleResultResponse",
+        "type": "object"
+      },
+      "ReportUnknownResponse": {
+        "properties": {
+          "citation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Citation Ids",
+            "type": "array"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "unknown_id": {
+            "title": "Unknown Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unknown_id",
+          "reason",
+          "detail",
+          "citation_ids"
+        ],
+        "title": "ReportUnknownResponse",
+        "type": "object"
+      },
+      "RequirementConfirmationStatus": {
+        "description": "岗位要求字段的确认状态。",
+        "enum": [
+          "unknown",
+          "unconfirmed",
+          "confirmed"
+        ],
+        "title": "RequirementConfirmationStatus",
+        "type": "string"
+      },
+      "RequirementFactModel": {
+        "description": "单个岗位要求字段的事实结构。",
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/RequirementConfirmationStatus"
+          },
+          "source_range": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Range"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/RequirementSourceType"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "confirmation_status",
+          "source_type"
+        ],
+        "title": "RequirementFactModel",
+        "type": "object"
+      },
+      "RequirementSourceType": {
+        "description": "岗位要求字段的来源定位方式。",
+        "enum": [
+          "manual",
+          "text_range",
+          "ocr_preview"
+        ],
+        "title": "RequirementSourceType",
+        "type": "string"
+      },
+      "ResumePdfResponse": {
+        "properties": {
+          "artifact_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Id"
+          },
+          "artifact_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Sha256"
+          },
+          "artifact_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Size Bytes"
+          },
+          "artifact_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artifact Version"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "font_set_version": {
+            "title": "Font Set Version",
+            "type": "string"
+          },
+          "generation_identity": {
+            "title": "Generation Identity",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "renderer_version": {
+            "title": "Renderer Version",
+            "type": "string"
+          },
+          "resume_variant_id": {
+            "format": "uuid",
+            "title": "Resume Variant Id",
+            "type": "string"
+          },
+          "resume_variant_version": {
+            "title": "Resume Variant Version",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ResumePdfStatus"
+          },
+          "template_definition_hash": {
+            "title": "Template Definition Hash",
+            "type": "string"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          },
+          "template_version": {
+            "title": "Template Version",
+            "type": "integer"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "variant_content_fingerprint": {
+            "title": "Variant Content Fingerprint",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "resume_variant_id",
+          "resume_variant_version",
+          "template_id",
+          "template_version",
+          "template_definition_hash",
+          "variant_content_fingerprint",
+          "renderer_version",
+          "font_set_version",
+          "locale",
+          "timezone",
+          "generation_identity",
+          "status",
+          "artifact_id",
+          "artifact_version",
+          "artifact_sha256",
+          "artifact_size_bytes",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ResumePdfResponse",
+        "type": "object"
+      },
+      "ResumePdfStatus": {
+        "enum": [
+          "pending",
+          "available",
+          "failed"
+        ],
+        "title": "ResumePdfStatus",
+        "type": "string"
+      },
+      "ResumeVariantListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResumeVariantResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ],
+        "title": "ResumeVariantListResponse",
+        "type": "object"
+      },
+      "ResumeVariantResponse": {
+        "properties": {
+          "application_decision_id": {
+            "format": "uuid",
+            "title": "Application Decision Id",
+            "type": "string"
+          },
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/VariantBlockResponse"
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "content_fingerprint": {
+            "title": "Content Fingerprint",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision_case_id": {
+            "format": "uuid",
+            "title": "Decision Case Id",
+            "type": "string"
+          },
+          "generator_version": {
+            "title": "Generator Version",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "job_posting_id": {
+            "format": "uuid",
+            "title": "Job Posting Id",
+            "type": "string"
+          },
+          "job_posting_version": {
+            "title": "Job Posting Version",
+            "type": "integer"
+          },
+          "job_requirement_snapshot_id": {
+            "format": "uuid",
+            "title": "Job Requirement Snapshot Id",
+            "type": "string"
+          },
+          "job_requirement_snapshot_version": {
+            "title": "Job Requirement Snapshot Version",
+            "type": "integer"
+          },
+          "resume_version": {
+            "title": "Resume Version",
+            "type": "integer"
+          },
+          "resume_version_id": {
+            "format": "uuid",
+            "title": "Resume Version Id",
+            "type": "string"
+          },
+          "template_id": {
+            "format": "uuid",
+            "title": "Template Id",
+            "type": "string"
+          },
+          "template_version": {
+            "title": "Template Version",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "application_decision_id",
+          "decision_case_id",
+          "job_posting_id",
+          "job_posting_version",
+          "job_requirement_snapshot_id",
+          "job_requirement_snapshot_version",
+          "resume_version_id",
+          "resume_version",
+          "template_id",
+          "template_version",
+          "title",
+          "blocks",
+          "generator_version",
+          "content_fingerprint",
+          "created_at"
+        ],
+        "title": "ResumeVariantResponse",
+        "type": "object"
+      },
+      "ResumeVersionListResponse": {
+        "description": "ResumeVersion 用户范围分页响应。",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResumeVersionResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total"
+        ],
+        "title": "ResumeVersionListResponse",
+        "type": "object"
+      },
+      "ResumeVersionResponse": {
+        "description": "ResumeVersion 的稳定公开响应。",
+        "properties": {
+          "candidate_profile_id": {
+            "format": "uuid",
+            "title": "Candidate Profile Id",
+            "type": "string"
+          },
+          "content": {
+            "additionalProperties": true,
+            "title": "Content",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "owner_id": {
+            "format": "uuid",
+            "title": "Owner Id",
+            "type": "string"
+          },
+          "profile_version": {
+            "title": "Profile Version",
+            "type": "integer"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "owner_id",
+          "version",
+          "candidate_profile_id",
+          "profile_version",
+          "title",
+          "content",
+          "published_at"
+        ],
+        "title": "ResumeVersionResponse",
+        "type": "object"
+      },
+      "RuleInputReferenceResponse": {
+        "properties": {
+          "field_path": {
+            "title": "Field Path",
+            "type": "string"
+          },
+          "object_id": {
+            "format": "uuid",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/RuleInputSource"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "object_id",
+          "version",
+          "field_path"
+        ],
+        "title": "RuleInputReferenceResponse",
+        "type": "object"
+      },
+      "RuleInputSource": {
+        "description": "Versioned business facts consumed by a rule.",
+        "enum": [
+          "candidate_profile",
+          "job_requirement_snapshot"
+        ],
+        "title": "RuleInputSource",
+        "type": "string"
+      },
+      "RuleResultResponse": {
+        "properties": {
+          "input_references": {
+            "items": {
+              "$ref": "#/components/schemas/RuleInputReferenceResponse"
+            },
+            "title": "Input References",
+            "type": "array"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "rule_id": {
+            "title": "Rule Id",
+            "type": "string"
+          },
+          "rule_version": {
+            "title": "Rule Version",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RuleStatus"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggestion"
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty"
+          }
+        },
+        "required": [
+          "rule_id",
+          "rule_version",
+          "status",
+          "input_references",
+          "reason",
+          "uncertainty",
+          "suggestion"
+        ],
+        "title": "RuleResultResponse",
+        "type": "object"
+      },
+      "RuleStatus": {
+        "description": "Stable result states shared by all deterministic rules.",
+        "enum": [
+          "match",
+          "partial",
+          "mismatch",
+          "unknown"
+        ],
+        "title": "RuleStatus",
+        "type": "string"
+      },
+      "SaveJobRequirementSnapshotRequest": {
+        "description": "创建或追加版本的结构化岗位要求输入。",
+        "properties": {
+          "content": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RequirementFactModel"
+            },
+            "title": "Content",
+            "type": "object"
+          },
+          "job_posting_version": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Job Posting Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "SaveJobRequirementSnapshotRequest",
+        "type": "object"
+      },
+      "SkillInput": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/StringFactInput"
+          },
+          "proficiency": {
+            "$ref": "#/components/schemas/OptionalStringFactInput"
+          },
+          "years": {
+            "$ref": "#/components/schemas/YearsFactInput"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "proficiency",
+          "years"
+        ],
+        "title": "SkillInput",
+        "type": "object"
+      },
+      "SkillResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "proficiency": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          },
+          "years": {
+            "$ref": "#/components/schemas/ProfileFactResponse"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "proficiency",
+          "years"
+        ],
+        "title": "SkillResponse",
+        "type": "object"
+      },
+      "SourceKind": {
+        "enum": [
+          "file",
+          "web",
+          "manual"
+        ],
+        "title": "SourceKind",
+        "type": "string"
+      },
+      "SourceResponse": {
+        "properties": {
+          "acquired_at": {
+            "format": "date-time",
+            "title": "Acquired At",
+            "type": "string"
+          },
+          "acquisition_method": {
+            "title": "Acquisition Method",
+            "type": "string"
+          },
+          "artifact_id": {
+            "format": "uuid",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "artifact_version": {
+            "title": "Artifact Version",
+            "type": "integer"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "license_note": {
+            "title": "License Note",
+            "type": "string"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locator"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/SourceKind"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "artifact_id",
+          "artifact_version",
+          "source_kind",
+          "acquisition_method",
+          "license_note",
+          "locator",
+          "acquired_at",
+          "published_at",
+          "content_sha256",
+          "created_at"
+        ],
+        "title": "SourceResponse",
+        "type": "object"
+      },
+      "StringFactInput": {
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/ConfirmationStatus",
+            "default": "unconfirmed"
+          },
+          "value": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "StringFactInput",
+        "type": "object"
+      },
+      "StringListFactInput": {
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/ConfirmationStatus",
+            "default": "unconfirmed"
+          },
+          "value": {
+            "items": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Value",
+            "type": "array"
+          }
+        },
+        "title": "StringListFactInput",
+        "type": "object"
+      },
+      "TemplateDefinitionResponse": {
+        "properties": {
+          "accent": {
+            "title": "Accent",
+            "type": "string"
+          },
+          "allowed_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Allowed Fields",
+            "type": "array"
+          },
+          "definition_hash": {
+            "title": "Definition Hash",
+            "type": "string"
+          },
+          "density": {
+            "title": "Density",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "string"
+          },
+          "published_at": {
+            "format": "date-time",
+            "title": "Published At",
+            "type": "string"
+          },
+          "required_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Required Fields",
+            "type": "array"
+          },
+          "section_order": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Section Order",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "page_size",
+          "density",
+          "accent",
+          "section_order",
+          "allowed_fields",
+          "required_fields",
+          "definition_hash",
+          "published_at"
+        ],
+        "title": "TemplateDefinitionResponse",
+        "type": "object"
+      },
+      "TokenResponse": {
+        "description": "访问令牌响应。",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token"
+        ],
+        "title": "TokenResponse",
+        "type": "object"
+      },
+      "UserResponse": {
+        "description": "不包含密码的用户响应。",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email"
+        ],
+        "title": "UserResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VariantBlockRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "source_path": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Source Path",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_path",
+          "label",
+          "value"
+        ],
+        "title": "VariantBlockRequest",
+        "type": "object"
+      },
+      "VariantBlockResponse": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "source_path": {
+            "title": "Source Path",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_path",
+          "label",
+          "value"
+        ],
+        "title": "VariantBlockResponse",
+        "type": "object"
+      },
+      "YearsFactInput": {
+        "properties": {
+          "confirmation_status": {
+            "$ref": "#/components/schemas/ConfirmationStatus",
+            "default": "unconfirmed"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "title": "YearsFactInput",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Nora API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/artifacts": {
+      "post": {
+        "operationId": "upload_artifact_artifacts_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_artifact_artifacts_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/artifacts/{artifact_id}": {
+      "delete": {
+        "operationId": "delete_artifact_artifacts__artifact_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      },
+      "get": {
+        "operationId": "get_artifact_artifacts__artifact_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/artifacts/{artifact_id}/content": {
+      "get": {
+        "operationId": "download_artifact_artifacts__artifact_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "me_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "operationId": "register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/companies": {
+      "post": {
+        "operationId": "create_company_snapshot_companies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCompanySnapshotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Company Snapshot",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/companies/{snapshot_id}": {
+      "get": {
+        "operationId": "get_latest_company_snapshot_companies__snapshot_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Latest Company Snapshot",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/companies/{snapshot_id}/versions": {
+      "get": {
+        "operationId": "list_company_snapshot_versions_companies__snapshot_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CompanySnapshotResponse"
+                  },
+                  "title": "Response List Company Snapshot Versions Companies  Snapshot Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Company Snapshot Versions",
+        "tags": [
+          "companies"
+        ]
+      },
+      "post": {
+        "operationId": "append_company_snapshot_companies__snapshot_id__versions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendCompanySnapshotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Append Company Snapshot",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/companies/{snapshot_id}/versions/{version}": {
+      "get": {
+        "operationId": "get_company_snapshot_version_companies__snapshot_id__versions__version__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanySnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Company Snapshot Version",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/decisions": {
+      "post": {
+        "operationId": "create_decision_case_decisions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDecisionCaseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionCaseResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Decision Case",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/decisions/{case_id}": {
+      "get": {
+        "operationId": "analyze_decision_case_decisions__case_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Analyze Decision Case",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/decisions/{case_id}/reports": {
+      "post": {
+        "operationId": "generate_decision_report_decisions__case_id__reports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Case Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionReportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generate Decision Report",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/job-postings": {
+      "get": {
+        "operationId": "list_job_postings_job_postings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobPostingListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Job Postings",
+        "tags": [
+          "job-postings"
+        ]
+      },
+      "post": {
+        "operationId": "create_job_posting_job_postings_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJobPostingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobPostingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Job Posting",
+        "tags": [
+          "job-postings"
+        ]
+      }
+    },
+    "/job-postings/fetch": {
+      "post": {
+        "description": "受控抓取 URL 并返回正文预览，不直接创建岗位快照。",
+        "operationId": "fetch_job_posting_preview_job_postings_fetch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FetchJobPostingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdInputPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Fetch Job Posting Preview",
+        "tags": [
+          "job-inputs"
+        ]
+      }
+    },
+    "/job-postings/image": {
+      "post": {
+        "description": "对截图做 OCR 并返回正文预览，不直接创建岗位快照。",
+        "operationId": "ocr_job_posting_image_job_postings_image_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ocr_job_posting_image_job_postings_image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdInputPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ocr Job Posting Image",
+        "tags": [
+          "job-inputs"
+        ]
+      }
+    },
+    "/job-postings/{job_posting_id}": {
+      "get": {
+        "operationId": "get_job_posting_job_postings__job_posting_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_posting_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Posting Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobPostingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Job Posting",
+        "tags": [
+          "job-postings"
+        ]
+      }
+    },
+    "/job-postings/{job_posting_id}/requirements": {
+      "get": {
+        "operationId": "list_job_requirement_snapshots_job_postings__job_posting_id__requirements_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_posting_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Posting Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRequirementSnapshotListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Job Requirement Snapshots",
+        "tags": [
+          "job-requirements"
+        ]
+      },
+      "post": {
+        "operationId": "save_job_requirement_snapshot_job_postings__job_posting_id__requirements_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_posting_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Posting Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveJobRequirementSnapshotRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRequirementSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Save Job Requirement Snapshot",
+        "tags": [
+          "job-requirements"
+        ]
+      }
+    },
+    "/job-postings/{job_posting_id}/requirements/latest": {
+      "get": {
+        "operationId": "get_latest_job_requirement_snapshot_job_postings__job_posting_id__requirements_latest_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_posting_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Posting Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRequirementSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Latest Job Requirement Snapshot",
+        "tags": [
+          "job-requirements"
+        ]
+      }
+    },
+    "/job-postings/{job_posting_id}/requirements/{version}": {
+      "get": {
+        "operationId": "get_job_requirement_snapshot_version_job_postings__job_posting_id__requirements__version__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_posting_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Posting Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRequirementSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Job Requirement Snapshot Version",
+        "tags": [
+          "job-requirements"
+        ]
+      }
+    },
+    "/live": {
+      "get": {
+        "operationId": "live_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Live Live Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live"
+      }
+    },
+    "/message-drafts": {
+      "get": {
+        "operationId": "list_message_drafts_message_drafts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDraftListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Message Drafts",
+        "tags": [
+          "message-drafts"
+        ]
+      }
+    },
+    "/message-drafts/{draft_id}": {
+      "get": {
+        "operationId": "get_message_draft_message_drafts__draft_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Message Draft",
+        "tags": [
+          "message-drafts"
+        ]
+      }
+    },
+    "/message-drafts/{draft_id}/revisions": {
+      "post": {
+        "operationId": "edit_message_draft_message_drafts__draft_id__revisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditMessageDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Edit Message Draft",
+        "tags": [
+          "message-drafts"
+        ]
+      }
+    },
+    "/message-drafts/{draft_id}/versions": {
+      "get": {
+        "operationId": "list_message_draft_versions_message_drafts__draft_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MessageDraftResponse"
+                  },
+                  "title": "Response List Message Draft Versions Message Drafts  Draft Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Message Draft Versions",
+        "tags": [
+          "message-drafts"
+        ]
+      }
+    },
+    "/message-drafts/{draft_id}/versions/{version}": {
+      "get": {
+        "operationId": "get_message_draft_version_message_drafts__draft_id__versions__version__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Message Draft Version",
+        "tags": [
+          "message-drafts"
+        ]
+      }
+    },
+    "/profile": {
+      "get": {
+        "operationId": "get_candidate_profile_profile_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Candidate Profile",
+        "tags": [
+          "profile"
+        ]
+      },
+      "put": {
+        "operationId": "put_candidate_profile_profile_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateProfileContentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Candidate Profile",
+        "tags": [
+          "profile"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready"
+      }
+    },
+    "/reports": {
+      "get": {
+        "operationId": "list_decision_reports_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionReportListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Decision Reports",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/{report_id}": {
+      "get": {
+        "operationId": "get_decision_report_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionReportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Decision Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/{report_id}/company-assessment": {
+      "get": {
+        "operationId": "get_company_assessment_reports__report_id__company_assessment_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyAssessmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "204": {
+            "description": "No company assessment attached"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Company Assessment",
+        "tags": [
+          "reports"
+        ]
+      },
+      "post": {
+        "operationId": "create_company_assessment_reports__report_id__company_assessment_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCompanyAssessmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyAssessmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Company Assessment",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/{report_id}/decision": {
+      "get": {
+        "operationId": "get_application_decision_reports__report_id__decision_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationDecisionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "204": {
+            "description": "No decision recorded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Application Decision",
+        "tags": [
+          "reports"
+        ]
+      },
+      "post": {
+        "operationId": "create_application_decision_reports__report_id__decision_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApplicationDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationDecisionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Application Decision",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/resume-pdfs/{pdf_id}": {
+      "get": {
+        "operationId": "get_resume_pdf_resume_pdfs__pdf_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pdf_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pdf Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumePdfResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Resume Pdf",
+        "tags": [
+          "resume-pdfs"
+        ]
+      }
+    },
+    "/resume-pdfs/{pdf_id}/content": {
+      "get": {
+        "operationId": "download_resume_pdf_resume_pdfs__pdf_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pdf_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Pdf Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "download",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Download",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download Resume Pdf",
+        "tags": [
+          "resume-pdfs"
+        ]
+      }
+    },
+    "/resume-variants": {
+      "get": {
+        "operationId": "list_resume_variants_resume_variants_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeVariantListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Resume Variants",
+        "tags": [
+          "resume-variants"
+        ]
+      },
+      "post": {
+        "operationId": "create_resume_variant_resume_variants_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResumeVariantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeVariantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Resume Variant",
+        "tags": [
+          "resume-variants"
+        ]
+      }
+    },
+    "/resume-variants/{variant_id}": {
+      "get": {
+        "operationId": "get_resume_variant_resume_variants__variant_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeVariantResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Resume Variant",
+        "tags": [
+          "resume-variants"
+        ]
+      }
+    },
+    "/resume-variants/{variant_id}/message-draft": {
+      "get": {
+        "operationId": "get_latest_variant_message_draft_resume_variants__variant_id__message_draft_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Latest Variant Message Draft",
+        "tags": [
+          "message-drafts"
+        ]
+      }
+    },
+    "/resume-variants/{variant_id}/message-drafts": {
+      "post": {
+        "operationId": "generate_message_draft_resume_variants__variant_id__message_drafts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateMessageDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageDraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generate Message Draft",
+        "tags": [
+          "message-drafts"
+        ]
+      }
+    },
+    "/resume-variants/{variant_id}/pdf": {
+      "get": {
+        "operationId": "get_latest_resume_pdf_resume_variants__variant_id__pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumePdfResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Latest Resume Pdf",
+        "tags": [
+          "resume-pdfs"
+        ]
+      },
+      "post": {
+        "operationId": "generate_resume_pdf_resume_variants__variant_id__pdf_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Variant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumePdfResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generate Resume Pdf",
+        "tags": [
+          "resume-pdfs"
+        ]
+      }
+    },
+    "/resumes": {
+      "get": {
+        "operationId": "list_resume_versions_resumes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeVersionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Resume Versions",
+        "tags": [
+          "resumes"
+        ]
+      },
+      "post": {
+        "operationId": "publish_resume_version_resumes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishResumeVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Publish Resume Version",
+        "tags": [
+          "resumes"
+        ]
+      }
+    },
+    "/resumes/{resume_id}": {
+      "get": {
+        "operationId": "get_resume_version_resumes__resume_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resume_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Resume Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Resume Version",
+        "tags": [
+          "resumes"
+        ]
+      }
+    },
+    "/sources": {
+      "post": {
+        "operationId": "create_source_sources_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Source",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/sources/{source_id}": {
+      "get": {
+        "operationId": "get_source_sources__source_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Source",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/templates": {
+      "get": {
+        "operationId": "list_templates_templates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TemplateDefinitionResponse"
+                  },
+                  "title": "Response List Templates Templates Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Templates",
+        "tags": [
+          "templates"
+        ]
+      }
+    },
+    "/templates/{template_id}/versions/{version}": {
+      "get": {
+        "operationId": "get_template_templates__template_id__versions__version__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDefinitionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Template",
+        "tags": [
+          "templates"
+        ]
+      }
+    }
+  },
+  "x-generated-notice": "Generated by backend/scripts/export_openapi.py; DO NOT EDIT."
+}

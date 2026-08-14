@@ -22,6 +22,20 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.3"
+
+      - name: Sync locked backend contract environment
+        working-directory: backend
+        run: uv sync --frozen
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -32,6 +46,10 @@ jobs:
       - name: Install locked dependencies
         working-directory: frontend
         run: npm ci
+
+      - name: Check generated API contract
+        working-directory: frontend
+        run: npm run api:check
 
       - name: Lint
         working-directory: frontend
