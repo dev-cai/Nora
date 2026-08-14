@@ -594,7 +594,7 @@ stateDiagram-v2
 
 ### 14.1 决策与最小契约
 
-采用最小 `Transaction` Port，后续实现位置固定为 `backend/app/ports/transaction.py`：
+采用最小 `Transaction` Port，实现位置固定为 `backend/app/ports/transaction.py`：
 
 ```python
 class Transaction(Protocol):
@@ -655,9 +655,9 @@ savepoint，也不得给 Repository Port 增加通用 savepoint / rollback 方�
 
 迁移按以下顺序使用独立 Task Issue 和 PR 交付；这些 Issue 只能在 #183 合并后创建：
 
-1. **事务基础与审计幂等参考切片。** 增加 `Transaction` Port、SQLAlchemy Adapter 和 composition dependency；迁移
-   JobPosting + AuditEvent、ApplicationDecision + AuditEvent 两条写路径，覆盖成功、失败和并发矩阵。该切片必须在 #94
-   ApplicationRecord 开始前合并，#94 使用新事务契约，不得复制旧的 Repository 提交模式。
+1. **事务基础与审计幂等参考切片（#195 已实现）。** `Transaction` Port、SQLAlchemy Adapter 和 composition dependency
+   已落地；JobPosting + AuditEvent、ApplicationDecision + AuditEvent 两条写路径由顶层 Use Case 显式提交或回滚，并覆盖成功、
+   失败和并发矩阵。#94 ApplicationRecord 使用该事务契约，不得复制旧的 Repository 提交模式。
 2. **其余纯 PostgreSQL 写路径。** 按业务模块迁移 Identity、Career、Opportunity、Decision、Follow-up 与 Knowledge 元数据用例；
    每迁移一个 Use Case，就同时从对应 Port、Adapter 和测试替身移除 `commit()` / 通用 `rollback()`。
 3. **外部副作用状态机与最终清理。** 最后迁移 Artifact、ResumePdf 等跨对象存储或渲染器的多事务段流程，保持 D-013 的

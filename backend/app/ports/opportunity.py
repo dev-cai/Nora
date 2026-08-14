@@ -38,8 +38,6 @@ class JobPostingRepository(Protocol):
 
     async def count(self) -> int: ...
 
-    async def commit(self) -> None: ...
-
 
 class JobRequirementSnapshotRepository(Protocol):
     """用户范围内岗位要求快照的追加版本读取端口。"""

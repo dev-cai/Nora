@@ -62,7 +62,7 @@ async def _seed_inputs(session, owner_id):
     posting = await posting_repository.add(
         JobPosting.create(owner_id=owner_id, jd_text="Python backend role")
     )
-    await posting_repository.commit()
+    await session.commit()
 
     requirement_repository = SqlAlchemyJobRequirementSnapshotRepository(session, owner_id)
     requirement = await requirement_repository.add(

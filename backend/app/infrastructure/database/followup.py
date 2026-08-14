@@ -175,7 +175,6 @@ class SqlAlchemyApplicationDecisionRepository:
         try:
             await self.session.flush()
         except IntegrityError as exc:
-            await self.session.rollback()
             constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
             error_code = (
                 "application_decision_key_taken"
@@ -213,9 +212,6 @@ class SqlAlchemyApplicationDecisionRepository:
             )
         )
         return None if record is None else self._to_domain(record)
-
-    async def commit(self) -> None:
-        await self.session.commit()
 
 
 class TemplateDefinitionRecord(Base):

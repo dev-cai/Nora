@@ -24,7 +24,6 @@ class FakeJobPostingRepository:
     def __init__(self) -> None:
         self.postings: dict[UUID, JobPosting] = {}
         self.idempotency: dict[str, StoredIdempotentJobPosting] = {}
-        self.commit_count = 0
 
     async def add(self, job_posting: JobPosting) -> JobPosting:
         self.postings[job_posting.id] = job_posting
@@ -58,9 +57,6 @@ class FakeJobPostingRepository:
     async def count(self) -> int:
         return len(self.postings)
 
-    async def commit(self) -> None:
-        self.commit_count += 1
-
 
 class FakeAuditEventRepository:
     """记录用例追加的审计事件。"""
@@ -73,8 +69,37 @@ class FakeAuditEventRepository:
         return event
 
 
+class FailingAuditEventRepository:
+    async def add(self, event: AuditEvent) -> AuditEvent:
+        raise RuntimeError("audit failed")
+
+
+class FakeTransaction:
+    def __init__(self) -> None:
+        self.commits = 0
+        self.rollbacks = 0
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def rollback(self) -> None:
+        self.rollbacks += 1
+
+
 class RacingJobPostingRepository(FakeJobPostingRepository):
     """模拟首次查询后由并发事务占用幂等键。"""
+
+    def __init__(self, transaction: FakeTransaction) -> None:
+        super().__init__()
+        self.transaction = transaction
+        self.claimed = False
+
+    async def get_by_idempotency_key(
+        self, idempotency_key: str
+    ) -> StoredIdempotentJobPosting | None:
+        if self.claimed and self.transaction.rollbacks == 0:
+            raise AssertionError("recovery query ran before rollback")
+        return await super().get_by_idempotency_key(idempotency_key)
 
     async def add_idempotent(
         self,
@@ -87,6 +112,7 @@ class RacingJobPostingRepository(FakeJobPostingRepository):
             job_posting=job_posting,
             request_fingerprint=request_fingerprint,
         )
+        self.claimed = True
         raise InfrastructureError(
             "Concurrent request won",
             error_code="idempotency_key_taken",
@@ -97,7 +123,8 @@ class RacingJobPostingRepository(FakeJobPostingRepository):
 async def test_create_replays_normalized_same_request() -> None:
     repository = FakeJobPostingRepository()
     audit_repository = FakeAuditEventRepository()
-    use_case = CreateJobPostingUseCase(repository, audit_repository)
+    transaction = FakeTransaction()
+    use_case = CreateJobPostingUseCase(repository, audit_repository, transaction)
     owner_id = uuid4()
 
     created = await use_case.execute(
@@ -118,7 +145,8 @@ async def test_create_replays_normalized_same_request() -> None:
     assert created.replayed is False
     assert replayed.replayed is True
     assert replayed.job_posting.id == created.job_posting.id
-    assert repository.commit_count == 1
+    assert transaction.commits == 1
+    assert transaction.rollbacks == 0
     assert len(repository.postings) == 1
     assert len(audit_repository.events) == 1
     event = audit_repository.events[0]
@@ -138,7 +166,7 @@ async def test_create_replays_normalized_same_request() -> None:
 async def test_create_rejects_same_key_with_different_content() -> None:
     repository = FakeJobPostingRepository()
     audit_repository = FakeAuditEventRepository()
-    use_case = CreateJobPostingUseCase(repository, audit_repository)
+    use_case = CreateJobPostingUseCase(repository, audit_repository, FakeTransaction())
     owner_id = uuid4()
     await use_case.execute(
         CreateJobPostingCommand(
@@ -165,7 +193,7 @@ async def test_create_rejects_same_key_with_different_content() -> None:
 @pytest.mark.asyncio
 async def test_create_includes_public_metadata_in_idempotency_fingerprint() -> None:
     repository = FakeJobPostingRepository()
-    use_case = CreateJobPostingUseCase(repository, FakeAuditEventRepository())
+    use_case = CreateJobPostingUseCase(repository, FakeAuditEventRepository(), FakeTransaction())
     owner_id = uuid4()
     await use_case.execute(
         CreateJobPostingCommand(
@@ -195,10 +223,11 @@ async def test_create_includes_public_metadata_in_idempotency_fingerprint() -> N
 
 @pytest.mark.asyncio
 async def test_create_recovers_result_after_concurrent_key_claim() -> None:
-    repository = RacingJobPostingRepository()
+    transaction = FakeTransaction()
+    repository = RacingJobPostingRepository(transaction)
     audit_repository = FakeAuditEventRepository()
 
-    result = await CreateJobPostingUseCase(repository, audit_repository).execute(
+    result = await CreateJobPostingUseCase(repository, audit_repository, transaction).execute(
         CreateJobPostingCommand(
             owner_id=uuid4(),
             idempotency_key="race-1",
@@ -208,8 +237,30 @@ async def test_create_recovers_result_after_concurrent_key_claim() -> None:
 
     assert result.replayed is True
     assert result.job_posting.jd_text == "Build APIs."
-    assert repository.commit_count == 0
+    assert transaction.commits == 0
+    assert transaction.rollbacks == 1
     assert audit_repository.events == []
+
+
+@pytest.mark.asyncio
+async def test_create_rolls_back_when_audit_write_fails() -> None:
+    transaction = FakeTransaction()
+
+    with pytest.raises(RuntimeError, match="audit failed"):
+        await CreateJobPostingUseCase(
+            FakeJobPostingRepository(),
+            FailingAuditEventRepository(),
+            transaction,
+        ).execute(
+            CreateJobPostingCommand(
+                owner_id=uuid4(),
+                idempotency_key="audit-failure",
+                jd_text="Build APIs.",
+            )
+        )
+
+    assert transaction.commits == 0
+    assert transaction.rollbacks == 1
 
 
 @pytest.mark.asyncio

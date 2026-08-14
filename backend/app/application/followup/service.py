@@ -10,6 +10,7 @@ from app.domain.governance import AuditAction, AuditEvent
 from app.ports.decision import DecisionCaseRepository, DecisionReportRepository
 from app.ports.followup import ApplicationDecisionRepository
 from app.ports.governance import AuditEventRepository
+from app.ports.transaction import Transaction
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,11 +42,13 @@ class CreateApplicationDecisionUseCase:
         report_repository: DecisionReportRepository,
         case_repository: DecisionCaseRepository,
         audit_repository: AuditEventRepository,
+        transaction: Transaction,
     ) -> None:
         self.repository = repository
         self.report_repository = report_repository
         self.case_repository = case_repository
         self.audit_repository = audit_repository
+        self.transaction = transaction
 
     async def execute(
         self, command: CreateApplicationDecisionCommand
@@ -89,8 +92,9 @@ class CreateApplicationDecisionUseCase:
                     idempotency_key=stored.idempotency_key,
                 )
             )
-            await self.repository.commit()
+            await self.transaction.commit()
         except InfrastructureError as exc:
+            await self.transaction.rollback()
             if exc.error_code not in {
                 "application_decision_key_taken",
                 "application_decision_conflict",
@@ -108,6 +112,9 @@ class CreateApplicationDecisionUseCase:
                 "Could not recover application decision",
                 error_code="application_decision_persistence_failed",
             ) from exc
+        except Exception:
+            await self.transaction.rollback()
+            raise
         return CreateApplicationDecisionResult(decision=stored, replayed=False)
 
 

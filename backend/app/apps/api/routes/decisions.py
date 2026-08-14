@@ -42,6 +42,7 @@ from app.apps.api.dependencies import (
     get_job_requirement_snapshot_repository,
     get_resume_version_repository,
     get_source_document_repository,
+    get_transaction,
 )
 from app.apps.api.routes.companies import CompanySnapshotResponse
 from app.domain.decision import (
@@ -76,6 +77,7 @@ from app.ports.opportunity import (
     JobPostingRepository,
     JobRequirementSnapshotRepository,
 )
+from app.ports.transaction import Transaction
 
 REPORT_GENERATOR_VERSION = "m3-report-v1"
 
@@ -640,12 +642,14 @@ async def create_application_decision(
     report_repository: DecisionReportRepository = Depends(get_decision_report_repository),
     case_repository: DecisionCaseRepository = Depends(get_decision_case_repository),
     audit_repository: AuditEventRepository = Depends(get_audit_event_repository),
+    transaction: Transaction = Depends(get_transaction),
 ) -> ApplicationDecisionResponse:
     result = await CreateApplicationDecisionUseCase(
         repository,
         report_repository,
         case_repository,
         audit_repository,
+        transaction,
     ).execute(
         CreateApplicationDecisionCommand(
             owner_id=user.id,

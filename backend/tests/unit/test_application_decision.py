@@ -8,9 +8,10 @@ from app.application.followup import (
     GetApplicationDecisionQuery,
     GetApplicationDecisionUseCase,
 )
-from app.domain.base.exceptions import ApplicationError, DomainError
+from app.domain.base.exceptions import ApplicationError, DomainError, InfrastructureError
 from app.domain.decision import DecisionCase, DecisionReport
 from app.domain.followup import ApplicationDecision, ApplicationDecisionStatus
+from app.domain.governance import AuditEvent
 
 
 def test_application_decision_requires_skip_reason_and_normalizes_content() -> None:
@@ -55,11 +56,13 @@ async def test_create_application_decision_is_idempotent_and_audited() -> None:
     case = _case(owner_id=owner_id, case_id=report.decision_case_id)
     repository = FakeApplicationDecisionRepository()
     audit_repository = FakeAuditRepository()
+    transaction = FakeTransaction()
     use_case = CreateApplicationDecisionUseCase(
         repository,
         FakeReportRepository(report),
         FakeCaseRepository(case),
         audit_repository,
+        transaction,
     )
     command = CreateApplicationDecisionCommand(
         owner_id=owner_id,
@@ -80,7 +83,8 @@ async def test_create_application_decision_is_idempotent_and_audited() -> None:
     assert first.decision.resume_version_id == case.resume_version_id
     assert len(audit_repository.events) == 1
     assert audit_repository.events[0].idempotency_key == "decision-1"
-    assert repository.commits == 1
+    assert transaction.commits == 1
+    assert transaction.rollbacks == 0
 
 
 @pytest.mark.asyncio
@@ -89,11 +93,13 @@ async def test_create_application_decision_rejects_conflicting_status_and_key_re
     report = _report(owner_id=owner_id)
     case = _case(owner_id=owner_id, case_id=report.decision_case_id)
     repository = FakeApplicationDecisionRepository()
+    transaction = FakeTransaction()
     use_case = CreateApplicationDecisionUseCase(
         repository,
         FakeReportRepository(report),
         FakeCaseRepository(case),
         FakeAuditRepository(),
+        transaction,
     )
     await use_case.execute(
         CreateApplicationDecisionCommand(
@@ -125,6 +131,7 @@ async def test_create_application_decision_rejects_conflicting_status_and_key_re
         FakeReportRepository(second_report),
         FakeCaseRepository(_case(owner_id=owner_id, case_id=second_report.decision_case_id)),
         FakeAuditRepository(),
+        transaction,
     )
     with pytest.raises(ApplicationError) as key_conflict:
         await use_case.execute(
@@ -138,6 +145,63 @@ async def test_create_application_decision_rejects_conflicting_status_and_key_re
             )
         )
     assert key_conflict.value.error_code == "idempotency_conflict"
+
+
+@pytest.mark.asyncio
+async def test_create_application_decision_rolls_back_before_concurrent_recovery() -> None:
+    owner_id = uuid4()
+    report = _report(owner_id=owner_id)
+    transaction = FakeTransaction()
+    repository = RacingApplicationDecisionRepository(transaction)
+
+    result = await CreateApplicationDecisionUseCase(
+        repository,
+        FakeReportRepository(report),
+        FakeCaseRepository(_case(owner_id=owner_id, case_id=report.decision_case_id)),
+        FakeAuditRepository(),
+        transaction,
+    ).execute(
+        CreateApplicationDecisionCommand(
+            owner_id=owner_id,
+            actor_id=owner_id,
+            report_id=report.id,
+            status=ApplicationDecisionStatus.APPLY,
+            reason=None,
+            idempotency_key="decision-race",
+        )
+    )
+
+    assert result.replayed is True
+    assert transaction.commits == 0
+    assert transaction.rollbacks == 1
+
+
+@pytest.mark.asyncio
+async def test_create_application_decision_rolls_back_when_audit_write_fails() -> None:
+    owner_id = uuid4()
+    report = _report(owner_id=owner_id)
+    transaction = FakeTransaction()
+
+    with pytest.raises(RuntimeError, match="audit failed"):
+        await CreateApplicationDecisionUseCase(
+            FakeApplicationDecisionRepository(),
+            FakeReportRepository(report),
+            FakeCaseRepository(_case(owner_id=owner_id, case_id=report.decision_case_id)),
+            FailingAuditRepository(),
+            transaction,
+        ).execute(
+            CreateApplicationDecisionCommand(
+                owner_id=owner_id,
+                actor_id=owner_id,
+                report_id=report.id,
+                status=ApplicationDecisionStatus.APPLY,
+                reason=None,
+                idempotency_key="decision-audit-failure",
+            )
+        )
+
+    assert transaction.commits == 0
+    assert transaction.rollbacks == 1
 
 
 @pytest.mark.asyncio
@@ -156,7 +220,6 @@ async def test_get_application_decision_hides_foreign_report() -> None:
 class FakeApplicationDecisionRepository:
     def __init__(self) -> None:
         self.decisions: list[ApplicationDecision] = []
-        self.commits = 0
 
     async def add(self, decision: ApplicationDecision) -> ApplicationDecision:
         self.decisions.append(decision)
@@ -167,9 +230,6 @@ class FakeApplicationDecisionRepository:
 
     async def get_by_idempotency_key(self, key: str) -> ApplicationDecision | None:
         return next((item for item in self.decisions if item.idempotency_key == key), None)
-
-    async def commit(self) -> None:
-        self.commits += 1
 
 
 class FakeReportRepository:
@@ -195,6 +255,43 @@ class FakeAuditRepository:
     async def add(self, event: object) -> object:
         self.events.append(event)
         return event
+
+
+class FailingAuditRepository:
+    async def add(self, event: AuditEvent) -> AuditEvent:
+        raise RuntimeError("audit failed")
+
+
+class FakeTransaction:
+    def __init__(self) -> None:
+        self.commits = 0
+        self.rollbacks = 0
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def rollback(self) -> None:
+        self.rollbacks += 1
+
+
+class RacingApplicationDecisionRepository(FakeApplicationDecisionRepository):
+    def __init__(self, transaction: FakeTransaction) -> None:
+        super().__init__()
+        self.transaction = transaction
+        self.claimed = False
+
+    async def add(self, decision: ApplicationDecision) -> ApplicationDecision:
+        await super().add(decision)
+        self.claimed = True
+        raise InfrastructureError(
+            "Concurrent request won",
+            error_code="application_decision_key_taken",
+        )
+
+    async def get_by_idempotency_key(self, key: str) -> ApplicationDecision | None:
+        if self.claimed and self.transaction.rollbacks == 0:
+            raise AssertionError("recovery query ran before rollback")
+        return await super().get_by_idempotency_key(key)
 
 
 def _decision(*, status: ApplicationDecisionStatus, reason: str | None) -> ApplicationDecision:
