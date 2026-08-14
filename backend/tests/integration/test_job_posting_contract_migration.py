@@ -1,8 +1,6 @@
 """岗位公开契约迁移的回填、约束和降级测试。"""
 
 import asyncio
-import hashlib
-import json
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -40,16 +38,9 @@ def test_job_posting_public_contract_migrates_legacy_metadata(database_url: str)
     posting_id = uuid4()
     idempotency_id = uuid4()
     now = datetime.now(timezone.utc)
-    legacy_fingerprint = hashlib.sha256(
-        json.dumps(
-            {"jd_text": "Legacy JD", "source_type": "manual", "source_url": None},
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode("utf-8")
-    ).hexdigest()
+    stored_fingerprint = "0" * 64
 
-    async def insert_legacy_row() -> None:
+    async def insert_pre_upgrade_row() -> None:
         engine = create_async_engine(database_url)
         async with engine.begin() as connection:
             await connection.execute(
@@ -97,13 +88,13 @@ def test_job_posting_public_contract_migrates_legacy_metadata(database_url: str)
                     "id": idempotency_id,
                     "owner_id": owner_id,
                     "posting_id": posting_id,
-                    "fingerprint": legacy_fingerprint,
+                    "fingerprint": stored_fingerprint,
                     "now": now,
                 },
             )
         await engine.dispose()
 
-    async def verify_legacy_replay() -> None:
+    async def verify_stored_fingerprint_is_not_replayed() -> None:
         engine = create_async_engine(database_url)
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory() as session:
@@ -113,22 +104,12 @@ def test_job_posting_public_contract_migrates_legacy_metadata(database_url: str)
                 SqlAlchemyAuditEventRepository(session),
                 SqlAlchemyTransaction(session),
             )
-            replayed = await use_case.execute(
-                CreateJobPostingCommand(
-                    owner_id=owner_id,
-                    idempotency_key="legacy-key",
-                    jd_text="Legacy JD",
-                )
-            )
-            assert replayed.replayed is True
-            assert replayed.job_posting.id == posting_id
-
             with pytest.raises(ApplicationError) as error:
                 await use_case.execute(
                     CreateJobPostingCommand(
                         owner_id=owner_id,
                         idempotency_key="legacy-key",
-                        jd_text="Changed JD",
+                        jd_text="Legacy JD",
                     )
                 )
             assert error.value.error_code == "idempotency_conflict"
@@ -147,6 +128,11 @@ def test_job_posting_public_contract_migrates_legacy_metadata(database_url: str)
                 {"id": posting_id},
             )
             assert values.one() == ("未提供职位", "未提供公司", "未提供地点")
+            fingerprint = await connection.scalar(
+                text("SELECT request_fingerprint FROM job_posting_idempotency WHERE id = :id"),
+                {"id": idempotency_id},
+            )
+            assert fingerprint == stored_fingerprint
             columns = await connection.run_sync(
                 lambda sync_connection: {
                     column["name"]: column["nullable"]
@@ -189,9 +175,9 @@ def test_job_posting_public_contract_migrates_legacy_metadata(database_url: str)
 
     try:
         command.upgrade(configuration, "0006_audit_event_target_version")
-        asyncio.run(insert_legacy_row())
+        asyncio.run(insert_pre_upgrade_row())
         command.upgrade(configuration, "head")
-        asyncio.run(verify_legacy_replay())
+        asyncio.run(verify_stored_fingerprint_is_not_replayed())
         asyncio.run(verify_upgrade())
         command.downgrade(configuration, "0006_audit_event_target_version")
         asyncio.run(verify_downgrade())

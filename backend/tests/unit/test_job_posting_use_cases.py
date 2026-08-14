@@ -1,6 +1,7 @@
 """岗位快照应用用例单元测试。"""
 
 import json
+from hashlib import sha256
 from uuid import UUID, uuid4
 
 import pytest
@@ -191,30 +192,64 @@ async def test_create_rejects_same_key_with_different_content() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_includes_public_metadata_in_idempotency_fingerprint() -> None:
+@pytest.mark.parametrize(
+    "changed_fields",
+    [
+        {"jd_text": "Build data pipelines."},
+        {"job_title": "Platform Engineer"},
+        {"company_name": "Another Corp"},
+        {"location": "Beijing"},
+        {"source_type": JobSourceType.MANUAL},
+        {"source_url": "https://jobs.example.com/roles/456"},
+    ],
+    ids=["jd-text", "job-title", "company-name", "location", "source-type", "source-url"],
+)
+async def test_create_fingerprint_covers_every_public_field(
+    changed_fields: dict[str, object],
+) -> None:
     repository = FakeJobPostingRepository()
     use_case = CreateJobPostingUseCase(repository, FakeAuditEventRepository(), FakeTransaction())
     owner_id = uuid4()
+    command_values = {
+        "jd_text": "Build APIs.",
+        "job_title": "Backend Engineer",
+        "company_name": "Example Corp",
+        "location": "Shanghai",
+        "source_type": JobSourceType.URL,
+        "source_url": "https://jobs.example.com/roles/123",
+    }
     await use_case.execute(
         CreateJobPostingCommand(
             owner_id=owner_id,
             idempotency_key="import-metadata",
-            jd_text="Build APIs.",
-            job_title="Backend Engineer",
-            company_name="Example Corp",
-            location="Shanghai",
+            **command_values,
         )
     )
+    expected_fingerprint = sha256(
+        json.dumps(
+            {
+                "company_name": "Example Corp",
+                "jd_text": "Build APIs.",
+                "job_title": "Backend Engineer",
+                "location": "Shanghai",
+                "source_type": "url",
+                "source_url": "https://jobs.example.com/roles/123",
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    assert repository.idempotency["import-metadata"].request_fingerprint == expected_fingerprint
+
+    changed_command_values = {**command_values, **changed_fields}
 
     with pytest.raises(ApplicationError) as error:
         await use_case.execute(
             CreateJobPostingCommand(
                 owner_id=owner_id,
                 idempotency_key="import-metadata",
-                jd_text="Build APIs.",
-                job_title="Platform Engineer",
-                company_name="Example Corp",
-                location="Shanghai",
+                **changed_command_values,
             )
         )
 

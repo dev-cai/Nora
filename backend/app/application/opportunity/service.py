@@ -87,7 +87,6 @@ class CreateJobPostingUseCase:
             source_url=command.source_url,
         )
         request_fingerprint = _request_fingerprint(posting)
-        legacy_request_fingerprint = _legacy_request_fingerprint(posting)
 
         existing = await self.repository.get_by_idempotency_key(idempotency_key)
         if existing is not None:
@@ -95,7 +94,6 @@ class CreateJobPostingUseCase:
                 existing.job_posting,
                 existing.request_fingerprint,
                 request_fingerprint,
-                legacy_request_fingerprint,
             )
 
         try:
@@ -130,7 +128,6 @@ class CreateJobPostingUseCase:
                 existing.job_posting,
                 existing.request_fingerprint,
                 request_fingerprint,
-                legacy_request_fingerprint,
             )
         except Exception:
             await self.transaction.rollback()
@@ -198,18 +195,6 @@ def _request_fingerprint(posting: JobPosting) -> str:
     return sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def _legacy_request_fingerprint(posting: JobPosting) -> str:
-    """计算 M1 指纹，兼容迁移前已持久化的幂等记录。"""
-
-    content = {
-        "jd_text": posting.jd_text,
-        "source_type": posting.source_type.value,
-        "source_url": posting.source_url,
-    }
-    serialized = json.dumps(content, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
-    return sha256(serialized.encode("utf-8")).hexdigest()
-
-
 def _audit_summary(posting: JobPosting) -> str:
     """生成不复制完整 JD 的确定性审计摘要。"""
 
@@ -224,9 +209,8 @@ def _resolve_replay(
     posting: JobPosting,
     stored_fingerprint: str,
     request_fingerprint: str,
-    legacy_request_fingerprint: str,
 ) -> CreateJobPostingResult:
-    if stored_fingerprint not in {request_fingerprint, legacy_request_fingerprint}:
+    if stored_fingerprint != request_fingerprint:
         raise ApplicationError(
             "Idempotency key was already used with different content",
             error_code="idempotency_conflict",
