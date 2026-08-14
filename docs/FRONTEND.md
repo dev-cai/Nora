@@ -101,11 +101,11 @@ flowchart LR
 ## 5. 认证与安全
 
 - 当前认证契约是 `Authorization: Bearer <access_token>`。
-- Token 与当前用户仅在标签页级 `sessionStorage` 中受控保存，使刷新可恢复登录态；关闭标签页后会话消失，不扩展为跨标签页或浏览器重启的长期会话。
+- Token 与当前用户仅在标签页级 `sessionStorage` 中受控保存，使刷新可恢复登录态；关闭标签页后会话消失，不扩展为跨标签页或浏览器重启的长期会话。D-020 继续采用该方案作为 M4 Beta 目标，并要求生产隐藏公共注册入口。
 - 登出、`401` 或恢复校验失败时同时清除内存与 `sessionStorage`；Token 不写入日志、URL、`localStorage` 或构建产物。
 - 收到 `401` 时清除前端会话并返回登录状态；`403` 不得被解释为未登录。
 - 改用 HttpOnly Cookie、刷新令牌或持久会话需要独立的 Identity/Security Issue，不由前端单方面实现。
-- 当前开发 CORS 配置不是生产安全承诺；生产来源白名单由部署与安全 Issue 明确。
+- 当前开发 CORS 配置不是生产安全承诺；D-020 要求 Beta 使用单一同源 HTTPS 入口、精确 Origin allowlist、显式 method/header 和单跳可信代理，未授权 Origin 在业务处理前拒绝。
 
 ## 6. 错误与可观测性
 
