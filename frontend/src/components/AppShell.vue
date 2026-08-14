@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
   FileText,
+  LayoutTemplate,
   LayoutDashboard,
   LogOut,
   Plus,
@@ -16,12 +17,14 @@ import { useAnalysisStore } from "@/stores/analysis"
 import { useJobsStore } from "@/stores/jobs"
 import { useProfileStore } from "@/stores/profile"
 import { useResumesStore } from "@/stores/resumes"
+import { useVariantsStore } from "@/stores/variants"
 
 const auth = useAuthStore()
 const analysis = useAnalysisStore()
 const jobs = useJobsStore()
 const profile = useProfileStore()
 const resumes = useResumesStore()
+const variants = useVariantsStore()
 const route = useRoute()
 const router = useRouter()
 const initials = computed(() => auth.user?.username.slice(0, 2).toUpperCase() || "N")
@@ -32,6 +35,7 @@ function logout(): void {
   profile.reset()
   resumes.reset()
   analysis.reset()
+  variants.reset()
   void router.push({ name: "login" })
 }
 </script>
@@ -104,6 +108,14 @@ function logout(): void {
           <FileText :size="18" />
           <span>简历版本</span>
         </RouterLink>
+        <RouterLink
+          class="nav-item"
+          :class="{ active: route.name === 'templates' || route.name === 'resume-customize' || route.name === 'resume-variant-detail' }"
+          to="/templates"
+        >
+          <LayoutTemplate :size="18" />
+          <span>定制简历</span>
+        </RouterLink>
       </nav>
 
       <div class="sidebar-footer">
@@ -129,7 +141,7 @@ function logout(): void {
       <header class="topbar">
         <div>
           <p class="eyebrow">
-            NORA / M3 决策工作台
+            NORA / M4 投递工作台
           </p>
           <h1>{{ route.meta.title || '求职工作台' }}</h1>
         </div>

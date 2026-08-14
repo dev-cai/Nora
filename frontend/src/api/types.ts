@@ -320,3 +320,53 @@ export interface ApplicationDecision {
   actor_id: string
   decided_at: string
 }
+
+export interface TemplateDefinition {
+  id: string
+  version: number
+  name: string
+  page_size: "a4" | "letter"
+  density: "compact" | "standard"
+  accent: "neutral" | "blue"
+  section_order: string[]
+  allowed_fields: string[]
+  required_fields: string[]
+  definition_hash: string
+  published_at: string
+}
+
+export interface VariantBlock {
+  source_path: string
+  label: string
+  value: string
+}
+
+export interface CreateResumeVariantInput {
+  application_decision_id: string
+  template_id: string
+  template_version: number
+  title: string
+  blocks: VariantBlock[]
+}
+
+export interface ResumeVariant extends CreateResumeVariantInput {
+  id: string
+  version: number
+  decision_case_id: string
+  job_posting_id: string
+  job_posting_version: number
+  job_requirement_snapshot_id: string
+  job_requirement_snapshot_version: number
+  resume_version_id: string
+  resume_version: number
+  generator_version: string
+  content_fingerprint: string
+  created_at: string
+}
+
+export interface ResumeVariantList {
+  items: ResumeVariant[]
+  page: number
+  page_size: number
+  total: number
+}

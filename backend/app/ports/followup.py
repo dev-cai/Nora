@@ -3,7 +3,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.domain.followup import ApplicationDecision
+from app.domain.followup import ApplicationDecision, ResumeVariant, TemplateDefinition
 
 
 class ApplicationDecisionRepository(Protocol):
@@ -11,6 +11,30 @@ class ApplicationDecisionRepository(Protocol):
 
     async def get_by_report_id(self, report_id: UUID) -> ApplicationDecision | None: ...
 
+    async def get_by_id(self, decision_id: UUID) -> ApplicationDecision | None: ...
+
     async def get_by_idempotency_key(self, key: str) -> ApplicationDecision | None: ...
+
+    async def commit(self) -> None: ...
+
+
+class TemplateDefinitionRepository(Protocol):
+    async def list(self) -> list[TemplateDefinition]: ...
+
+    async def get_by_identity(
+        self, template_id: UUID, version: int
+    ) -> TemplateDefinition | None: ...
+
+
+class ResumeVariantRepository(Protocol):
+    async def add(self, variant: ResumeVariant) -> ResumeVariant: ...
+
+    async def get_by_id(self, variant_id: UUID) -> ResumeVariant | None: ...
+
+    async def get_by_idempotency_key(self, key: str) -> ResumeVariant | None: ...
+
+    async def list(self, *, offset: int, limit: int) -> list[ResumeVariant]: ...
+
+    async def count(self) -> int: ...
 
     async def commit(self) -> None: ...

@@ -45,6 +45,20 @@ class DecisionCaseRecord(Base):
             name="uq_decision_case_resume_owner",
         ),
         UniqueConstraint(
+            "id",
+            "job_posting_id",
+            "job_posting_version",
+            "owner_id",
+            name="uq_decision_case_job_owner",
+        ),
+        UniqueConstraint(
+            "id",
+            "job_requirement_snapshot_id",
+            "job_requirement_snapshot_version",
+            "owner_id",
+            name="uq_decision_case_requirement_owner",
+        ),
+        UniqueConstraint(
             "owner_id", "input_fingerprint", name="uq_decision_case_owner_fingerprint"
         ),
         CheckConstraint("job_posting_version >= 1", name="ck_decision_job_version_positive"),

@@ -1,16 +1,23 @@
 """Decision analysis and versioned report public API contract tests."""
 
 import asyncio
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.apps.api import create_app
 from app.apps.api.dependencies import get_artifact_storage, get_current_user
+from app.domain.followup import (
+    TemplateAccent,
+    TemplateDefinition,
+    TemplateDensity,
+    TemplatePageSize,
+)
 from app.domain.identity import User
 from app.infrastructure.config import Settings
-from app.infrastructure.database import Base
+from app.infrastructure.database import Base, TemplateDefinitionRecord
 from app.ports.knowledge import StoredObject, StoredObjectInfo
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 class MemoryArtifactStorage:
@@ -39,6 +46,49 @@ def _reset_database(database_url: str) -> None:
         await engine.dispose()
 
     asyncio.run(reset())
+
+
+def _seed_resume_template(database_url: str) -> TemplateDefinition:
+    template = TemplateDefinition.create(
+        template_id=uuid4(),
+        version=1,
+        name="API 清晰单栏",
+        page_size=TemplatePageSize.A4,
+        density=TemplateDensity.STANDARD,
+        accent=TemplateAccent.NEUTRAL,
+        section_order=("basic_information", "skills"),
+        allowed_fields=("basic_information.*", "skills.*.*"),
+        required_fields=("basic_information.display_name",),
+        published_at=datetime(2026, 8, 13, tzinfo=timezone.utc),
+    )
+
+    async def seed() -> None:
+        engine = create_async_engine(database_url)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            session.add(
+                TemplateDefinitionRecord(
+                    record_id=uuid4(),
+                    template_id=template.id,
+                    version=template.version,
+                    name=template.name,
+                    definition={
+                        "page_size": template.page_size.value,
+                        "density": template.density.value,
+                        "accent": template.accent.value,
+                        "section_order": list(template.section_order),
+                        "allowed_fields": list(template.allowed_fields),
+                        "required_fields": list(template.required_fields),
+                    },
+                    definition_hash=template.definition_hash,
+                    published_at=template.published_at,
+                )
+            )
+            await session.commit()
+        await engine.dispose()
+
+    asyncio.run(seed())
+    return template
 
 
 def _register_and_login(client: TestClient, username: str) -> dict[str, str]:
@@ -490,3 +540,122 @@ def test_company_assessment_fixes_snapshot_version_in_report_contract(database_u
             ).status_code
             == 404
         )
+
+
+def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url: str) -> None:
+    _reset_database(database_url)
+    template = _seed_resume_template(database_url)
+    settings = Settings(
+        database_url=database_url,
+        auth_secret_key="test-secret-key-32-bytes-long-key!",
+    )
+    with TestClient(create_app(settings)) as client:
+        alice = _register_and_login(client, "variant-alice")
+        bob = _register_and_login(client, "variant-bob")
+        inputs = _seed_decision_inputs(client, alice, name="variant")
+        decision_case = client.post("/decisions", headers=alice, json=inputs)
+        assert decision_case.status_code == 201
+        report = client.post(f"/decisions/{decision_case.json()['id']}/reports", headers=alice)
+        assert report.status_code == 200
+        apply = client.post(
+            f"/reports/{report.json()['id']}/decision",
+            headers={**alice, "Idempotency-Key": "variant-apply"},
+            json={"status": "apply", "reason": None},
+        )
+        assert apply.status_code == 201
+        resume = client.get(f"/resumes/{inputs['resume_version_id']}", headers=alice).json()
+        skill = resume["content"]["skills"][0]
+
+        assert client.get("/templates").status_code == 401
+        templates = client.get("/templates", headers=alice)
+        assert templates.status_code == 200
+        assert templates.json()[0]["definition_hash"] == template.definition_hash
+        exact_template = client.get(
+            f"/templates/{template.id}/versions/{template.version}", headers=alice
+        )
+        assert exact_template.status_code == 200
+        assert "script" not in exact_template.text.lower()
+        payload = {
+            "application_decision_id": apply.json()["id"],
+            "template_id": str(template.id),
+            "template_version": template.version,
+            "title": "后端岗位定制版",
+            "blocks": [
+                {
+                    "source_path": "basic_information.display_name",
+                    "label": "姓名",
+                    "value": resume["content"]["basic_information"]["display_name"],
+                },
+                {
+                    "source_path": f"skills.{skill['id']}.name",
+                    "label": "核心技能",
+                    "value": "Python / FastAPI",
+                },
+            ],
+        }
+        assert client.post("/resume-variants", json=payload).status_code == 401
+        foreign = client.post(
+            "/resume-variants",
+            headers={**bob, "Idempotency-Key": "foreign-variant"},
+            json=payload,
+        )
+        assert foreign.status_code == 404
+        created = client.post(
+            "/resume-variants",
+            headers={**alice, "Idempotency-Key": "variant-1"},
+            json=payload,
+        )
+        assert created.status_code == 201, created.text
+        body = created.json()
+        assert body["decision_case_id"] == decision_case.json()["id"]
+        assert body["job_posting_id"] == inputs["job_posting_id"]
+        assert body["job_posting_version"] == inputs["job_posting_version"]
+        assert body["job_requirement_snapshot_id"] == inputs["job_requirement_snapshot_id"]
+        assert (
+            body["job_requirement_snapshot_version"] == inputs["job_requirement_snapshot_version"]
+        )
+        assert body["resume_version_id"] == inputs["resume_version_id"]
+        assert body["resume_version"] == inputs["resume_version"]
+        assert body["template_version"] == 1
+
+        replay = client.post(
+            "/resume-variants",
+            headers={**alice, "Idempotency-Key": "variant-1"},
+            json=payload,
+        )
+        assert replay.status_code == 200
+        assert replay.json()["id"] == body["id"]
+        conflict = client.post(
+            "/resume-variants",
+            headers={**alice, "Idempotency-Key": "variant-1"},
+            json={
+                **payload,
+                "blocks": [payload["blocks"][0], {**payload["blocks"][1], "value": "Rust"}],
+            },
+        )
+        assert conflict.status_code == 409
+        assert conflict.json()["error_code"] == "idempotency_conflict"
+        malicious = client.post(
+            "/resume-variants",
+            headers={**alice, "Idempotency-Key": "variant-malicious"},
+            json={
+                **payload,
+                "blocks": [
+                    payload["blocks"][0],
+                    {
+                        "source_path": "skills.skill-1.<script>",
+                        "label": "x",
+                        "value": "https://evil.example/script.js",
+                    },
+                ],
+            },
+        )
+        assert malicious.status_code == 400
+
+        listed = client.get("/resume-variants", headers=alice)
+        assert listed.status_code == 200
+        assert listed.json()["total"] == 1
+        assert listed.json()["items"][0]["content_fingerprint"] == body["content_fingerprint"]
+        assert client.get("/resume-variants", headers=bob).json()["total"] == 0
+        assert client.get(f"/resume-variants/{body['id']}", headers=alice).json() == body
+        assert client.get(f"/resume-variants/{body['id']}", headers=bob).status_code == 404

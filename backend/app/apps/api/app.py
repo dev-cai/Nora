@@ -20,6 +20,7 @@ from app.apps.api.routes.job_inputs import router as job_inputs_router
 from app.apps.api.routes.job_postings import router as job_postings_router
 from app.apps.api.routes.job_requirements import router as job_requirements_router
 from app.apps.api.routes.profile import router as profile_router
+from app.apps.api.routes.resume_variants import template_router, variant_router
 from app.apps.api.routes.resumes import router as resumes_router
 from app.domain.base.exceptions import NoraError
 from app.infrastructure.config import Settings, get_settings
@@ -74,6 +75,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(job_requirements_router)
     app.include_router(profile_router)
     app.include_router(resumes_router)
+    app.include_router(template_router)
+    app.include_router(variant_router)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -134,6 +137,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "application_decision_conflict": 409,
             "application_decision_key_taken": 409,
             "application_decision_persistence_failed": 503,
+            "resume_variant_key_taken": 409,
+            "resume_variant_persistence_failed": 503,
             "company_snapshot_version_conflict": 409,
             "company_assessment_conflict": 409,
             "company_assessment_unavailable": 503,

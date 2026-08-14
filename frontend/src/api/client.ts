@@ -6,6 +6,7 @@ import type {
   CreateDecisionCaseInput,
   CreateApplicationDecisionInput,
   CreateJobPostingInput,
+  CreateResumeVariantInput,
   DecisionAnalysis,
   DecisionCase,
   DecisionReport,
@@ -17,6 +18,9 @@ import type {
   JobRequirementSnapshotList,
   ResumeVersion,
   ResumeVersionList,
+  ResumeVariant,
+  ResumeVariantList,
+  TemplateDefinition,
   TokenResponse,
   User,
 } from "./types"
@@ -48,6 +52,8 @@ const errorCodeMessages: Record<string, string> = {
   invalid_confirmation_status: "确认状态无效",
   invalid_source_type: "字段来源无效",
   application_decision_conflict: "该报告已经记录了不同决定",
+  invalid_variant_field: "定制字段不在来源简历或模板允许范围内",
+  required_variant_field: "定制内容缺少模板必填字段",
   skip_reason_required: "选择不投时需要填写原因",
 }
 
@@ -196,4 +202,17 @@ export const api = {
     headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify(input),
   }),
+  listTemplates: () => request<TemplateDefinition[]>("/templates"),
+  getTemplate: (id: string, version: number) =>
+    request<TemplateDefinition>(`/templates/${encodeURIComponent(id)}/versions/${version}`),
+  listResumeVariants: (page = 1, pageSize = 20) =>
+    request<ResumeVariantList>(`/resume-variants?page=${page}&page_size=${pageSize}`),
+  getResumeVariant: (id: string) =>
+    request<ResumeVariant>(`/resume-variants/${encodeURIComponent(id)}`),
+  createResumeVariant: (input: CreateResumeVariantInput, idempotencyKey: string) =>
+    request<ResumeVariant>("/resume-variants", {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(input),
+    }),
 }
