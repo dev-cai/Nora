@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#171、#183、#184、#185、#186、#187。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#171、#174、#183、#184、#185、#186、#187。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -61,6 +61,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-017 | 前端 HTTP 契约 | FastAPI OpenAPI + `openapi-typescript` / `openapi-fetch` | #186 / M4 | 生成类型只镜像传输契约；手写 transport 保留认证、超时、错误与 Blob 策略，CI 阻止漂移 |
 | D-018 | 类型化错误契约 | 协议无关 `ErrorCode` + `ErrorCategory` 注册表 | #187 / M4 | API 只按 category 映射 HTTP；OpenAPI 枚举是前端类型真源，未知异常固定脱敏 500 |
 | D-019 | Beta 部署与发布 | 单区域 Linux 主机 + Docker Compose；GitHub Actions 为唯一 CD 控制面 | #171 / M4 | 同源 TLS、私有数据服务、GHCR 摘要、受控 Secret、跨故障域备份和前向迁移失败边界 |
+| D-020 | Beta 注册与会话安全 | 运维 bootstrap 唯一用户 + 短时 JWT key ring + PostgreSQL 登录限额 | #174 / M4 | 生产关闭公共注册；精确 Origin、单跳可信代理、会话版本与脱敏安全信号 |
 
 ## 5. 系统上下文
 
@@ -647,6 +648,146 @@ stateDiagram-v2
 - 所有 Repository 查询都包含用户/租户归属边界。
 - Service Token、用户 Token 和第三方 OAuth 凭据分离，并使用 Secret Store 或部署平台 Secrets。
 
+### Beta 注册、认证与会话安全（D-020）
+
+#### 当前事实、选择与拒绝项
+
+Current 开发契约公开 `POST /auth/register`、`POST /auth/login` 和 `GET /auth/me`，以 Argon2id 保存密码、用单一 HS256
+Secret 签发 Bearer JWT；开发 CORS 允许任意 Origin，浏览器把 Token 保存在标签页级 `sessionStorage`。这些事实只适用于受控
+开发和测试，不能直接作为公网 Beta 配置。
+
+D-019 已固定一个公网 TLS ingress、一个 API 实例和 PostgreSQL，且 M4 不引入 Redis、WAF、OAuth Provider 或长期 Session 服务。
+据此作出以下选择：
+
+| 主题 | 选择 | 拒绝理由或残余风险 |
+| :--- | :--- | :--- |
+| Beta 开户 | 生产关闭公共注册；operator 通过受控管理入口一次性 bootstrap 唯一用户 | 邀请码仍需公开注册面、Secret 分发和重放状态；仅靠限流的公共注册违反单用户最小暴露原则 |
+| 滥用防护 | API 粗尝试限额 + PostgreSQL 持久登录失败桶 | 仅内存计数可被重启清空且多进程不一致；Redis/WAF 没有触发证据 |
+| Session | 30 分钟上限的 HS256 Bearer JWT key ring，Token 带 `kid` 和会话版本 | HttpOnly Cookie/Refresh Token 会引入 CSRF、服务端 Session 和新恢复契约；`sessionStorage` 仍暴露于同源 XSS |
+| Browser Origin | 单一同源 HTTPS 入口，精确 Origin allowlist | 通配符、正则和反射请求 Origin 都可能扩大浏览器信任边界 |
+| 客户端地址 | 只信任单跳 ingress 覆盖写入的一个规范 IP | 任意信任 `X-Forwarded-For` 可绕过限额和伪造安全信号 |
+
+#### 唯一用户 bootstrap 与恢复
+
+`ENV=prod` 时，公开 `POST /auth/register` 不读取或哈希注册凭据，固定返回与未知路由同结构的
+`entity_not_found/not_found/404`。开发和隔离测试可显式保留 Current 注册行为，但它不属于 Beta 开户路径；Beta Web 不展示注册入口。
+
+开户只能由 D-019 的 operator 经 provider Console、VPN 或固定管理员 allowlist 进入 root 拥有的管理入口，调用应用级
+`bootstrap-owner` 命令。用户名、邮箱和密码从仅本次命令可读的 Secret 文件或受控标准输入读取，不能出现在命令参数、Shell history、
+Compose 文件、GitHub Actions、日志或审计正文。该命令不开放 HTTP 路由，也不允许 deployment Runner 直接读取开户材料。
+
+```text
+empty --bootstrap success--> provisioned
+  |                            |
+  | same request + fingerprint| new/different bootstrap
+  +---------- replay <--------+--------> already_provisioned
+
+provisioned --operator credential recovery--> provisioned + session_version increment
+```
+
+- PostgreSQL 使用固定 singleton 槽、事务锁和唯一约束保证并发 bootstrap 只有一个 winner；先检查再插入不能替代数据库约束。
+- 命令要求非敏感 request identity。相同 identity 与相同规范化 username/email 指纹返回同一 user ID；同 identity 不同指纹为
+  `idempotency_conflict`；已经 provisioned 后的其他请求为 `already_provisioned`。指纹和操作记录不得包含密码或可逆个人字段。
+- bootstrap 必须在一次 PostgreSQL 事务中写入唯一 owner、Argon2id 密码哈希、初始 `session_version=1`、幂等记录和不含个人内容的
+  AuditEvent。数据库或审计写入失败整段回滚，不允许留下半开户用户。
+- 生产 readiness 只在 singleton 槽引用恰好一个 active owner 且不存在其他 active 用户时通过。空库允许管理命令执行 bootstrap，
+  但公网 API 保持不就绪；存在多个用户、无槽用户或损坏引用时 fail closed，不能把开发注册数据自动提升为 Beta owner。
+- 公网不披露 username/email 冲突。管理命令只报告稳定状态、request ID 和 user ID，不回显用户名、邮箱、密码哈希或具体冲突字段。
+- M4 不提供公开密码重置。operator 恢复凭据时必须进入维护窗口、对唯一 owner 执行受控命令、原子替换 Argon2id 哈希并递增
+  `session_version`；相同恢复 identity 幂等。恢复失败回滚，成功后全部旧 Token 立即失效，并形成脱敏操作记录。
+- 删除用户、重新开放注册或创建第二用户不属于恢复。数据库丢失时只能按 D-019 在隔离环境恢复已验证备份；不得用新 bootstrap
+  静默替代丢失的 owner 事实。
+
+#### 登录错误、时序与滥用防护
+
+API 认证中间件对 `/auth/login` 和 `/auth/register` 统一执行每个可信客户端每分钟 30 次请求的粗限额；超限固定返回
+`authentication_rate_limited/rate_limited/429` 和整数秒 `Retry-After`，不返回剩余额度或账户信息。该层保护 Argon2/PostgreSQL，
+但不替代登录失败策略。可信代理解析、粗限额、Origin 拒绝、请求 Schema 和路由按此顺序执行；生产 register 在限额内仍按上节返回
+404。粗限额也使用 PostgreSQL 原子桶和 `AUTH_RATE_LIMIT_SECRET` 摘要，不能回退到进程内计数。
+
+应用层最终只把登录失败计入限额，并在 PostgreSQL 保存可过期的安全桶：每个规范化登录目标在 15 分钟窗口最多 5 次失败，每个
+可信客户端在同一窗口最多 20 次失败。目标与客户端只以独立 `AUTH_RATE_LIMIT_SECRET` 生成的 HMAC-SHA-256 摘要持久化；不保存
+原始 username、email 或 IP。窗口到期后的记录可清理且不是业务事实。
+
+- 密码校验前，一个 PostgreSQL 事务必须原子检查两个桶并为本次 attempt 预留名额；达到上限即返回同一
+  `authentication_rate_limited/rate_limited/429` 与准确 `Retry-After`。失败把两个 reservation 确认为失败计数；成功删除本次
+  reservation 并清除目标失败桶，但不清除客户端既有失败。并发请求不能超发，进程崩溃遗留的 reservation 在窗口结束前保持占用并
+  随窗口过期；operator 不能通过普通 API 手工解锁。
+- username 不存在、用户停用、密码错误和 malformed password hash 都执行同一公开
+  `authentication_failed/authentication/401`、`WWW-Authenticate: Bearer` 和通用消息。不存在用户也必须用固定 dummy Argon2id hash
+  走一次相同 verify 路径；测试证明 hasher 被调用且没有身份特有分支，不宣称无法测量的绝对恒定时间。
+- 目标摘要对存在和不存在 username 使用同一规范化与 HMAC 路径，因此限额本身不能成为账户枚举信号。请求 Schema 校验失败的
+  `422` 只表达格式错误，不查询账户。
+- PostgreSQL、事务或限额状态不可用时 fail closed，返回既有 `database_unavailable/service_unavailable/503`，不验证密码、不签发
+  Token、不回退到进程内计数。`AUTH_RATE_LIMIT_SECRET` 缺失、过短、使用公开示例值或与 JWT key 相同会使非开发环境启动失败。
+- `rate_limited` 是 D-018 的新增稳定 category，只映射 HTTP 429；`authentication_rate_limited` 是本切片唯一新增 429 code。
+  未经新契约不得把 429 伪装成 401、409 或 503。
+
+#### JWT key ring、轮换与撤销
+
+生产继续使用 HS256，但从单 Secret 改为 root-owned Secret 目录中的 key ring。每个 key 至少 32 个 CSPRNG bytes，使用非敏感、不可复用
+且符合 `[A-Za-z0-9._-]{1,64}` 的 `kid`；配置指定唯一 active key。签发 Token 固定 `alg=HS256`，header 带 active `kid`，claims
+至少包含 `sub`、`type=access`、`iat`、`nbf`、`exp`、`iss=nora-api`、`aud=nora-web` 和当前 `session_version`。生产访问
+Token TTL 最大 30 分钟，时钟偏差最多 30 秒。
+
+解码先从固定 allowlist 解析 `kid`，再以该 key 验证签名、算法、issuer、audience、时间和必需 claims；未知/缺失 `kid`、`alg` 不匹配、
+过期、未来签发或 session version 不匹配都返回同一 401。不得根据 Token header 动态读取文件、网络或任意 key 标识。
+
+正常轮换顺序固定为：生成新 key 文件 -> 安全加载为验证 key -> 切换 active `kid` -> 验证新 Token -> 保留旧 key 至
+“最后签发时间 + 30 分钟 TTL + 30 秒偏差” -> 删除旧 key。正常窗口内旧 Token 继续有效，回滚应用不能恢复已经撤销的 key。
+紧急泄露时立即从验证 ring 移除 compromised key 并切换 active key，该 key 签发的现有 Token 全部 401；需要注销所有 Session 时，
+operator 递增唯一 owner 的 `session_version`。M4 不维护单 Token denylist，也不支持 Refresh Token。
+
+#### Origin、CORS、TLS 与代理头
+
+| 输入/路径 | Beta 规则 | 失败行为 |
+| :--- | :--- | :--- |
+| Public Origin 配置 | 恰好一个部署公开的 `https://host[:port]`；禁止 `*`、`null`、HTTP、userinfo、path、query、fragment 和正则 | 非开发启动失败 |
+| 带 `Origin` 的实际请求 | 在读取认证/注册正文或调用 Use Case 前做精确 scheme/host/port 比较 | `origin_not_allowed/forbidden/403`，不添加 CORS allow header |
+| CORS preflight | 只允许配置 Origin、已发布 method 和 `Authorization`、`Content-Type`、`Idempotency-Key`、`X-Request-ID` headers | 不允许的 Origin/method/header 固定 403 |
+| 无 `Origin` 的客户端 | 允许进入正常认证和限额；CORS 不是 API 客户端认证 | 按认证、限额或业务契约处理 |
+| Browser -> ingress | 只接受 D-019 的 HTTPS 入口；HTTP 只在 ingress 重定向，HSTS 由 ingress 设置 | 非 TLS 公网请求不得转发 API |
+| ingress -> API | ingress 删除客户端提供的全部 forwarded headers，再写入一个规范客户端 IP 和 `proto=https` | 缺失或多个值不作为可信输入 |
+| 非可信 peer -> API | 忽略其 `Forwarded`、`X-Forwarded-*` 和 Host 派生安全声明，客户端身份使用直接 peer IP | 不得绕过限额或 TLS/Origin 判断 |
+
+`forbidden` 是 D-018 新增且只映射 HTTP 403 的稳定 category；本决策新增 `origin_not_allowed` code。Bearer Token 使用
+`Authorization` header 且 `allow_credentials=false`，API 不设置认证 Cookie。CORS 响应只允许公开 Origin，显式列出 method/header，
+暴露 `X-Request-ID`，禁止请求 Origin 反射。即使无 Origin 客户端可访问登录端点，仍受相同限额和统一错误约束。
+
+API 只在连接的直接 peer 匹配配置的单跳 ingress 私有地址/CIDR 时读取代理头，并只接受 ingress 覆盖写入的单个规范 IP；不解析
+客户端提交的链。生产未配置可信 ingress、配置覆盖公网或 ingress 未执行 header strip/overwrite 时 readiness 失败，不能用第一个或
+最后一个未经证明的 `X-Forwarded-For` 值猜测客户端。
+
+#### Browser Token 决策与残余风险
+
+M4 保留 Current `sessionStorage` + Bearer Token：只在当前标签页保存 Token 与最小用户投影，刷新后用 `/auth/me` 重新验证；关闭标签页、
+用户退出、任意 API 401 或恢复失败时同步清除内存和 `sessionStorage`。Token 不进入 `localStorage`、URL、日志、错误、Analytics、
+Service Worker cache 或跨标签页 channel。退出是客户端删除，服务端 Token 最迟在 30 分钟后过期；紧急全局失效使用 key/session version。
+
+该选择不抵御同源 XSS。#175/#138 必须保持 Vue 文本转义，禁止用户 HTML、内联脚本、`eval` 和未审查第三方脚本，并由 ingress
+设置不允许 `unsafe-inline`/`unsafe-eval` 的 CSP、HSTS、`nosniff`、frame 限制和严格 Referrer Policy。Bearer header 不由浏览器
+自动附加，降低传统 CSRF 风险，但 Origin 校验、CORS 和输入安全仍不能替代 XSS 防护。
+
+出现多用户、长期会话、跨设备登录、第三方脚本、逐 Token 撤销、浏览器重启后保持登录或独立前后端 Origin 任一需求时，必须通过新
+Identity/Security Issue 评估 HttpOnly `Secure`/`SameSite` Cookie、CSRF Token、Refresh Token 和服务端 Session；不得由前端单独切换。
+
+#### 安全信号与后续责任
+
+认证安全日志只记录 event、结果、request ID、匿名 bucket ID 前缀、`kid`、session version、限额维度、`Retry-After`、可信代理判定和
+时间，不记录 username、email、原始 IP、密码、hash、JWT、Authorization、Origin query、Secret 或异常正文。指标使用低基数标签，
+至少覆盖 bootstrap 结果、登录成功/失败/限额、Origin 拒绝、Token 拒绝原因类别、key/session 轮换和可信代理配置失败；不得以用户、
+IP、Token 或 `kid` 作为高基数/敏感指标标签。告警阈值由 #175 以合成负载验证后记录，不能把单次用户输错密码当作安全事件。
+
+| Issue | 必须消费的责任 | 不得重新选择 |
+| :--- | :--- | :--- |
+| #175 | bootstrap/recovery、生产注册关闭、粗尝试与登录失败安全桶、统一登录错误、JWT key ring/session version、Origin/代理校验，以及 Beta Web 注册入口关闭 | 公共注册、邀请码、内存/Redis 限额、Cookie/Refresh Token、通配 CORS 或多跳代理猜测 |
+| #138 | D-019 ingress/TLS、CSP/安全 headers、root-owned Secret 文件、readiness 与真实部署配置验证；可增加不改变 API 契约的纵深连接限额 | Identity 状态机、JWT 生命周期、认证 429 事实源或另一 Secret 真源 |
+| #165 | 真实 Beta 的无注册入口、登录、刷新恢复、退出、过期/撤销 Token、429、Origin 拒绝与伪造代理头负向浏览器证据 | 在 E2E 内修补认证或部署实现 |
+| #171 | 继续拥有单主机、TLS ingress、Secret 文件和网络信任边界 | 认证策略、账户生命周期或浏览器 Token 行为 |
+
+Issue #175 若证明 PostgreSQL 安全桶无法在 Argon2 预算内承受已定义阈值，或 #138 证明 provider ingress 无法可靠覆盖代理头，必须带测量
+证据重开 Architecture 决策；不得在实现 Task 内静默引入 Redis/WAF、放宽 Origin 或信任任意代理头。
+
 ### Prompt Injection 与不可信内容
 
 - 网页、简历、JD、企业材料和检索片段始终作为 data，而不是系统指令。
@@ -1174,7 +1315,7 @@ Shell trace 或日志。GitHub Environment 只保存触发发布所需的短期�
 | Secret 类别 | 创建与读取者 | 轮换与撤销边界 |
 | :--- | :--- | :--- |
 | TLS 私钥 | 反向代理的受控 ACME/证书流程；仅 ingress 可读 | 自动续期；私钥泄露立即撤销证书并重新签发，API/Web 不持有私钥 |
-| `AUTH_SECRET_KEY` | operator 通过 CSPRNG 创建；仅 API 可读 | 轮换会使现有 Token 失效，先安排维护窗口再替换；泄露立即轮换并审计登出影响 |
+| JWT key ring 与限额 HMAC key | operator 通过 CSPRNG 创建；仅 API 可读 | 按 D-020 正常轮换保留受限验证窗口；泄露时撤销 key 或提升 session version，HMAC key 轮换会重置限额桶 |
 | PostgreSQL 管理身份 | operator/数据库初始化入口 | 不注入 API；只用于建库、恢复和受控迁移，泄露时撤销并检查角色授权 |
 | PostgreSQL 应用身份 | operator 创建；仅 API 和显式迁移命令可读 | 新旧凭据短时重叠，验证新连接后撤销旧角色/密码；权限只覆盖 Nora Schema 必需动作 |
 | MinIO root 身份 | operator 创建；仅初始化/恢复入口可读 | 不注入 API/Runner；轮换后复验 Bucket policy，泄露立即撤销并检查对象访问日志 |
