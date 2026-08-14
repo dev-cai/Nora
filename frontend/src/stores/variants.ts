@@ -2,18 +2,20 @@ import { computed, ref } from "vue"
 import { defineStore } from "pinia"
 
 import { api } from "@/api/client"
-import type { CreateResumeVariantInput, ResumeVariant, TemplateDefinition } from "@/api/types"
+import type { CreateResumeVariantInput, ResumePdf, ResumeVariant, TemplateDefinition } from "@/api/types"
 
 export const useVariantsStore = defineStore("variants", () => {
   const templates = ref<TemplateDefinition[]>([])
   const variants = ref<ResumeVariant[]>([])
   const current = ref<ResumeVariant | null>(null)
   const currentTemplate = ref<TemplateDefinition | null>(null)
+  const currentPdf = ref<ResumePdf | null>(null)
   const loading = ref(false)
   const saving = ref(false)
+  const generatingPdf = ref(false)
   const total = ref(0)
   let pending: { fingerprint: string; key: string } | null = null
-  const isLoading = computed(() => loading.value || saving.value)
+  const isLoading = computed(() => loading.value || saving.value || generatingPdf.value)
 
   async function fetchTemplates(): Promise<void> {
     templates.value = await api.listTemplates()
@@ -45,6 +47,21 @@ export const useVariantsStore = defineStore("variants", () => {
     } finally { loading.value = false }
   }
 
+  async function fetchLatestPdf(variantId: string): Promise<ResumePdf | null> {
+    const value = await api.getLatestResumePdf(variantId)
+    currentPdf.value = value
+    return value
+  }
+
+  async function generatePdf(variantId: string): Promise<ResumePdf> {
+    generatingPdf.value = true
+    try {
+      const value = await api.generateResumePdf(variantId)
+      currentPdf.value = value
+      return value
+    } finally { generatingPdf.value = false }
+  }
+
   async function createVariant(input: CreateResumeVariantInput): Promise<ResumeVariant> {
     const fingerprint = JSON.stringify(input)
     if (!pending || pending.fingerprint !== fingerprint) {
@@ -65,11 +82,13 @@ export const useVariantsStore = defineStore("variants", () => {
     variants.value = []
     current.value = null
     currentTemplate.value = null
+    currentPdf.value = null
     total.value = 0
     loading.value = false
     saving.value = false
+    generatingPdf.value = false
     pending = null
   }
 
-  return { templates, variants, current, currentTemplate, total, loading, saving, isLoading, fetchTemplates, fetchTemplate, fetchVariants, fetchVariant, createVariant, reset }
+  return { templates, variants, current, currentTemplate, currentPdf, total, loading, saving, generatingPdf, isLoading, fetchTemplates, fetchTemplate, fetchVariants, fetchVariant, fetchLatestPdf, generatePdf, createVariant, reset }
 })

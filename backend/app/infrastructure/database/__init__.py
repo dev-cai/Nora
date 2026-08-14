@@ -18,8 +18,10 @@ from .decision import (
 from .engine import create_database_engine, create_session_factory
 from .followup import (
     ApplicationDecisionRecord,
+    ResumePdfRecord,
     ResumeVariantRecord,
     SqlAlchemyApplicationDecisionRepository,
+    SqlAlchemyResumePdfRepository,
     SqlAlchemyResumeVariantRepository,
     SqlAlchemyTemplateDefinitionRepository,
     TemplateDefinitionRecord,
@@ -55,6 +57,7 @@ __all__ = (
     "OwnedByUserMixin",
     "AuditEventRecord",
     "ApplicationDecisionRecord",
+    "ResumePdfRecord",
     "ResumeVariantRecord",
     "TemplateDefinitionRecord",
     "ArtifactRecord",
@@ -65,6 +68,7 @@ __all__ = (
     "SqlAlchemyRepository",
     "SqlAlchemyAuditEventRepository",
     "SqlAlchemyApplicationDecisionRepository",
+    "SqlAlchemyResumePdfRepository",
     "SqlAlchemyResumeVariantRepository",
     "SqlAlchemyTemplateDefinitionRepository",
     "SqlAlchemyArtifactRepository",

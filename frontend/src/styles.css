@@ -336,6 +336,16 @@ textarea { min-height: 210px; resize: vertical; line-height: 1.55; }
 .variant-block small { color: var(--muted); font-weight: 800; }
 .variant-block p { margin: 0; white-space: pre-wrap; line-height: 1.6; }
 .variant-document.density-compact .variant-block { padding-top: 11px; padding-bottom: 11px; }
+.pdf-band { margin-top: 28px; padding: 24px 0; border-top: 1px solid var(--line); }
+.pdf-band-heading { display: flex; align-items: center; gap: 12px; }
+.pdf-band-heading h3, .pdf-band-heading p { margin: 0; }
+.pdf-band-heading .version-badge { margin-left: auto; }
+.pdf-metadata { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 20px 0; }
+.pdf-metadata div { min-width: 0; }
+.pdf-metadata dt { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.pdf-metadata dd { margin: 5px 0 0; overflow-wrap: anywhere; }
+.pdf-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.pdf-preview { width: 100%; height: min(78vh, 880px); margin-top: 20px; border: 1px solid var(--line); background: white; }
 
 .state-panel, .fatal-error, .not-found { display: grid; place-items: center; min-height: 280px; padding: 30px; text-align: center; }
 .state-panel p, .not-found p { max-width: 480px; color: var(--muted); }
@@ -413,4 +423,8 @@ textarea { min-height: 210px; resize: vertical; line-height: 1.55; }
   .variant-submit { align-items: stretch; flex-direction: column; }
   .variant-submit .button { width: 100%; }
   .variant-block { grid-template-columns: 1fr; gap: 7px; }
+  .pdf-metadata { grid-template-columns: 1fr; }
+  .pdf-actions { justify-content: stretch; }
+  .pdf-actions .button { flex: 1; }
+  .pdf-preview { height: 68vh; }
 }

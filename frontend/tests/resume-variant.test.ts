@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from "pinia"
 import { createMemoryHistory, createRouter } from "vue-router"
 
 import { ApiError, api } from "@/api/client"
-import type { ResumeVariant, ResumeVersion, TemplateDefinition } from "@/api/types"
+import type { ResumePdf, ResumeVariant, ResumeVersion, TemplateDefinition } from "@/api/types"
 import { resumeBlocks, templateAllows, templateRequires } from "@/features/resume-variant"
 import { useVariantsStore } from "@/stores/variants"
 import ResumeCustomizeView from "@/views/ResumeCustomizeView.vue"
@@ -34,10 +34,21 @@ const variant: ResumeVariant = {
   generator_version: "m4-resume-variant-v1", content_fingerprint: "b".repeat(64), created_at: "2026-08-13T00:00:00Z",
 }
 
+const pdf: ResumePdf = {
+  id: "pdf-1", version: 1, resume_variant_id: "variant-1", resume_variant_version: 1,
+  template_id: "template-1", template_version: 1, template_definition_hash: "a".repeat(64),
+  variant_content_fingerprint: "b".repeat(64), renderer_version: "weasyprint-69.0",
+  font_set_version: "noto-cjk-v1", locale: "zh-CN", timezone: "UTC",
+  generation_identity: "c".repeat(64), status: "available", artifact_id: "artifact-1",
+  artifact_version: 1, artifact_sha256: "d".repeat(64), artifact_size_bytes: 1024,
+  created_at: "2026-08-14T00:00:00Z", updated_at: "2026-08-14T00:00:00Z",
+}
+
 const stubs = { AppShell: { template: "<main><slot /></main>" }, StatePanel: { template: "<div data-state />" } }
 
 describe("resume variants", () => {
   beforeEach(() => { setActivePinia(createPinia()) })
+  afterEach(() => { vi.restoreAllMocks() })
 
   it("flattens stable source paths and joins scalar arrays into one editable block", () => {
     expect(resumeBlocks(resume)).toEqual([
@@ -104,6 +115,7 @@ describe("resume variants", () => {
   it("recovers immutable variant and exact template after a direct detail load", async () => {
     const getVariant = vi.spyOn(api, "getResumeVariant").mockResolvedValue(variant)
     const getTemplate = vi.spyOn(api, "getTemplate").mockResolvedValue(template)
+    const getPdf = vi.spyOn(api, "getLatestResumePdf").mockResolvedValue(pdf)
     const router = createRouter({ history: createMemoryHistory(), routes: [
       { path: "/templates", component: { template: "<div />" } },
       { path: "/resume-variants/:id", component: ResumeVariantDetailView },
@@ -114,8 +126,48 @@ describe("resume variants", () => {
 
     expect(getVariant).toHaveBeenCalledWith("variant-1")
     expect(getTemplate).toHaveBeenCalledWith("template-1", 1)
+    expect(getPdf).toHaveBeenCalledWith("variant-1")
     expect(wrapper.text()).toContain("后端工程师 · 定制版")
     expect(wrapper.text()).toContain("清晰单栏")
-    expect(wrapper.text()).toContain("m4-resume-variant-v1")
+    expect(wrapper.text()).toContain("weasyprint-69.0")
+  })
+
+  it("generates, previews and downloads an authenticated PDF", async () => {
+    vi.spyOn(api, "getResumeVariant").mockResolvedValue(variant)
+    vi.spyOn(api, "getTemplate").mockResolvedValue(template)
+    vi.spyOn(api, "getLatestResumePdf").mockResolvedValue(null)
+    const generate = vi.spyOn(api, "generateResumePdf").mockResolvedValue(pdf)
+    const content = vi.spyOn(api, "getResumePdfContent").mockResolvedValue(
+      new Blob(["pdf"], { type: "application/pdf" }),
+    )
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:resume-pdf"),
+    })
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(() => undefined),
+    })
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+    const router = createRouter({ history: createMemoryHistory(), routes: [
+      { path: "/templates", component: { template: "<div />" } },
+      { path: "/resume-variants/:id", component: ResumeVariantDetailView },
+    ] })
+    await router.push("/resume-variants/variant-1")
+    const wrapper = mount(ResumeVariantDetailView, { global: { plugins: [createPinia(), router], stubs } })
+    await flushPromises()
+
+    await wrapper.get("button.button-primary").trigger("click")
+    await flushPromises()
+    expect(generate).toHaveBeenCalledWith("variant-1")
+    expect(wrapper.text()).toContain("artifact-1")
+
+    await wrapper.get("button.button-secondary").trigger("click")
+    await flushPromises()
+    await wrapper.findAll("button.button-primary").at(-1)!.trigger("click")
+    await flushPromises()
+
+    expect(content.mock.calls.map((call) => call[1])).toEqual([false, true])
+    expect(wrapper.get("iframe").attributes("src")).toBe("blob:resume-pdf")
   })
 })

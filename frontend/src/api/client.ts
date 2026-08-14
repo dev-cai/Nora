@@ -16,6 +16,7 @@ import type {
   JobRequirementSaveInput,
   JobRequirementSnapshot,
   JobRequirementSnapshotList,
+  ResumePdf,
   ResumeVersion,
   ResumeVersionList,
   ResumeVariant,
@@ -54,6 +55,9 @@ const errorCodeMessages: Record<string, string> = {
   application_decision_conflict: "该报告已经记录了不同决定",
   invalid_variant_field: "定制字段不在来源简历或模板允许范围内",
   required_variant_field: "定制内容缺少模板必填字段",
+  pdf_generation_failed: "PDF 生成失败，请重试",
+  artifact_storage_unavailable: "PDF 存储暂时不可用，请重试",
+  artifact_corrupt: "PDF 完整性校验失败",
   skip_reason_required: "选择不投时需要填写原因",
 }
 
@@ -84,6 +88,16 @@ export function userMessage(error: unknown): string {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await requestResponse(path, init)
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+
+async function requestBlob(path: string): Promise<Blob> {
+  return (await requestResponse(path)).blob()
+}
+
+async function requestResponse(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set("Accept", "application/json")
   if (init.body !== undefined) headers.set("Content-Type", "application/json")
@@ -120,8 +134,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(message, response.status, errorCode, requestId)
   }
 
-  if (response.status === 204) return undefined as T
-  return (await response.json()) as T
+  return response
 }
 
 export const api = {
@@ -215,4 +228,18 @@ export const api = {
       headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(input),
     }),
+  getLatestResumePdf: async (variantId: string) =>
+    (await request<ResumePdf | undefined>(
+      `/resume-variants/${encodeURIComponent(variantId)}/pdf`,
+    )) ?? null,
+  generateResumePdf: (variantId: string) =>
+    request<ResumePdf>(`/resume-variants/${encodeURIComponent(variantId)}/pdf`, {
+      method: "POST",
+    }),
+  getResumePdf: (pdfId: string) =>
+    request<ResumePdf>(`/resume-pdfs/${encodeURIComponent(pdfId)}`),
+  getResumePdfContent: (pdfId: string, download: boolean) =>
+    requestBlob(
+      `/resume-pdfs/${encodeURIComponent(pdfId)}/content?download=${download ? "true" : "false"}`,
+    ),
 }
