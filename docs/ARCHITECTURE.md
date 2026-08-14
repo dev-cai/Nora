@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183、#184、#185、#186。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#183、#184、#185、#186、#187。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -59,6 +59,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-015 | JobPosting 幂等指纹 | 只接受当前完整字段指纹，不保留 M1 运行时双轨 | #184 / M4 | 无生产或稳定客户端迁移义务；直接删除 legacy 分支，旧格式记录按同键异请求返回冲突 |
 | D-016 | DecisionCase 身份 | Decision & Reporting 拥有的不可变 ID，不预留常量版本字段 | #185 / M4 | CompanyAssessment 只引用 case ID；迁移双向重算生成身份并删除公开固定版本字段 |
 | D-017 | 前端 HTTP 契约 | FastAPI OpenAPI + `openapi-typescript` / `openapi-fetch` | #186 / M4 | 生成类型只镜像传输契约；手写 transport 保留认证、超时、错误与 Blob 策略，CI 阻止漂移 |
+| D-018 | 类型化错误契约 | 协议无关 `ErrorCode` + `ErrorCategory` 注册表 | #187 / M4 | API 只按 category 映射 HTTP；OpenAPI 枚举是前端类型真源，未知异常固定脱敏 500 |
 
 ## 5. 系统上下文
 
@@ -913,6 +914,110 @@ response schema 暴露，由 #187 在 D-017 生成链路合并后定义。
 4. 所有消费者迁移且前端/E2E 通过后，删除 `types.ts` 中与后端同构的 DTO，只保留命名明确的 UI/ViewModel 类型。
 
 每个切片保持 API 语义和 Store 接口稳定；回滚只回退该切片及 generated diff，不保留新旧 client 双写或运行时开关。
+
+### 类型化错误分类与 HTTP 映射（D-018）
+
+`backend/app/domain/base/exceptions.py` 是错误契约的协议无关 Shared Kernel，只拥有稳定失败词汇，不导入 FastAPI、Pydantic、
+SQLAlchemy 或 HTTP 类型。它定义完整 `ErrorCode(StrEnum)`、少量稳定的 `ErrorCategory(StrEnum)`，以及从每个 code 到恰好一个
+category 的不可变注册表。`NoraError`、`DomainError`、`ApplicationError` 和 `InfrastructureError` 只接受 `ErrorCode`；生产代码不再
+传入裸字符串，也不由异常子类或调用点自行携带 HTTP status。新增 code 必须同时登记 category、契约测试和前端生成物；重命名或删除
+公开 code 是兼容性变更，新增 category 或改变 category 的 HTTP 语义必须先经 Architecture Review。
+
+API Adapter 定义唯一 `ApiProblem` 响应模型：
+
+```json
+{
+  "error_code": "entity_not_found",
+  "error_category": "not_found",
+  "message": "Entity not found"
+}
+```
+
+FastAPI 的公开错误响应引用该 Pydantic 模型，因此 OpenAPI 分别枚举 `ErrorCode` 与 `ErrorCategory`；D-017 生成链路再产生前端
+TypeScript union，不维护第二份手写枚举。Application/Domain 提供 code 与可公开的英文 message，category 由注册表确定；API 只按下表
+映射 status，并为 `authentication` 增加 `WWW-Authenticate: Bearer`。`internal` 类别和未捕获 Python/框架异常一律记录服务端上下文，
+对外固定 `internal_error`、通用 message 和 `500`，不得返回异常类型、SQL、对象键、堆栈或内部消息。
+
+| ErrorCategory | HTTP | 语义 |
+|---|---:|---|
+| `invalid_input` | 400 | 语法有效但不满足领域、应用或安全输入约束 |
+| `authentication` | 401 | 缺少、失效或不正确的认证凭据 |
+| `not_found` | 404 | 不存在或因 owner 隔离而隐藏的对象 |
+| `conflict` | 409 | 可见对象的版本、幂等键、关系或唯一性冲突 |
+| `payload_too_large` | 413 | 公开上传资源超过端点上限 |
+| `unsupported_media_type` | 415 | 公开上传资源类型不受支持 |
+| `request_validation` | 422 | FastAPI/Pydantic 在进入 Use Case 前拒绝请求结构 |
+| `upstream_failure` | 502 | 已批准的同步上游返回失败或不可用结果 |
+| `service_unavailable` | 503 | Nora 数据库、对象存储或确定性处理能力暂不可用 |
+| `upstream_timeout` | 504 | 已批准的同步上游连接或读取超时 |
+| `internal` | 500 | 未分类异常、契约缺陷或本应被 Application 转换的内部哨兵泄漏 |
+
+`403` 当前没有稳定业务场景，不能用 `authentication` 代替；未来真实授权拒绝需要独立 code/category 决策。FastAPI 请求结构错误由
+Adapter 统一转换为新增 `validation_error/request_validation/422`，替代当前默认 `HTTPValidationError.detail` 结构；这与前端已经在 422
+时合成的 `validation_error` 语义一致。`SQLAlchemyError` 固定转换为脱敏
+`database_unavailable/service_unavailable/503`，其他框架或未知异常进入 `internal_error/internal/500`。
+
+#### 当前错误码兼容清单
+
+以下清单以 `main@c25bb08` 的异常构造、动态 helper 参数、JD Input 枚举和 API handler 为证据，共覆盖 143 个现存候选 code；除明确的
+内部 fail-closed 项外，迁移不改字符串值和当前 HTTP status。每个分组就是目标 category 注册表，实施测试必须断言
+`set(ErrorCode) == set(ERROR_CATEGORY_BY_CODE)`，并扫描拒绝新的 `error_code="..."`：
+
+- `authentication`：`authentication_failed`。
+- `not_found`：`entity_not_found`。
+- `conflict`：`application_decision_conflict`、`application_decision_key_taken`、`artifact_conflict`、`artifact_state_conflict`、
+  `company_assessment_conflict`、`company_snapshot_version_conflict`、`decision_case_conflict`、`decision_input_conflict`、
+  `decision_report_generation_conflict`、`decision_report_version_conflict`、`email_conflict`、`idempotency_conflict`、
+  `job_requirement_version_conflict`、`message_draft_conflict`、`message_draft_version_conflict`、`profile_version_conflict`、
+  `resume_pdf_conflict`、`resume_variant_key_taken`、`resume_version_conflict`、`source_conflict`、`unsupported_rule_set_version`、
+  `username_conflict`。
+- `payload_too_large`：`artifact_too_large`。
+- `unsupported_media_type`：`unsupported_artifact_type`。
+- `upstream_failure`：`fetch_failed`、`ocr_failed`。
+- `upstream_timeout`：`fetch_timeout`。
+- `service_unavailable`：`application_decision_persistence_failed`、`artifact_corrupt`、`artifact_delete_failed`、
+  `artifact_storage_unavailable`、`company_assessment_unavailable`、`database_unavailable`、`decision_input_unavailable`、
+  `decision_persistence_failed`、`identity_persistence_failed`、`job_posting_persistence_failed`、`message_draft_input_unavailable`、
+  `pdf_generation_failed`、`pdf_render_failed`、`resume_pdf_persistence_failed`、`resume_variant_persistence_failed`。
+- `internal`：`application_error`、`domain_error`、`entity_not_persisted`、`idempotency_key_taken`、`infrastructure_error`、
+  `internal_error`、`nora_error`、`version_conflict`。这些 generic/default 或 Repository 哨兵没有公开业务语义；若漏过 Application
+  转换，迁移后由当前意外的 400 改为脱敏 500，并由契约测试使泄漏失败，不作为可依赖客户端分支。
+- `invalid_input`：`artifact_unavailable`、`content_too_large`、`decision_case_immutable`、`decision_rule_input_mismatch`、
+  `decode_failed`、`empty_content`、`image_too_large`、`invalid_application_decision_fingerprint`、
+  `invalid_application_decision_status`、`invalid_artifact_content_type`、`invalid_artifact_sha256`、`invalid_artifact_size`、
+  `invalid_audit_action`、`invalid_audit_idempotency_key`、`invalid_audit_summary`、`invalid_audit_target_type`、
+  `invalid_audit_target_version`、`invalid_company_assessment_status`、`invalid_company_fact_status`、`invalid_company_name`、
+  `invalid_company_text`、`invalid_confirmation_status`、`invalid_confirmation_transition`、`invalid_correlation_id`、
+  `invalid_decision_case_state`、`invalid_decision_reason`、`invalid_draft_text`、`invalid_email`、`invalid_failure_code`、
+  `invalid_failure_message`、`invalid_generation_identity`、`invalid_generator_version`、`invalid_idempotency_key`、
+  `invalid_input_fingerprint`、`invalid_input_kind`、`invalid_jd_text`、`invalid_job_title`、`invalid_location`、
+  `invalid_message_draft_fingerprint`、`invalid_message_draft_hash`、`invalid_message_draft_revision`、
+  `invalid_message_draft_source`、`invalid_message_draft_style`、`invalid_object_key`、`invalid_pagination`、`invalid_password`、
+  `invalid_profile`、`invalid_profile_field`、`invalid_profile_item_id`、`invalid_profile_version`、`invalid_referral_context`、
+  `invalid_report_content`、`invalid_report_generator_version`、`invalid_report_rule_set_version`、`invalid_report_version`、
+  `invalid_requirement`、`invalid_requirement_field`、`invalid_resume_content`、`invalid_resume_pdf_input`、
+  `invalid_resume_pdf_state`、`invalid_resume_title`、`invalid_resume_version`、`invalid_rule_set_version`、
+  `invalid_source_locator`、`invalid_source_metadata`、`invalid_source_range`、`invalid_source_sha256`、`invalid_source_type`、
+  `invalid_source_url`、`invalid_template_field`、`invalid_template_section`、`invalid_timestamp`、`invalid_url`、
+  `invalid_username`、`invalid_variant_blocks`、`invalid_variant_field`、`invalid_variant_fingerprint`、`invalid_variant_text`、
+  `invalid_version`、`jd_text_too_long`、`profile_has_no_confirmed_data`、`referral_context_required`、`report_input_mismatch`、
+  `required_variant_field`、`response_too_large`、`resume_pdf_state_conflict`、`skip_reason_required`、
+  `template_definition_invalid`、`too_many_redirects`、`unsafe_url`、`unsupported_image`。
+
+`request_validation` 的 `validation_error` 是本决策新增的第 144 个公开 code。浏览器本地的 `network_error`、`network_timeout` 与
+`http_error` 不是服务端响应，保留为手写 `TransportErrorCode`，不得加入后端 `ErrorCode` 或 OpenAPI；UI 可用生成的 code 做精确文案，
+再按生成的 category、HTTP status 和 transport code 依次回退。
+
+#### 实施、测试与回滚
+
+实施依赖 #202 的 D-017 生成与 drift Gate，随后在一个原子纵向切片中：建立完整 enum/注册表与 `ApiProblem`，机械迁移全部构造点，
+集中 category-to-status handler，声明 OpenAPI error responses，重新生成 TypeScript，并删除逐 code HTTP 字典、`JdInputErrorCode` 和前端
+后端镜像类型。禁止用长期 `str | ErrorCode`、未知 code fallback 或新旧 handler 双轨分批容忍遗漏；一个 PR 内通过静态检查和完整测试
+完成切换。回滚整体回退该切片与 generated diff，不保留 feature flag 或双响应结构。
+
+测试矩阵至少覆盖：注册表全集相等与 category/status 全分支；Domain/Application 不导入 HTTP；认证 401 与 header、owner 隐藏 404、
+冲突 409、上传 413/415、请求验证 422、上游 502/504、基础设施 503、内部 500 脱敏；全部既有 code 字符串；OpenAPI 两个 enum 与每类
+response 引用；生成 TypeScript union 和 drift 失败；前端精确文案、category/status fallback、transport-only 错误与未知响应回退。
 
 ### 后续渐进迁移顺序
 
