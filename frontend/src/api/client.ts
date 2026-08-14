@@ -95,6 +95,15 @@ const categoryMessages: Record<ServerErrorCategory, string> = {
   internal: "服务发生内部错误，请稍后重试",
 }
 
+function codeMessage(value: ServerErrorCode | undefined): string | undefined {
+  if (!value || !Object.hasOwn(errorCodeMessages, value)) return undefined
+  return errorCodeMessages[value]
+}
+
+function knownCategory(value: ServerErrorCategory | undefined): ServerErrorCategory | null {
+  return value && Object.hasOwn(categoryMessages, value) ? value : null
+}
+
 export class ApiError extends Error {
   readonly status: number
   readonly errorCode: ApiErrorCode
@@ -170,11 +179,12 @@ async function requestResponse(path: string, init: RequestInit = {}): Promise<Re
     } catch {
       problem = {}
     }
-    const errorCode: ApiErrorCode = problem.error_code ?? "http_error"
-    const errorCategory = problem.error_category && problem.error_category in categoryMessages
-      ? problem.error_category
-      : null
-    const message = (problem.error_code ? errorCodeMessages[problem.error_code] : undefined)
+    const errorCategory = knownCategory(problem.error_category)
+    const exactMessage = codeMessage(problem.error_code)
+    const errorCode: ApiErrorCode = problem.error_code && (errorCategory || exactMessage)
+      ? problem.error_code
+      : "http_error"
+    const message = exactMessage
       ?? (errorCategory ? categoryMessages[errorCategory] : undefined)
       ?? fallbackMessages[response.status]
       ?? "请求失败"

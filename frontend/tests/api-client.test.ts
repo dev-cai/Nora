@@ -77,7 +77,11 @@ describe("API client", () => {
   })
 
   it("uses a generic fallback for an unknown response", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({ message: "Untrusted detail" }, 418))
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({
+      error_code: "toString",
+      error_category: "constructor",
+      message: "Untrusted detail",
+    }, 418))
 
     const error = await api.me().catch((reason: unknown) => reason)
 
