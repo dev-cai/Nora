@@ -103,19 +103,39 @@ def _module_name(source_file: Path, root: Path) -> str:
 
 
 def _resolve_from_import(
-    node: ast.ImportFrom, source_module: str, *, source_is_package: bool
+    node: ast.ImportFrom,
+    source_module: str,
+    root: Path,
+    *,
+    source_is_package: bool,
 ) -> tuple[str, ...]:
     if node.level == 0:
-        return () if node.module is None else (node.module,)
+        base_module = node.module
+    else:
+        package = source_module.split(".") if source_is_package else source_module.split(".")[:-1]
+        ascend = node.level - 1
+        if ascend > len(package):
+            return ()
+        base = package[: len(package) - ascend]
+        if node.module:
+            base_module = ".".join([*base, *node.module.split(".")])
+        else:
+            return tuple(".".join([*base, alias.name]) for alias in node.names if alias.name != "*")
 
-    package = source_module.split(".") if source_is_package else source_module.split(".")[:-1]
-    ascend = node.level - 1
-    if ascend > len(package):
+    if base_module is None:
         return ()
-    base = package[: len(package) - ascend]
-    if node.module:
-        return (".".join([*base, *node.module.split(".")]),)
-    return tuple(".".join([*base, alias.name]) for alias in node.names if alias.name != "*")
+    existing_submodules = tuple(
+        candidate
+        for alias in node.names
+        if alias.name != "*"
+        if _module_exists(candidate := f"{base_module}.{alias.name}", root)
+    )
+    return (base_module, *existing_submodules)
+
+
+def _module_exists(module: str, root: Path) -> bool:
+    module_path = root.joinpath(*module.split("."))
+    return module_path.with_suffix(".py").is_file() or (module_path / "__init__.py").is_file()
 
 
 def import_references(path: Path, root: Path) -> tuple[ImportReference, ...]:
@@ -130,6 +150,7 @@ def import_references(path: Path, root: Path) -> tuple[ImportReference, ...]:
                 modules = _resolve_from_import(
                     node,
                     source_module,
+                    root,
                     source_is_package=source_file.name == "__init__.py",
                 )
             else:
@@ -289,6 +310,37 @@ def test_cross_context_rule_resolves_relative_imports(tmp_path: Path) -> None:
             "app.infrastructure.database.career",
         )
     }
+
+
+@pytest.mark.parametrize(
+    ("source_module", "target_module", "source_import"),
+    [
+        (
+            "app.infrastructure.database.decision",
+            "app.infrastructure.database.identity",
+            "from app.infrastructure.database import identity\n",
+        ),
+        (
+            "app.infrastructure.database.career",
+            "app.infrastructure.auth",
+            "from app.infrastructure import auth\n",
+        ),
+    ],
+)
+def test_cross_context_rule_resolves_absolute_submodule_imports(
+    tmp_path: Path,
+    source_module: str,
+    target_module: str,
+    source_import: str,
+) -> None:
+    source_path = tmp_path.joinpath(*source_module.split(".")).with_suffix(".py")
+    target_path = tmp_path.joinpath(*target_module.split(".")).with_suffix(".py")
+    source_path.parent.mkdir(parents=True)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.write_text(source_import, encoding="utf-8")
+    target_path.touch()
+
+    assert cross_context_infrastructure_edges(tmp_path) == {(source_module, target_module)}
 
 
 def test_reference_repositories_do_not_own_transaction_boundaries() -> None:
