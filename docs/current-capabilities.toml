@@ -133,7 +133,10 @@ code_paths = [
   "frontend/tests/api-generated-drift.test.ts",
   ".github/workflows/frontend-ci.yml",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/201"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/201",
+  "https://github.com/dev-cai/Nora/pull/212",
+]
 
 [[capabilities]]
 id = "jd-input-contract"
@@ -177,6 +180,7 @@ evidence = [
   "https://github.com/dev-cai/Nora/pull/162",
   "https://github.com/dev-cai/Nora/pull/180",
   "https://github.com/dev-cai/Nora/pull/201",
+  "https://github.com/dev-cai/Nora/pull/212",
 ]
 
 [[capabilities]]
