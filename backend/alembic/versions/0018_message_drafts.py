@@ -56,9 +56,7 @@ def upgrade() -> None:
         sa.Column("draft_created_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("version >= 1", name="ck_message_draft_version"),
         sa.CheckConstraint("report_version >= 1", name="ck_message_draft_report_version"),
-        sa.CheckConstraint(
-            "resume_variant_version >= 1", name="ck_message_draft_variant_version"
-        ),
+        sa.CheckConstraint("resume_variant_version >= 1", name="ck_message_draft_variant_version"),
         sa.CheckConstraint(
             "candidate_profile_version >= 1", name="ck_message_draft_profile_version"
         ),
