@@ -124,4 +124,22 @@ describe("API client", () => {
     const variantHeaders = new Headers(fetchMock.mock.calls[4]?.[1]?.headers)
     expect(variantHeaders.get("Idempotency-Key")).toBe("variant-key")
   })
+
+  it("uses deterministic PDF status, generation, metadata and content routes", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({})))
+
+    await api.getLatestResumePdf("variant/1")
+    await api.generateResumePdf("variant/1")
+    await api.getResumePdf("pdf/1")
+    await api.getResumePdfContent("pdf/1", false)
+    await api.getResumePdfContent("pdf/1", true)
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
+      ["/api/resume-variants/variant%2F1/pdf", "GET"],
+      ["/api/resume-variants/variant%2F1/pdf", "POST"],
+      ["/api/resume-pdfs/pdf%2F1", "GET"],
+      ["/api/resume-pdfs/pdf%2F1/content?download=false", "GET"],
+      ["/api/resume-pdfs/pdf%2F1/content?download=true", "GET"],
+    ])
+  })
 })

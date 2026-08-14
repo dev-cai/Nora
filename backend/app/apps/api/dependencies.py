@@ -21,6 +21,7 @@ from app.infrastructure.database import (
     SqlAlchemyDecisionReportRepository,
     SqlAlchemyJobPostingRepository,
     SqlAlchemyJobRequirementSnapshotRepository,
+    SqlAlchemyResumePdfRepository,
     SqlAlchemyResumeVariantRepository,
     SqlAlchemyResumeVersionRepository,
     SqlAlchemySourceDocumentRepository,
@@ -30,6 +31,7 @@ from app.infrastructure.database import (
 from app.infrastructure.jd_fetch import JdFetchAdapter
 from app.infrastructure.jd_ocr import BaiduOcrEngine, JdOcrAdapter
 from app.infrastructure.object_storage import create_minio_storage
+from app.infrastructure.pdf_renderer import WeasyPrintResumePdfRenderer
 from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
 from app.ports.decision import (
     CompanyAssessmentRepository,
@@ -38,6 +40,8 @@ from app.ports.decision import (
 )
 from app.ports.followup import (
     ApplicationDecisionRepository,
+    ResumePdfRenderer,
+    ResumePdfRepository,
     ResumeVariantRepository,
     TemplateDefinitionRepository,
 )
@@ -173,6 +177,17 @@ def get_resume_variant_repository(
     user: User = Depends(get_current_user),
 ) -> ResumeVariantRepository:
     return SqlAlchemyResumeVariantRepository(session, user.id)
+
+
+def get_resume_pdf_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ResumePdfRepository:
+    return SqlAlchemyResumePdfRepository(session, user.id)
+
+
+def get_resume_pdf_renderer() -> ResumePdfRenderer:
+    return WeasyPrintResumePdfRenderer()
 
 
 def get_template_definition_repository(

@@ -5,7 +5,11 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.apps.api import create_app
-from app.apps.api.dependencies import get_artifact_storage, get_current_user
+from app.apps.api.dependencies import (
+    get_artifact_storage,
+    get_current_user,
+    get_resume_pdf_renderer,
+)
 from app.domain.followup import (
     TemplateAccent,
     TemplateDefinition,
@@ -15,6 +19,7 @@ from app.domain.followup import (
 from app.domain.identity import User
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Base, TemplateDefinitionRecord
+from app.ports.followup import RenderedPdf
 from app.ports.knowledge import StoredObject, StoredObjectInfo
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -23,8 +28,11 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 class MemoryArtifactStorage:
     def __init__(self) -> None:
         self.values: dict[str, StoredObject] = {}
+        self.fail_put = False
 
     async def put(self, *, object_key: str, data: bytes, content_type: str) -> None:
+        if self.fail_put:
+            raise RuntimeError("storage unavailable")
         self.values[object_key] = StoredObject(data=data, content_type=content_type)
 
     async def get(self, *, object_key: str) -> StoredObject:
@@ -35,6 +43,21 @@ class MemoryArtifactStorage:
 
     async def list(self) -> list[StoredObjectInfo]:
         return []
+
+
+class DeterministicPdfRenderer:
+    renderer_version = "weasyprint-69.0-pango-1.56.3-api-test"
+    font_set_version = "noto-cjk-api-test"
+
+    def render(self, variant, template, generation_identity: str) -> RenderedPdf:
+        del variant, template
+        return RenderedPdf(
+            data=b"%PDF-1.7\n" + generation_identity.encode() + b"\n" + b"0" * 64 + b"\n%%EOF"
+        )
+
+
+class UpgradedDeterministicPdfRenderer(DeterministicPdfRenderer):
+    renderer_version = "weasyprint-69.0-pango-1.56.3-api-test-v2"
 
 
 def _reset_database(database_url: str) -> None:
@@ -549,7 +572,11 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
         database_url=database_url,
         auth_secret_key="test-secret-key-32-bytes-long-key!",
     )
-    with TestClient(create_app(settings)) as client:
+    app = create_app(settings)
+    storage = MemoryArtifactStorage()
+    app.dependency_overrides[get_artifact_storage] = lambda: storage
+    app.dependency_overrides[get_resume_pdf_renderer] = DeterministicPdfRenderer
+    with TestClient(app) as client:
         alice = _register_and_login(client, "variant-alice")
         bob = _register_and_login(client, "variant-bob")
         inputs = _seed_decision_inputs(client, alice, name="variant")
@@ -659,3 +686,78 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
         assert client.get("/resume-variants", headers=bob).json()["total"] == 0
         assert client.get(f"/resume-variants/{body['id']}", headers=alice).json() == body
         assert client.get(f"/resume-variants/{body['id']}", headers=bob).status_code == 404
+
+        assert client.get(f"/resume-variants/{body['id']}/pdf", headers=alice).status_code == 204
+        assert client.post(f"/resume-variants/{body['id']}/pdf").status_code == 401
+        assert client.post(f"/resume-variants/{body['id']}/pdf", headers=bob).status_code == 404
+        generated = client.post(f"/resume-variants/{body['id']}/pdf", headers=alice)
+        assert generated.status_code == 201, generated.text
+        pdf = generated.json()
+        assert pdf["status"] == "available"
+        assert pdf["resume_variant_id"] == body["id"]
+        assert pdf["resume_variant_version"] == body["version"]
+        assert pdf["template_definition_hash"] == template.definition_hash
+        assert pdf["variant_content_fingerprint"] == body["content_fingerprint"]
+        assert pdf["artifact_size_bytes"] > 100
+        artifact = client.get(f"/artifacts/{pdf['artifact_id']}", headers=alice)
+        assert artifact.status_code == 200
+        assert artifact.json()["kind"] == "generated"
+        assert artifact.json()["content_type"] == "application/pdf"
+        assert artifact.json()["status"] == "available"
+        assert artifact.json()["size_bytes"] == pdf["artifact_size_bytes"]
+        assert artifact.json()["sha256"] == pdf["artifact_sha256"]
+
+        pdf_replay = client.post(f"/resume-variants/{body['id']}/pdf", headers=alice)
+        assert pdf_replay.status_code == 200
+        assert pdf_replay.json()["id"] == pdf["id"]
+        assert pdf_replay.json()["artifact_sha256"] == pdf["artifact_sha256"]
+        assert client.get(f"/resume-variants/{body['id']}/pdf", headers=alice).json() == pdf
+        assert client.get(f"/resume-pdfs/{pdf['id']}", headers=alice).json() == pdf
+
+        inline = client.get(f"/resume-pdfs/{pdf['id']}/content?download=false", headers=alice)
+        assert inline.status_code == 200
+        assert inline.content.startswith(b"%PDF-1.7")
+        assert inline.headers["content-type"] == "application/pdf"
+        assert inline.headers["content-disposition"].startswith("inline;")
+        assert inline.headers["cache-control"] == "private, no-store"
+        assert inline.headers["x-content-type-options"] == "nosniff"
+        attachment = client.get(f"/resume-pdfs/{pdf['id']}/content", headers=alice)
+        assert attachment.headers["content-disposition"].startswith("attachment;")
+        assert client.get(f"/resume-pdfs/{pdf['id']}", headers=bob).status_code == 404
+        assert client.get(f"/resume-pdfs/{pdf['id']}/content", headers=bob).status_code == 404
+
+        app.dependency_overrides[get_resume_pdf_renderer] = UpgradedDeterministicPdfRenderer
+        upgraded = client.post(f"/resume-variants/{body['id']}/pdf", headers=alice)
+        assert upgraded.status_code == 201
+        upgraded_pdf = upgraded.json()
+        assert upgraded_pdf["id"] != pdf["id"]
+        assert upgraded_pdf["artifact_id"] != pdf["artifact_id"]
+        assert upgraded_pdf["generation_identity"] != pdf["generation_identity"]
+        historical = client.get(f"/resume-pdfs/{pdf['id']}/content", headers=alice)
+        assert historical.status_code == 200
+        assert historical.content == inline.content
+        assert client.get(f"/resume-pdfs/{pdf['id']}", headers=alice).json() == pdf
+
+        retry_variant = client.post(
+            "/resume-variants",
+            headers={**alice, "Idempotency-Key": "variant-pdf-retry"},
+            json={**payload, "title": "存储失败重试版"},
+        )
+        assert retry_variant.status_code == 201
+        storage.fail_put = True
+        failed = client.post(f"/resume-variants/{retry_variant.json()['id']}/pdf", headers=alice)
+        assert failed.status_code == 503
+        assert failed.json()["error_code"] == "artifact_storage_unavailable"
+        failed_status = client.get(
+            f"/resume-variants/{retry_variant.json()['id']}/pdf", headers=alice
+        )
+        assert failed_status.status_code == 200
+        assert failed_status.json()["status"] == "failed"
+        storage.fail_put = False
+        recovered = client.post(f"/resume-variants/{retry_variant.json()['id']}/pdf", headers=alice)
+        assert recovered.status_code == 201
+        assert recovered.json()["id"] == failed_status.json()["id"]
+        assert (
+            recovered.json()["generation_identity"] == failed_status.json()["generation_identity"]
+        )
+        assert recovered.json()["status"] == "available"

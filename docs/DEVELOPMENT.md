@@ -335,7 +335,8 @@ curl http://localhost:8000/resumes/<resume_version_id> \
 ```
 
 每次发布返回 `201` 并生成新的用户范围版本号。指定主档版本不存在或属于其他用户时返回 `404 entity_not_found`；主档没有
-可发布的 confirmed 简历事实时返回 `400 profile_has_no_confirmed_data`。本阶段不包含简历文件导入、模板、PDF 生成或岗位定制。
+可发布的 confirmed 简历事实时返回 `400 profile_has_no_confirmed_data`。ResumeVersion 发布本身不导入简历文件；模板、岗位定制和
+PDF 生成由后续独立接口处理。
 
 停止服务但保留数据卷：
 
@@ -474,6 +475,26 @@ docker compose --profile test stop test-db
 
 集成测试要求 `TEST_DATABASE_URL` 或 `DATABASE_URL` 使用 `postgresql+asyncpg`。缺少连接或使用其他驱动时，
 测试会明确失败；项目不支持 SQLite 回退。
+
+### 确定性 PDF 渲染环境
+
+PDF 渲染只以 `docker/Dockerfile.api` 构建的锁定 Linux 环境为可复现基线：Python 依赖锁定 WeasyPrint 69.x，系统包固定
+Pango 1.56.3 与 Noto CJK 20240730，镜像和 Adapter 固定 `SOURCE_DATE_EPOCH=1767225600`。渲染器版本同时记录
+WeasyPrint、Pango、Adapter 和 SOURCE_DATE_EPOCH，字体集另有独立版本；升级任一输入都必须形成新的生成身份并重新执行
+确定性测试。宿主缺少 Pango 时可以运行不导入 Adapter 的单元和静态检查，但不能把宿主渲染结果作为验收证据。
+
+使用锁文件和镜像验证相同生成身份的字节稳定性、URL 拒绝与迁移：
+
+```bash
+docker compose --profile test build test
+docker compose --profile test run --rm test \
+  pytest tests/integration/test_resume_pdf_renderer.py \
+    tests/integration/test_resume_pdf_migration.py \
+    tests/integration/test_decision_report_api.py -q
+```
+
+渲染器不读取用户 HTML、脚本、本地文件或网络资源；不要在容器外安装替代字体后更新基线哈希。生成的 PDF 属于运行时
+私有 Artifact，不提交到 Git。
 
 ### 镜像版本升级与回滚
 

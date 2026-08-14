@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163。
-- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、Vue Web、Artifact/Source 基础和公司情报后端切片。
+- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -216,6 +216,7 @@ M3 首个规则集版本为 `m3-rules-v1`，只消费 `DecisionCase` 固定引�
 erDiagram
     CandidateProfile ||--o{ ResumeVersion : "事实快照"
     ResumeVersion ||--o{ ResumeVariant : "岗位定制"
+    ResumeVariant ||--o{ ResumePdf : "确定性生成"
     JobPosting ||--o{ JobRequirementSnapshot : "确认解释"
     JobRequirementSnapshot }o--|| DecisionCase : "固定版本引用"
     DecisionCase ||--o{ DecisionReport : "版本化报告"
@@ -254,8 +255,10 @@ M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecis
 
 - Current 模板采用声明式 JSON `TemplateDefinition`：页面尺寸、密度、强调色、区块顺序、允许字段和必填字段。模板发布后不可变，只接受受控枚举与结构化字段路径，不执行 Python、HTML、JavaScript、Jinja，也不加载外部脚本或网络资源。
 - Current `ResumeVariant` 只允许从 apply 决定创建，固定 `ApplicationDecision`、`DecisionCase`、`ResumeVersion`、`JobPosting`/`JobRequirementSnapshot` 和模板的精确版本。用户选择、顺序、标签、编辑值、模板定义哈希及生成器版本共同参与内容指纹；同一 owner 范围的幂等键支持语义重放，不同载荷稳定冲突。历史源对象或模板升级不会重算或改写既有变体。
-- 公开接口为 `GET /templates`、`GET /templates/{id}/versions/{version}`、`POST /resume-variants`、`GET /resume-variants` 与 `GET /resume-variants/{id}`。对象按 owner 隔离，跨用户与不存在对象统一不可见；创建只写 PostgreSQL 结构化事实，不修改 CandidateProfile/ResumeVersion，不生成文件且不执行外部写。
-- PDF 仍由 #92 交付：初版计划使用 WeasyPrint Adapter，将受限模板转换为 HTML/CSS 后渲染；输出文件写入 Object Storage，保存 SHA-256、模板版本、来源版本和用户归属，构建产物不得进入 Git。
+- 模板与变体公开接口为 `GET /templates`、`GET /templates/{id}/versions/{version}`、`POST /resume-variants`、`GET /resume-variants` 与 `GET /resume-variants/{id}`。对象按 owner 隔离，跨用户与不存在对象统一不可见；变体创建只写 PostgreSQL 结构化事实，不修改 CandidateProfile/ResumeVersion 且不执行外部写。
+- Current `ResumePdf` 以 `pending -> available`、`pending/failed -> pending` 和 `pending -> failed` 记录可观察生成状态。生成身份固定 ResumeVariant ID/版本/内容指纹、模板 ID/版本/定义哈希、WeasyPrint/Pango Adapter 版本、Noto CJK 字体集版本、`zh-CN` 区域和 `UTC` 时区；同一身份重放复用同一 PDF 与 Artifact，模板、输入或渲染器升级产生不同身份，不覆盖历史产物。
+- WeasyPrint Adapter 只把声明式模板和经 HTML 转义的纯文本转换为内部 HTML/CSS，拒绝所有 URL/resource fetch，不接受用户 HTML、脚本、Jinja、本地文件或网络资源。锁定容器固定 WeasyPrint、Pango、Noto CJK、`SOURCE_DATE_EPOCH` 和 PDF identifier；确定性承诺限于该锁定环境，相同生成身份必须产生相同 SHA-256。
+- PDF 元数据先写入 PostgreSQL，再调用既有 `ArtifactService` 发布私有 `application/pdf` Artifact。只有 Artifact 为 `available` 且 generation identity、生成器、size 与 SHA-256 完整校验后，`ResumePdf` 才转为 `available`；渲染、对象存储或数据库发布失败保持不可下载并标为 `failed`，重试沿用同一身份。公开接口为 `POST /resume-variants/{id}/pdf`、`GET /resume-variants/{id}/pdf`、`GET /resume-pdfs/{id}` 与 `GET /resume-pdfs/{id}/content`，下载按 owner 隔离并使用私有缓存与安全文件名/header。
 - `MessageDraft` 是一条可编辑纯文本，默认 `professional` 风格，另支持 `concise` 和用户提供内推上下文的 `referral` 风格；输入只允许已确认主档、JD、公司 Evidence 和用户备注，初版不做平台适配、不自动发送。
 
 ### 公司情报与决策报告版本边界（D-014）
@@ -346,7 +349,7 @@ flowchart LR
 | :--- | :--- | :--- | :--- |
 | 用户、画像、岗位、投递决定、投递记录、面试、报告 | PostgreSQL | 业务事实 | 聚合和 Repository 负责写入与版本控制 |
 | JobRequirementSnapshot（结构化岗位要求） | PostgreSQL | 用户确认解释，独立版本 | 独立于 `JobPosting` 原文；字段级确认状态与来源定位；修改产生新版本；`DecisionCase` 固定引用快照版本 |
-| 简历版本、模板配置、简历变体、消息草稿元数据 | PostgreSQL | 结构化事实与版本 | 记录用户归属、输入版本、模板版本和生成器版本 |
+| 简历版本、模板配置、简历变体、PDF/消息草稿元数据 | PostgreSQL | 结构化事实与版本 | 记录用户归属、状态、输入版本、模板版本、生成身份、生成器版本和 Artifact 精确引用 |
 | Run、Approval、ToolCall、Audit | PostgreSQL | 治理事实 | 追加式或受状态机约束，不由队列状态替代 |
 | 原始简历、截图、附件、长文档、生成 PDF | Object Storage | 不可变或版本化对象 | 私有访问、摘要校验、短期签名引用；生成产物不得提交 Git |
 | Chunk、Embedding、稀疏索引 | pgvector；后续可迁移 Milvus | 可重建派生数据 | 必须引用 Source/Artifact 版本和生成器版本 |
@@ -416,9 +419,9 @@ pending -> available -> delete_pending -> deleted
 补偿、孤儿扫描和物理删除必须实现为可重复运行的 Application 维护用例，可由管理命令或部署调度周期调用；M4 不因此依赖
 Redis、Celery 或 Worker。只有 M5 的真实时延、吞吐或故障隔离指标满足条件并经过独立决策后，才可把同一用例接到任务队列。
 
-本 Issue 按该状态机交付 `ArtifactService`、PostgreSQL Repository、私有 MinIO Adapter 与认证 API。上传使用服务端生成的临时键，
-校验后复制到最终键；孤儿扫描按 owner 前缀执行，只有受控维护调用可显式处理全局 `.pending` 临时对象。该实现不包含 #92 的
-PDF 生成，也不替代 #138 的联合备份恢复演练。
+Artifact/Source 基础按该状态机交付 `ArtifactService`、PostgreSQL Repository、私有 MinIO Adapter 与认证 API。上传使用服务端生成的临时键，
+校验后复制到最终键；孤儿扫描按 owner 前缀执行，只有受控维护调用可显式处理全局 `.pending` 临时对象。确定性 PDF 复用同一服务发布
+生成 Artifact，不建立平行对象存储事实；两者都不替代 #138 的联合备份恢复演练。
 
 #### 导出、保留与删除
 

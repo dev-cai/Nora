@@ -26,6 +26,8 @@ from app.domain.base.exceptions import InfrastructureError
 from app.domain.followup import (
     ApplicationDecision,
     ApplicationDecisionStatus,
+    ResumePdf,
+    ResumePdfStatus,
     ResumeVariant,
     TemplateAccent,
     TemplateDefinition,
@@ -324,6 +326,82 @@ class ResumeVariantRecord(Base):
     variant_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ResumePdfRecord(Base):
+    __tablename__ = "resume_pdfs"
+    __table_args__ = (
+        UniqueConstraint("id", "version", "owner_id", name="uq_resume_pdf_identity"),
+        UniqueConstraint("owner_id", "generation_identity", name="uq_resume_pdf_owner_generation"),
+        CheckConstraint("version >= 1", name="ck_resume_pdf_version"),
+        CheckConstraint("resume_variant_version >= 1", name="ck_resume_pdf_variant_version"),
+        CheckConstraint("template_version >= 1", name="ck_resume_pdf_template_version"),
+        CheckConstraint(
+            "length(template_definition_hash) = 64", name="ck_resume_pdf_template_hash"
+        ),
+        CheckConstraint(
+            "length(variant_content_fingerprint) = 64",
+            name="ck_resume_pdf_variant_fingerprint",
+        ),
+        CheckConstraint(
+            "length(generation_identity) = 64", name="ck_resume_pdf_generation_identity"
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'available', 'failed')", name="ck_resume_pdf_status"
+        ),
+        CheckConstraint(
+            "(status = 'available' AND artifact_id IS NOT NULL "
+            "AND artifact_version IS NOT NULL AND artifact_version >= 1 "
+            "AND artifact_sha256 IS NOT NULL AND length(artifact_sha256) = 64 "
+            "AND artifact_size_bytes IS NOT NULL AND artifact_size_bytes > 0) OR "
+            "(status <> 'available' AND artifact_id IS NULL "
+            "AND artifact_version IS NULL AND artifact_sha256 IS NULL "
+            "AND artifact_size_bytes IS NULL)",
+            name="ck_resume_pdf_artifact_state",
+        ),
+        ForeignKeyConstraint(
+            ["resume_variant_id", "resume_variant_version", "owner_id"],
+            ["resume_variants.id", "resume_variants.version", "resume_variants.owner_id"],
+            name="fk_resume_pdf_variant_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["template_id", "template_version"],
+            ["template_definitions.template_id", "template_definitions.version"],
+            name="fk_resume_pdf_template",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["artifact_id", "artifact_version", "owner_id"],
+            ["artifacts.id", "artifacts.version", "artifacts.owner_id"],
+            name="fk_resume_pdf_artifact_owner",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    resume_variant_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    resume_variant_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    template_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    template_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    template_definition_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    variant_content_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    renderer_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    font_set_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    locale: Mapped[str] = mapped_column(String(20), nullable=False)
+    timezone: Mapped[str] = mapped_column(String(50), nullable=False)
+    generation_identity: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    artifact_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    artifact_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    artifact_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    artifact_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pdf_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    pdf_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class SqlAlchemyTemplateDefinitionRepository:
     @staticmethod
     def _to_domain(record: TemplateDefinitionRecord) -> TemplateDefinition:
@@ -474,6 +552,134 @@ class SqlAlchemyResumeVariantRepository:
 
     async def commit(self) -> None:
         await self.session.commit()
+
+
+class SqlAlchemyResumePdfRepository:
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(record: ResumePdfRecord) -> ResumePdf:
+        return ResumePdf.restore(
+            pdf_id=record.id,
+            owner_id=record.owner_id,
+            version=record.version,
+            resume_variant_id=record.resume_variant_id,
+            resume_variant_version=record.resume_variant_version,
+            template_id=record.template_id,
+            template_version=record.template_version,
+            template_definition_hash=record.template_definition_hash,
+            variant_content_fingerprint=record.variant_content_fingerprint,
+            renderer_version=record.renderer_version,
+            font_set_version=record.font_set_version,
+            locale=record.locale,
+            timezone_name=record.timezone,
+            generation_identity=record.generation_identity,
+            status=ResumePdfStatus(record.status),
+            artifact_id=record.artifact_id,
+            artifact_version=record.artifact_version,
+            artifact_sha256=record.artifact_sha256,
+            artifact_size_bytes=record.artifact_size_bytes,
+            created_at=_as_utc(record.pdf_created_at),
+            updated_at=_as_utc(record.pdf_updated_at),
+        )
+
+    async def add(self, pdf: ResumePdf) -> ResumePdf:
+        self._check_owner(pdf)
+        record = ResumePdfRecord(**_resume_pdf_values(pdf))
+        self.session.add(record)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise InfrastructureError(
+                "Resume PDF already exists", error_code="resume_pdf_conflict"
+            ) from exc
+        return self._to_domain(record)
+
+    async def update(self, pdf: ResumePdf) -> ResumePdf:
+        self._check_owner(pdf)
+        record = await self.session.scalar(
+            select(ResumePdfRecord)
+            .where(
+                ResumePdfRecord.id == pdf.id,
+                ResumePdfRecord.owner_id == self.owner_id,
+            )
+            .with_for_update()
+        )
+        if record is None:
+            raise InfrastructureError("Resume PDF not found", error_code="entity_not_found")
+        for name, value in _resume_pdf_values(pdf).items():
+            setattr(record, name, value)
+        await self.session.flush()
+        return pdf
+
+    async def get_by_id(self, pdf_id: UUID) -> ResumePdf | None:
+        record = await self.session.scalar(
+            select(ResumePdfRecord).where(
+                ResumePdfRecord.id == pdf_id,
+                ResumePdfRecord.owner_id == self.owner_id,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_by_generation_identity(self, identity: str) -> ResumePdf | None:
+        record = await self.session.scalar(
+            select(ResumePdfRecord).where(
+                ResumePdfRecord.owner_id == self.owner_id,
+                ResumePdfRecord.generation_identity == identity,
+            )
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def get_latest_by_variant(self, variant_id: UUID) -> ResumePdf | None:
+        record = await self.session.scalar(
+            select(ResumePdfRecord)
+            .where(
+                ResumePdfRecord.owner_id == self.owner_id,
+                ResumePdfRecord.resume_variant_id == variant_id,
+            )
+            .order_by(ResumePdfRecord.pdf_created_at.desc(), ResumePdfRecord.id.desc())
+            .limit(1)
+        )
+        return None if record is None else self._to_domain(record)
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
+    async def rollback(self) -> None:
+        await self.session.rollback()
+
+    def _check_owner(self, pdf: ResumePdf) -> None:
+        if pdf.owner_id != self.owner_id:
+            raise InfrastructureError("Resume PDF not found", error_code="entity_not_found")
+
+
+def _resume_pdf_values(value: ResumePdf) -> dict[str, object]:
+    return {
+        "id": value.id,
+        "owner_id": value.owner_id,
+        "version": value.version,
+        "resume_variant_id": value.resume_variant_id,
+        "resume_variant_version": value.resume_variant_version,
+        "template_id": value.template_id,
+        "template_version": value.template_version,
+        "template_definition_hash": value.template_definition_hash,
+        "variant_content_fingerprint": value.variant_content_fingerprint,
+        "renderer_version": value.renderer_version,
+        "font_set_version": value.font_set_version,
+        "locale": value.locale,
+        "timezone": value.timezone,
+        "generation_identity": value.generation_identity,
+        "status": value.status.value,
+        "artifact_id": value.artifact_id,
+        "artifact_version": value.artifact_version,
+        "artifact_sha256": value.artifact_sha256,
+        "artifact_size_bytes": value.artifact_size_bytes,
+        "pdf_created_at": value.created_at,
+        "pdf_updated_at": value.updated_at,
+    }
 
 
 def _as_utc(value: datetime) -> datetime:

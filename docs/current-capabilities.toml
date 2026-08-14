@@ -347,7 +347,7 @@ id = "declarative-resume-variants"
 name = "声明式模板与岗位定制简历"
 milestone = "M4"
 status = "current"
-summary = "支持不可变、不可执行代码的 TemplateDefinition 与用户范围 ResumeVariant：仅允许受控页面、样式和字段路径，创建必须引用 apply 决定，并固定 DecisionCase、JobPosting、JobRequirementSnapshot、ResumeVersion 与模板精确版本。字段选择、顺序、标签、编辑值、模板哈希和生成器版本进入内容指纹，owner 范围幂等重放与冲突可稳定判断；认证 API 和 Vue 页面支持模板/变体列表、选择编辑排序、详情刷新恢复和登出清理。不修改主档或简历事实，不生成 PDF 且不执行外部写。"
+summary = "支持不可变、不可执行代码的 TemplateDefinition 与用户范围 ResumeVariant：仅允许受控页面、样式和字段路径，创建必须引用 apply 决定，并固定 DecisionCase、JobPosting、JobRequirementSnapshot、ResumeVersion 与模板精确版本。字段选择、顺序、标签、编辑值、模板哈希和生成器版本进入内容指纹，owner 范围幂等重放与冲突可稳定判断；认证 API 和 Vue 页面支持模板/变体列表、选择编辑排序、详情刷新恢复和登出清理。不修改主档或简历事实；变体创建本身不生成文件，PDF 由独立确定性生成能力发布，且不执行外部写。"
 code_paths = [
   "backend/app/domain/followup/resume_variant.py",
   "backend/app/application/followup/resume_variant.py",
@@ -360,3 +360,21 @@ code_paths = [
   "frontend/src/stores/variants.ts",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/180"]
+
+[[capabilities]]
+id = "deterministic-resume-pdf"
+name = "确定性简历 PDF"
+milestone = "M4"
+status = "current"
+summary = "支持从不可变 ResumeVariant 生成用户范围的确定性 PDF：生成身份固定变体、模板、渲染器、字体、区域和时区版本，锁定 WeasyPrint/Pango/Noto CJK/SOURCE_DATE_EPOCH 环境内相同身份产生相同 SHA-256。ResumePdf 先持久化 pending/failed/available 状态，再复用 ArtifactService 发布私有对象；只有 Artifact 身份、版本、size 和哈希全部匹配才可读取，渲染或存储失败可沿用同一身份重试。受限 Adapter 转义全部文本并拒绝 URL、本地文件和网络资源；认证 API 与变体详情页支持状态恢复、预览、下载、用户隔离和安全响应 header。"
+code_paths = [
+  "backend/app/domain/followup/resume_pdf.py",
+  "backend/app/application/followup/resume_pdf.py",
+  "backend/app/infrastructure/pdf_renderer.py",
+  "backend/app/infrastructure/database/followup.py",
+  "backend/app/apps/api/routes/resume_pdfs.py",
+  "backend/alembic/versions/0017_resume_pdfs.py",
+  "frontend/src/views/ResumeVariantDetailView.vue",
+  "frontend/src/stores/variants.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/181"]

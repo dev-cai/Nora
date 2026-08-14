@@ -370,3 +370,28 @@ export interface ResumeVariantList {
   page_size: number
   total: number
 }
+
+export type ResumePdfStatus = "pending" | "available" | "failed"
+
+export interface ResumePdf {
+  id: string
+  version: number
+  resume_variant_id: string
+  resume_variant_version: number
+  template_id: string
+  template_version: number
+  template_definition_hash: string
+  variant_content_fingerprint: string
+  renderer_version: string
+  font_set_version: string
+  locale: string
+  timezone: string
+  generation_identity: string
+  status: ResumePdfStatus
+  artifact_id: string | null
+  artifact_version: number | null
+  artifact_sha256: string | null
+  artifact_size_bytes: number | null
+  created_at: string
+  updated_at: string
+}

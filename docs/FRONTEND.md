@@ -6,7 +6,7 @@
 ## 1. 状态
 
 - 技术选择：Vue 3 + Vite 独立 Web 客户端。
-- 交付阶段：M2 分析就绪输入、M3 确定性决策页面和 M4 声明式模板/ResumeVariant 页面已交付；M4 后续与 M5 继续扩展投递和 Evidence 页面。
+- 交付阶段：M2 分析就绪输入、M3 确定性决策页面和 M4 声明式模板/ResumeVariant/PDF 页面已交付；M4 后续与 M5 继续扩展投递和 Evidence 页面。
 - 实现状态：Current 基线已包含 `frontend/`、Node 依赖、Web 容器、前端 CI 与定制简历工作流；未交付页面继续按 Planned 标注。
 - 替代方案：不采用 Gradio；不维护 Gradio 与 Vue 两套客户端。
 
@@ -71,10 +71,14 @@ flowchart LR
 - `POST /resume-variants`
 - `GET /resume-variants`
 - `GET /resume-variants/{id}`
+- `POST /resume-variants/{id}/pdf`
+- `GET /resume-variants/{id}/pdf`
+- `GET /resume-pdfs/{id}`
+- `GET /resume-pdfs/{id}/content`
 - `GET /health`
 - `GET /ready`
 
-简历版本、声明式模板与 ResumeVariant 接口均属于 Current。分析、报告与投/不投决定的后端 API 及浏览器页面也属于 Current。PDF、MessageDraft 与外部投递仍未交付；前端不得根据路线图伪造响应或绕过未交付 API。
+简历版本、声明式模板、ResumeVariant 与确定性 PDF 接口均属于 Current。分析、报告与投/不投决定的后端 API 及浏览器页面也属于 Current。MessageDraft 与外部投递仍未交付；前端不得根据路线图伪造响应或绕过未交付 API。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
 构建产物，因此只能保存公开配置，禁止写入数据库凭据、签名密钥、Provider Token 或其他秘密。
@@ -116,7 +120,7 @@ Nora 可预期错误使用稳定结构：
 
 - M2 分析就绪状态与输入 E2E（Current）；
 - M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，对应 `MILESTONE_PLAN.md` §6.6-§6.9）；
-- M4 声明式模板选择、ResumeVariant 内容编排与不可变详情（Current）；PDF、MessageDraft、手工投递记录、最小面试通知和 Beta 流程仍为 Planned；
+- M4 声明式模板选择、ResumeVariant 内容编排、不可变详情与确定性 PDF 生成/预览/下载（Current）；MessageDraft、手工投递记录、最小面试通知和 Beta 流程仍为 Planned；
 - M5 Evidence、检索引用和可选模型增强版本；
 - 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
 
@@ -144,7 +148,7 @@ Nora 可预期错误使用稳定结构：
 | 查看同步分析结果 | `/analysis/:id` | Current，M3 |
 | 决策报告（匹配/差距/未知/建议） | `/reports/:id` | Current，M3；公司情报 Planned，M4 |
 | 投/不投决定 | 报告页内 `DecisionBar` | Current，M3 |
-| 定制简历（选模板） | `/templates`、`/resumes/:id/customize`、`/resume-variants/:id` | Current，M4；PDF Planned |
+| 定制简历（选模板与 PDF） | `/templates`、`/resumes/:id/customize`、`/resume-variants/:id` | Current，M4 |
 | 打招呼语草稿 | `/messages/:id` | M4 |
 | 投递与最小面试通知 | `/applications`、`/interviews` | M4 |
 | Evidence 与 AI 增强版本 | 报告详情内版本视图 | M5 |
@@ -172,7 +176,7 @@ Nora 可预期错误使用稳定结构：
 /reports/:id                确定性报告详情〔Current〕
 /templates                  模板与定制简历列表〔Current，M4〕
 /resumes/:id/customize      选择、编辑和编排定制内容〔Current，M4〕
-/resume-variants/:id        不可变定制简历详情〔Current，M4〕
+/resume-variants/:id        不可变定制简历详情与 PDF〔Current，M4〕
 /messages/:id               打招呼语草稿〔M4 Planned〕
 /applications               手工投递记录〔M4 Planned〕
 /interviews                 最小面试通知〔M4 Planned〕
@@ -249,14 +253,15 @@ Nora 可预期错误使用稳定结构：
 - 状态转换固定报告、DecisionCase 与简历版本，并记录操作者、时间和原因；刷新时与报告并行恢复。
 - 边界：不生成 ResumeVariant、MessageDraft 或 PDF，不执行外部投递；历史 skip 提示如后续展示，只允许使用确定性标签交集，不依赖 RAG。
 
-### 10.9 定制简历（Current，M4）与 PDF（Planned）
+### 10.9 定制简历与 PDF（Current，M4）
 
 - 模板与变体列表 `/templates`（Current）：读取声明式 JSON 模板的页面尺寸、密度、强调色、区块顺序和字段约束，并列出当前用户已创建的不可变变体。
 - 定制 `/resumes/:id/customize`（Current）：仅从报告中的 apply 决定进入，固定决定和来源简历；选择精确模板版本，裁剪、编辑、排序允许字段并创建 ResumeVariant。必填字段不可取消，失败重试沿用同一幂等键。
-- 详情 `/resume-variants/:id`（Current）：刷新后从 API 重新读取变体和精确模板版本，展示固定的决定、案例、岗位、岗位要求、简历、模板、生成器及内容指纹；登出时清空用户范围缓存。
-- API（Current）：`GET /templates`、`GET /templates/{id}/versions/{version}`、`POST /resume-variants`、`GET /resume-variants`、`GET /resume-variants/{id}`。跨用户对象与不存在对象统一返回 `404`。
+- 详情 `/resume-variants/:id`（Current）：刷新后从 API 重新读取变体、精确模板版本和最近 PDF 状态，展示固定的决定、案例、岗位、岗位要求、简历、模板、生成器及内容指纹；登出时清空用户范围缓存。
+- PDF（Current）：详情页可发起生成或失败重试；`available` 后展示 Artifact 版本、SHA-256、渲染器与字体集版本，并通过带 Bearer Token 的 Blob 请求预览或下载。刷新恢复服务端状态，预览 URL 在替换或卸载时回收，不持久化对象字节或 URL。
+- API（Current）：`GET /templates`、`GET /templates/{id}/versions/{version}`、`POST /resume-variants`、`GET /resume-variants`、`GET /resume-variants/{id}`、`POST /resume-variants/{id}/pdf`、`GET /resume-variants/{id}/pdf`、`GET /resume-pdfs/{id}` 与 `GET /resume-pdfs/{id}/content`。未生成 PDF 时读取返回 `204`；首次生成返回 `201`，同一生成身份重放返回 `200`；跨用户对象与不存在对象统一返回 `404`。
 - 安全边界：前端只提交受控字段路径和纯文本值，不执行模板代码、用户 HTML 或外部资源；编辑结果只属于 ResumeVariant，不修改 CandidateProfile 或 ResumeVersion。
-- PDF 与打招呼语仍为 Planned：#92 负责生成/读取 PDF Artifact；`/messages/:id` 的 MessageDraft 独立交付。当前页面不伪造下载、分享或消息功能。
+- 打招呼语仍为 Planned：`/messages/:id` 的 MessageDraft 独立交付。当前页面不伪造分享、消息或外部投递功能。
 
 ### 10.10 最小面试通知（M4）与触发式候选
 
@@ -273,7 +278,7 @@ Nora 可预期错误使用稳定结构：
 | `resumeStore` | 简历版本列表/详情 | versions、current |
 | `jobStore` | 岗位列表/详情/新建 | jobs、current、inputMode（text/ocr/link） |
 | `analysisStore` | DecisionCase 创建、同步结果、报告与投不投决定缓存 | currentCase、analysis、report、reports、decision |
-| `variantsStore` | 模板、ResumeVariant 列表/详情、精确模板恢复与幂等创建状态 | templates、variants、current、currentTemplate |
+| `variantsStore` | 模板、ResumeVariant 列表/详情、精确模板恢复、幂等创建与 PDF 状态 | templates、variants、current、currentTemplate、currentPdf、generatingPdf |
 
 规则：Store 只保存展示状态与缓存快照，不持有业务事实权威；页面刷新后从后端重新加载；跨页共享使用稳定 ID。
 
@@ -304,7 +309,7 @@ Nora 可预期错误使用稳定结构：
 | `ResumeVersionCard` | 简历版本卡片 | Current |
 | `ReportContent` / `RuleStatusBadge` | 报告分区、规则状态与字段引用 | Current |
 | `DecisionBar` | 固定报告版本的投/不投决定 | Current |
-| `ResumeCustomizeView` / `ResumeVariantDetailView` | 受控字段编排与不可变变体恢复 | Current，M4 |
+| `ResumeCustomizeView` / `ResumeVariantDetailView` | 受控字段编排、不可变变体恢复与 PDF 生成/预览/下载 | Current，M4 |
 | `AppErrorBoundary` | 顶层渲染错误边界 | Current |
 | `ErrorState` / `LoadingState` / `EmptyState` | 可复用通用状态组件 | Planned；当前页面内联处理 |
 
@@ -315,7 +320,7 @@ Nora 可预期错误使用稳定结构：
 | Current 基线 | Vue 工程、认证、岗位文本、主档、简历、岗位要求确认页面、前端 CI 和基础浏览器 E2E |
 | M2 | 分析就绪状态、输入 E2E；截图 OCR/链接预览经后端接口返回正文预览 |
 | M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
-| M4 | 模板与 ResumeVariant Current；PDF、消息草稿、手工投递记录、最小面试通知和完整 Beta E2E Planned |
+| M4 | 模板、ResumeVariant 与确定性 PDF Current；消息草稿、手工投递记录、最小面试通知和完整 Beta E2E Planned |
 | M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示 |
 
 ## 15. 技术选型（Current 基线）

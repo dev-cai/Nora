@@ -13,6 +13,9 @@ from app.ports.knowledge import StoredObject, StoredObjectInfo
 class MemoryArtifacts:
     def __init__(self) -> None:
         self.values: dict[object, Artifact] = {}
+        self.committed: dict[object, Artifact] = {}
+        self.commit_calls = 0
+        self.fail_commit_at: int | None = None
 
     async def get_by_id(self, artifact_id):
         return self.values.get(artifact_id)
@@ -39,9 +42,14 @@ class MemoryArtifacts:
         return {value.object_key for value in self.values.values() if value.object_key}
 
     async def commit(self):
+        self.commit_calls += 1
+        if self.commit_calls == self.fail_commit_at:
+            raise RuntimeError("commit failed")
+        self.committed = dict(self.values)
         return None
 
     async def rollback(self):
+        self.values = dict(self.committed)
         return None
 
 
@@ -187,6 +195,36 @@ async def test_storage_failures_never_publish_success_and_deletion_is_retryable(
     storage.fail_delete = False
     assert await service.retry_deletions() == 1
     assert artifacts.values[available.id].status is ArtifactStatus.DELETED
+
+
+@pytest.mark.asyncio
+async def test_database_publish_failure_removes_object_and_retry_recovers() -> None:
+    storage = MemoryStorage()
+    service, artifacts, _ = _service(storage)
+    artifacts.fail_commit_at = 2
+    owner = uuid4()
+    command = UploadArtifactCommand(
+        owner,
+        ArtifactKind.GENERATED,
+        "text/plain",
+        b"alpha",
+        "database-publish-failure",
+        generator_version="renderer-1",
+        generation_identity="a" * 64,
+    )
+
+    with pytest.raises(ApplicationError, match="unavailable"):
+        await service.upload(command)
+
+    pending = next(iter(artifacts.values.values()))
+    assert pending.status is ArtifactStatus.PENDING
+    assert storage.values == {}
+
+    artifacts.fail_commit_at = None
+    recovered = await service.upload(command)
+    assert recovered.id == pending.id
+    assert recovered.status is ArtifactStatus.AVAILABLE
+    assert len(storage.values) == 1
 
 
 @pytest.mark.asyncio

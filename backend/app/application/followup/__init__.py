@@ -1,5 +1,11 @@
 """Application & Follow-up use-case exports."""
 
+from .resume_pdf import (
+    GenerateResumePdfCommand,
+    GenerateResumePdfResult,
+    ResumePdfDownload,
+    ResumePdfService,
+)
 from .resume_variant import (
     CreateResumeVariantCommand,
     CreateResumeVariantResult,
@@ -21,6 +27,10 @@ __all__ = (
     "CreateApplicationDecisionUseCase",
     "GetApplicationDecisionQuery",
     "GetApplicationDecisionUseCase",
+    "GenerateResumePdfCommand",
+    "GenerateResumePdfResult",
+    "ResumePdfDownload",
+    "ResumePdfService",
     "CreateResumeVariantCommand",
     "CreateResumeVariantResult",
     "ListResumeVariantsQuery",

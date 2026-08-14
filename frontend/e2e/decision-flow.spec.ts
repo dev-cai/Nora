@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises"
+
 import { expect, test, type Page } from "@playwright/test"
 
 type User = { username: string; email: string; password: string }
@@ -172,6 +174,29 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
   await expect(page.getByText("M4 定制用户", { exact: true })).toBeVisible()
   await expect(page.getByText("版本已固定")).toBeVisible()
 
+  await page.getByRole("button", { name: "生成 PDF" }).click()
+  await expect(page.getByText("可用", { exact: true })).toBeVisible()
+  await expect(page.getByText(/weasyprint-69\.0/)).toBeVisible()
+  const userASession = await page.evaluate(() => JSON.parse(sessionStorage.getItem("nora.auth.session") || "{}"))
+  const pdfStatus = await page.request.get(`/api/resume-variants/${variantId}/pdf`, {
+    headers: { Authorization: `Bearer ${userASession.token}` },
+  })
+  expect(pdfStatus.status()).toBe(200)
+  const pdfId = (await pdfStatus.json()).id as string
+
+  await page.reload()
+  await expect(page.getByRole("button", { name: "预览" })).toBeVisible()
+  await page.getByRole("button", { name: "预览" }).click()
+  await expect(page.getByTitle("定制简历 PDF 预览")).toHaveAttribute("src", /^blob:/)
+
+  const downloadPromise = page.waitForEvent("download")
+  await page.getByRole("button", { name: "下载" }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe(`nora-resume-${pdfId}.pdf`)
+  const downloadPath = await download.path()
+  expect(downloadPath).not.toBeNull()
+  expect((await readFile(downloadPath!)).subarray(0, 8).toString()).toBe("%PDF-1.7")
+
   await page.getByRole("button", { name: "退出登录" }).click()
   const userB = newUser("m4-variant-b")
   await registerAndLogin(page, userB)
@@ -183,4 +208,12 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
     headers: { Authorization: `Bearer ${userBSession.token}` },
   })
   expect(foreignRead.status()).toBe(404)
+  const foreignPdf = await page.request.get(`/api/resume-pdfs/${pdfId}`, {
+    headers: { Authorization: `Bearer ${userBSession.token}` },
+  })
+  expect(foreignPdf.status()).toBe(404)
+  const foreignPdfContent = await page.request.get(`/api/resume-pdfs/${pdfId}/content`, {
+    headers: { Authorization: `Bearer ${userBSession.token}` },
+  })
+  expect(foreignPdfContent.status()).toBe(404)
 })
