@@ -200,12 +200,8 @@ class CompanyAssessmentRecord(Base):
             "owner_id", "generation_identity", name="uq_company_assessment_generation"
         ),
         CheckConstraint("version >= 1", name="ck_company_assessment_version"),
-        CheckConstraint("decision_case_version >= 1", name="ck_company_assessment_case_version"),
         CheckConstraint(
             "company_snapshot_version >= 1", name="ck_company_assessment_snapshot_version"
-        ),
-        CheckConstraint(
-            "decision_case_version = 1", name="ck_company_assessment_case_compat_version"
         ),
         CheckConstraint(
             "length(generation_identity) = 64", name="ck_company_assessment_generation_identity"
@@ -251,7 +247,6 @@ class CompanyAssessmentRecord(Base):
     report_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     report_version: Mapped[int] = mapped_column(Integer, nullable=False)
     decision_case_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
-    decision_case_version: Mapped[int] = mapped_column(Integer, nullable=False)
     company_snapshot_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     company_snapshot_version: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -527,7 +522,6 @@ class SqlAlchemyCompanyAssessmentRepository:
             report_id=record.report_id,
             report_version=record.report_version,
             decision_case_id=record.decision_case_id,
-            decision_case_version=record.decision_case_version,
             company_snapshot_id=record.company_snapshot_id,
             company_snapshot_version=record.company_snapshot_version,
             status=CompanyAssessmentStatus(record.status),
@@ -547,7 +541,6 @@ class SqlAlchemyCompanyAssessmentRepository:
             report_id=assessment.report_id,
             report_version=assessment.report_version,
             decision_case_id=assessment.decision_case_id,
-            decision_case_version=assessment.decision_case_version,
             company_snapshot_id=assessment.company_snapshot_id,
             company_snapshot_version=assessment.company_snapshot_version,
             status=assessment.status.value,

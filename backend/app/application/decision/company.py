@@ -78,7 +78,6 @@ class CompanyAssessmentUseCases:
             report_id=report.id,
             report_version=report.version,
             decision_case_id=decision_case.id,
-            decision_case_version=1,
             company_snapshot_id=snapshot.id,
             company_snapshot_version=snapshot.version,
             status=assessment_status,

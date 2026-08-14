@@ -254,7 +254,6 @@ class CompanyAssessmentResponse(BaseModel):
     report_id: UUID
     report_version: int
     decision_case_id: UUID
-    decision_case_version: int
     status: CompanyAssessmentStatus
     status_reason: str
     generator_version: str
@@ -283,7 +282,6 @@ def _company_assessment_response(result: object) -> CompanyAssessmentResponse:
         report_id=assessment.report_id,
         report_version=assessment.report_version,
         decision_case_id=assessment.decision_case_id,
-        decision_case_version=assessment.decision_case_version,
         status=assessment.status,
         status_reason=assessment.status_reason,
         generator_version=assessment.generator_version,

@@ -342,7 +342,7 @@ M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecis
 CompanyAssessment 响应移除 `decision_case_version`；未来只有出现“同一案例身份下必须追加且独立引用多个输入修订”的真实需求时，
 才能通过新的 Architecture Issue 为 DecisionCase 设计版本序列和迁移，不能复用本常量字段。
 
-Schema upgrade 在删除列前先按新身份对象重算每条 CompanyAssessment 的 `generation_identity`：
+Schema upgrade 已在删除列前先按新身份对象重算每条 CompanyAssessment 的 `generation_identity`：
 
 ```json
 {
@@ -355,14 +355,14 @@ Schema upgrade 在删除列前先按新身份对象重算每条 CompanyAssessmen
 }
 ```
 
-序列化继续使用 key 排序、紧凑 JSON、ASCII 转义和 UTF-8 SHA-256。重算完成后删除
+序列化继续使用 key 排序、紧凑 JSON、ASCII 转义和 UTF-8 SHA-256。重算完成后已删除
 `ck_company_assessment_case_compat_version`、`ck_company_assessment_case_version` 与 `decision_case_version` 列；其余外键、唯一约束
-和 owner 隔离保持不变。迁移必须在一个数据库事务中校验所有新身份仍唯一，任何读取、重算或约束失败都停止升级，不留下半迁移状态。
+和 owner 隔离保持不变。迁移在一个数据库事务中校验所有新身份仍唯一，任何读取、重算或约束失败都停止升级，不留下半迁移状态。
 
 Downgrade 先以默认值 `1` 加回非空列，按旧身份对象（包含 `"decision_case_version": 1`）重算全部生成身份，再恢复两个 Check
 Constraint 并移除临时 server default。这样旧应用重放既有附件时仍得到原算法身份；upgrade/downgrade 都不删除
-CompanyAssessment、DecisionCase 或报告数据。后续实现同时移除 Domain 字段与构造参数、Application 固定值、Port/Adapter 映射、
-API DTO、ORM 列、迁移测试和固定值断言，不修改 CompanySnapshot、DecisionReport 或 Artifact 的版本契约。
+CompanyAssessment、DecisionCase 或报告数据。实现已同时移除 Domain 字段与构造参数、Application 固定值、Adapter 映射、
+API DTO、ORM 列和固定值断言，不修改 CompanySnapshot、DecisionReport、Artifact 或 MessageDraft 的版本契约。
 
 ### 公司网评 Evidence 与历史跳过检索
 
