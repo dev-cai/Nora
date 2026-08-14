@@ -350,7 +350,10 @@ code_paths = [
   "backend/alembic/versions/0015_company_intelligence.py",
   "backend/alembic/versions/0019_company_assessment_identity.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/179"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/179",
+  "https://github.com/dev-cai/Nora/pull/211",
+]
 
 [[capabilities]]
 id = "declarative-resume-variants"
