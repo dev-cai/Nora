@@ -155,7 +155,7 @@ code_paths = [
   "frontend/src/api/generated/schema.d.ts",
   "frontend/tests/api-client.test.ts",
 ]
-evidence = ["https://github.com/dev-cai/Nora/issues/204"]
+evidence = ["https://github.com/dev-cai/Nora/pull/213"]
 
 [[capabilities]]
 id = "jd-input-contract"
