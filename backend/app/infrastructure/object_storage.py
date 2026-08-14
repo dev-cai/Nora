@@ -2,14 +2,17 @@
 
 import asyncio
 import hashlib
+import logging
 from io import BytesIO
 from uuid import uuid4
 
-from minio import Minio, S3Error
+from minio import Minio
 from minio.commonconfig import CopySource
+from minio.error import MinioException
 
-from app.domain.base.exceptions import InfrastructureError
-from app.ports.knowledge import StoredObject, StoredObjectInfo
+from app.ports.knowledge import ArtifactStorageError, StoredObject, StoredObjectInfo
+
+logger = logging.getLogger(__name__)
 
 
 class MinioArtifactStorage:
@@ -44,7 +47,7 @@ class MinioArtifactStorage:
                 or stored.content_type != content_type
                 or stored_digest != digest
             ):
-                raise InfrastructureError(
+                raise ArtifactStorageError(
                     "Object storage verification failed", error_code="artifact_storage_unavailable"
                 )
             await asyncio.to_thread(
@@ -64,18 +67,24 @@ class MinioArtifactStorage:
                 or published_digest != digest
             ):
                 await asyncio.to_thread(self.client.remove_object, self.bucket, object_key)
-                raise InfrastructureError(
+                raise ArtifactStorageError(
                     "Object storage verification failed", error_code="artifact_storage_unavailable"
                 )
-        except S3Error as exc:
-            raise InfrastructureError(
+        except MinioException as exc:
+            raise ArtifactStorageError(
                 "Object storage write failed", error_code="artifact_storage_unavailable"
             ) from exc
         finally:
             try:
                 await asyncio.to_thread(self.client.remove_object, self.bucket, temporary_key)
-            except S3Error:
-                pass
+            except MinioException as exc:
+                logger.warning(
+                    "Artifact storage cleanup failed",
+                    extra={
+                        "compensation_stage": "temporary_object_delete",
+                        "error_type": type(exc).__name__,
+                    },
+                )
 
     async def get(self, *, object_key: str) -> StoredObject:
         self._validate_key(object_key)
@@ -87,8 +96,8 @@ class MinioArtifactStorage:
                 data=data,
                 content_type=response.headers.get("content-type", "application/octet-stream"),
             )
-        except S3Error as exc:
-            raise InfrastructureError(
+        except MinioException as exc:
+            raise ArtifactStorageError(
                 "Object storage read failed", error_code="artifact_storage_unavailable"
             ) from exc
         finally:
@@ -100,8 +109,8 @@ class MinioArtifactStorage:
         self._validate_key(object_key)
         try:
             await asyncio.to_thread(self.client.remove_object, self.bucket, object_key)
-        except S3Error as exc:
-            raise InfrastructureError(
+        except MinioException as exc:
+            raise ArtifactStorageError(
                 "Object storage delete failed", error_code="artifact_storage_unavailable"
             ) from exc
 
@@ -110,8 +119,8 @@ class MinioArtifactStorage:
             objects = await asyncio.to_thread(
                 lambda: list(self.client.list_objects(self.bucket, recursive=True))
             )
-        except S3Error as exc:
-            raise InfrastructureError(
+        except MinioException as exc:
+            raise ArtifactStorageError(
                 "Object storage list failed", error_code="artifact_storage_unavailable"
             ) from exc
         return [
@@ -122,7 +131,7 @@ class MinioArtifactStorage:
     @staticmethod
     def _validate_key(value: str) -> None:
         if not value or value.startswith("/") or ".." in value.split("/"):
-            raise InfrastructureError("Object key is invalid", error_code="invalid_object_key")
+            raise ArtifactStorageError("Object key is invalid", error_code="invalid_object_key")
 
 
 def create_minio_storage(

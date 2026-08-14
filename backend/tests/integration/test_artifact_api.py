@@ -7,16 +7,19 @@ from app.apps.api import create_app
 from app.apps.api.dependencies import get_artifact_storage
 from app.infrastructure.config import Settings
 from app.infrastructure.database import Base
-from app.ports.knowledge import StoredObject, StoredObjectInfo
+from app.ports.knowledge import ArtifactStorageError, StoredObject, StoredObjectInfo
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import create_async_engine
 
 
 class MemoryArtifactStorage:
-    def __init__(self) -> None:
+    def __init__(self, *, put_error: Exception | None = None) -> None:
         self.values: dict[str, StoredObject] = {}
+        self.put_error = put_error
 
     async def put(self, *, object_key: str, data: bytes, content_type: str) -> None:
+        if self.put_error is not None:
+            raise self.put_error
         self.values[object_key] = StoredObject(data=data, content_type=content_type)
 
     async def get(self, *, object_key: str) -> StoredObject:
@@ -46,7 +49,12 @@ def _reset_database(database_url: str) -> None:
     asyncio.run(reset())
 
 
-def _client(database_url: str) -> TestClient:
+def _client(
+    database_url: str,
+    *,
+    storage: MemoryArtifactStorage | None = None,
+    raise_server_exceptions: bool = True,
+) -> TestClient:
     _reset_database(database_url)
     app = create_app(
         Settings(
@@ -56,9 +64,9 @@ def _client(database_url: str) -> TestClient:
             artifact_allowed_content_types="text/plain,application/pdf",
         )
     )
-    storage = MemoryArtifactStorage()
-    app.dependency_overrides[get_artifact_storage] = lambda: storage
-    return TestClient(app)
+    selected_storage = storage or MemoryArtifactStorage()
+    app.dependency_overrides[get_artifact_storage] = lambda: selected_storage
+    return TestClient(app, raise_server_exceptions=raise_server_exceptions)
 
 
 def _register_and_login(client: TestClient, username: str) -> dict[str, str]:
@@ -160,3 +168,32 @@ def test_artifact_api_enforces_bounds_and_complete_idempotency(database_url: str
         unsupported = _upload(client, auth, key="image", content=b"image", content_type="image/png")
         assert unsupported.status_code == 415
         assert _upload(client, {}, key="anonymous").status_code == 401
+
+
+def test_known_artifact_storage_failure_returns_stable_503(database_url: str) -> None:
+    storage = MemoryArtifactStorage(put_error=ArtifactStorageError("storage unavailable"))
+    with _client(database_url, storage=storage) as client:
+        auth = _register_and_login(client, "artifact-api-storage-failure")
+        response = _upload(client, auth, key="known-storage-failure")
+
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "artifact_storage_unavailable"
+
+
+def test_unknown_artifact_storage_failure_returns_sanitized_500(database_url: str) -> None:
+    secret = "internal storage secret"
+    storage = MemoryArtifactStorage(put_error=RuntimeError(secret))
+    with _client(
+        database_url,
+        storage=storage,
+        raise_server_exceptions=False,
+    ) as client:
+        auth = _register_and_login(client, "artifact-api-unknown-failure")
+        response = _upload(client, auth, key="unknown-storage-failure")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "error_code": "internal_error",
+        "message": "Internal server error",
+    }
+    assert secret not in response.text

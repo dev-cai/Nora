@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from app.domain.base.exceptions import InfrastructureError
 from app.domain.knowledge import Artifact, SourceDocument
 
 
@@ -18,6 +19,10 @@ class StoredObject:
 class StoredObjectInfo:
     object_key: str
     last_modified: datetime
+
+
+class ArtifactStorageError(InfrastructureError):
+    """Known failure raised by an ArtifactStorage adapter."""
 
 
 class ArtifactRepository(Protocol):
