@@ -395,4 +395,4 @@ code_paths = [
   "frontend/src/views/MessageDraftView.vue",
   "frontend/src/stores/messages.ts",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/183"]
+evidence = ["https://github.com/dev-cai/Nora/pull/192"]
