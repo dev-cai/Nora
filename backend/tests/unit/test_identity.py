@@ -35,6 +35,9 @@ def test_jwt_round_trip_and_invalid_token() -> None:
     user_id = uuid4()
     token = issuer.issue(user_id)
     assert issuer.decode(token) == user_id
+    claims = issuer.decode(token)
+    assert claims.session_version == 1
+    assert claims.kid == "dev"
 
     with pytest.raises(NoraError, match="Authentication required"):
         issuer.decode("not-a-token")
@@ -55,3 +58,30 @@ def test_jwt_issuer_rejects_unsafe_configuration() -> None:
         JwtTokenIssuer("too-short", access_token_minutes=5)
     with pytest.raises(ValueError, match="must be positive"):
         JwtTokenIssuer("test-secret-32-bytes-long-key-value!", access_token_minutes=0)
+
+
+def test_jwt_key_rotation_keeps_overlap_and_emergency_removal_revokes() -> None:
+    old_key = "old-test-secret-key-with-32-bytes!"
+    new_key = "new-test-secret-key-with-32-bytes!"
+    user_id = uuid4()
+    old_token = JwtTokenIssuer(
+        access_token_minutes=5,
+        key_ring={"old": old_key},
+        active_kid="old",
+    ).issue(user_id, session_version=3)
+
+    overlapping = JwtTokenIssuer(
+        access_token_minutes=5,
+        key_ring={"old": old_key, "new": new_key},
+        active_kid="new",
+    )
+    assert overlapping.decode(old_token).session_version == 3
+    assert overlapping.decode(overlapping.issue(user_id, 3)).kid == "new"
+
+    emergency = JwtTokenIssuer(
+        access_token_minutes=5,
+        key_ring={"new": new_key},
+        active_kid="new",
+    )
+    with pytest.raises(NoraError, match="Authentication required"):
+        emergency.decode(old_token)

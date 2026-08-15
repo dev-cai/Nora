@@ -1,14 +1,24 @@
 """从环境变量或 .env 文件加载应用配置。"""
 
+import re
 from enum import StrEnum
 from functools import lru_cache
+from ipaddress import IPv4Network, IPv6Network, ip_network
+from pathlib import Path
 from typing import Self
+from urllib.parse import urlsplit
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import make_url
 
 DEFAULT_AUTH_SECRET_KEY = "development-only-change-this-secret"
+DEFAULT_AUTH_RATE_LIMIT_SECRET = "development-rate-limit-secret-change-me"
+KID_PATTERN = re.compile(r"[A-Za-z0-9._-]{1,64}")
+PRIVATE_IPV4_INGRESS_NETWORKS = tuple(
+    IPv4Network(value) for value in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+)
+PRIVATE_IPV6_INGRESS_NETWORK = IPv6Network("fc00::/7")
 
 
 def require_postgresql_database_url(value: str) -> str:
@@ -50,7 +60,14 @@ class Settings(BaseSettings):
     database_max_overflow: int = 10
     database_pool_timeout: float = 30.0
     auth_secret_key: str = Field(default=DEFAULT_AUTH_SECRET_KEY, min_length=32)
-    auth_access_token_minutes: int = Field(default=30, ge=1, le=1440)
+    auth_access_token_minutes: int = Field(default=30, ge=1, le=30)
+    auth_key_ring_directory: Path | None = None
+    auth_active_kid: str = "dev"
+    auth_rate_limit_secret: str = Field(
+        default=DEFAULT_AUTH_RATE_LIMIT_SECRET, min_length=32
+    )
+    public_origin: str | None = None
+    trusted_proxy_cidr: str | None = None
     baidu_ocr_api_key: str = ""
     baidu_ocr_secret_key: str = ""
     baidu_ocr_endpoint: str = "accurate_basic"
@@ -80,6 +97,22 @@ class Settings(BaseSettings):
 
         if self.env is not Environment.DEV and self.auth_secret_key == DEFAULT_AUTH_SECRET_KEY:
             raise ValueError("AUTH_SECRET_KEY must be changed outside the dev environment")
+        if KID_PATTERN.fullmatch(self.auth_active_kid) is None:
+            raise ValueError("AUTH_ACTIVE_KID must match [A-Za-z0-9._-]{1,64}")
+        if self.env is Environment.PROD:
+            if self.database_url is None:
+                raise ValueError("DATABASE_URL is required in prod")
+            if self.auth_rate_limit_secret == DEFAULT_AUTH_RATE_LIMIT_SECRET:
+                raise ValueError("AUTH_RATE_LIMIT_SECRET must be changed in prod")
+            if self.auth_key_ring_directory is None:
+                raise ValueError("AUTH_KEY_RING_DIRECTORY is required in prod")
+            ring = self.jwt_key_ring
+            if self.auth_active_kid not in ring:
+                raise ValueError("AUTH_ACTIVE_KID must identify a configured JWT key")
+            if self.auth_rate_limit_secret in set(ring.values()):
+                raise ValueError("AUTH_RATE_LIMIT_SECRET must be separate from JWT keys")
+            self._validate_public_origin()
+            self._validate_trusted_proxy()
         if "://" in self.artifact_storage_endpoint or "/" in self.artifact_storage_endpoint:
             raise ValueError("ARTIFACT_STORAGE_ENDPOINT must be host:port without scheme or path")
         bucket = self.artifact_storage_bucket
@@ -90,6 +123,63 @@ class Settings(BaseSettings):
         if not self.allowed_artifact_content_types:
             raise ValueError("ARTIFACT_ALLOWED_CONTENT_TYPES must not be empty")
         return self
+
+    def _validate_public_origin(self) -> None:
+        value = self.public_origin or ""
+        try:
+            parsed = urlsplit(value)
+            parsed.port
+        except ValueError as exc:
+            raise ValueError("PUBLIC_ORIGIN must be one exact HTTPS origin without path") from exc
+        if (
+            value in {"*", "null"}
+            or parsed.scheme != "https"
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path != ""
+            or parsed.query
+            or parsed.fragment
+            or "*" in parsed.hostname
+            or any(char.isspace() for char in value)
+        ):
+            raise ValueError("PUBLIC_ORIGIN must be one exact HTTPS origin without path")
+
+    def _validate_trusted_proxy(self) -> None:
+        if self.trusted_proxy_cidr is None:
+            raise ValueError("TRUSTED_PROXY_CIDR is required in prod")
+        try:
+            network = ip_network(self.trusted_proxy_cidr, strict=False)
+        except ValueError as exc:
+            raise ValueError("TRUSTED_PROXY_CIDR must be a valid private network") from exc
+        allowed = (
+            any(network.subnet_of(item) for item in PRIVATE_IPV4_INGRESS_NETWORKS)
+            if isinstance(network, IPv4Network)
+            else network.subnet_of(PRIVATE_IPV6_INGRESS_NETWORK)
+        )
+        if not allowed:
+            raise ValueError("TRUSTED_PROXY_CIDR must be private")
+
+    @property
+    def jwt_key_ring(self) -> dict[str, str]:
+        """Load a fixed allowlist; token headers never select file paths."""
+
+        if self.auth_key_ring_directory is None:
+            return {self.auth_active_kid: self.auth_secret_key}
+        directory = self.auth_key_ring_directory
+        if not directory.is_dir():
+            raise ValueError("AUTH_KEY_RING_DIRECTORY must be a readable directory")
+        ring: dict[str, str] = {}
+        for path in sorted(directory.iterdir()):
+            if path.is_symlink() or not path.is_file() or KID_PATTERN.fullmatch(path.name) is None:
+                raise ValueError("JWT key filenames must be valid kid values")
+            secret = path.read_text(encoding="utf-8").rstrip("\r\n")
+            if len(secret.encode("utf-8")) < 32:
+                raise ValueError("JWT keys must contain at least 32 bytes")
+            ring[path.name] = secret
+        if not ring:
+            raise ValueError("JWT key ring must contain at least one key")
+        return ring
 
     @property
     def allowed_artifact_content_types(self) -> frozenset[str]:

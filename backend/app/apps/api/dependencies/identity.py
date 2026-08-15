@@ -5,9 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.identity import IdentityService
 from app.apps.api.dependencies._lifecycle import get_session, get_settings
-from app.infrastructure.auth import Argon2PasswordHasher, JwtTokenIssuer
+from app.infrastructure.auth import Argon2PasswordHasher, AuthenticationDigester, JwtTokenIssuer
 from app.infrastructure.config import Settings
-from app.infrastructure.database import SqlAlchemyUserRepository
+from app.infrastructure.database import (
+    SqlAlchemyAuthenticationRateLimitRepository,
+    SqlAlchemyUserRepository,
+)
 
 
 def get_identity_service(
@@ -17,5 +20,11 @@ def get_identity_service(
     return IdentityService(
         SqlAlchemyUserRepository(session),
         Argon2PasswordHasher(),
-        JwtTokenIssuer(settings.auth_secret_key, settings.auth_access_token_minutes),
+        JwtTokenIssuer(
+            access_token_minutes=settings.auth_access_token_minutes,
+            key_ring=settings.jwt_key_ring,
+            active_kid=settings.auth_active_kid,
+        ),
+        SqlAlchemyAuthenticationRateLimitRepository(session),
+        AuthenticationDigester(settings.auth_rate_limit_secret),
     )

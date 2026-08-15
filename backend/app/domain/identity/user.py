@@ -13,6 +13,7 @@ class User:
     id: UUID
     username: str
     email: str
+    session_version: int = 1
 
     @classmethod
     def create(cls, username: str, email: str) -> "User":

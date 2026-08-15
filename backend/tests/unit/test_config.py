@@ -28,8 +28,19 @@ def test_environment_variables_override_dotenv(tmp_path: Path, monkeypatch) -> N
     )
     monkeypatch.setenv("ENV", "prod")
     monkeypatch.setenv("DEBUG", "true")
+    key_ring = tmp_path / "keys"
+    key_ring.mkdir()
+    (key_ring / "active").write_text("a" * 32, encoding="utf-8")
 
-    settings = Settings(_env_file=env_file)
+    settings = Settings(
+        _env_file=env_file,
+        database_url="postgresql+asyncpg://nora:nora@localhost/nora",
+        auth_key_ring_directory=key_ring,
+        auth_active_kid="active",
+        auth_rate_limit_secret="b" * 32,
+        public_origin="https://nora.example",
+        trusted_proxy_cidr="10.0.0.0/8",
+    )
 
     assert settings.env is Environment.PROD
     assert settings.debug is True
@@ -53,6 +64,28 @@ def test_auth_configuration_rejects_weak_secret_and_invalid_lifetime() -> None:
 def test_settings_reject_non_postgresql_database_url() -> None:
     with pytest.raises(ValidationError, match=r"DATABASE_URL must use postgresql\+asyncpg"):
         Settings(database_url="sqlite:///nora.db", _env_file=None)
+
+
+@pytest.mark.parametrize(
+    "origin",
+    ["*", "null", "http://nora.example", "https://nora.example/path", "https://nora.example?q=1"],
+)
+def test_production_rejects_unsafe_public_origin(tmp_path: Path, origin: str) -> None:
+    key_ring = tmp_path / "keys"
+    key_ring.mkdir()
+    (key_ring / "active").write_text("a" * 32, encoding="utf-8")
+    with pytest.raises(ValidationError, match="PUBLIC_ORIGIN"):
+        Settings(
+            env=Environment.PROD,
+            database_url="postgresql+asyncpg://nora:nora@localhost/nora",
+            auth_secret_key=TEST_AUTH_SECRET,
+            auth_key_ring_directory=key_ring,
+            auth_active_kid="active",
+            auth_rate_limit_secret="b" * 32,
+            public_origin=origin,
+            trusted_proxy_cidr="10.0.0.0/8",
+            _env_file=None,
+        )
 
 
 def test_artifact_storage_configuration_is_private_and_bounded() -> None:

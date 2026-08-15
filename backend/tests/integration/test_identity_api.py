@@ -1,14 +1,19 @@
 """Identity API 集成测试。"""
 
 import asyncio
+from pathlib import Path
 
 import pytest
+from app.application.identity import IdentityManagementService
 from app.apps.api import create_app
 from app.domain.base.exceptions import NoraError
 from app.domain.identity import User
+from app.infrastructure.auth import Argon2PasswordHasher
 from app.infrastructure.config import Settings
 from app.infrastructure.database import (
     Base,
+    SqlAlchemyAuditEventRepository,
+    SqlAlchemyIdentityManagementRepository,
     SqlAlchemyUserRepository,
     UserRecord,
     create_session_factory,
@@ -93,6 +98,111 @@ def test_identity_endpoint_reports_missing_database_as_unavailable() -> None:
 
     assert response.status_code == 503
     assert response.json()["error_code"] == "database_unavailable"
+
+
+def _production_settings(database_url: str, tmp_path: Path) -> Settings:
+    key_ring = tmp_path / "keys"
+    key_ring.mkdir()
+    (key_ring / "active").write_text("production-test-jwt-key-value-32!", encoding="utf-8")
+    return Settings(
+        env="prod",
+        database_url=database_url,
+        auth_secret_key="production-legacy-secret-value-32!",
+        auth_key_ring_directory=key_ring,
+        auth_active_kid="active",
+        auth_rate_limit_secret="production-rate-limit-secret-32!",
+        public_origin="https://nora.example",
+        trusted_proxy_cidr="10.0.0.0/8",
+    )
+
+
+def test_production_rejects_origin_and_hides_registration_before_body_parsing(
+    database_url: str, tmp_path: Path
+) -> None:
+    reset_database(database_url)
+    settings = _production_settings(database_url, tmp_path)
+    with TestClient(create_app(settings)) as client:
+        denied = client.post(
+            "/auth/login",
+            headers={"Origin": "https://attacker.example"},
+            content=b"not-json",
+        )
+        assert denied.status_code == 403
+        assert denied.json()["error_code"] == "origin_not_allowed"
+        assert "access-control-allow-origin" not in denied.headers
+
+        hidden = client.post(
+            "/auth/register",
+            headers={"Origin": "https://nora.example", "Content-Type": "application/json"},
+            content=b"not-json",
+        )
+        assert hidden.status_code == 404
+        assert hidden.json()["error_code"] == "entity_not_found"
+
+
+def test_login_target_rate_limit_and_recovery_invalidate_old_session(
+    database_url: str,
+) -> None:
+    reset_database(database_url)
+    settings = Settings(
+        database_url=database_url,
+        auth_secret_key="test-secret-key-32-bytes-long-key!",
+    )
+
+    async def bootstrap() -> None:
+        engine = create_async_engine(database_url)
+        factory = create_session_factory(engine)
+        async with factory() as session:
+            result = await IdentityManagementService(
+                SqlAlchemyIdentityManagementRepository(
+                    session, SqlAlchemyAuditEventRepository(session)
+                ),
+                Argon2PasswordHasher(),
+            ).bootstrap_owner(
+                "bootstrap-1", "alice", "alice@example.com", "password-123"
+            )
+            assert result.status == "created"
+        await engine.dispose()
+
+    async def recover() -> None:
+        engine = create_async_engine(database_url)
+        factory = create_session_factory(engine)
+        async with factory() as session:
+            result = await IdentityManagementService(
+                SqlAlchemyIdentityManagementRepository(
+                    session, SqlAlchemyAuditEventRepository(session)
+                ),
+                Argon2PasswordHasher(),
+            ).recover_credentials("recover-1", "new-password-123")
+            assert result.session_version == 2
+        await engine.dispose()
+
+    asyncio.run(bootstrap())
+    with TestClient(create_app(settings)) as client:
+        login = client.post(
+            "/auth/login", json={"username": "alice", "password": "password-123"}
+        )
+        assert login.status_code == 200
+        old_token = login.json()["access_token"]
+
+        for _ in range(5):
+            failed = client.post(
+                "/auth/login", json={"username": "unknown", "password": "wrong"}
+            )
+            assert failed.status_code == 401
+        limited = client.post(
+            "/auth/login", json={"username": "unknown", "password": "wrong"}
+        )
+        assert limited.status_code == 429
+        assert int(limited.headers["Retry-After"]) >= 1
+
+        asyncio.run(recover())
+        revoked = client.get("/auth/me", headers={"Authorization": f"Bearer {old_token}"})
+        assert revoked.status_code == 401
+        renewed = client.post(
+            "/auth/login", json={"username": "alice", "password": "new-password-123"}
+        )
+        assert renewed.status_code == 200
 
 
 @pytest.mark.asyncio

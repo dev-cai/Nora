@@ -24,6 +24,7 @@ class ErrorCode(StrEnum):
     ARTIFACT_TOO_LARGE = "artifact_too_large"
     ARTIFACT_UNAVAILABLE = "artifact_unavailable"
     AUTHENTICATION_FAILED = "authentication_failed"
+    AUTHENTICATION_RATE_LIMITED = "authentication_rate_limited"
     COMPANY_ASSESSMENT_CONFLICT = "company_assessment_conflict"
     COMPANY_ASSESSMENT_UNAVAILABLE = "company_assessment_unavailable"
     COMPANY_SNAPSHOT_VERSION_CONFLICT = "company_snapshot_version_conflict"
@@ -133,6 +134,7 @@ class ErrorCode(StrEnum):
     MESSAGE_DRAFT_VERSION_CONFLICT = "message_draft_version_conflict"
     NORA_ERROR = "nora_error"
     OCR_FAILED = "ocr_failed"
+    ORIGIN_NOT_ALLOWED = "origin_not_allowed"
     PDF_GENERATION_FAILED = "pdf_generation_failed"
     PDF_RENDER_FAILED = "pdf_render_failed"
     PROFILE_HAS_NO_CONFIRMED_DATA = "profile_has_no_confirmed_data"
@@ -165,11 +167,13 @@ class ErrorCategory(StrEnum):
 
     INVALID_INPUT = "invalid_input"
     AUTHENTICATION = "authentication"
+    FORBIDDEN = "forbidden"
     NOT_FOUND = "not_found"
     CONFLICT = "conflict"
     PAYLOAD_TOO_LARGE = "payload_too_large"
     UNSUPPORTED_MEDIA_TYPE = "unsupported_media_type"
     REQUEST_VALIDATION = "request_validation"
+    RATE_LIMITED = "rate_limited"
     UPSTREAM_FAILURE = "upstream_failure"
     SERVICE_UNAVAILABLE = "service_unavailable"
     UPSTREAM_TIMEOUT = "upstream_timeout"
@@ -274,6 +278,7 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
             ErrorCode.UNSUPPORTED_IMAGE,
         ),
         ErrorCategory.AUTHENTICATION: (ErrorCode.AUTHENTICATION_FAILED,),
+        ErrorCategory.FORBIDDEN: (ErrorCode.ORIGIN_NOT_ALLOWED,),
         ErrorCategory.NOT_FOUND: (ErrorCode.ENTITY_NOT_FOUND,),
         ErrorCategory.CONFLICT: (
             ErrorCode.APPLICATION_DECISION_CONFLICT,
@@ -305,6 +310,7 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
         ErrorCategory.PAYLOAD_TOO_LARGE: (ErrorCode.ARTIFACT_TOO_LARGE,),
         ErrorCategory.UNSUPPORTED_MEDIA_TYPE: (ErrorCode.UNSUPPORTED_ARTIFACT_TYPE,),
         ErrorCategory.REQUEST_VALIDATION: (ErrorCode.VALIDATION_ERROR,),
+        ErrorCategory.RATE_LIMITED: (ErrorCode.AUTHENTICATION_RATE_LIMITED,),
         ErrorCategory.UPSTREAM_FAILURE: (ErrorCode.FETCH_FAILED, ErrorCode.OCR_FAILED),
         ErrorCategory.UPSTREAM_TIMEOUT: (ErrorCode.FETCH_TIMEOUT,),
         ErrorCategory.SERVICE_UNAVAILABLE: (
@@ -384,3 +390,11 @@ class InfrastructureError(NoraError):
     """基础设施适配器失败时抛出的错误。"""
 
     default_error_code = ErrorCode.INFRASTRUCTURE_ERROR
+
+
+class RateLimitError(NoraError):
+    """Stable rate-limit failure carrying only an integer retry delay."""
+
+    def __init__(self, message: str, retry_after: int) -> None:
+        super().__init__(message, error_code=ErrorCode.AUTHENTICATION_RATE_LIMITED)
+        self.retry_after = max(1, int(retry_after))

@@ -139,7 +139,12 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `API_PORT` | `8000` | 仅 Compose 宿主端口；映射到 API 容器固定端口 `8000` | 端口冲突时可修改，不进入 Settings |
 | `WEB_PORT` | `5173` | 仅 Compose 宿主端口；映射到 Web 容器固定端口 `5173` | 端口冲突时可修改，不进入后端 Settings |
 | `AUTH_SECRET_KEY` | `development-only-change-this-secret` | Compose 注入 API；Settings 要求至少 32 个字符 | 公开值仅限本地；`staging`/`prod` 必须替换且不得提交 |
-| `AUTH_ACCESS_TOKEN_MINUTES` | `30` | Compose 注入 API；Settings 允许 `1`–`1440` | 控制访问令牌有效期，不是密钥 |
+| `AUTH_ACCESS_TOKEN_MINUTES` | `30` | Compose 注入 API；Settings 允许 `1`–`30` | 控制访问令牌有效期，不是密钥；生产上限为 30 分钟 |
+| `AUTH_KEY_RING_DIRECTORY` | 空（开发使用 `AUTH_SECRET_KEY`） | 生产 API 的 root-owned JWT key ring 目录 | 文件名是 `kid`，每个文件至少 32 bytes；不得放入仓库或命令参数 |
+| `AUTH_ACTIVE_KID` | `dev` | API 当前签发 key 的安全标识 | 只能使用 `[A-Za-z0-9._-]{1,64}`，必须存在于 key ring |
+| `AUTH_RATE_LIMIT_SECRET` | 开发专用示例值 | API PostgreSQL 限额桶 HMAC 真源 | 生产必须替换，且不得与任何 JWT key 相同；原始用户名、邮箱和 IP 不落库 |
+| `PUBLIC_ORIGIN` | 空（开发允许通配 CORS） | 生产唯一浏览器 HTTPS Origin | 禁止 wildcard、`null`、HTTP、路径、查询、片段和正则 |
+| `TRUSTED_PROXY_CIDR` | 空（开发直连 peer） | 生产单跳私有 ingress peer 网络 | 只接受 ingress 覆盖写入的单个 `X-Forwarded-For` 与 `https`，不猜多跳链 |
 | `BAIDU_OCR_API_KEY` | 空 | API / Settings（百度智能云 OCR 应用凭据） | 生产环境必须配置且不得提交；未配置时 OCR 接口返回稳定 `ocr_failed` |
 | `BAIDU_OCR_SECRET_KEY` | 空 | API / Settings（百度智能云 OCR 应用凭据） | 生产环境必须配置且不得提交；与 API Key 成对 |
 | `BAIDU_OCR_ENDPOINT` | `accurate_basic` | API / Settings | 百度 OCR 接口名，如 `general_basic` / `accurate_basic` |
@@ -181,6 +186,23 @@ Settings 还提供以下应用级默认值，但当前 Compose 没有把它们�
 | `DATABASE_POOL_TIMEOUT` | `30.0` | 获取连接的超时秒数 |
 | `ARTIFACT_MAX_SIZE_BYTES` | `10485760` | 单个 Artifact 最大 10 MiB，最高允许配置为 100 MiB |
 | `ARTIFACT_ALLOWED_CONTENT_TYPES` | PNG、JPEG、PDF、纯文本、HTML | 逗号分隔 allowlist；未列类型返回 `415` |
+
+### Beta owner 管理
+
+生产不开放 `POST /auth/register`。唯一 owner 必须在维护窗口通过不提供 HTTP 路由的管理命令创建或恢复；用户名、邮箱和密码分别从
+owner-only Secret 文件读取，不能写入命令参数、Shell history、日志或 Compose 配置：
+
+```bash
+docker compose exec api nora-identity bootstrap-owner \
+  --request-id bootstrap-2026-08-15 \
+  --username-file /run/secrets/nora-owner-username \
+  --email-file /run/secrets/nora-owner-email \
+  --password-file /run/secrets/nora-owner-password
+```
+
+恢复凭据使用 `recover-owner`，成功会递增 `session_version` 并立即使旧 Bearer Token 失效。命令只输出稳定状态、request ID、user ID
+和 session version；同一 request identity 重放不会重复开户或恢复。PostgreSQL 限额桶、唯一 owner 槽和审计事件在同一事务边界内维护。
+生产 `/ready` 只有数据库可用、恰好一个 active owner 且该 owner 被 singleton 槽追踪时返回 ready；空库、多用户或槽损坏均 fail closed。
 
 ### Artifact 与 Source 本地验证
 

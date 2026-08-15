@@ -21,7 +21,8 @@ EXPECTED_ERROR_CODES = frozenset(
     application_record_persistence_failed application_record_transition_conflict
     application_record_version_conflict application_error artifact_conflict artifact_corrupt
     artifact_delete_failed artifact_state_conflict artifact_storage_unavailable artifact_too_large
-    artifact_unavailable authentication_failed company_assessment_conflict
+    artifact_unavailable authentication_failed authentication_rate_limited
+    company_assessment_conflict
     company_assessment_unavailable company_snapshot_version_conflict content_too_large
     database_unavailable decision_case_conflict decision_case_immutable decision_input_conflict
     decision_input_unavailable decision_persistence_failed decision_report_generation_conflict
@@ -52,6 +53,7 @@ EXPECTED_ERROR_CODES = frozenset(
     invalid_variant_fingerprint invalid_variant_text invalid_version jd_text_too_long
     job_posting_persistence_failed job_requirement_version_conflict message_draft_conflict
     message_draft_input_unavailable message_draft_version_conflict nora_error ocr_failed
+    origin_not_allowed
     pdf_generation_failed pdf_render_failed profile_has_no_confirmed_data profile_version_conflict
     referral_context_required report_input_mismatch required_variant_field response_too_large
     resume_pdf_conflict resume_pdf_persistence_failed resume_pdf_state_conflict
@@ -64,7 +66,7 @@ EXPECTED_ERROR_CODES = frozenset(
 
 
 def test_error_code_registry_is_exact_complete_and_immutable() -> None:
-    assert len(EXPECTED_ERROR_CODES) == 150
+    assert len(EXPECTED_ERROR_CODES) == 152
     assert {code.value for code in ErrorCode} == EXPECTED_ERROR_CODES
     assert set(ErrorCode) == set(ERROR_CATEGORY_BY_CODE)
     with pytest.raises(TypeError):
@@ -75,11 +77,13 @@ def test_all_error_categories_have_one_central_http_status() -> None:
     assert HTTP_STATUS_BY_CATEGORY == {
         ErrorCategory.INVALID_INPUT: 400,
         ErrorCategory.AUTHENTICATION: 401,
+        ErrorCategory.FORBIDDEN: 403,
         ErrorCategory.NOT_FOUND: 404,
         ErrorCategory.CONFLICT: 409,
         ErrorCategory.PAYLOAD_TOO_LARGE: 413,
         ErrorCategory.UNSUPPORTED_MEDIA_TYPE: 415,
         ErrorCategory.REQUEST_VALIDATION: 422,
+        ErrorCategory.RATE_LIMITED: 429,
         ErrorCategory.UPSTREAM_FAILURE: 502,
         ErrorCategory.SERVICE_UNAVAILABLE: 503,
         ErrorCategory.UPSTREAM_TIMEOUT: 504,
