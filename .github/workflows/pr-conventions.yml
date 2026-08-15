@@ -118,6 +118,10 @@ jobs:
           docker compose --env-file deploy/production.env.example \
             -f deploy/compose.production.yml \
             --profile public --profile initialize --profile ops config --quiet
+          docker compose --env-file deploy/production.env.example \
+            -f deploy/compose.production.yml \
+            --profile public --profile initialize --profile ops config --format json \
+            | python deploy/check_compose_security.py
 
       - name: Build API development target
         run: >-

@@ -22,10 +22,13 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 python "$script_dir/preflight.py" --env-file "$env_file"
 command -v age >/dev/null
 
-set -a
-# shellcheck disable=SC1090
-. "$env_file"
-set +a
+env_value() {
+  python "$script_dir/preflight.py" --env-file "$env_file" --get "$1"
+}
+NORA_COMPOSE_PROJECT=$(env_value NORA_COMPOSE_PROJECT)
+NORA_BACKUP_STAGE_DIR=$(env_value NORA_BACKUP_STAGE_DIR)
+NORA_POSTGRES_ADMIN_USER=$(env_value NORA_POSTGRES_ADMIN_USER)
+NORA_POSTGRES_DB=$(env_value NORA_POSTGRES_DB)
 
 case "${NORA_COMPOSE_PROJECT:-}" in
   *restore*|*rehearsal*) ;;
@@ -61,13 +64,13 @@ compose --profile initialize run --rm storage-init
 compose exec -T db pg_restore --clean --if-exists --no-owner --no-acl \
   -U "$NORA_POSTGRES_ADMIN_USER" -d "$NORA_POSTGRES_DB" <"$payload/postgres.dump"
 compose --profile initialize run --rm db-init
-compose --profile ops run --rm --no-deps storage-client -c '
+compose --profile ops run --rm --no-deps restore-storage-client -c '
   set -eu
   mc alias set target http://storage:9000 "$(cat /run/secrets/minio_root_user)" "$(cat /run/secrets/minio_root_password)" >/dev/null
   mc mb --ignore-existing "target/$NORA_ARTIFACT_BUCKET"
   mc mirror --overwrite /backup/objects "target/$NORA_ARTIFACT_BUCKET"
 '
-compose --profile ops run --rm --no-deps ops reconcile --report /backup/reconciliation.json
+compose --profile ops run --rm --no-deps reconcile
 compose up -d api web
 compose exec -T api python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/live', timeout=2)"
 compose exec -T api python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)"

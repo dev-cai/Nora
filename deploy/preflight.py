@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import argparse
-import os
 import re
 import stat
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 IMAGE_PATTERN = re.compile(r"[^\s@]+@sha256:[0-9a-f]{64}")
+ENV_NAME_PATTERN = re.compile(r"[A-Z][A-Z0-9_]*")
+SCRIPT_VALUE_NAMES = {
+    "NORA_BACKUP_STAGE_DIR",
+    "NORA_COMPOSE_PROJECT",
+    "NORA_MINIO_DATA_DIR",
+    "NORA_POSTGRES_ADMIN_USER",
+    "NORA_POSTGRES_DATA_DIR",
+    "NORA_POSTGRES_DB",
+}
 DIRECT_SECRET_NAMES = {
     "DATABASE_URL",
     "DATABASE_ADMIN_URL",
@@ -55,6 +63,10 @@ def read_environment(path: Path) -> dict[str, str]:
             raise ValueError(f"invalid env line {line_number}")
         name, value = line.split("=", 1)
         name = name.strip()
+        if ENV_NAME_PATTERN.fullmatch(name) is None:
+            raise ValueError(f"invalid env name on line {line_number}")
+        if name in values:
+            raise ValueError(f"duplicate env name on line {line_number}")
         value = value.strip()
         if value[:1] == value[-1:] and value.startswith(("'", '"')):
             value = value[1:-1]
@@ -95,7 +107,9 @@ def validate_environment(values: dict[str, str], *, check_host: bool) -> list[st
         errors.append("PostgreSQL, MinIO, Caddy and backup staging paths must be distinct")
     secret_paths = [str(paths[name]) for name in FILE_GROUPS]
     if len(set(secret_paths)) != len(secret_paths):
-        errors.append("each runtime, management and backup identity must use a distinct Secret file")
+        errors.append(
+            "each runtime, management and backup identity must use a distinct Secret file"
+        )
     if not check_host:
         return errors
     for name, expected_group in FILE_GROUPS.items():
@@ -194,6 +208,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-file", type=Path, required=True)
     parser.add_argument("--config-only", action="store_true")
+    parser.add_argument("--get", choices=sorted(SCRIPT_VALUE_NAMES))
     arguments = parser.parse_args()
     values = read_environment(arguments.env_file)
     errors = validate_environment(values, check_host=not arguments.config_only)
@@ -201,7 +216,13 @@ def main() -> None:
         for error in errors:
             print(f"preflight_error={error}")
         raise SystemExit(2)
-    print("production_preflight=passed")
+    if arguments.get is not None:
+        try:
+            print(values[arguments.get])
+        except KeyError as exc:
+            raise SystemExit(f"preflight_error={arguments.get} is required") from exc
+    else:
+        print("production_preflight=passed")
 
 
 if __name__ == "__main__":

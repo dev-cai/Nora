@@ -219,17 +219,41 @@ services:
       db:
         condition: service_healthy
 
-  ops:
+  backup-metadata:
     <<: *runtime-security
     profiles: ["ops"]
     image: ${NORA_API_IMAGE:?set digest-pinned NORA_API_IMAGE}
     user: "10001:10001"
     entrypoint: ["python", "-m", "app.apps.operations"]
-    environment: *api-environment
+    command: ["export-metadata", "--output-dir", "/backup"]
+    environment:
+      ENV: dev
+      DATABASE_URL_FILE: /run/secrets/database_url
     volumes:
       - ${NORA_DATABASE_URL_FILE:?set NORA_DATABASE_URL_FILE}:/run/secrets/database_url:ro
-      - ${NORA_JWT_KEY_RING_DIR:?set NORA_JWT_KEY_RING_DIR}:/run/secrets/jwt:ro
-      - ${NORA_AUTH_RATE_LIMIT_SECRET_FILE:?set NORA_AUTH_RATE_LIMIT_SECRET_FILE}:/run/secrets/auth_rate_limit_secret:ro
+      - ${NORA_BACKUP_STAGE_DIR:-/var/lib/nora/backup-stage}:/backup
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001
+    networks:
+      - data
+
+  reconcile:
+    <<: *runtime-security
+    profiles: ["ops"]
+    image: ${NORA_API_IMAGE:?set digest-pinned NORA_API_IMAGE}
+    user: "10001:10001"
+    entrypoint: ["python", "-m", "app.apps.operations"]
+    command: ["reconcile", "--report", "/backup/reconciliation.json"]
+    environment:
+      ENV: dev
+      DATABASE_URL_FILE: /run/secrets/database_url
+      ARTIFACT_STORAGE_ENDPOINT: storage:9000
+      ARTIFACT_STORAGE_ACCESS_KEY_FILE: /run/secrets/artifact_access_key
+      ARTIFACT_STORAGE_SECRET_KEY_FILE: /run/secrets/artifact_secret_key
+      ARTIFACT_STORAGE_BUCKET: ${NORA_ARTIFACT_BUCKET:-nora-artifacts}
+      ARTIFACT_STORAGE_SECURE: "false"
+    volumes:
+      - ${NORA_DATABASE_URL_FILE:?set NORA_DATABASE_URL_FILE}:/run/secrets/database_url:ro
       - ${NORA_ARTIFACT_ACCESS_KEY_FILE:?set NORA_ARTIFACT_ACCESS_KEY_FILE}:/run/secrets/artifact_access_key:ro
       - ${NORA_ARTIFACT_SECRET_KEY_FILE:?set NORA_ARTIFACT_SECRET_KEY_FILE}:/run/secrets/artifact_secret_key:ro
       - ${NORA_BACKUP_STAGE_DIR:-/var/lib/nora/backup-stage}:/backup
@@ -238,7 +262,24 @@ services:
     networks:
       - data
 
-  storage-client:
+  backup-storage-client:
+    <<: *runtime-security
+    profiles: ["ops"]
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    user: "10001:10001"
+    entrypoint: ["/bin/sh"]
+    environment:
+      NORA_ARTIFACT_BUCKET: ${NORA_ARTIFACT_BUCKET:-nora-artifacts}
+    volumes:
+      - ${NORA_ARTIFACT_BACKUP_ACCESS_KEY_FILE:?set NORA_ARTIFACT_BACKUP_ACCESS_KEY_FILE}:/run/secrets/artifact_backup_access_key:ro
+      - ${NORA_ARTIFACT_BACKUP_SECRET_KEY_FILE:?set NORA_ARTIFACT_BACKUP_SECRET_KEY_FILE}:/run/secrets/artifact_backup_secret_key:ro
+      - ${NORA_BACKUP_STAGE_DIR:-/var/lib/nora/backup-stage}:/backup
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001
+    networks:
+      - data
+
+  restore-storage-client:
     <<: *runtime-security
     profiles: ["ops"]
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
@@ -249,8 +290,6 @@ services:
     volumes:
       - ${NORA_MINIO_ROOT_USER_FILE:?set NORA_MINIO_ROOT_USER_FILE}:/run/secrets/minio_root_user:ro
       - ${NORA_MINIO_ROOT_PASSWORD_FILE:?set NORA_MINIO_ROOT_PASSWORD_FILE}:/run/secrets/minio_root_password:ro
-      - ${NORA_ARTIFACT_BACKUP_ACCESS_KEY_FILE:?set NORA_ARTIFACT_BACKUP_ACCESS_KEY_FILE}:/run/secrets/artifact_backup_access_key:ro
-      - ${NORA_ARTIFACT_BACKUP_SECRET_KEY_FILE:?set NORA_ARTIFACT_BACKUP_SECRET_KEY_FILE}:/run/secrets/artifact_backup_secret_key:ro
       - ${NORA_BACKUP_STAGE_DIR:-/var/lib/nora/backup-stage}:/backup
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001

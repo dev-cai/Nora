@@ -623,8 +623,8 @@ docker compose --env-file /etc/nora/production.env \
 Schema 现有及后续表/序列所需的 DML 权限。API 不接收 PostgreSQL 初始化或迁移身份。`storage-init` 同样只在初始化 profile 使用
 MinIO root，分别创建 Bucket 读写删应用身份和只读备份身份；API 与备份入口均不接收 MinIO root。
 
-`preflight.py` 会 fail closed：拒绝 mutable tag、环境文件中的直接 Secret、示例目标信息、重复/相对数据或 Secret 路径，以及 owner、group、
-mode 不正确的 Secret 或数据目录。首次启动后使用已有 `nora-identity bootstrap-owner` 管理命令建立唯一 owner，再验证 `/live`、
+`preflight.py` 会 fail closed：拒绝 mutable tag、环境文件中的直接 Secret、非法或重复变量名、示例目标信息、重复/相对数据或 Secret 路径，以及 owner、group、
+mode 不正确的 Secret 或数据目录。root operator 脚本不 source env 文件，只通过 preflight 的字段白名单读取所需非 Secret 值。首次启动后使用已有 `nora-identity bootstrap-owner` 管理命令建立唯一 owner，再验证 `/live`、
 `/ready`、Web `/api` 同源调用、容器 UID、`CapEff`、只读根文件系统和仅 `80/443` 的宿主监听。生产 `/ready` 必须同时验证唯一
 owner、PostgreSQL 与 Artifact Storage；不得以 `/live` 或 MinIO 进程存活替代就绪。
 
@@ -633,7 +633,7 @@ owner、PostgreSQL 与 Artifact Storage；不得以 `/live` 或 MinIO 进程存�
 主机需安装 `age`。备份目的地必须是已挂载的私有跨故障域、append-only 位置；`NORA_BACKUP_AGE_RECIPIENT` 只在 operator
 进程环境中提供，不写入 env 文件。preflight、备份和恢复由受控 root operator 执行，以核验跨 group Secret 并把明文 staging
 显式交给固定 UID `10001` 的 ops 容器；脚本拒绝非 root 调用。备份脚本停止 ingress/Web/API 形成显式停写屏障，依次生成 PostgreSQL custom dump、available
-Artifact manifest、删除台账和 MinIO 对象副本，恢复入口后再加密写入新恢复点；对象复制使用只读备份身份而非 MinIO root，失败时
+Artifact manifest、删除台账和 MinIO 对象副本，恢复入口后再加密写入新恢复点；元数据导出只挂载应用数据库 URL，对象复制只挂载只读备份身份且不接收 MinIO root，失败时
 trap 会恢复入口并清除明文 staging。
 
 ```bash

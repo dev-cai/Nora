@@ -11,6 +11,7 @@ SPEC.loader.exec_module(PREFLIGHT)
 read_environment = PREFLIGHT.read_environment
 validate_environment = PREFLIGHT.validate_environment
 validate_database_identities = PREFLIGHT._validate_database_identities
+DEPLOY_DIR = Path(__file__).parents[3] / "deploy"
 
 
 def _values() -> dict[str, str]:
@@ -77,6 +78,28 @@ def test_environment_reader_preserves_structured_values(tmp_path: Path) -> None:
         "NORA_PROVIDER": "provider a",
         "NORA_REGION": "cn north",
     }
+
+
+def test_environment_reader_rejects_invalid_or_duplicate_names(tmp_path: Path) -> None:
+    invalid = tmp_path / "invalid.env"
+    invalid.write_text("NORA_PROVIDER=provider-a\nBAD-NAME=value\n", encoding="utf-8")
+    duplicate = tmp_path / "duplicate.env"
+    duplicate.write_text("NORA_PROVIDER=a\nNORA_PROVIDER=b\n", encoding="utf-8")
+
+    for env_file in (invalid, duplicate):
+        try:
+            read_environment(env_file)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unsafe environment input must be rejected")
+
+
+def test_root_operator_scripts_do_not_source_environment_files() -> None:
+    for script_name in ("backup.sh", "restore.sh"):
+        script = (DEPLOY_DIR / script_name).read_text(encoding="utf-8")
+        assert '. "$env_file"' not in script
+        assert '--get "$1"' in script
 
 
 def test_database_identity_preflight_requires_distinct_matching_credentials(

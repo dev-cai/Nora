@@ -17,10 +17,14 @@ python "$script_dir/preflight.py" --env-file "$env_file"
 command -v age >/dev/null
 command -v docker >/dev/null
 
-set -a
-# shellcheck disable=SC1090
-. "$env_file"
-set +a
+env_value() {
+  python "$script_dir/preflight.py" --env-file "$env_file" --get "$1"
+}
+NORA_POSTGRES_DATA_DIR=$(env_value NORA_POSTGRES_DATA_DIR)
+NORA_MINIO_DATA_DIR=$(env_value NORA_MINIO_DATA_DIR)
+NORA_BACKUP_STAGE_DIR=$(env_value NORA_BACKUP_STAGE_DIR)
+NORA_POSTGRES_ADMIN_USER=$(env_value NORA_POSTGRES_ADMIN_USER)
+NORA_POSTGRES_DB=$(env_value NORA_POSTGRES_DB)
 
 : "${NORA_BACKUP_AGE_RECIPIENT:?set NORA_BACKUP_AGE_RECIPIENT in the operator environment}"
 mkdir -p -m 0700 "$destination"
@@ -55,9 +59,9 @@ started_epoch=$(date +%s)
 compose --profile public stop ingress web api
 barrier=1
 
-compose --profile ops run --rm --no-deps ops export-metadata --output-dir /backup
+compose --profile ops run --rm --no-deps backup-metadata
 compose exec -T db pg_dump -U "$NORA_POSTGRES_ADMIN_USER" -d "$NORA_POSTGRES_DB" -Fc >"$stage/postgres.dump"
-compose --profile ops run --rm --no-deps storage-client -c '
+compose --profile ops run --rm --no-deps backup-storage-client -c '
   set -eu
   mc alias set source http://storage:9000 "$(cat /run/secrets/artifact_backup_access_key)" "$(cat /run/secrets/artifact_backup_secret_key)" >/dev/null
   mkdir -p /backup/objects
