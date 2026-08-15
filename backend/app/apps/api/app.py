@@ -6,6 +6,7 @@ import asyncio
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from time import perf_counter
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -51,9 +52,12 @@ from app.infrastructure.logging import (
     SecurityResult,
     SecuritySignal,
     bind_log_context,
+    business_operation_for_route,
     clear_log_context,
     configure_logging,
     get_logger,
+    log_business_operation_metric,
+    log_http_request_metrics,
     log_security_signal,
 )
 
@@ -68,6 +72,37 @@ def _resolve_request_id(request: Request) -> str:
     if _CORRELATION_ID_PATTERN.fullmatch(value) is None:
         raise ValueError
     return value
+
+
+def _record_request_metrics(
+    request: Request,
+    *,
+    request_id: str,
+    status_code: int,
+    started_at: float,
+) -> None:
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", None)
+    route_name = getattr(route, "name", None)
+    if not isinstance(route_path, str):
+        route_path = "_unmatched"
+    if not isinstance(route_name, str):
+        route_name = None
+
+    log_http_request_metrics(
+        method=request.method,
+        route=route_path,
+        status_code=status_code,
+        duration_seconds=perf_counter() - started_at,
+        request_id=request_id,
+    )
+    operation = business_operation_for_route(route_name)
+    if operation is not None:
+        log_business_operation_metric(
+            operation,
+            status_code=status_code,
+            request_id=request_id,
+        )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -142,11 +177,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def request_context(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
+        started_at = perf_counter()
+        response: Response
         try:
             request_id = _resolve_request_id(request)
         except ValueError:
             request_id = str(uuid4())
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=400,
                 content=ApiProblem(
                     error_code=ErrorCode.INVALID_CORRELATION_ID,
@@ -158,6 +195,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 ).model_dump(mode="json"),
                 headers={"X-Request-ID": request_id},
             )
+            _record_request_metrics(
+                request,
+                request_id=request_id,
+                status_code=response.status_code,
+                started_at=started_at,
+            )
+            return response
 
         request.state.request_id = request_id
         client_identifier, trusted_proxy = resolve_client_identifier(request, app_settings)
@@ -167,20 +211,34 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             coarse_response = await enforce_coarse_authentication_limit(request, app_settings)
             if coarse_response is not None:
-                coarse_response.headers["X-Request-ID"] = request_id
-                return coarse_response
-            origin_response = validate_origin(request, app_settings)
-            if origin_response is not None:
-                origin_response.headers["X-Request-ID"] = request_id
-                return origin_response
-            register_response = production_registration_response(request, app_settings)
-            if register_response is not None:
-                register_response.headers["X-Request-ID"] = request_id
-                return register_response
-            response = await call_next(request)
+                response = coarse_response
+            else:
+                origin_response = validate_origin(request, app_settings)
+                if origin_response is not None:
+                    response = origin_response
+                else:
+                    register_response = production_registration_response(request, app_settings)
+                    if register_response is not None:
+                        response = register_response
+                    else:
+                        response = await call_next(request)
+        except Exception:
+            _record_request_metrics(
+                request,
+                request_id=request_id,
+                status_code=500,
+                started_at=started_at,
+            )
+            raise
         finally:
             clear_log_context()
         response.headers["X-Request-ID"] = request_id
+        _record_request_metrics(
+            request,
+            request_id=request_id,
+            status_code=response.status_code,
+            started_at=started_at,
+        )
         return response
 
     @app.exception_handler(NoraError)

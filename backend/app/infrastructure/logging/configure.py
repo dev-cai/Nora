@@ -14,7 +14,32 @@ from structlog.types import EventDict, Processor
 from app.infrastructure.config import LogFormat, Settings, get_settings
 
 _SENSITIVE_KEYS = frozenset(
-    {"api_key", "auth_secret_key", "authorization", "cookie", "password", "secret", "token"}
+    {
+        "access_token",
+        "api_key",
+        "auth_secret_key",
+        "authorization",
+        "authorization_header",
+        "cookie",
+        "cookie_header",
+        "full_prompt",
+        "jd_text",
+        "locator",
+        "password",
+        "pdf_text",
+        "presigned_url",
+        "prompt",
+        "refresh_token",
+        "request_body",
+        "response_body",
+        "resume_text",
+        "secret",
+        "signature",
+        "signed_url",
+        "source_url",
+        "token",
+        "url",
+    }
 )
 
 

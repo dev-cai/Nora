@@ -7,7 +7,12 @@ import pytest
 from app.apps.api import create_app
 from app.domain.base.exceptions import ErrorCode, NoraError
 from app.infrastructure.config import Settings
-from app.infrastructure.logging import get_logger
+from app.infrastructure.logging import (
+    BUSINESS_OPERATION_METRIC_NAME,
+    HTTP_REQUEST_COUNT_METRIC_NAME,
+    HTTP_REQUEST_DURATION_METRIC_NAME,
+    get_logger,
+)
 from fastapi.testclient import TestClient
 
 
@@ -128,6 +133,75 @@ def test_request_log_context_does_not_leak_between_requests(capsys) -> None:
     ]
     assert [record["request_id"] for record in records] == ["req-first", "req-second"]
     assert all("trace_id" not in record for record in records)
+
+
+def test_repeated_requests_emit_correlated_count_and_duration_metrics(capsys) -> None:
+    with TestClient(create_app(Settings())) as client:
+        first = client.get("/live", headers={"X-Request-ID": "req-metric-first"})
+        second = client.get("/live", headers={"X-Request-ID": "req-metric-second"})
+
+    assert first.status_code == second.status_code == 200
+    records = [
+        json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")
+    ]
+    counts = [
+        record for record in records if record.get("metric_name") == HTTP_REQUEST_COUNT_METRIC_NAME
+    ]
+    durations = [
+        record
+        for record in records
+        if record.get("metric_name") == HTTP_REQUEST_DURATION_METRIC_NAME
+    ]
+    assert [record["request_id"] for record in counts] == [
+        "req-metric-first",
+        "req-metric-second",
+    ]
+    assert all(record["http_route"] == "/live" for record in counts)
+    assert all(record["http_method"] == "GET" for record in counts)
+    assert all(record["status_class"] == "2xx" for record in counts)
+    assert all(record["result"] == "succeeded" for record in counts)
+    assert len(durations) == 2
+    assert all(record["metric_value"] >= 0 for record in durations)
+    assert all("trace_id" not in record for record in counts + durations)
+
+
+def test_unknown_raw_path_is_not_emitted_as_metric_dimension(capsys) -> None:
+    raw_path = "/unknown/private-user-object-123"
+    with TestClient(create_app(Settings())) as client:
+        response = client.get(raw_path, headers={"X-Request-ID": "req-unmatched"})
+
+    assert response.status_code == 404
+    records = [
+        json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")
+    ]
+    count = next(
+        record for record in records if record.get("metric_name") == HTTP_REQUEST_COUNT_METRIC_NAME
+    )
+    assert count["http_route"] == "_unmatched"
+    assert count["status_class"] == "4xx"
+    assert count["result"] == "client_error"
+    assert raw_path not in json.dumps(count)
+
+
+def test_business_operation_failure_metric_uses_request_id_without_object_id(capsys) -> None:
+    case_id = "00000000-0000-0000-0000-000000000001"
+    with TestClient(create_app(Settings(database_url=None))) as client:
+        response = client.get(
+            f"/decisions/{case_id}",
+            headers={"X-Request-ID": "req-analysis-failed"},
+        )
+
+    assert response.status_code == 503
+    records = [
+        json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")
+    ]
+    business = next(
+        record for record in records if record.get("metric_name") == BUSINESS_OPERATION_METRIC_NAME
+    )
+    assert business["business_operation"] == "analysis"
+    assert business["result"] == "server_error"
+    assert business["request_id"] == "req-analysis-failed"
+    assert case_id not in json.dumps(business)
 
 
 def test_live_does_not_inspect_failed_database_engine(monkeypatch: pytest.MonkeyPatch) -> None:

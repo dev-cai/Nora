@@ -467,6 +467,26 @@ Cookie、请求正文、邮箱或其他个人数据。
 `X-Trace-ID` 不属于当前契约：服务端忽略调用方传入值，也不生成、记录或回传伪 Trace ID。排障时从响应头取得
 `X-Request-ID` 定位单次请求；请求结束后服务端会清理字段，避免上下文泄漏到后续请求。
 
+### 日志派生请求与业务指标
+
+API 为每个完成或被拒绝的请求输出两条 JSON 指标记录：
+
+- `nora_http_requests_total`：`metric_value=1`，用于吞吐与错误率计数；
+- `nora_http_request_duration_seconds`：`metric_value` 为本次请求耗时秒数，用于延迟分布。
+
+两者只聚合 `http_method`、`http_route`、`status_class` 和 `result`。`http_route` 是 FastAPI 静态路由模板；未匹配或路由解析前拒绝统一为 `_unmatched`，不会记录原始 URL、path 参数或 query。`request_id` 只用于从指标定位同一次请求的日志和错误，不作为指标标签。
+
+分析、报告生成、Artifact 上传/删除、PDF 生成和 ApplicationRecord 创建/转换还输出
+`nora_business_operations_total`，固定维度为 `business_operation` 与 `result`。这些记录不包含用户 ID、业务对象 ID、Token、Cookie、简历/JD/PDF 正文、签名 URL、Prompt、异常堆栈或 Trace ID。
+
+本地可从 API JSON 日志中过滤全部日志派生指标：
+
+```bash
+docker compose logs api | jq 'select(.metric_name | startswith("nora_"))'
+```
+
+当前仓库只定义可采集信号；部署日志管道、聚合规则和告警由 #138 接入。
+
 查看容器状态和资源：
 
 ```bash
