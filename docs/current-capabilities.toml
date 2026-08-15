@@ -48,7 +48,10 @@ code_paths = [
   "backend/app/apps/identity_management.py",
   "frontend/src/config.ts",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/47"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/47",
+  "https://github.com/dev-cai/Nora/pull/217",
+]
 
 [[capabilities]]
 id = "job-posting-snapshots"
