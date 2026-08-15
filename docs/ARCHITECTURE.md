@@ -909,7 +909,15 @@ savepoint，也不得给 Repository Port 增加通用 savepoint / rollback 方�
 
 ## 15. 可观测性与审计
 
-最小上下文字段：
+Current M4 API 在唯一请求中间件基于静态路由模板输出日志派生指标，不增加第二请求关联框架，也不把指标作为业务事实源：
+
+- `nora_http_requests_total` 记录请求计数，`nora_http_request_duration_seconds` 记录秒级耗时样本；固定维度只有 HTTP method、静态路由模板、状态码类别与结果类别；
+- 未匹配或在路由解析前拒绝的请求统一使用 `_unmatched`，不得把原始 URL、path 参数或 query 写入指标；
+- `nora_business_operations_total` 只使用固定枚举记录分析、报告生成、Artifact、PDF 生成和 ApplicationRecord 操作的成功、客户端失败或服务端失败；
+- `request_id` 只用于关联同一次请求的响应、指标、普通日志和错误，不作为聚合标签；不生成、记录或回传伪 Trace ID；
+- 指标不包含原始 `user_id`、业务对象 ID、Token、Cookie、简历/JD/PDF 正文、签名 URL、Prompt 或异常堆栈。#138 负责在真实部署日志管道中采集这些信号并配置部署级排障与告警。
+
+后续真实接入 tracing、模型或 Worker 时可扩展的最小上下文字段：
 
 - `request_id`、`user_id_hash`；
 - `case_id`、`run_id`、`task_id`、`tool_call_id`；
