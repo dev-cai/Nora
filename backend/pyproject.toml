@@ -41,6 +41,9 @@ Documentation = "https://github.com/dev-cai/Nora/tree/main/docs"
 Issues = "https://github.com/dev-cai/Nora/issues"
 Repository = "https://github.com/dev-cai/Nora"
 
+[project.scripts]
+nora-identity = "app.apps.identity_management:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 

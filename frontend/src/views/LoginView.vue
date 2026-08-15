@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router"
 
 import { userMessage } from "@/api/client"
 import { useAuthStore } from "@/stores/auth"
+import { publicRegistrationEnabled } from "@/config"
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -97,7 +98,10 @@ async function submit(): Promise<void> {
           {{ loading ? "正在登录…" : "登录" }} <ArrowRight :size="17" />
         </button>
       </form>
-      <p class="form-footnote">
+      <p
+        v-if="publicRegistrationEnabled"
+        class="form-footnote"
+      >
         还没有账号？ <RouterLink to="/register">
           创建账号
         </RouterLink>

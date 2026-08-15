@@ -788,6 +788,12 @@ IP、Token 或 `kid` 作为高基数/敏感指标标签。告警阈值由 #175 �
 Issue #175 若证明 PostgreSQL 安全桶无法在 Argon2 预算内承受已定义阈值，或 #138 证明 provider ingress 无法可靠覆盖代理头，必须带测量
 证据重开 Architecture 决策；不得在实现 Task 内静默引入 Redis/WAF、放宽 Origin 或信任任意代理头。
 
+Issue #175 已按该决策实现 `0021_beta_auth_security`、`nora-identity` 管理命令、PostgreSQL 固定窗口认证桶、JWT key ring/session version、
+生产 Origin/单跳代理请求边界和唯一 owner readiness。Identity Application 只依赖 Ports；SQLAlchemy、JWT、FastAPI 和命令行保持为
+外层 Adapter。生产公共注册在请求正文解析前固定隐藏为 404，数据库或限额状态不可用时固定 503，不存在进程内降级计数。认证、
+Origin、限额、owner 管理、key ring 与代理配置使用统一的低基数 `nora_security_events_total` 结构化信号；部署日志聚合按固定
+`security_signal`、`result`、`reason` 和 `trusted_proxy` 维度派生计数，不把 request ID、`kid`、用户或客户端标识作为指标标签。
+
 ### Prompt Injection 与不可信内容
 
 - 网页、简历、JD、企业材料和检索片段始终作为 data，而不是系统指令。

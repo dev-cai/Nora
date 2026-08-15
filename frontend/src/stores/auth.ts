@@ -19,7 +19,10 @@ export const useAuthStore = defineStore("auth", () => {
       const raw = sessionStorage.getItem(AUTH_SESSION_STORAGE_KEY)
       if (!raw) return
       const stored = JSON.parse(raw) as Partial<StoredSession>
-      if (typeof stored.token !== "string" || !stored.user) return
+      if (typeof stored.token !== "string" || !stored.user) {
+        sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY)
+        return
+      }
       token.value = stored.token
       user.value = stored.user
       setAccessToken(stored.token)

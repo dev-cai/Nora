@@ -34,14 +34,25 @@ id = "local-identity"
 name = "本地身份与数据隔离"
 milestone = "M1"
 status = "current"
-summary = "支持本地账号注册、登录、Bearer Token，以及按认证主体隔离用户数据。"
+summary = "支持开发环境账号注册与登录、按认证主体隔离用户数据，以及 Beta 生产的单 owner bootstrap/recovery、30 分钟内 HS256 key ring、session_version 撤销、PostgreSQL 持久限额、统一认证失败、精确 Origin/可信代理边界和低基数日志派生安全指标；生产关闭公共注册。"
 code_paths = [
   "backend/app/apps/api/routes/auth.py",
   "backend/app/application/identity/service.py",
+  "backend/app/application/identity/management.py",
   "backend/app/domain/identity/user.py",
   "backend/app/infrastructure/auth.py",
+  "backend/app/infrastructure/config/settings.py",
+  "backend/app/infrastructure/database/identity.py",
+  "backend/app/infrastructure/logging/security.py",
+  "backend/alembic/versions/0021_beta_auth_security.py",
+  "backend/app/apps/api/security.py",
+  "backend/app/apps/identity_management.py",
+  "frontend/src/config.ts",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/47"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/47",
+  "https://github.com/dev-cai/Nora/pull/217",
+]
 
 [[capabilities]]
 id = "job-posting-snapshots"

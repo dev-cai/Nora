@@ -33,7 +33,15 @@ from .followup import (
     TemplateDefinitionRecord,
 )
 from .governance import AuditEventRecord, SqlAlchemyAuditEventRepository
-from .identity import SqlAlchemyUserRepository, UserRecord
+from .identity import (
+    AuthenticationRateLimitRecord,
+    BetaOwnerRecord,
+    IdentityManagementRequestRecord,
+    SqlAlchemyAuthenticationRateLimitRepository,
+    SqlAlchemyIdentityManagementRepository,
+    SqlAlchemyUserRepository,
+    UserRecord,
+)
 from .knowledge import (
     ArtifactRecord,
     SourceDocumentRecord,
@@ -99,5 +107,10 @@ __all__ = (
     "create_database_engine",
     "create_session_factory",
     "SqlAlchemyUserRepository",
+    "SqlAlchemyAuthenticationRateLimitRepository",
+    "SqlAlchemyIdentityManagementRepository",
+    "AuthenticationRateLimitRecord",
+    "BetaOwnerRecord",
+    "IdentityManagementRequestRecord",
     "UserRecord",
 )

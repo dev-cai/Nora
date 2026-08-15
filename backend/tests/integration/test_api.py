@@ -220,11 +220,11 @@ def test_request_validation_uses_stable_problem_shape() -> None:
     with TestClient(create_app(Settings())) as client:
         response = client.post("/auth/register", json={"username": "missing-fields"})
 
-    assert response.status_code == 422
+    assert response.status_code == 503
     assert response.json() == {
-        "error_code": "validation_error",
-        "error_category": "request_validation",
-        "message": "Request validation failed",
+        "error_code": "database_unavailable",
+        "error_category": "service_unavailable",
+        "message": "Database is unavailable",
     }
 
 

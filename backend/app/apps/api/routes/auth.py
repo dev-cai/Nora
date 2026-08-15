@@ -1,12 +1,13 @@
 """认证 API。"""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, Field
 
 from app.application.identity import IdentityService
 from app.apps.api.dependencies.common import get_current_user
 from app.apps.api.dependencies.identity import get_identity_service
 from app.domain.identity import User
+from app.infrastructure.logging import SecurityResult, SecuritySignal, log_security_signal
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -57,9 +58,20 @@ async def register(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     payload: LoginRequest,
+    request: Request,
     service: IdentityService = Depends(get_identity_service),
 ) -> TokenResponse:
-    token = await service.login(payload.username, payload.password)
+    token = await service.login(
+        payload.username,
+        payload.password,
+        getattr(request.state, "client_identifier", "direct"),
+    )
+    log_security_signal(
+        SecuritySignal.LOGIN,
+        SecurityResult.SUCCEEDED,
+        request_id=getattr(request.state, "request_id", None),
+        trusted_proxy=getattr(request.state, "trusted_proxy", False),
+    )
     return TokenResponse(access_token=token)
 
 

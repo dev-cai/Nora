@@ -55,6 +55,7 @@ const fallbackMessages: Record<number, string> = {
   413: "上传内容超过大小限制",
   415: "上传内容类型不受支持",
   422: "提交内容未通过校验",
+  429: "登录尝试过于频繁，请稍后重试",
   500: "服务发生内部错误，请稍后重试",
   502: "上游服务返回失败，请稍后重试",
   503: "服务暂时不可用，请稍后重试",
@@ -63,6 +64,8 @@ const fallbackMessages: Record<number, string> = {
 
 const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
   authentication_failed: "用户名或密码不正确",
+  authentication_rate_limited: "登录尝试过于频繁，请稍后重试",
+  origin_not_allowed: "当前页面来源不允许访问服务",
   username_conflict: "该用户名已被使用",
   email_conflict: "该邮箱已被注册",
   idempotency_conflict: "本次请求与已有操作冲突",
@@ -93,11 +96,13 @@ const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
 const categoryMessages: Record<ServerErrorCategory, string> = {
   invalid_input: "提交内容不符合要求",
   authentication: "登录状态已失效，请重新登录",
+  forbidden: "当前请求不被允许",
   not_found: "对象不存在或无权访问",
   conflict: "当前内容与服务端状态冲突",
   payload_too_large: "上传内容超过大小限制",
   unsupported_media_type: "上传内容类型不受支持",
   request_validation: "提交内容未通过校验",
+  rate_limited: "请求过于频繁，请稍后重试",
   upstream_failure: "上游服务返回失败，请稍后重试",
   service_unavailable: "服务暂时不可用，请稍后重试",
   upstream_timeout: "上游服务响应超时，请稍后重试",
@@ -118,6 +123,7 @@ export class ApiError extends Error {
   readonly errorCode: ApiErrorCode
   readonly requestId: string | null
   readonly errorCategory: ServerErrorCategory | null
+  readonly retryAfter: number | null
 
   constructor(
     message: string,
@@ -125,6 +131,7 @@ export class ApiError extends Error {
     errorCode: ApiErrorCode = "network_error",
     requestId: string | null = null,
     errorCategory: ServerErrorCategory | null = null,
+    retryAfter: number | null = null,
   ) {
     super(message)
     this.name = "ApiError"
@@ -132,6 +139,7 @@ export class ApiError extends Error {
     this.errorCode = errorCode
     this.requestId = requestId
     this.errorCategory = errorCategory
+    this.retryAfter = retryAfter
   }
 }
 
@@ -189,6 +197,10 @@ async function requestResponse(path: string, init: RequestInit = {}): Promise<Re
       problem = {}
     }
     const errorCategory = knownCategory(problem.error_category)
+    const retryAfterHeader = response.headers.get("Retry-After")
+    const retryAfter = retryAfterHeader && /^\d+$/.test(retryAfterHeader)
+      ? Number(retryAfterHeader)
+      : null
     const exactMessage = codeMessage(problem.error_code)
     const errorCode: ApiErrorCode = problem.error_code && (errorCategory || exactMessage)
       ? problem.error_code
@@ -198,7 +210,7 @@ async function requestResponse(path: string, init: RequestInit = {}): Promise<Re
       ?? fallbackMessages[response.status]
       ?? "请求失败"
     if (response.status === 401) unauthorizedHandler?.()
-    throw new ApiError(message, response.status, errorCode, requestId, errorCategory)
+    throw new ApiError(message, response.status, errorCode, requestId, errorCategory, retryAfter)
   }
 
   return response

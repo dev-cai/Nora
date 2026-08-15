@@ -97,6 +97,23 @@ describe("API client", () => {
     expect(onUnauthorized).toHaveBeenCalledOnce()
   })
 
+  it("keeps the integer retry delay for authentication rate limits", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      error_code: "authentication_rate_limited",
+      error_category: "rate_limited",
+      message: "Authentication rate limit exceeded",
+    }), {
+      status: 429,
+      headers: { "Content-Type": "application/json", "Retry-After": "42" },
+    }))
+
+    await expect(api.login("alice", "wrong")).rejects.toMatchObject({
+      status: 429,
+      retryAfter: 42,
+      message: "登录尝试过于频繁，请稍后重试",
+    })
+  })
+
   it("returns a stable network failure", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("offline"))
 
