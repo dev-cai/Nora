@@ -18,9 +18,7 @@ class IdentityManagementRepository(Protocol):
         identity_fingerprint: str,
     ) -> ManagementResult: ...
 
-    async def recover(
-        self, password_hash: str, request_identity: str
-    ) -> ManagementResult: ...
+    async def recover(self, password_hash: str, request_identity: str) -> ManagementResult: ...
 
 
 class IdentityManagementService:
@@ -38,16 +36,12 @@ class IdentityManagementService:
         request_id = _request_identity(request_identity)
         _validate_password(password)
         user = User.create(username, email)
-        fingerprint = hashlib.sha256(
-            f"{user.username}\0{user.email}".encode("utf-8")
-        ).hexdigest()
+        fingerprint = hashlib.sha256(f"{user.username}\0{user.email}".encode("utf-8")).hexdigest()
         return await self.repository.bootstrap(
             user, self.password_hasher.hash(password), request_id, fingerprint
         )
 
-    async def recover_credentials(
-        self, request_identity: str, password: str
-    ) -> ManagementResult:
+    async def recover_credentials(self, request_identity: str, password: str) -> ManagementResult:
         request_id = _request_identity(request_identity)
         _validate_password(password)
         return await self.repository.recover(self.password_hasher.hash(password), request_id)

@@ -47,10 +47,14 @@ from app.domain.base.exceptions import ErrorCategory, ErrorCode, NoraError
 from app.infrastructure.config import Environment, Settings, get_settings
 from app.infrastructure.database import create_database_engine, create_session_factory
 from app.infrastructure.logging import (
+    SecurityReason,
+    SecurityResult,
+    SecuritySignal,
     bind_log_context,
     clear_log_context,
     configure_logging,
     get_logger,
+    log_security_signal,
 )
 
 _CORRELATION_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
@@ -77,6 +81,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _app.state.database_engine = None
         _app.state.session_factory = None
         _app.state.settings = app_settings
+        if app_settings.env is Environment.PROD:
+            log_security_signal(
+                SecuritySignal.KEY_RING_LOADED,
+                SecurityResult.SUCCEEDED,
+                key_count=len(app_settings.jwt_key_ring),
+                key_id=app_settings.auth_active_kid,
+            )
+            log_security_signal(
+                SecuritySignal.TRUSTED_PROXY_CONFIGURED,
+                SecurityResult.SUCCEEDED,
+                trusted_proxy=True,
+            )
         if app_settings.database_url:
             _app.state.database_engine = create_database_engine(app_settings)
             _app.state.session_factory = create_session_factory(_app.state.database_engine)
@@ -88,9 +104,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="Nora API", lifespan=lifespan)
     common_responses = problem_responses()
-    app.include_router(
-        auth_router, responses=problem_responses(ErrorCategory.RATE_LIMITED)
-    )
+    app.include_router(auth_router, responses=problem_responses(ErrorCategory.RATE_LIMITED))
     app.include_router(artifacts_router, responses=common_responses)
     app.include_router(application_records_router, responses=common_responses)
     app.include_router(companies_router, responses=common_responses)
@@ -179,19 +193,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 error_code=exc.error_code,
                 request_id=getattr(request.state, "request_id", None),
             )
-        elif problem.error_category in {
-            ErrorCategory.AUTHENTICATION,
-            ErrorCategory.FORBIDDEN,
-            ErrorCategory.RATE_LIMITED,
-        }:
-            security_event = {
-                    ErrorCategory.AUTHENTICATION: "authentication_rejected",
-                    ErrorCategory.FORBIDDEN: "origin_rejected",
-                    ErrorCategory.RATE_LIMITED: "authentication_rate_limited",
-                }[problem.error_category]
-            get_logger("nora.security").info(
-                security_event,
-                result="rejected",
+        elif problem.error_category is ErrorCategory.AUTHENTICATION:
+            log_security_signal(
+                SecuritySignal.AUTHENTICATION_REJECTED,
+                SecurityResult.REJECTED,
+                reason=(
+                    SecurityReason.CREDENTIALS
+                    if request.url.path == "/auth/login"
+                    else SecurityReason.TOKEN
+                ),
+                request_id=getattr(request.state, "request_id", None),
+                trusted_proxy=getattr(request.state, "trusted_proxy", False),
+            )
+        elif problem.error_category is ErrorCategory.RATE_LIMITED:
+            log_security_signal(
+                SecuritySignal.RATE_LIMITED,
+                SecurityResult.REJECTED,
+                reason=SecurityReason.LOGIN_LIMIT,
                 request_id=getattr(request.state, "request_id", None),
                 retry_after=getattr(exc, "retry_after", None),
                 trusted_proxy=getattr(request.state, "trusted_proxy", False),

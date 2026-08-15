@@ -3,10 +3,15 @@ from io import StringIO
 
 from app.infrastructure.config import LogFormat, Settings
 from app.infrastructure.logging import (
+    SECURITY_METRIC_NAME,
+    SecurityReason,
+    SecurityResult,
+    SecuritySignal,
     bind_log_context,
     clear_log_context,
     configure_logging,
     get_logger,
+    log_security_signal,
 )
 
 
@@ -69,3 +74,28 @@ def test_sensitive_fields_are_redacted() -> None:
     record = json.loads(stream.getvalue())
     assert record["token"] == "[REDACTED]"
     assert record["auth_secret_key"] == "[REDACTED]"
+
+
+def test_security_signal_is_countable_and_uses_only_bounded_dimensions() -> None:
+    stream = StringIO()
+    configure_logging(Settings(log_format=LogFormat.JSON), stream=stream)
+
+    log_security_signal(
+        SecuritySignal.RATE_LIMITED,
+        SecurityResult.REJECTED,
+        reason=SecurityReason.COARSE_LIMIT,
+        request_id="req-security",
+        retry_after=42,
+        trusted_proxy=False,
+    )
+
+    record = json.loads(stream.getvalue())
+    assert record["metric_name"] == SECURITY_METRIC_NAME
+    assert record["metric_value"] == 1
+    assert record["security_signal"] == "authentication_rate_limited"
+    assert record["result"] == "rejected"
+    assert record["reason"] == "coarse_limit"
+    assert record["request_id"] == "req-security"
+    assert record["retry_after"] == 42
+    assert record["trusted_proxy"] is False
+    assert not {"username", "email", "password", "token", "secret"} & record.keys()

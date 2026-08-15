@@ -52,9 +52,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "operation", "request_identity", name="uq_identity_management_request"
-        ),
+        sa.UniqueConstraint("operation", "request_identity", name="uq_identity_management_request"),
     )
     op.create_table(
         "authentication_rate_limits",

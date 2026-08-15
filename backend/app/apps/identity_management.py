@@ -4,11 +4,11 @@ import argparse
 import asyncio
 import json
 import stat
+import sys
 from pathlib import Path
 from typing import Sequence
 
 from app.application.identity import IdentityManagementService
-from app.domain.base.exceptions import NoraError
 from app.infrastructure.auth import Argon2PasswordHasher
 from app.infrastructure.config import Settings
 from app.infrastructure.database import (
@@ -16,6 +16,12 @@ from app.infrastructure.database import (
     SqlAlchemyIdentityManagementRepository,
     create_database_engine,
     create_session_factory,
+)
+from app.infrastructure.logging import (
+    SecurityResult,
+    SecuritySignal,
+    configure_logging,
+    log_security_signal,
 )
 
 
@@ -43,8 +49,7 @@ def _read_secret(path: Path) -> str:
     return value
 
 
-async def _run(arguments: argparse.Namespace) -> dict[str, object]:
-    settings = Settings()
+async def _run(arguments: argparse.Namespace, settings: Settings) -> dict[str, object]:
     if settings.database_url is None:
         raise ValueError("DATABASE_URL is required")
     engine = create_database_engine(settings)
@@ -68,6 +73,16 @@ async def _run(arguments: argparse.Namespace) -> dict[str, object]:
                 result = await service.recover_credentials(
                     arguments.request_id, _read_secret(arguments.password_file)
                 )
+        log_security_signal(
+            (
+                SecuritySignal.OWNER_BOOTSTRAP
+                if arguments.command == "bootstrap-owner"
+                else SecuritySignal.OWNER_RECOVERY
+            ),
+            SecurityResult(result.status.value),
+            request_id=arguments.request_id,
+            session_version=result.session_version,
+        )
         return {
             "status": result.status.value,
             "request_id": arguments.request_id,
@@ -80,9 +95,23 @@ async def _run(arguments: argparse.Namespace) -> dict[str, object]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
+    logging_configured = False
     try:
-        output = asyncio.run(_run(arguments))
-    except (NoraError, OSError, ValueError):
+        settings = Settings()
+        configure_logging(settings, stream=sys.stderr)
+        logging_configured = True
+        output = asyncio.run(_run(arguments, settings))
+    except Exception:
+        if logging_configured:
+            log_security_signal(
+                (
+                    SecuritySignal.OWNER_BOOTSTRAP
+                    if arguments.command == "bootstrap-owner"
+                    else SecuritySignal.OWNER_RECOVERY
+                ),
+                SecurityResult.FAILED,
+                request_id=arguments.request_id,
+            )
         print(json.dumps({"status": "failed", "request_id": arguments.request_id}))
         return 2
     print(json.dumps(output, sort_keys=True))

@@ -231,9 +231,7 @@ class SqlAlchemyAuthenticationRateLimitRepository:
             await self.session.rollback()
             raise
 
-    async def release_success(
-        self, target_digest: str, client_digest: str, now: datetime
-    ) -> None:
+    async def release_success(self, target_digest: str, client_digest: str, now: datetime) -> None:
         await self.session.execute(
             delete(AuthenticationRateLimitRecord).where(
                 AuthenticationRateLimitRecord.bucket_key == target_digest,
@@ -309,9 +307,7 @@ class SqlAlchemyIdentityManagementRepository:
 
     _LOCK_ID = 4_663_191_750
 
-    def __init__(
-        self, session: AsyncSession, audit_events: AuditEventRepository
-    ) -> None:
+    def __init__(self, session: AsyncSession, audit_events: AuditEventRepository) -> None:
         self.session = session
         self.audit_events = audit_events
 
@@ -386,9 +382,7 @@ class SqlAlchemyIdentityManagementRepository:
         await self.session.commit()
         return ManagementResult(ManagementStatus.CREATED, user.id, 1)
 
-    async def recover(
-        self, password_hash: str, request_identity: str
-    ) -> ManagementResult:
+    async def recover(self, password_hash: str, request_identity: str) -> ManagementResult:
         await self._lock()
         existing = await self._request("recover", request_identity)
         if existing is not None:
@@ -435,9 +429,7 @@ class SqlAlchemyIdentityManagementRepository:
             )
         )
         await self.session.commit()
-        return ManagementResult(
-            ManagementStatus.RECOVERED, owner.id, owner.session_version
-        )
+        return ManagementResult(ManagementStatus.RECOVERED, owner.id, owner.session_version)
 
     async def _lock(self) -> None:
         await self.session.execute(select(func.pg_advisory_xact_lock(self._LOCK_ID)))

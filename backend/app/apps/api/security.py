@@ -12,13 +12,16 @@ from app.domain.base.exceptions import ErrorCategory, ErrorCode
 from app.infrastructure.auth import AuthenticationDigester
 from app.infrastructure.config import Environment, Settings
 from app.infrastructure.database import SqlAlchemyAuthenticationRateLimitRepository
-from app.infrastructure.logging import get_logger
+from app.infrastructure.logging import (
+    SecurityReason,
+    SecurityResult,
+    SecuritySignal,
+    log_security_signal,
+)
 
 AUTHENTICATION_PATHS = frozenset({"/auth/login", "/auth/register"})
 CORS_METHODS = frozenset({"GET", "POST", "PUT", "DELETE", "OPTIONS"})
-CORS_HEADERS = frozenset(
-    {"authorization", "content-type", "idempotency-key", "x-request-id"}
-)
+CORS_HEADERS = frozenset({"authorization", "content-type", "idempotency-key", "x-request-id"})
 
 
 def resolve_client_identifier(request: Request, settings: Settings) -> tuple[str, bool]:
@@ -102,9 +105,10 @@ async def enforce_coarse_authentication_limit(
         return JSONResponse(status_code=503, content=database_problem().model_dump(mode="json"))
     if decision.allowed:
         return None
-    get_logger("nora.security").info(
-        "authentication_rate_limited",
-        result="rejected",
+    log_security_signal(
+        SecuritySignal.RATE_LIMITED,
+        SecurityResult.REJECTED,
+        reason=SecurityReason.COARSE_LIMIT,
         request_id=getattr(request.state, "request_id", None),
         retry_after=decision.retry_after,
         trusted_proxy=getattr(request.state, "trusted_proxy", False),
@@ -146,17 +150,18 @@ def _problem_response(
     headers = {"Retry-After": str(retry_after)} if retry_after is not None else None
     return JSONResponse(
         status_code=status_code,
-        content=ApiProblem(
-            error_code=code, error_category=category, message=message
-        ).model_dump(mode="json"),
+        content=ApiProblem(error_code=code, error_category=category, message=message).model_dump(
+            mode="json"
+        ),
         headers=headers,
     )
 
 
 def _log_origin_rejection(request: Request) -> None:
-    get_logger("nora.security").info(
-        "origin_rejected",
-        result="rejected",
+    log_security_signal(
+        SecuritySignal.ORIGIN_REJECTED,
+        SecurityResult.REJECTED,
+        reason=SecurityReason.ORIGIN,
         request_id=getattr(request.state, "request_id", None),
         trusted_proxy=getattr(request.state, "trusted_proxy", False),
     )

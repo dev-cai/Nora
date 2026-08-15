@@ -63,9 +63,7 @@ class Settings(BaseSettings):
     auth_access_token_minutes: int = Field(default=30, ge=1, le=30)
     auth_key_ring_directory: Path | None = None
     auth_active_kid: str = "dev"
-    auth_rate_limit_secret: str = Field(
-        default=DEFAULT_AUTH_RATE_LIMIT_SECRET, min_length=32
-    )
+    auth_rate_limit_secret: str = Field(default=DEFAULT_AUTH_RATE_LIMIT_SECRET, min_length=32)
     public_origin: str | None = None
     trusted_proxy_cidr: str | None = None
     baidu_ocr_api_key: str = ""

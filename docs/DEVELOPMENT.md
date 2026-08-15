@@ -204,6 +204,13 @@ docker compose exec api nora-identity bootstrap-owner \
 和 session version；同一 request identity 重放不会重复开户或恢复。PostgreSQL 限额桶、唯一 owner 槽和审计事件在同一事务边界内维护。
 生产 `/ready` 只有数据库可用、恰好一个 active owner 且该 owner 被 singleton 槽追踪时返回 ready；空库、多用户或槽损坏均 fail closed。
 
+认证安全事件以 JSON 日志中的 `metric_name=nora_security_events_total`、`metric_value=1` 输出。日志聚合只把固定的
+`security_signal`、`result`、`reason` 和 `trusted_proxy` 作为低基数标签；request ID、`key_id`、session version、Retry-After 和
+key count 只用于定位，不作为指标标签，也不得加入用户名、邮箱、原始 IP、密码、hash、Token 或 Secret。单次普通登录失败不告警；
+任一 `authentication_rate_limited` 已代表 5/20/30 次窗口阈值被触发，应进入告警候选；`origin_rejected` 在 5 分钟内累计 5 次进入
+告警候选。Identity 集成测试用 31 次合成认证请求、拒绝预检和并发 bootstrap 验证信号前置条件，目标 Beta 的采集与告警规则由 #138
+接入部署日志管道。
+
 ### Artifact 与 Source 本地验证
 
 `storage-init` 使用 MinIO root 凭据完成受控初始化；API 容器只收到最小权限应用凭据。上传返回的公开元数据不包含 Bucket、

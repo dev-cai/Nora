@@ -7,7 +7,7 @@ from app.application.identity import IdentityService
 from app.apps.api.dependencies.common import get_current_user
 from app.apps.api.dependencies.identity import get_identity_service
 from app.domain.identity import User
-from app.infrastructure.logging import get_logger
+from app.infrastructure.logging import SecurityResult, SecuritySignal, log_security_signal
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -66,9 +66,9 @@ async def login(
         payload.password,
         getattr(request.state, "client_identifier", "direct"),
     )
-    get_logger("nora.security").info(
-        "authentication_login",
-        result="succeeded",
+    log_security_signal(
+        SecuritySignal.LOGIN,
+        SecurityResult.SUCCEEDED,
         request_id=getattr(request.state, "request_id", None),
         trusted_proxy=getattr(request.state, "trusted_proxy", False),
     )
