@@ -40,12 +40,14 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _read_secret(path: Path) -> str:
-    mode = path.stat().st_mode
-    if not stat.S_ISREG(mode) or mode & 0o077:
-        raise ValueError("credential files must be regular and owner-readable only")
+    mode = path.lstat().st_mode
+    if path.is_symlink() or not stat.S_ISREG(mode) or mode & 0o027:
+        raise ValueError(
+            "credential files must be regular non-symlink files without group write or other access"
+        )
     value = path.read_text(encoding="utf-8").rstrip("\r\n")
-    if not value:
-        raise ValueError("credential files must not be empty")
+    if not value or len(value.encode("utf-8")) > 16 * 1024:
+        raise ValueError("credential files must contain 1-16384 bytes")
     return value
 
 

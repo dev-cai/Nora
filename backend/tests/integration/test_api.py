@@ -1,6 +1,7 @@
 import asyncio
 import json
-from types import TracebackType
+from pathlib import Path
+from types import SimpleNamespace, TracebackType
 from uuid import UUID
 
 import pytest
@@ -44,6 +45,9 @@ class _FakeConnection:
         if self.query_error is not None:
             raise self.query_error
 
+    async def execute(self, _statement: object) -> SimpleNamespace:
+        return SimpleNamespace(one=lambda: SimpleNamespace(total=1, active=1, tracked=1))
+
 
 class _FakeEngine:
     def __init__(self, connection: _FakeConnection):
@@ -62,6 +66,36 @@ class _FakeEngine:
 def _client_with_engine(monkeypatch: pytest.MonkeyPatch, engine: _FakeEngine) -> TestClient:
     monkeypatch.setattr("app.apps.api.app.create_database_engine", lambda _settings: engine)
     return TestClient(create_app(Settings(database_url="postgresql+asyncpg://nora:nora@db/nora")))
+
+
+def _production_settings(tmp_path: Path) -> Settings:
+    key_ring = tmp_path / "keys"
+    key_ring.mkdir()
+    (key_ring / "active").write_text("a" * 32, encoding="utf-8")
+    return Settings(
+        env="prod",
+        database_url="postgresql+asyncpg://nora:nora@db/nora",
+        auth_secret_key="legacy-production-secret-value-32-bytes!",
+        auth_key_ring_directory=key_ring,
+        auth_active_kid="active",
+        auth_rate_limit_secret="b" * 32,
+        public_origin="https://nora.example",
+        trusted_proxy_cidr="10.0.0.0/8",
+        artifact_storage_access_key="nora-app-test",
+        artifact_storage_secret_key="artifact-test-secret-value",
+        _env_file=None,
+    )
+
+
+class _FakeArtifactStorage:
+    def __init__(self, *, available: bool, block: bool = False) -> None:
+        self.available = available
+        self.block = block
+
+    async def ready(self) -> bool:
+        if self.block:
+            await asyncio.Event().wait()
+        return self.available
 
 
 def test_live_returns_request_id_and_ignores_trace_header() -> None:
@@ -263,6 +297,52 @@ def test_ready_is_unavailable_on_timeout(monkeypatch: pytest.MonkeyPatch) -> Non
 
     assert response.status_code == 503
     assert response.json() == {"status": "not_ready", "database": "unavailable"}
+
+
+@pytest.mark.parametrize("available", [True, False])
+def test_production_ready_checks_required_artifact_storage(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, available: bool
+) -> None:
+    engine = _FakeEngine(_FakeConnection())
+    monkeypatch.setattr("app.apps.api.app.create_database_engine", lambda _settings: engine)
+    monkeypatch.setattr(
+        "app.apps.api.app.create_minio_storage",
+        lambda **_kwargs: _FakeArtifactStorage(available=available),
+    )
+
+    with TestClient(create_app(_production_settings(tmp_path))) as client:
+        response = client.get("/ready")
+
+    if available:
+        assert response.status_code == 200
+        assert response.json() == {"status": "ready"}
+    else:
+        assert response.status_code == 503
+        assert response.json() == {
+            "status": "not_ready",
+            "artifact_storage": "unavailable",
+        }
+
+
+def test_production_artifact_readiness_timeout_is_sanitized(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    engine = _FakeEngine(_FakeConnection())
+    monkeypatch.setattr("app.apps.api.app.create_database_engine", lambda _settings: engine)
+    monkeypatch.setattr(
+        "app.apps.api.app.create_minio_storage",
+        lambda **_kwargs: _FakeArtifactStorage(available=False, block=True),
+    )
+    monkeypatch.setattr("app.apps.api.app._READINESS_TIMEOUT_SECONDS", 0.01)
+
+    with TestClient(create_app(_production_settings(tmp_path))) as client:
+        response = client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "artifact_storage": "unavailable",
+    }
 
 
 def test_health_route_is_retired() -> None:

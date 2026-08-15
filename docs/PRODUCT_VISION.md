@@ -144,7 +144,7 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
 | 主题 | 权威真源 | 允许的摘要 | 同步规则 |
 | :--- | :--- | :--- | :--- |
 | 产品目标、用户旅程、能力目录 | 本文 | `README.md` | 摘要只链接本文件，不复制会演化的完整能力契约 |
-| 当前已交付能力、代码路径与 PR 证据 | [`current-capabilities.toml`](current-capabilities.toml) | `README.md`、产品、架构、前端和开发文档 | 台账只记录默认分支已有的 Current 能力；Planned 进度留在 GitHub Milestone/Issue |
+| 当前已交付能力、代码路径与 PR 证据 | [`current-capabilities.toml`](current-capabilities.toml) | `README.md`、产品、架构、前端和开发文档 | 台账记录用户能力与可复验运行/恢复基线；未取得的 provider、成本或演练证据不得写成 Current，Planned 进度留在 GitHub Milestone/Issue |
 | 文档分类、事实所有权、允许摘要和路径影响 | [`docs-contract.toml`](docs-contract.toml) | 本文、[`WORKFLOW.md`](WORKFLOW.md)、Agent 指南 | 代码变更按契约更新规范文档或在 PR 中给出具体豁免理由，CI 负责阻断缺失声明 |
 | 已确认业务流程、技术决策基线、缺口分析 | [`BUSINESS_FLOW.md`](BUSINESS_FLOW.md) | `PRODUCT_VISION.md`、`USER_EXPERIENCE.md`、`ROADMAP.md` | 操作流程与决策基线以本文为真源，其他文档只链接不重述 |
 | 用户体验场景与交互目标 | [`USER_EXPERIENCE.md`](USER_EXPERIENCE.md) | 产品与前端文档 | 只描述设计目标，不证明功能已交付 |

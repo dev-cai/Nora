@@ -6,7 +6,7 @@ id = "engineering-baseline"
 name = "工程与容器基线"
 milestone = "M0"
 status = "current"
-summary = "Python/FastAPI 工程、配置、结构化日志、PostgreSQL/Alembic、Compose 与基础 CI 已进入默认分支；API composition root 按 bounded context 显式装配，Settings、请求级 AsyncSession 与认证用户保持最小共享；运行时只用 X-Request-ID 关联请求，并输出低基数日志派生的 HTTP 计数、耗时、错误率及分析/报告/Artifact/PDF/ApplicationRecord 操作结果；/live 表示进程存活，/ready 以 PostgreSQL SELECT 1 判定就绪。"
+summary = "Python/FastAPI 工程、配置、结构化日志、PostgreSQL/Alembic、Compose 与基础 CI 已进入默认分支；API composition root 按 bounded context 显式装配，Settings、请求级 AsyncSession 与认证用户保持最小共享；运行时只用 X-Request-ID 关联请求，并输出低基数日志派生的 HTTP 计数、耗时、错误率及分析/报告/Artifact/PDF/ApplicationRecord 操作结果；/live 表示进程存活，/ready 在常规环境检查 PostgreSQL，生产还检查唯一 owner 与 Artifact Storage。"
 code_paths = [
   "backend/pyproject.toml",
   "backend/app/apps/api/app.py",
@@ -30,6 +30,24 @@ evidence = [
   "https://github.com/dev-cai/Nora/pull/209",
   "https://github.com/dev-cai/Nora/pull/218",
 ]
+
+[[capabilities]]
+id = "production-runtime-recovery-baseline"
+name = "生产运行、安全供应链与恢复基线"
+milestone = "M4"
+status = "current"
+summary = "提供 D-019 单主机 digest-pinned Compose：仅 TLS ingress 暴露 80/443，API/Web 以非 root 和只读 rootfs 运行，PostgreSQL/MinIO 私网及独立持久目录，应用 Secret 通过受权限校验的 root-owned 文件消费；生产 /ready 同时约束唯一 owner、PostgreSQL 和 Artifact Bucket。CI 执行 Secret、依赖、SBOM 与 High/Critical 漏洞门禁。停写屏障下可生成 PostgreSQL、Artifact manifest、删除台账和对象联合恢复点，经 age 加密后在无公网/外部写的隔离项目恢复，并以 size/SHA-256、缺失、损坏、孤儿和删除状态核验阻止错误晋升。preflight 会在真实 provider/region、预算或备份目的地缺失时阻止目标 Beta 晋升；恢复记录单独保存演练耗时和隔离边界，本地演练不冒充目标环境 RPO/RTO 或成本证据。"
+code_paths = [
+  "deploy/compose.production.yml",
+  "deploy/preflight.py",
+  "deploy/backup.sh",
+  "deploy/restore.sh",
+  "backend/app/apps/operations.py",
+  "backend/app/apps/api/app.py",
+  "backend/app/infrastructure/config/settings.py",
+  ".github/workflows/pr-conventions.yml",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/219"]
 
 [[capabilities]]
 id = "local-identity"

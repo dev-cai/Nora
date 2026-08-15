@@ -113,7 +113,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Compose configuration
-        run: docker compose --profile test config --quiet
+        run: |
+          docker compose --profile test config --quiet
+          docker compose --env-file deploy/production.env.example \
+            -f deploy/compose.production.yml \
+            --profile public --profile initialize --profile ops config --quiet
 
       - name: Build API development target
         run: >-
@@ -125,8 +129,80 @@ jobs:
           docker build --file docker/Dockerfile.api --target runtime
           --tag nora-api-runtime:ci .
 
+      - name: Build Web runtime target
+        run: >-
+          docker build --file docker/Dockerfile.web --target runtime
+          --tag nora-web-runtime:ci .
+
       - name: Build isolated test image
         run: docker compose --profile test build test
+
+  supply-chain:
+    name: Secret, dependency, SBOM, and vulnerability gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository for committed Secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never
+
+      - name: Build production runtime images
+        run: |
+          docker build --file docker/Dockerfile.api --target runtime --tag nora-api-runtime:security .
+          docker build --file docker/Dockerfile.web --target runtime --tag nora-web-runtime:security .
+
+      - name: Generate API image SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: nora-api-runtime:security
+          format: spdx-json
+          output-file: sbom-api.spdx.json
+          artifact-name: nora-api-sbom
+          upload-artifact-retention: 30
+
+      - name: Generate Web image SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: nora-web-runtime:security
+          format: spdx-json
+          output-file: sbom-web.spdx.json
+          artifact-name: nora-web-sbom
+          upload-artifact-retention: 30
+
+      - name: Reject fixed high or critical API vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: nora-api-runtime:security
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - name: Reject fixed high or critical Web vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: nora-web-runtime:security
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
 
   docs:
     name: Documentation quality gate

@@ -49,7 +49,7 @@ services:
         condition: service_healthy
     volumes:
       - .:/workspace
-    command: ["pytest", "-q"]
+    command: ["pytest", "tests/unit", "tests/integration", "tests/architecture", "-q"]
 
   test-db:
     profiles: ["test"]
