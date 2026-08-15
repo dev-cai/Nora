@@ -1,10 +1,29 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 from app.infrastructure.config import Environment, Settings
+from app.infrastructure.config.settings import DEFAULT_AUTH_RATE_LIMIT_SECRET
 from pydantic import ValidationError
 
 TEST_AUTH_SECRET = "test-auth-secret-key-with-32-bytes!"
+
+
+def _production_kwargs(tmp_path: Path) -> dict[str, Any]:
+    key_ring = tmp_path / "keys"
+    key_ring.mkdir(parents=True)
+    (key_ring / "active").write_text("a" * 32, encoding="utf-8")
+    return {
+        "env": Environment.PROD,
+        "database_url": "postgresql+asyncpg://nora:nora@localhost/nora",
+        "auth_secret_key": TEST_AUTH_SECRET,
+        "auth_key_ring_directory": key_ring,
+        "auth_active_kid": "active",
+        "auth_rate_limit_secret": "b" * 32,
+        "public_origin": "https://nora.example",
+        "trusted_proxy_cidr": "10.0.0.0/8",
+        "_env_file": None,
+    }
 
 
 def test_settings_load_dotenv_and_convert_types(tmp_path: Path) -> None:
@@ -59,6 +78,8 @@ def test_auth_configuration_rejects_weak_secret_and_invalid_lifetime() -> None:
         Settings(auth_secret_key="too-short", _env_file=None)
     with pytest.raises(ValidationError):
         Settings(auth_access_token_minutes=0, _env_file=None)
+    with pytest.raises(ValidationError):
+        Settings(auth_access_token_minutes=31, _env_file=None)
 
 
 def test_settings_reject_non_postgresql_database_url() -> None:
@@ -68,24 +89,52 @@ def test_settings_reject_non_postgresql_database_url() -> None:
 
 @pytest.mark.parametrize(
     "origin",
-    ["*", "null", "http://nora.example", "https://nora.example/path", "https://nora.example?q=1"],
+    [
+        None,
+        "*",
+        "null",
+        "http://nora.example",
+        "https://nora.example/path",
+        "https://nora.example?q=1",
+    ],
 )
-def test_production_rejects_unsafe_public_origin(tmp_path: Path, origin: str) -> None:
-    key_ring = tmp_path / "keys"
-    key_ring.mkdir()
-    (key_ring / "active").write_text("a" * 32, encoding="utf-8")
+def test_production_rejects_unsafe_public_origin(tmp_path: Path, origin: str | None) -> None:
     with pytest.raises(ValidationError, match="PUBLIC_ORIGIN"):
-        Settings(
-            env=Environment.PROD,
-            database_url="postgresql+asyncpg://nora:nora@localhost/nora",
-            auth_secret_key=TEST_AUTH_SECRET,
-            auth_key_ring_directory=key_ring,
-            auth_active_kid="active",
-            auth_rate_limit_secret="b" * 32,
-            public_origin=origin,
-            trusted_proxy_cidr="10.0.0.0/8",
-            _env_file=None,
-        )
+        Settings(**(_production_kwargs(tmp_path) | {"public_origin": origin}))
+
+
+@pytest.mark.parametrize("proxy", [None, "0.0.0.0/0", "203.0.113.0/24"])
+def test_production_rejects_missing_or_public_trusted_proxy(
+    tmp_path: Path, proxy: str | None
+) -> None:
+    with pytest.raises(ValidationError, match="TRUSTED_PROXY_CIDR"):
+        Settings(**(_production_kwargs(tmp_path) | {"trusted_proxy_cidr": proxy}))
+
+
+def test_production_rejects_unsafe_authentication_secrets(tmp_path: Path) -> None:
+    default_rate_secret = _production_kwargs(tmp_path)
+    default_rate_secret["auth_rate_limit_secret"] = DEFAULT_AUTH_RATE_LIMIT_SECRET
+    with pytest.raises(ValidationError, match="AUTH_RATE_LIMIT_SECRET must be changed"):
+        Settings(**default_rate_secret)
+
+    reused_rate_secret = _production_kwargs(tmp_path / "reused")
+    reused_rate_secret["auth_rate_limit_secret"] = "a" * 32
+    with pytest.raises(ValidationError, match="separate from JWT keys"):
+        Settings(**reused_rate_secret)
+
+
+def test_production_rejects_missing_active_or_weak_key(tmp_path: Path) -> None:
+    missing_active = _production_kwargs(tmp_path)
+    missing_active["auth_active_kid"] = "missing"
+    with pytest.raises(ValidationError, match="identify a configured JWT key"):
+        Settings(**missing_active)
+
+    weak_key = _production_kwargs(tmp_path / "weak")
+    key_ring = weak_key["auth_key_ring_directory"]
+    assert isinstance(key_ring, Path)
+    (key_ring / "active").write_text("too-short", encoding="utf-8")
+    with pytest.raises(ValidationError, match="JWT keys must contain at least 32 bytes"):
+        Settings(**weak_key)
 
 
 def test_artifact_storage_configuration_is_private_and_bounded() -> None:

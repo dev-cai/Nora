@@ -1,6 +1,7 @@
 """Identity API 集成测试。"""
 
 import asyncio
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from app.infrastructure.database import (
     Base,
     BetaOwnerRecord,
     SqlAlchemyAuditEventRepository,
+    SqlAlchemyAuthenticationRateLimitRepository,
     SqlAlchemyIdentityManagementRepository,
     SqlAlchemyUserRepository,
     UserRecord,
@@ -148,6 +150,14 @@ def test_production_preflight_allows_published_contract_and_rejects_unknown_meth
     reset_database(database_url)
     settings = _production_settings(database_url, tmp_path)
     with TestClient(create_app(settings)) as client:
+        actual = client.post(
+            "/auth/login",
+            headers={"Origin": "https://nora.example"},
+            json={"username": "unknown", "password": "wrong"},
+        )
+        assert actual.status_code == 401
+        assert actual.headers["access-control-allow-origin"] == "https://nora.example"
+
         allowed = client.options(
             "/auth/login",
             headers={
@@ -258,6 +268,30 @@ def test_login_target_rate_limit_and_recovery_invalidate_old_session(
             "/auth/login", json={"username": "alice", "password": "new-password-123"}
         )
         assert renewed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_login_rate_limit_recovers_after_fixed_window(
+    database_engine: AsyncEngine,
+) -> None:
+    factory = create_session_factory(database_engine)
+    now = datetime(2026, 8, 15, 0, 0, tzinfo=timezone.utc)
+    async with factory() as session:
+        repository = SqlAlchemyAuthenticationRateLimitRepository(session)
+        for _ in range(repository.LOGIN_TARGET_LIMIT):
+            decision = await repository.reserve_login("a" * 64, "b" * 64, now)
+            assert decision.allowed is True
+
+        blocked = await repository.reserve_login("a" * 64, "b" * 64, now)
+        assert blocked.allowed is False
+        assert blocked.retry_after == 15 * 60 + 1
+
+        recovered = await repository.reserve_login(
+            "a" * 64,
+            "b" * 64,
+            now + timedelta(minutes=15, seconds=1),
+        )
+        assert recovered.allowed is True
 
 
 @pytest.mark.asyncio
