@@ -14,6 +14,7 @@ import type {
   CreateDecisionCaseInput,
   CreateApplicationDecisionInput,
   CreateApplicationRecordInput,
+  CreateInterviewCaseInput,
   CreateJobPostingInput,
   CreateResumeVariantInput,
   CreateSourceInput,
@@ -26,6 +27,8 @@ import type {
   JobRequirementSaveInput,
   JobRequirementSnapshot,
   JobRequirementSnapshotList,
+  InterviewCase,
+  InterviewCaseList,
   EditMessageDraftInput,
   GenerateMessageDraftInput,
   MessageDraft,
@@ -38,6 +41,7 @@ import type {
   SourceDocument,
   TemplateDefinition,
   TransitionApplicationRecordInput,
+  UpdateInterviewCaseInput,
   TokenResponse,
   User,
 } from "./types"
@@ -436,6 +440,42 @@ export const api = {
     idempotencyKey: string,
   ) => request<ApplicationRecord>(
     `/application-records/${encodeURIComponent(recordId)}/transitions`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(input),
+    },
+  ),
+  listInterviews: (page = 1, pageSize = 20) =>
+    request<InterviewCaseList>(`/interviews?page=${page}&page_size=${pageSize}`),
+  getInterview: (interviewId: string) =>
+    request<InterviewCase>(`/interviews/${encodeURIComponent(interviewId)}`),
+  getInterviewVersion: (interviewId: string, version: number) =>
+    request<InterviewCase>(
+      `/interviews/${encodeURIComponent(interviewId)}/versions/${version}`,
+    ),
+  listInterviewVersions: (interviewId: string) =>
+    request<InterviewCase[]>(
+      `/interviews/${encodeURIComponent(interviewId)}/versions`,
+    ),
+  createInterview: (
+    applicationRecordId: string,
+    input: CreateInterviewCaseInput,
+    idempotencyKey: string,
+  ) => request<InterviewCase>(
+    `/application-records/${encodeURIComponent(applicationRecordId)}/interviews`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(input),
+    },
+  ),
+  updateInterview: (
+    interviewId: string,
+    input: UpdateInterviewCaseInput,
+    idempotencyKey: string,
+  ) => request<InterviewCase>(
+    `/interviews/${encodeURIComponent(interviewId)}/versions`,
     {
       method: "POST",
       headers: { "Idempotency-Key": idempotencyKey },

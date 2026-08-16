@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import { ArrowLeft, Clock3, RefreshCw, Send, ShieldCheck } from "lucide-vue-next"
+import { ArrowLeft, CalendarPlus, Clock3, RefreshCw, Send, ShieldCheck } from "lucide-vue-next"
 import { useRoute } from "vue-router"
 
 import { userMessage } from "@/api/client"
@@ -106,6 +106,13 @@ watch(recordId, () => void load(), { immediate: true })
           <p>更新于 {{ new Date(store.current.updated_at).toLocaleString('zh-CN') }}</p>
         </div>
         <div class="detail-actions">
+          <RouterLink
+            v-if="store.current.status === 'interviewing'"
+            class="button button-primary"
+            :to="`/interviews/new?application=${store.current.id}`"
+          >
+            <CalendarPlus :size="17" /> 记录面试
+          </RouterLink>
           <span class="immutable-badge">
             <ShieldCheck :size="18" />
             <span><strong>记录 v{{ store.current.version }}</strong><small>手工状态</small></span>

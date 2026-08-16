@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 import {
   BriefcaseBusiness,
   Building2,
+  CalendarClock,
   ChartNoAxesCombined,
   ClipboardList,
   FileText,
@@ -19,6 +20,7 @@ import { useAnalysisStore } from "@/stores/analysis"
 import { useApplicationsStore } from "@/stores/applications"
 import { useCompaniesStore } from "@/stores/companies"
 import { useJobsStore } from "@/stores/jobs"
+import { useInterviewsStore } from "@/stores/interviews"
 import { useMessagesStore } from "@/stores/messages"
 import { useProfileStore } from "@/stores/profile"
 import { useResumesStore } from "@/stores/resumes"
@@ -29,6 +31,7 @@ const analysis = useAnalysisStore()
 const applications = useApplicationsStore()
 const companies = useCompaniesStore()
 const jobs = useJobsStore()
+const interviews = useInterviewsStore()
 const messages = useMessagesStore()
 const profile = useProfileStore()
 const resumes = useResumesStore()
@@ -40,6 +43,7 @@ const initials = computed(() => auth.user?.username.slice(0, 2).toUpperCase() ||
 function logout(): void {
   auth.logout()
   jobs.reset()
+  interviews.reset()
   profile.reset()
   resumes.reset()
   analysis.reset()
@@ -110,6 +114,14 @@ function logout(): void {
         >
           <ClipboardList :size="18" />
           <span>投递记录</span>
+        </RouterLink>
+        <RouterLink
+          class="nav-item"
+          :class="{ active: route.name === 'interviews' || route.name === 'interview-new' || route.name === 'interview-detail' }"
+          to="/interviews"
+        >
+          <CalendarClock :size="18" />
+          <span>面试安排</span>
         </RouterLink>
         <RouterLink
           class="nav-item"

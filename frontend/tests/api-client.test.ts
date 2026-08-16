@@ -236,6 +236,28 @@ describe("API client", () => {
     expect(new Headers(fetchMock.mock.calls[6]?.[1]?.headers).get("Idempotency-Key")).toBe("edit-key")
   })
 
+  it("uses owner-scoped versioned interview routes and idempotency keys", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({})))
+
+    await api.listInterviews(2, 10)
+    await api.getInterview("interview/1")
+    await api.getInterviewVersion("interview/1", 2)
+    await api.listInterviewVersions("interview/1")
+    await api.createInterview("application/1", {} as never, "create-key")
+    await api.updateInterview("interview/1", {} as never, "update-key")
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
+      ["/api/interviews?page=2&page_size=10", "GET"],
+      ["/api/interviews/interview%2F1", "GET"],
+      ["/api/interviews/interview%2F1/versions/2", "GET"],
+      ["/api/interviews/interview%2F1/versions", "GET"],
+      ["/api/application-records/application%2F1/interviews", "POST"],
+      ["/api/interviews/interview%2F1/versions", "POST"],
+    ])
+    expect(new Headers(fetchMock.mock.calls[4]?.[1]?.headers).get("Idempotency-Key")).toBe("create-key")
+    expect(new Headers(fetchMock.mock.calls[5]?.[1]?.headers).get("Idempotency-Key")).toBe("update-key")
+  })
+
   it("uses multipart source uploads and exact company intelligence versions", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({})))
 

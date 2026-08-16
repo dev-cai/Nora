@@ -24,6 +24,7 @@ from app.infrastructure.database import (
     ApplicationRecordTransitionRow,
     AuditEventRecord,
     Base,
+    InterviewCaseRow,
     TemplateDefinitionRecord,
 )
 from app.ports.followup import RenderedPdf
@@ -154,6 +155,30 @@ def _application_fact_counts(database_url: str, record_id: str) -> tuple[int, in
         return int(records or 0), int(transitions or 0), int(audits or 0)
 
     return asyncio.run(count())
+
+
+def _interview_facts(database_url: str, interview_id: str) -> tuple[int, list[str]]:
+    async def read() -> tuple[int, list[str]]:
+        engine = create_async_engine(database_url)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            versions = await session.scalar(
+                select(func.count())
+                .select_from(InterviewCaseRow)
+                .where(InterviewCaseRow.id == UUID(interview_id))
+            )
+            audits = await session.scalars(
+                select(AuditEventRecord.after_summary)
+                .where(
+                    AuditEventRecord.target_type == "interview_case",
+                    AuditEventRecord.target_id == UUID(interview_id),
+                )
+                .order_by(AuditEventRecord.target_version)
+            )
+        await engine.dispose()
+        return int(versions or 0), [value or "" for value in audits]
+
+    return asyncio.run(read())
 
 
 def _register_and_login(client: TestClient, username: str) -> dict[str, str]:
@@ -611,7 +636,9 @@ def test_company_assessment_fixes_snapshot_version_in_report_contract(database_u
         )
 
 
-def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url: str) -> None:
+def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(
+    database_url: str, capsys
+) -> None:
     _reset_database(database_url)
     template = _seed_resume_template(database_url)
     settings = Settings(
@@ -1046,12 +1073,131 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
         )
         assert _application_fact_counts(database_url, application["id"]) == (1, 1, 2)
 
+        interview_payload = {
+            "starts_at": "2026-10-15T09:30:00+08:00",
+            "timezone": "Asia/Shanghai",
+            "mode": "online",
+            "location": None,
+            "meeting_url": "https://meet.example.com/private-token",
+            "round_number": 1,
+            "note": "private interview note",
+            "status": "scheduled",
+        }
+        before_interviewing = client.post(
+            f"/application-records/{application['id']}/interviews",
+            headers={**alice, "Idempotency-Key": "interview-before-confirmation"},
+            json=interview_payload,
+        )
+        assert before_interviewing.status_code == 409
+        assert before_interviewing.json()["error_code"] == "interview_case_application_conflict"
+
+        interviewing = client.post(
+            f"/application-records/{application['id']}/transitions",
+            headers={**alice, "Idempotency-Key": "application-interviewing"},
+            json={
+                "base_version": 2,
+                "to_status": "interviewing",
+                "occurred_at": occurred_at,
+                "channel": "招聘平台",
+            },
+        )
+        assert interviewing.status_code == 201, interviewing.text
+        assert interviewing.json()["version"] == 3
+
+        created_interview = client.post(
+            f"/application-records/{application['id']}/interviews",
+            headers={**alice, "Idempotency-Key": " interview  create "},
+            json=interview_payload,
+        )
+        assert created_interview.status_code == 201, created_interview.text
+        interview = created_interview.json()
+        assert interview["version"] == 1
+        assert interview["meeting_url"] == interview_payload["meeting_url"]
+        assert interview["note"] == interview_payload["note"]
+
+        interview_replay = client.post(
+            f"/application-records/{application['id']}/interviews",
+            headers={**alice, "Idempotency-Key": "interview  create"},
+            json=interview_payload,
+        )
+        assert interview_replay.status_code == 200
+        assert interview_replay.json()["id"] == interview["id"]
+        assert client.get("/interviews", headers=alice).json()["total"] == 1
+        assert client.get("/interviews", headers=bob).json()["total"] == 0
+        assert client.get(f"/interviews/{interview['id']}", headers=bob).status_code == 404
+
+        update_payload = {
+            **interview_payload,
+            "base_version": 1,
+            "starts_at": "2026-10-15T10:30:00+08:00",
+            "mode": "onsite",
+            "location": "Shanghai office",
+            "meeting_url": None,
+            "round_number": 2,
+            "note": "private updated note",
+        }
+        updated_interview = client.post(
+            f"/interviews/{interview['id']}/versions",
+            headers={**alice, "Idempotency-Key": "interview-update"},
+            json=update_payload,
+        )
+        assert updated_interview.status_code == 201, updated_interview.text
+        assert updated_interview.json()["version"] == 2
+        update_replay = client.post(
+            f"/interviews/{interview['id']}/versions",
+            headers={**alice, "Idempotency-Key": "interview-update"},
+            json=update_payload,
+        )
+        assert update_replay.status_code == 200
+        stale_interview = client.post(
+            f"/interviews/{interview['id']}/versions",
+            headers={**alice, "Idempotency-Key": "interview-stale"},
+            json={**update_payload, "round_number": 3},
+        )
+        assert stale_interview.status_code == 409
+        assert stale_interview.json()["error_code"] == "interview_case_version_conflict"
+        versions = client.get(f"/interviews/{interview['id']}/versions", headers=alice)
+        assert [item["version"] for item in versions.json()] == [2, 1]
+        original = client.get(f"/interviews/{interview['id']}/versions/1", headers=alice)
+        assert original.status_code == 200
+        assert original.json()["meeting_url"] == interview_payload["meeting_url"]
+
+        def submit_concurrent_interview(round_number: int) -> tuple[int, dict[str, object]]:
+            response = client.post(
+                f"/interviews/{interview['id']}/versions",
+                headers={
+                    **alice,
+                    "Idempotency-Key": f"interview-concurrent-{round_number}",
+                },
+                json={
+                    **update_payload,
+                    "base_version": 2,
+                    "round_number": round_number,
+                },
+            )
+            return response.status_code, response.json()
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            interview_results = list(executor.map(submit_concurrent_interview, [3, 4]))
+        assert sorted(status for status, _body in interview_results) == [201, 409]
+        assert client.get(f"/interviews/{interview['id']}", headers=alice).json()["version"] == 3
+        version_count, interview_audits = _interview_facts(database_url, interview["id"])
+        assert version_count == 3
+        assert len(interview_audits) == 3
+        assert all("private" not in summary for summary in interview_audits)
+        assert all("meet.example.com" not in summary for summary in interview_audits)
+        captured = capsys.readouterr()
+        runtime_output = captured.out + captured.err
+        assert "https://meet.example.com/private-token" not in runtime_output
+        assert "private interview note" not in runtime_output
+        assert "private updated note" not in runtime_output
+
         def submit_concurrent_transition(target: str) -> tuple[int, dict[str, object]]:
             response = client.post(
                 f"/application-records/{application['id']}/transitions",
                 headers={**alice, "Idempotency-Key": f"application-concurrent-{target}"},
                 json={
-                    "base_version": 2,
+                    "base_version": 3,
                     "to_status": target,
                     "occurred_at": occurred_at,
                     "channel": "招聘平台",
@@ -1061,7 +1207,7 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             concurrent_results = list(
-                executor.map(submit_concurrent_transition, ["interviewing", "rejected"])
+                executor.map(submit_concurrent_transition, ["offer_received", "rejected"])
             )
         assert sorted(status for status, _body in concurrent_results) == [201, 409]
         loser = next(body for status, body in concurrent_results if status == 409)
@@ -1069,9 +1215,9 @@ def test_resume_variant_api_is_idempotent_versioned_and_user_scoped(database_url
         concurrent_winner = client.get(
             f"/application-records/{application['id']}", headers=alice
         ).json()
-        assert concurrent_winner["version"] == 3
-        assert concurrent_winner["status"] in {"interviewing", "rejected"}
-        assert _application_fact_counts(database_url, application["id"]) == (1, 2, 3)
+        assert concurrent_winner["version"] == 4
+        assert concurrent_winner["status"] in {"offer_received", "rejected"}
+        assert _application_fact_counts(database_url, application["id"]) == (1, 3, 4)
 
         app.dependency_overrides[get_resume_pdf_renderer] = UpgradedDeterministicPdfRenderer
         upgraded = client.post(f"/resume-variants/{body['id']}/pdf", headers=alice)

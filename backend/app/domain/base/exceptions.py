@@ -15,6 +15,10 @@ class ErrorCode(StrEnum):
     APPLICATION_RECORD_PERSISTENCE_FAILED = "application_record_persistence_failed"
     APPLICATION_RECORD_TRANSITION_CONFLICT = "application_record_transition_conflict"
     APPLICATION_RECORD_VERSION_CONFLICT = "application_record_version_conflict"
+    INTERVIEW_CASE_APPLICATION_CONFLICT = "interview_case_application_conflict"
+    INTERVIEW_CASE_KEY_TAKEN = "interview_case_key_taken"
+    INTERVIEW_CASE_PERSISTENCE_FAILED = "interview_case_persistence_failed"
+    INTERVIEW_CASE_VERSION_CONFLICT = "interview_case_version_conflict"
     APPLICATION_ERROR = "application_error"
     ARTIFACT_CONFLICT = "artifact_conflict"
     ARTIFACT_CORRUPT = "artifact_corrupt"
@@ -82,6 +86,11 @@ class ErrorCode(StrEnum):
     INVALID_IDEMPOTENCY_KEY = "invalid_idempotency_key"
     INVALID_INPUT_FINGERPRINT = "invalid_input_fingerprint"
     INVALID_INPUT_KIND = "invalid_input_kind"
+    INVALID_INTERVIEW_CASE = "invalid_interview_case"
+    INVALID_INTERVIEW_MODE = "invalid_interview_mode"
+    INVALID_INTERVIEW_ROUND = "invalid_interview_round"
+    INVALID_INTERVIEW_STATUS = "invalid_interview_status"
+    INVALID_INTERVIEW_TIMEZONE = "invalid_interview_timezone"
     INVALID_JD_TEXT = "invalid_jd_text"
     INVALID_JOB_TITLE = "invalid_job_title"
     INVALID_LOCATION = "invalid_location"
@@ -220,6 +229,11 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
             ErrorCode.INVALID_IDEMPOTENCY_KEY,
             ErrorCode.INVALID_INPUT_FINGERPRINT,
             ErrorCode.INVALID_INPUT_KIND,
+            ErrorCode.INVALID_INTERVIEW_CASE,
+            ErrorCode.INVALID_INTERVIEW_MODE,
+            ErrorCode.INVALID_INTERVIEW_ROUND,
+            ErrorCode.INVALID_INTERVIEW_STATUS,
+            ErrorCode.INVALID_INTERVIEW_TIMEZONE,
             ErrorCode.INVALID_JD_TEXT,
             ErrorCode.INVALID_JOB_TITLE,
             ErrorCode.INVALID_LOCATION,
@@ -286,6 +300,9 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
             ErrorCode.APPLICATION_RECORD_KEY_TAKEN,
             ErrorCode.APPLICATION_RECORD_TRANSITION_CONFLICT,
             ErrorCode.APPLICATION_RECORD_VERSION_CONFLICT,
+            ErrorCode.INTERVIEW_CASE_APPLICATION_CONFLICT,
+            ErrorCode.INTERVIEW_CASE_KEY_TAKEN,
+            ErrorCode.INTERVIEW_CASE_VERSION_CONFLICT,
             ErrorCode.ARTIFACT_CONFLICT,
             ErrorCode.ARTIFACT_STATE_CONFLICT,
             ErrorCode.COMPANY_ASSESSMENT_CONFLICT,
@@ -316,6 +333,7 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
         ErrorCategory.SERVICE_UNAVAILABLE: (
             ErrorCode.APPLICATION_DECISION_PERSISTENCE_FAILED,
             ErrorCode.APPLICATION_RECORD_PERSISTENCE_FAILED,
+            ErrorCode.INTERVIEW_CASE_PERSISTENCE_FAILED,
             ErrorCode.ARTIFACT_CORRUPT,
             ErrorCode.ARTIFACT_DELETE_FAILED,
             ErrorCode.ARTIFACT_STORAGE_UNAVAILABLE,

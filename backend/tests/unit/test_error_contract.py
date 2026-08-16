@@ -19,7 +19,9 @@ EXPECTED_ERROR_CODES = frozenset(
     application_decision_conflict application_decision_key_taken
     application_decision_persistence_failed application_record_key_taken
     application_record_persistence_failed application_record_transition_conflict
-    application_record_version_conflict application_error artifact_conflict artifact_corrupt
+    application_record_version_conflict interview_case_application_conflict
+    interview_case_key_taken interview_case_persistence_failed interview_case_version_conflict
+    application_error artifact_conflict artifact_corrupt
     artifact_delete_failed artifact_state_conflict artifact_storage_unavailable artifact_too_large
     artifact_unavailable authentication_failed authentication_rate_limited
     company_assessment_conflict
@@ -39,7 +41,9 @@ EXPECTED_ERROR_CODES = frozenset(
     invalid_confirmation_transition invalid_correlation_id invalid_decision_case_state
     invalid_decision_reason invalid_draft_text invalid_email invalid_failure_code
     invalid_failure_message invalid_generation_identity invalid_generator_version
-    invalid_idempotency_key invalid_input_fingerprint invalid_input_kind invalid_jd_text
+    invalid_idempotency_key invalid_input_fingerprint invalid_input_kind invalid_interview_case
+    invalid_interview_mode invalid_interview_round invalid_interview_status
+    invalid_interview_timezone invalid_jd_text
     invalid_job_title invalid_location invalid_message_draft_fingerprint invalid_message_draft_hash
     invalid_message_draft_revision invalid_message_draft_source invalid_message_draft_style
     invalid_object_key invalid_pagination invalid_password invalid_profile invalid_profile_field
@@ -66,7 +70,7 @@ EXPECTED_ERROR_CODES = frozenset(
 
 
 def test_error_code_registry_is_exact_complete_and_immutable() -> None:
-    assert len(EXPECTED_ERROR_CODES) == 152
+    assert len(EXPECTED_ERROR_CODES) == 161
     assert {code.value for code in ErrorCode} == EXPECTED_ERROR_CODES
     assert set(ErrorCode) == set(ERROR_CATEGORY_BY_CODE)
     with pytest.raises(TypeError):

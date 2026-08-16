@@ -8,6 +8,7 @@ from app.domain.followup import (
     ApplicationDecision,
     ApplicationRecord,
     ApplicationRecordTransition,
+    InterviewCase,
     MessageDraft,
     ResumePdf,
     ResumeVariant,
@@ -49,6 +50,22 @@ class ApplicationRecordTransitionRepository(Protocol):
     async def get_by_idempotency_key(self, key: str) -> ApplicationRecordTransition | None: ...
 
     async def list_for_record(self, record_id: UUID) -> list[ApplicationRecordTransition]: ...
+
+
+class InterviewCaseRepository(Protocol):
+    async def add(self, interview: InterviewCase) -> InterviewCase: ...
+
+    async def get_latest(self, interview_id: UUID) -> InterviewCase | None: ...
+
+    async def get_version(self, interview_id: UUID, version: int) -> InterviewCase | None: ...
+
+    async def get_by_idempotency_key(self, key: str) -> InterviewCase | None: ...
+
+    async def list_latest(self, *, offset: int, limit: int) -> list[InterviewCase]: ...
+
+    async def list_versions(self, interview_id: UUID) -> list[InterviewCase]: ...
+
+    async def count(self) -> int: ...
 
 
 class TemplateDefinitionRepository(Protocol):

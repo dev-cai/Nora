@@ -224,6 +224,44 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
     `/api/message-drafts/${draftId}/revisions`,
   ])
 
+  await page.goto(`/resume-variants/${variantId}`)
+  await page.getByRole("link", { name: "创建投递记录" }).click()
+  await expect(page).toHaveURL(/\/applications\/new\?variant=/)
+  await page.getByRole("button", { name: "创建待确认记录" }).click()
+  await expect(page).toHaveURL(/\/applications\/[0-9a-f]{8}-/)
+  const applicationId = page.url().match(/\/applications\/([0-9a-f-]+)/)![1]
+
+  await page.getByRole("button", { name: "已投递" }).click()
+  await page.getByRole("combobox").selectOption("公司官网")
+  await page.getByRole("button", { name: "确认已投递" }).click()
+  await expect(page.getByRole("heading", { name: "已投递" })).toBeVisible()
+  await page.getByRole("button", { name: "面试中" }).click()
+  await page.getByRole("button", { name: "确认面试中" }).click()
+  await expect(page.getByRole("heading", { name: "面试中" })).toBeVisible()
+  await page.getByRole("link", { name: "记录面试" }).click()
+
+  const interviewDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  const localInterviewDate = new Date(
+    interviewDate.getTime() - interviewDate.getTimezoneOffset() * 60_000,
+  ).toISOString().slice(0, 16)
+  await page.getByLabel("开始时间").fill(localInterviewDate)
+  await page.getByLabel("会议链接").fill("https://meet.example.com/e2e-private")
+  await page.getByLabel("备注（可选）").fill("E2E 私有面试备注")
+  await page.getByRole("button", { name: "保存面试安排" }).click()
+  await expect(page).toHaveURL(/\/interviews\/[0-9a-f]{8}-/)
+  const interviewId = page.url().match(/\/interviews\/([0-9a-f-]+)/)![1]
+  await expect(page.getByText("第 1 轮 · 线上", { exact: true })).toBeVisible()
+
+  await page.locator(".interview-mode-field").getByRole("button", { name: "线下" }).click()
+  await page.getByLabel("地点").fill("E2E 上海办公室")
+  await page.getByLabel("轮次").fill("2")
+  await page.getByRole("button", { name: "保存新版本" }).click()
+  await expect(page.getByText("已保存为 v2")).toBeVisible()
+  await page.reload()
+  await expect(page.getByText("安排 v2")).toBeVisible()
+  await expect(page.getByText("E2E 上海办公室")).toBeVisible()
+  await expect(page.getByText("v1 · 第 1 轮 · 线上")).toBeVisible()
+
   await page.getByRole("button", { name: "退出登录" }).click()
   const userB = newUser("m4-variant-b")
   await registerAndLogin(page, userB)
@@ -249,6 +287,14 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
     headers: { Authorization: `Bearer ${userBSession.token}` },
   })
   expect(foreignDraft.status()).toBe(404)
+  await page.goto(`/applications/${applicationId}`)
+  await expect(page.getByText("对象不存在或无权访问")).toBeVisible()
+  await page.goto(`/interviews/${interviewId}`)
+  await expect(page.getByText("对象不存在或无权访问")).toBeVisible()
+  const foreignInterview = await page.request.get(`/api/interviews/${interviewId}`, {
+    headers: { Authorization: `Bearer ${userBSession.token}` },
+  })
+  expect(foreignInterview.status()).toBe(404)
 })
 
 test("M4 公司情报：录入、固定报告版本、追加版本与双用户隔离", async ({ page }) => {
