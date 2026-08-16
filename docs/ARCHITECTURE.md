@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#171、#174、#183、#184、#185、#186、#187。
-- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、Vue Web、Artifact/Source 基础和公司情报后端切片。
+- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -291,6 +291,10 @@ M3 Current 交付 `analyzed -> apply` 与 `analyzed -> skip`：`ApplicationDecis
 M4 Current `ApplicationRecord` 只允许从 apply 决定和属于该决定的不可变 ResumeVariant 创建，初始状态固定为 `planned`。记录固化 ResumeVariant ID/版本/内容指纹，并按用户显式选择固化可用 ResumePdf、Artifact 和 MessageDraft 的精确 ID、版本与哈希；未选择的可选材料统一保存为空，不在之后追随“最新版本”。每条 apply 决定最多一条记录。
 
 创建与转换均使用 owner 范围幂等键；转换以 `base_version` 做乐观并发控制，非法状态边稳定返回 `application_record_transition_conflict/409`，过期或并发失败返回 `application_record_version_conflict/409`。业务记录、只追加转换事件和 AuditEvent 由 Application 顶层通过共享 `Transaction` 一次提交；任何写入失败整段回滚，冲突恢复必须先 rollback 再读取赢家。公开接口为 `POST/GET /application-records`、`GET /application-records/{id}` 以及 `POST/GET /application-records/{id}/transitions`，全部按 owner 隔离。系统没有招聘平台写 Adapter，不读取外部投递结果，也不会从未知外部状态自动推进记录。
+
+M4 Current `InterviewCase` 只记录用户确认的面试通知事实，并固定属于一条已由用户推进到 `interviewing` 的 ApplicationRecord。每个安排以 v1 创建，后续对尚未开始的安排只追加 v2..N，不覆盖历史；精确版本、最新版本和完整版本列表均按 owner 隔离读取。方式限定为线下、线上或电话：线下必须有地点且无会议链接，线上必须有不含凭据的 HTTPS 链接且无地点，电话不得保存两者；时区使用 IANA 名称，轮次限定 1..20。
+
+InterviewCase 创建和版本追加使用 owner 范围幂等键，请求指纹包含 ApplicationRecord、`base_version` 和全部规范化字段；`(id, version)` 唯一约束保护并发追加，过期或并发失败稳定返回 `interview_case_version_conflict/409`。InterviewCase 与 AuditEvent 在共享事务中原子提交，审计摘要只包含 ApplicationRecord、版本、状态、方式、开始时间、时区和轮次，不记录会议链接或备注。公开接口为 `POST /application-records/{id}/interviews`、`GET /interviews`、`GET /interviews/{id}`、`POST/GET /interviews/{id}/versions` 与 `GET /interviews/{id}/versions/{version}`；不包含邮件/日历读取、通知发送、面试准备、复盘、地图或天气 Provider。
 
 ### 简历模板、PDF 与 MessageDraft
 

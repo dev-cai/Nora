@@ -417,6 +417,23 @@ textarea { min-height: 210px; resize: vertical; line-height: 1.55; }
 .application-timeline p { margin-top: 5px; color: var(--muted); font-size: 13px; }
 .application-timeline small { margin-top: 4px; color: var(--muted); }
 
+.interview-list { border-top: 1px solid var(--line); }
+.interview-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 20px; align-items: center; gap: 14px; padding: 17px 8px; border-bottom: 1px solid var(--line); }
+.interview-row:hover { background: rgba(255,255,255,.7); }
+.interview-row-main strong, .interview-row-main small, .interview-row-meta time, .interview-row-meta small { display: block; }
+.interview-row-main small, .interview-row-meta { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.interview-row-meta { text-align: right; }
+.interview-form { padding: 24px; border: 1px solid var(--line); border-radius: 7px; background: white; }
+.interview-form textarea { min-height: 108px; }
+.interview-mode-field { min-width: 0; margin: 0; padding: 0; border: 0; }
+.interview-mode-field legend { margin-bottom: 7px; color: #3f4943; font-size: 13px; font-weight: 700; }
+.interview-mode-field .application-status-control { margin-top: 0; }
+.interview-wide-field { grid-column: 1 / -1; }
+.interview-editor-band, .interview-history-band { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--line); }
+.interview-detail-form { margin-top: 16px; }
+.interview-status-control { margin-top: 18px; }
+.variant-provenance dd .inline-link { display: inline-flex; align-items: center; gap: 5px; }
+
 .company-page-heading { margin-bottom: 20px; }
 .company-form { border: 1px solid var(--line); border-radius: 7px; background: white; }
 .company-form > .form-section { padding: 24px; }
@@ -550,6 +567,11 @@ textarea { min-height: 210px; resize: vertical; line-height: 1.55; }
   .application-source-row { grid-template-columns: 18px 20px minmax(0, 1fr); }
   .application-transition-form { grid-template-columns: 1fr; }
   .application-note-field { grid-column: auto; }
+  .interview-row { grid-template-columns: 38px minmax(0, 1fr) 16px; }
+  .interview-row-meta { grid-column: 2; text-align: left; }
+  .interview-row > svg { grid-column: 3; grid-row: 1 / span 2; }
+  .interview-form { padding: 18px; }
+  .interview-wide-field { grid-column: auto; }
   .company-value-status, .company-facts, .company-source-meta { grid-template-columns: 1fr; }
   .company-summary-input, .company-full-field { grid-column: auto; }
   .company-source-mode { display: flex; width: 100%; }

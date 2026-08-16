@@ -524,3 +524,40 @@ export interface ApplicationRecordList {
   page_size: number
   total: number
 }
+
+export type InterviewMode = "onsite" | "online" | "phone"
+export type InterviewCaseStatus = "scheduled" | "cancelled"
+
+export interface InterviewCaseFields {
+  starts_at: string
+  timezone: string
+  mode: InterviewMode
+  location: string | null
+  meeting_url: string | null
+  round_number: number
+  note: string | null
+  status: InterviewCaseStatus
+}
+
+export type CreateInterviewCaseInput = InterviewCaseFields
+
+export interface UpdateInterviewCaseInput extends InterviewCaseFields {
+  base_version: number
+}
+
+export interface InterviewCase extends InterviewCaseFields {
+  id: string
+  application_record_id: string
+  version: number
+  actor_id: string
+  source: "user_confirmation"
+  created_at: string
+  updated_at: string
+}
+
+export interface InterviewCaseList {
+  items: InterviewCase[]
+  page: number
+  page_size: number
+  total: number
+}

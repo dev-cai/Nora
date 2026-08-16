@@ -33,6 +33,10 @@ from app.domain.followup import (
     ApplicationRecordStatus,
     ApplicationRecordTransition,
     ApplicationTransitionSource,
+    InterviewCase,
+    InterviewCaseSource,
+    InterviewCaseStatus,
+    InterviewMode,
     MessageDraft,
     MessageDraftRevisionType,
     MessageDraftSource,
@@ -708,6 +712,60 @@ class ApplicationRecordTransitionRow(Base):
     request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
+class InterviewCaseRow(Base):
+    __tablename__ = "interview_cases"
+    __table_args__ = (
+        UniqueConstraint("id", "version", "owner_id", name="uq_interview_case_version"),
+        UniqueConstraint("owner_id", "idempotency_key", name="uq_interview_case_owner_key"),
+        CheckConstraint("version >= 1", name="ck_interview_case_version"),
+        CheckConstraint("actor_id = owner_id", name="ck_interview_case_actor_owner"),
+        CheckConstraint("mode IN ('onsite', 'online', 'phone')", name="ck_interview_case_mode"),
+        CheckConstraint("status IN ('scheduled', 'cancelled')", name="ck_interview_case_status"),
+        CheckConstraint("source = 'user_confirmation'", name="ck_interview_case_source"),
+        CheckConstraint("round_number BETWEEN 1 AND 20", name="ck_interview_case_round"),
+        CheckConstraint(
+            "(mode = 'onsite' AND location IS NOT NULL AND meeting_url IS NULL) OR "
+            "(mode = 'online' AND location IS NULL AND meeting_url IS NOT NULL) OR "
+            "(mode = 'phone' AND location IS NULL AND meeting_url IS NULL)",
+            name="ck_interview_case_mode_fields",
+        ),
+        CheckConstraint(
+            "length(idempotency_key) BETWEEN 1 AND 255 AND length(request_fingerprint) = 64",
+            name="ck_interview_case_identity",
+        ),
+        ForeignKeyConstraint(
+            ["application_record_id", "owner_id"],
+            ["application_records.id", "application_records.owner_id"],
+            name="fk_interview_case_application_owner",
+            ondelete="CASCADE",
+        ),
+    )
+
+    record_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False, index=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    application_record_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    actor_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    timezone: Mapped[str] = mapped_column(String(100), nullable=False)
+    mode: Mapped[str] = mapped_column(String(16), nullable=False)
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meeting_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    round_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    case_created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    case_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class SqlAlchemyTemplateDefinitionRepository:
     @staticmethod
     def _to_domain(record: TemplateDefinitionRecord) -> TemplateDefinition:
@@ -1231,6 +1289,130 @@ class SqlAlchemyApplicationRecordTransitionRepository:
         return [self._to_domain(row) for row in rows]
 
 
+class SqlAlchemyInterviewCaseRepository:
+    def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
+        self.session = session
+        self.owner_id = owner_id
+
+    @staticmethod
+    def _to_domain(row: InterviewCaseRow) -> InterviewCase:
+        return InterviewCase.restore(
+            case_id=row.id,
+            owner_id=row.owner_id,
+            application_record_id=row.application_record_id,
+            version=row.version,
+            actor_id=row.actor_id,
+            starts_at=_as_utc(row.starts_at),
+            timezone_name=row.timezone,
+            mode=InterviewMode(row.mode),
+            location=row.location,
+            meeting_url=row.meeting_url,
+            round_number=row.round_number,
+            note=row.note,
+            source=InterviewCaseSource(row.source),
+            status=InterviewCaseStatus(row.status),
+            idempotency_key=row.idempotency_key,
+            request_fingerprint=row.request_fingerprint,
+            created_at=_as_utc(row.case_created_at),
+            updated_at=_as_utc(row.case_updated_at),
+        )
+
+    async def add(self, interview: InterviewCase) -> InterviewCase:
+        if interview.owner_id != self.owner_id:
+            raise InfrastructureError("Interview not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
+        row = InterviewCaseRow(record_id=uuid4(), **_interview_case_values(interview))
+        self.session.add(row)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+            error_code = (
+                ErrorCode.INTERVIEW_CASE_KEY_TAKEN
+                if constraint == "uq_interview_case_owner_key"
+                else ErrorCode.INTERVIEW_CASE_VERSION_CONFLICT
+            )
+            raise InfrastructureError(
+                "Interview version already exists", error_code=error_code
+            ) from exc
+        return self._to_domain(row)
+
+    async def get_latest(self, interview_id: UUID) -> InterviewCase | None:
+        row = await self.session.scalar(
+            select(InterviewCaseRow)
+            .where(
+                InterviewCaseRow.id == interview_id,
+                InterviewCaseRow.owner_id == self.owner_id,
+            )
+            .order_by(InterviewCaseRow.version.desc())
+            .limit(1)
+        )
+        return None if row is None else self._to_domain(row)
+
+    async def get_version(self, interview_id: UUID, version: int) -> InterviewCase | None:
+        row = await self.session.scalar(
+            select(InterviewCaseRow).where(
+                InterviewCaseRow.id == interview_id,
+                InterviewCaseRow.version == version,
+                InterviewCaseRow.owner_id == self.owner_id,
+            )
+        )
+        return None if row is None else self._to_domain(row)
+
+    async def get_by_idempotency_key(self, key: str) -> InterviewCase | None:
+        row = await self.session.scalar(
+            select(InterviewCaseRow).where(
+                InterviewCaseRow.owner_id == self.owner_id,
+                InterviewCaseRow.idempotency_key == key,
+            )
+        )
+        return None if row is None else self._to_domain(row)
+
+    async def list_latest(self, *, offset: int, limit: int) -> list[InterviewCase]:
+        latest = (
+            select(
+                InterviewCaseRow.id.label("interview_id"),
+                func.max(InterviewCaseRow.version).label("latest_version"),
+            )
+            .where(InterviewCaseRow.owner_id == self.owner_id)
+            .group_by(InterviewCaseRow.id)
+            .subquery()
+        )
+        rows = await self.session.scalars(
+            select(InterviewCaseRow)
+            .join(
+                latest,
+                and_(
+                    InterviewCaseRow.id == latest.c.interview_id,
+                    InterviewCaseRow.version == latest.c.latest_version,
+                ),
+            )
+            .where(InterviewCaseRow.owner_id == self.owner_id)
+            .order_by(InterviewCaseRow.starts_at.asc(), InterviewCaseRow.id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return [self._to_domain(row) for row in rows]
+
+    async def list_versions(self, interview_id: UUID) -> list[InterviewCase]:
+        rows = await self.session.scalars(
+            select(InterviewCaseRow)
+            .where(
+                InterviewCaseRow.id == interview_id,
+                InterviewCaseRow.owner_id == self.owner_id,
+            )
+            .order_by(InterviewCaseRow.version.desc())
+        )
+        return [self._to_domain(row) for row in rows]
+
+    async def count(self) -> int:
+        value = await self.session.scalar(
+            select(func.count(func.distinct(InterviewCaseRow.id))).where(
+                InterviewCaseRow.owner_id == self.owner_id
+            )
+        )
+        return int(value or 0)
+
+
 class SqlAlchemyResumePdfRepository:
     def __init__(self, session: AsyncSession, owner_id: UUID) -> None:
         self.session = session
@@ -1404,6 +1586,29 @@ def _application_transition_values(
         "recorded_at": value.recorded_at,
         "idempotency_key": value.idempotency_key,
         "request_fingerprint": value.request_fingerprint,
+    }
+
+
+def _interview_case_values(value: InterviewCase) -> dict[str, object]:
+    return {
+        "id": value.id,
+        "owner_id": value.owner_id,
+        "application_record_id": value.application_record_id,
+        "version": value.version,
+        "actor_id": value.actor_id,
+        "starts_at": value.starts_at,
+        "timezone": value.timezone,
+        "mode": value.mode.value,
+        "location": value.location,
+        "meeting_url": value.meeting_url,
+        "round_number": value.round_number,
+        "note": value.note,
+        "source": value.source.value,
+        "status": value.status.value,
+        "idempotency_key": value.idempotency_key,
+        "request_fingerprint": value.request_fingerprint,
+        "case_created_at": value.created_at,
+        "case_updated_at": value.updated_at,
     }
 
 

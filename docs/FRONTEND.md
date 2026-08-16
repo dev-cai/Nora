@@ -6,7 +6,7 @@
 ## 1. 状态
 
 - 技术选择：Vue 3 + Vite 独立 Web 客户端。
-- 交付阶段：M2 分析就绪输入、M3 确定性决策页面和 M4 声明式模板/ResumeVariant/PDF/MessageDraft/ApplicationRecord 页面已交付；M4 后续与 M5 继续扩展面试和 Evidence 页面。
+- 交付阶段：M2 分析就绪输入、M3 确定性决策页面和 M4 声明式模板/ResumeVariant/PDF/MessageDraft/ApplicationRecord/InterviewCase 页面已交付；M4 后续与 M5 继续扩展部署、验收和 Evidence 页面。
 - 实现状态：Current 基线已包含 `frontend/`、Node 依赖、Web 容器、前端 CI 与定制简历工作流；未交付页面继续按 Planned 标注。
 - 替代方案：不采用 Gradio；不维护 Gradio 与 Vue 两套客户端。
 
@@ -139,7 +139,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 
 - M2 分析就绪状态与输入 E2E（Current）；
 - M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，证据见 `current-capabilities.toml`）；
-- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制和手工投递记录（Current）；最小面试通知和 Beta 流程仍为 Planned；
+- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、手工投递记录和最小面试通知（Current）；Beta 部署与最终验收仍为 Planned；
 - M5 Evidence、检索引用和可选模型增强版本；
 - 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
 
@@ -172,7 +172,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | 投/不投决定 | 报告页内 `DecisionBar` | Current，M3 |
 | 定制简历（选模板与 PDF） | `/templates`、`/resumes/:id/customize`、`/resume-variants/:id` | Current，M4 |
 | 打招呼语草稿 | `/messages/:id` | Current，M4 |
-| 投递与最小面试通知 | `/applications`、`/interviews` | M4 |
+| 投递与最小面试通知 | `/applications`、`/interviews`、`/interviews/new`、`/interviews/:id` | Current，M4 |
 | Evidence 与 AI 增强版本 | 报告详情内版本视图 | M5 |
 | 深度面试准备、复盘与出行 | 待独立设计 | 触发式候选 |
 
@@ -205,7 +205,9 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 /applications/:id           投递详情、状态确认与转换历史〔Current，M4〕
 /companies/new              录入并可选绑定报告的公司情报〔Current，M4〕
 /companies/:id              公司情报精确版本与追加版本〔Current，M4〕
-/interviews                 最小面试通知〔M4 Planned〕
+/interviews                 面试安排列表〔Current，M4〕
+/interviews/new             从 interviewing 投递记录创建安排〔Current，M4〕
+/interviews/:id             面试详情、版本追加与历史〔Current，M4〕
 ```
 
 路由守卫：未登录访问受保护路由跳 `/login`；收到 `401` 统一清除会话；`403` 不做登出。
@@ -312,11 +314,13 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 - 详情页仅展示服务端允许的下一状态。进入 `applied` 必须由用户选择渠道并确认发生时间；其他转换也保存发生时间、可选渠道和备注。失败重试沿用相同载荷的幂等键，版本冲突提示刷新后重试。
 - API：`POST /application-records`、`GET /application-records`、`GET /application-records/{id}`、`GET /application-records/{id}/transitions` 与 `POST /application-records/{id}/transitions`。跨用户对象统一 `404`；前端没有招聘平台请求、发送 API 或外部成功推断。
 
-### 10.12 最小面试通知（M4）与触发式候选
+### 10.12 最小面试通知（Current，M4）与触发式候选
 
-- 面试记录 `/interviews`：录入面试时间、地点、轮次和备注（M4 Planned）。
-- API：最小 `InterviewCase`（Planned，M4）。
-- 深度准备、复盘和出行推荐不属于 M2-M5 默认退出条件，满足触发条件后另行设计路由与契约。
+- 列表 `/interviews` 从认证 API 恢复 owner 范围最新安排；ApplicationRecord 进入 `interviewing` 后，详情页提供 `/interviews/new?application=<id>` 创建入口。登出清空 `interviewsStore`。
+- 创建和详情表单保存开始时间、IANA 时区、方式、轮次、备注，以及线上 HTTPS 会议链接或线下地点。电话方式不提交地点或链接；页面不读取邮件、日历或招聘平台。
+- 详情 `/interviews/:id` 对未来安排用当前 `base_version` 追加新版本，并展示完整版本历史；已开始或过去的安排只读。失败重试沿用相同载荷的幂等键，载荷变化后生成新键，冲突提示刷新后重试。
+- API：`POST /application-records/{id}/interviews`、`GET /interviews`、`GET /interviews/{id}`、`POST/GET /interviews/{id}/versions` 与 `GET /interviews/{id}/versions/{version}`。跨用户对象统一 `404`。
+- 深度准备、复盘、出行推荐、通知发送和 Provider 集成不属于本切片，满足触发条件后另行设计路由与契约。
 
 ## 11. 状态管理（Pinia）
 
@@ -330,6 +334,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | `variantsStore` | 模板、ResumeVariant 列表/详情、精确模板恢复、幂等创建与 PDF 状态 | templates、variants、current、currentTemplate、currentPdf、generatingPdf |
 | `messagesStore` | MessageDraft 生成、详情恢复、修订历史与幂等编辑 | latestForVariant、current、versions、generating、saving |
 | `applicationsStore` | 手工投递列表/详情、材料确认、转换历史与幂等状态更新 | records、current、transitions、saving |
+| `interviewsStore` | 面试列表/详情、版本历史与幂等创建/追加 | items、current、versions、saving |
 | `companiesStore` | 来源上传、公司情报创建/追加、精确版本恢复与报告绑定 | latest、current、versions、saving、attaching |
 
 规则：Store 只保存展示状态与缓存快照，不持有业务事实权威；页面刷新后从后端重新加载；跨页共享使用稳定 ID。
@@ -371,6 +376,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | `ResumeCustomizeView` / `ResumeVariantDetailView` | 受控字段编排、不可变变体恢复与 PDF 生成/预览/下载 | Current，M4 |
 | `MessageDraftView` | 纯文本草稿编辑、追加版本、刷新恢复与浏览器复制 | Current，M4 |
 | `ApplicationRecordsView` / `ApplicationRecordCreateView` / `ApplicationRecordDetailView` | 列表恢复、精确材料确认、用户确认状态转换与历史 | Current，M4 |
+| `InterviewsView` / `InterviewCreateView` / `InterviewDetailView` | 面试通知创建、未来安排版本追加、历史与刷新恢复 | Current，M4 |
 | `CompanySnapshotForm` / `CompanySnapshotCard` / Company views | 来源录入、字段状态、精确版本、时效与报告固定附件 | Current，M4 |
 | `AppErrorBoundary` | 顶层渲染错误边界 | Current |
 | `ErrorState` / `LoadingState` / `EmptyState` | 可复用通用状态组件 | Planned；当前页面内联处理 |
@@ -382,7 +388,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | Current 基线 | Vue 工程、认证、岗位文本、主档、简历、岗位要求确认页面、前端 CI 和基础浏览器 E2E |
 | M2 | 分析就绪状态、输入 E2E；截图 OCR/链接预览经后端接口返回正文预览 |
 | M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
-| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft 与手工投递记录 Current；最小面试通知和完整 Beta E2E Planned |
+| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录与最小面试通知 Current；Beta 部署和最终完整 E2E Planned |
 | M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示 |
 
 ## 15. 技术选型（Current 基线）

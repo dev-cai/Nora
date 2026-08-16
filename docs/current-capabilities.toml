@@ -174,7 +174,7 @@ id = "typed-error-contract"
 name = "类型化错误注册表与 HTTP/OpenAPI 映射"
 milestone = "M4"
 status = "current"
-summary = "协议无关 Shared Kernel 以 144 个 ErrorCode、11 个 ErrorCategory 和不可变完整注册表固定公开失败词汇；API Adapter 只按 category 映射 HTTP，并以唯一 ApiProblem 统一 Nora、请求校验、SQLAlchemy 与未知异常响应。内部哨兵和未知异常固定脱敏 500，认证保留 Bearer challenge；OpenAPI 枚举 code/category，前端消费 generated union 并按 code、category、status 与 transport/unknown 顺序本地化回退。"
+summary = "协议无关 Shared Kernel 以 161 个 ErrorCode、11 个 ErrorCategory 和不可变完整注册表固定公开失败词汇；API Adapter 只按 category 映射 HTTP，并以唯一 ApiProblem 统一 Nora、请求校验、SQLAlchemy 与未知异常响应。内部哨兵和未知异常固定脱敏 500，认证保留 Bearer challenge；OpenAPI 枚举 code/category，前端消费 generated union 并按 code、category、status 与 transport/unknown 顺序本地化回退。"
 code_paths = [
   "backend/app/domain/base/exceptions.py",
   "backend/app/apps/api/errors.py",
@@ -210,7 +210,7 @@ id = "quality-gates"
 name = "全量质量与浏览器门禁"
 milestone = "M0-M4"
 status = "current"
-summary = "PR 和 main push 运行后端质量/测试、OpenAPI 离线重建与漂移检查、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备、M3 固定版本分析/报告/决定，以及 M4 apply 后的 ResumeVariant 编辑排序、详情刷新恢复和双用户读写隔离；运行后清理容器、网络与数据卷。"
+summary = "PR 和 main push 运行后端质量/测试、OpenAPI 离线重建与漂移检查、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备、M3 固定版本分析/报告/决定，以及 M4 apply 后的 ResumeVariant、PDF、MessageDraft、ApplicationRecord 与 InterviewCase 创建/版本恢复和双用户读写隔离；运行后清理容器、网络与数据卷。"
 code_paths = [
   ".github/workflows/pr-conventions.yml",
   ".github/workflows/frontend-ci.yml",
@@ -507,3 +507,27 @@ code_paths = [
   "frontend/src/stores/applications.ts",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/214"]
+
+[[capabilities]]
+id = "minimal-interview-cases"
+name = "用户确认的最小面试通知"
+milestone = "M4"
+status = "current"
+summary = "支持为已由用户确认进入 interviewing 的 ApplicationRecord 创建 owner 范围 InterviewCase，记录开始时间、IANA 时区、线上/线下/电话方式、轮次、状态和备注；线上只接受安全 HTTPS 会议链接，线下必须有地点，电话不保存两者。安排以 v1 创建，未来更新只追加 v2..N，精确版本和历史可读取，base_version 与数据库唯一约束保护并发；创建和更新均幂等并与 AuditEvent 原子提交，审计摘要不含会议链接或备注。认证 API 与 Vue 列表、创建、详情页面支持刷新恢复、登出清理和双用户隔离；不包含邮件/日历读取、通知发送、面试准备、复盘、地图或天气 Provider。"
+code_paths = [
+  "backend/app/domain/followup/interview_case.py",
+  "backend/app/application/followup/interview_cases.py",
+  "backend/app/infrastructure/database/followup.py",
+  "backend/app/apps/api/routes/interviews.py",
+  "backend/alembic/versions/0022_interview_cases.py",
+  "backend/tests/unit/test_interview_case.py",
+  "backend/tests/integration/test_decision_report_api.py",
+  "backend/tests/integration/test_interview_case_migration.py",
+  "frontend/src/stores/interviews.ts",
+  "frontend/src/views/InterviewsView.vue",
+  "frontend/src/views/InterviewCreateView.vue",
+  "frontend/src/views/InterviewDetailView.vue",
+  "frontend/tests/interview-case.test.ts",
+  "frontend/e2e/decision-flow.spec.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/221"]

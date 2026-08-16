@@ -39,6 +39,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/application-records/{record_id}/interviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Interview */
+        post: operations["create_interview_application_records__record_id__interviews_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/application-records/{record_id}/transitions": {
         parameters: {
             query?: never;
@@ -274,6 +291,75 @@ export interface paths {
         put?: never;
         /** Generate Decision Report */
         post: operations["generate_decision_report_decisions__case_id__reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Interviews */
+        get: operations["list_interviews_interviews_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interviews/{interview_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Interview */
+        get: operations["get_interview_interviews__interview_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interviews/{interview_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Interview Versions */
+        get: operations["list_interview_versions_interviews__interview_id__versions_get"];
+        put?: never;
+        /** Update Interview */
+        post: operations["update_interview_interviews__interview_id__versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interviews/{interview_id}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Interview Version */
+        get: operations["get_interview_version_interviews__interview_id__versions__version__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1585,7 +1671,7 @@ export interface components {
          * @description 系统边界使用的完整稳定错误码。
          * @enum {string}
          */
-        ErrorCode: "application_decision_conflict" | "application_decision_key_taken" | "application_decision_persistence_failed" | "application_record_key_taken" | "application_record_persistence_failed" | "application_record_transition_conflict" | "application_record_version_conflict" | "application_error" | "artifact_conflict" | "artifact_corrupt" | "artifact_delete_failed" | "artifact_state_conflict" | "artifact_storage_unavailable" | "artifact_too_large" | "artifact_unavailable" | "authentication_failed" | "authentication_rate_limited" | "company_assessment_conflict" | "company_assessment_unavailable" | "company_snapshot_version_conflict" | "content_too_large" | "database_unavailable" | "decision_case_conflict" | "decision_case_immutable" | "decision_input_conflict" | "decision_input_unavailable" | "decision_persistence_failed" | "decision_report_generation_conflict" | "decision_report_version_conflict" | "decision_rule_input_mismatch" | "decode_failed" | "domain_error" | "email_conflict" | "empty_content" | "entity_not_found" | "entity_not_persisted" | "fetch_failed" | "fetch_timeout" | "idempotency_conflict" | "idempotency_key_taken" | "identity_persistence_failed" | "image_too_large" | "infrastructure_error" | "internal_error" | "invalid_application_decision_fingerprint" | "invalid_application_decision_status" | "invalid_application_record" | "invalid_application_record_status" | "invalid_artifact_content_type" | "invalid_artifact_sha256" | "invalid_artifact_size" | "invalid_audit_action" | "invalid_audit_idempotency_key" | "invalid_audit_summary" | "invalid_audit_target_type" | "invalid_audit_target_version" | "invalid_company_assessment_status" | "invalid_company_fact_status" | "invalid_company_name" | "invalid_company_text" | "invalid_confirmation_status" | "invalid_confirmation_transition" | "invalid_correlation_id" | "invalid_decision_case_state" | "invalid_decision_reason" | "invalid_draft_text" | "invalid_email" | "invalid_failure_code" | "invalid_failure_message" | "invalid_generation_identity" | "invalid_generator_version" | "invalid_idempotency_key" | "invalid_input_fingerprint" | "invalid_input_kind" | "invalid_jd_text" | "invalid_job_title" | "invalid_location" | "invalid_message_draft_fingerprint" | "invalid_message_draft_hash" | "invalid_message_draft_revision" | "invalid_message_draft_source" | "invalid_message_draft_style" | "invalid_object_key" | "invalid_pagination" | "invalid_password" | "invalid_profile" | "invalid_profile_field" | "invalid_profile_item_id" | "invalid_profile_version" | "invalid_referral_context" | "invalid_report_content" | "invalid_report_generator_version" | "invalid_report_rule_set_version" | "invalid_report_version" | "invalid_requirement" | "invalid_requirement_field" | "invalid_resume_content" | "invalid_resume_pdf_input" | "invalid_resume_pdf_state" | "invalid_resume_title" | "invalid_resume_version" | "invalid_rule_set_version" | "invalid_source_locator" | "invalid_source_metadata" | "invalid_source_range" | "invalid_source_sha256" | "invalid_source_type" | "invalid_source_url" | "invalid_template_field" | "invalid_template_section" | "invalid_timestamp" | "invalid_url" | "invalid_username" | "invalid_variant_blocks" | "invalid_variant_field" | "invalid_variant_fingerprint" | "invalid_variant_text" | "invalid_version" | "jd_text_too_long" | "job_posting_persistence_failed" | "job_requirement_version_conflict" | "message_draft_conflict" | "message_draft_input_unavailable" | "message_draft_version_conflict" | "nora_error" | "ocr_failed" | "origin_not_allowed" | "pdf_generation_failed" | "pdf_render_failed" | "profile_has_no_confirmed_data" | "profile_version_conflict" | "referral_context_required" | "report_input_mismatch" | "required_variant_field" | "response_too_large" | "resume_pdf_conflict" | "resume_pdf_persistence_failed" | "resume_pdf_state_conflict" | "resume_variant_key_taken" | "resume_variant_persistence_failed" | "resume_version_conflict" | "skip_reason_required" | "source_conflict" | "template_definition_invalid" | "too_many_redirects" | "unsafe_url" | "unsupported_artifact_type" | "unsupported_image" | "unsupported_rule_set_version" | "username_conflict" | "validation_error" | "version_conflict";
+        ErrorCode: "application_decision_conflict" | "application_decision_key_taken" | "application_decision_persistence_failed" | "application_record_key_taken" | "application_record_persistence_failed" | "application_record_transition_conflict" | "application_record_version_conflict" | "interview_case_application_conflict" | "interview_case_key_taken" | "interview_case_persistence_failed" | "interview_case_version_conflict" | "application_error" | "artifact_conflict" | "artifact_corrupt" | "artifact_delete_failed" | "artifact_state_conflict" | "artifact_storage_unavailable" | "artifact_too_large" | "artifact_unavailable" | "authentication_failed" | "authentication_rate_limited" | "company_assessment_conflict" | "company_assessment_unavailable" | "company_snapshot_version_conflict" | "content_too_large" | "database_unavailable" | "decision_case_conflict" | "decision_case_immutable" | "decision_input_conflict" | "decision_input_unavailable" | "decision_persistence_failed" | "decision_report_generation_conflict" | "decision_report_version_conflict" | "decision_rule_input_mismatch" | "decode_failed" | "domain_error" | "email_conflict" | "empty_content" | "entity_not_found" | "entity_not_persisted" | "fetch_failed" | "fetch_timeout" | "idempotency_conflict" | "idempotency_key_taken" | "identity_persistence_failed" | "image_too_large" | "infrastructure_error" | "internal_error" | "invalid_application_decision_fingerprint" | "invalid_application_decision_status" | "invalid_application_record" | "invalid_application_record_status" | "invalid_artifact_content_type" | "invalid_artifact_sha256" | "invalid_artifact_size" | "invalid_audit_action" | "invalid_audit_idempotency_key" | "invalid_audit_summary" | "invalid_audit_target_type" | "invalid_audit_target_version" | "invalid_company_assessment_status" | "invalid_company_fact_status" | "invalid_company_name" | "invalid_company_text" | "invalid_confirmation_status" | "invalid_confirmation_transition" | "invalid_correlation_id" | "invalid_decision_case_state" | "invalid_decision_reason" | "invalid_draft_text" | "invalid_email" | "invalid_failure_code" | "invalid_failure_message" | "invalid_generation_identity" | "invalid_generator_version" | "invalid_idempotency_key" | "invalid_input_fingerprint" | "invalid_input_kind" | "invalid_interview_case" | "invalid_interview_mode" | "invalid_interview_round" | "invalid_interview_status" | "invalid_interview_timezone" | "invalid_jd_text" | "invalid_job_title" | "invalid_location" | "invalid_message_draft_fingerprint" | "invalid_message_draft_hash" | "invalid_message_draft_revision" | "invalid_message_draft_source" | "invalid_message_draft_style" | "invalid_object_key" | "invalid_pagination" | "invalid_password" | "invalid_profile" | "invalid_profile_field" | "invalid_profile_item_id" | "invalid_profile_version" | "invalid_referral_context" | "invalid_report_content" | "invalid_report_generator_version" | "invalid_report_rule_set_version" | "invalid_report_version" | "invalid_requirement" | "invalid_requirement_field" | "invalid_resume_content" | "invalid_resume_pdf_input" | "invalid_resume_pdf_state" | "invalid_resume_title" | "invalid_resume_version" | "invalid_rule_set_version" | "invalid_source_locator" | "invalid_source_metadata" | "invalid_source_range" | "invalid_source_sha256" | "invalid_source_type" | "invalid_source_url" | "invalid_template_field" | "invalid_template_section" | "invalid_timestamp" | "invalid_url" | "invalid_username" | "invalid_variant_blocks" | "invalid_variant_field" | "invalid_variant_fingerprint" | "invalid_variant_text" | "invalid_version" | "jd_text_too_long" | "job_posting_persistence_failed" | "job_requirement_version_conflict" | "message_draft_conflict" | "message_draft_input_unavailable" | "message_draft_version_conflict" | "nora_error" | "ocr_failed" | "origin_not_allowed" | "pdf_generation_failed" | "pdf_render_failed" | "profile_has_no_confirmed_data" | "profile_version_conflict" | "referral_context_required" | "report_input_mismatch" | "required_variant_field" | "response_too_large" | "resume_pdf_conflict" | "resume_pdf_persistence_failed" | "resume_pdf_state_conflict" | "resume_variant_key_taken" | "resume_variant_persistence_failed" | "resume_version_conflict" | "skip_reason_required" | "source_conflict" | "template_definition_invalid" | "too_many_redirects" | "unsafe_url" | "unsupported_artifact_type" | "unsupported_image" | "unsupported_rule_set_version" | "username_conflict" | "validation_error" | "version_conflict";
         /** ExperienceInput */
         ExperienceInput: {
             achievements: components["schemas"]["LongTextListFactInput"];
@@ -1636,6 +1722,101 @@ export interface components {
             /** User Note */
             user_note?: string | null;
         };
+        /** InterviewCaseFields */
+        InterviewCaseFields: {
+            /** Location */
+            location?: string | null;
+            /** Meeting Url */
+            meeting_url?: string | null;
+            mode: components["schemas"]["InterviewMode"];
+            /** Note */
+            note?: string | null;
+            /** Round Number */
+            round_number: number;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** @default scheduled */
+            status: components["schemas"]["InterviewCaseStatus"];
+            /** Timezone */
+            timezone: string;
+        };
+        /** InterviewCaseListResponse */
+        InterviewCaseListResponse: {
+            /** Items */
+            items: components["schemas"]["InterviewCaseResponse"][];
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+            /** Total */
+            total: number;
+        };
+        /** InterviewCaseResponse */
+        InterviewCaseResponse: {
+            /**
+             * Actor Id
+             * Format: uuid
+             */
+            actor_id: string;
+            /**
+             * Application Record Id
+             * Format: uuid
+             */
+            application_record_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Location */
+            location: string | null;
+            /** Meeting Url */
+            meeting_url: string | null;
+            mode: components["schemas"]["InterviewMode"];
+            /** Note */
+            note: string | null;
+            /** Round Number */
+            round_number: number;
+            source: components["schemas"]["InterviewCaseSource"];
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            status: components["schemas"]["InterviewCaseStatus"];
+            /** Timezone */
+            timezone: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /**
+         * InterviewCaseSource
+         * @enum {string}
+         */
+        InterviewCaseSource: "user_confirmation";
+        /**
+         * InterviewCaseStatus
+         * @enum {string}
+         */
+        InterviewCaseStatus: "scheduled" | "cancelled";
+        /**
+         * InterviewMode
+         * @enum {string}
+         */
+        InterviewMode: "onsite" | "online" | "phone";
         /**
          * JdInputKind
          * @description 产生 JD 文本的输入方式。
@@ -2417,6 +2598,29 @@ export interface components {
             occurred_at: string;
             to_status: components["schemas"]["ApplicationRecordStatus"];
         };
+        /** UpdateInterviewCaseRequest */
+        UpdateInterviewCaseRequest: {
+            /** Base Version */
+            base_version: number;
+            /** Location */
+            location?: string | null;
+            /** Meeting Url */
+            meeting_url?: string | null;
+            mode: components["schemas"]["InterviewMode"];
+            /** Note */
+            note?: string | null;
+            /** Round Number */
+            round_number: number;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** @default scheduled */
+            status: components["schemas"]["InterviewCaseStatus"];
+            /** Timezone */
+            timezone: string;
+        };
         /**
          * UserResponse
          * @description 不包含密码的用户响应。
@@ -2674,6 +2878,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplicationRecordResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    create_interview_application_records__record_id__interviews_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterviewCaseFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewCaseResponse"];
                 };
             };
             /** @description Invalid input */
@@ -4338,6 +4642,484 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DecisionReportResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    list_interviews_interviews_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewCaseListResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    get_interview_interviews__interview_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                interview_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewCaseResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    list_interview_versions_interviews__interview_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                interview_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewCaseResponse"][];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    update_interview_interviews__interview_id__versions_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                interview_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInterviewCaseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewCaseResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    get_interview_version_interviews__interview_id__versions__version__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                interview_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewCaseResponse"];
                 };
             };
             /** @description Invalid input */

@@ -30,6 +30,12 @@ from app.apps.api.routes.artifacts import router as artifacts_router
 from app.apps.api.routes.auth import router as auth_router
 from app.apps.api.routes.companies import router as companies_router
 from app.apps.api.routes.decisions import decision_router, report_router
+from app.apps.api.routes.interviews import (
+    application_router as application_interviews_router,
+)
+from app.apps.api.routes.interviews import (
+    router as interviews_router,
+)
 from app.apps.api.routes.job_inputs import router as job_inputs_router
 from app.apps.api.routes.job_postings import router as job_postings_router
 from app.apps.api.routes.job_requirements import router as job_requirements_router
@@ -143,6 +149,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router, responses=problem_responses(ErrorCategory.RATE_LIMITED))
     app.include_router(artifacts_router, responses=common_responses)
     app.include_router(application_records_router, responses=common_responses)
+    app.include_router(application_interviews_router, responses=common_responses)
     app.include_router(companies_router, responses=common_responses)
     app.include_router(decision_router, responses=common_responses)
     app.include_router(report_router, responses=common_responses)
@@ -155,6 +162,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(job_postings_router, responses=common_responses)
     app.include_router(job_requirements_router, responses=common_responses)
+    app.include_router(interviews_router, responses=common_responses)
     app.include_router(message_drafts_router, responses=common_responses)
     app.include_router(profile_router, responses=common_responses)
     app.include_router(resumes_router, responses=common_responses)
