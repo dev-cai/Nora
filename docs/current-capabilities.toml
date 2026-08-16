@@ -553,3 +553,20 @@ code_paths = [
   "backend/tests/unit/test_beta_release.py",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/222"]
+
+[[capabilities]]
+id = "m4-beta-browser-gate"
+name = "M4 投递闭环与生产安全浏览器门禁"
+milestone = "M4"
+status = "current"
+summary = "在每个 PR 与 main push 上运行两套互相隔离的真实浏览器 Compose 项目。完整用户旅程覆盖 apply、ResumeVariant、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、planned ApplicationRecord、用户确认 applied、interviewing 与可选 InterviewCase；注入生成/下载失败验证错误可见且不伪造成功，刷新与原用户重新登录恢复全部固定版本，第二用户读取、下载、修改和状态推进均不可见。浏览器主链不访问外部 Origin，API 不配置模型、消息发送或招聘平台凭据。生产安全形态从当前源码构建 production Web 与 ENV=prod API，在临时 Secret volume、PostgreSQL、MinIO 和本地 HTTPS ingress 上执行迁移与单 owner bootstrap，并验证公共注册关闭、登录/刷新、credential recovery 撤销旧 Token、退出、429、未授权 Origin 和伪造代理头不能绕过限额。工作流成功或失败均清理容器、网络、卷和临时 env；该证据不宣称真实公网 Beta 已供应或发布。"
+code_paths = [
+  ".github/workflows/e2e.yml",
+  "docker-compose.beta-e2e.yml",
+  "deploy/Caddyfile.beta-e2e",
+  "frontend/playwright.config.ts",
+  "frontend/playwright.beta.config.ts",
+  "frontend/e2e/decision-flow.spec.ts",
+  "frontend/e2e/beta-security.spec.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/223"]

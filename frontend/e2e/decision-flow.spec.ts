@@ -142,7 +142,14 @@ test("M3 决策闭环：真实 Compose 主流程、刷新与重新登录恢复�
   await expect(page.getByText("报告 v1 · 简历 v1", { exact: false })).toBeVisible()
 })
 
-test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户隔离", async ({ page }) => {
+test("M4 投递闭环 Beta：材料、手工确认、恢复、隔离与无外部写", async ({ page }) => {
+  const outsideRequests = new Set<string>()
+  page.on("request", (request) => {
+    const url = new URL(request.url())
+    if (["http:", "https:"].includes(url.protocol) && !["localhost", "127.0.0.1"].includes(url.hostname)) {
+      outsideRequests.add(`${request.method()} ${url.origin}${url.pathname}`)
+    }
+  })
   const userA = newUser("m4-variant-a")
   await registerAndLogin(page, userA)
   const resumeId = await prepareProfileAndResume(page)
@@ -174,6 +181,22 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
   await expect(page.getByText("M4 定制用户", { exact: true })).toBeVisible()
   await expect(page.getByText("版本已固定")).toBeVisible()
 
+  await page.route(`**/api/resume-variants/${variantId}/pdf`, async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error_code: "artifact_storage_unavailable",
+        error_category: "service_unavailable",
+        message: "Artifact storage unavailable",
+      }),
+    })
+  })
+  await page.getByRole("button", { name: "生成 PDF" }).click()
+  await expect(page.getByRole("alert")).toHaveText("PDF 存储暂时不可用，请重试")
+  await expect(page.getByText("可用", { exact: true })).toHaveCount(0)
+  await page.unroute(`**/api/resume-variants/${variantId}/pdf`)
+
   await page.getByRole("button", { name: "生成 PDF" }).click()
   await expect(page.getByText("可用", { exact: true })).toBeVisible()
   await expect(page.getByText(/weasyprint-69\.0/)).toBeVisible()
@@ -188,6 +211,22 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
   await expect(page.getByRole("button", { name: "预览" })).toBeVisible()
   await page.getByRole("button", { name: "预览" }).click()
   await expect(page.getByTitle("定制简历 PDF 预览")).toHaveAttribute("src", /^blob:/)
+
+  const failedDownload = new RegExp(`/api/resume-pdfs/${pdfId}/content\\?download=true$`)
+  await page.route(failedDownload, async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error_code: "artifact_storage_unavailable",
+        error_category: "service_unavailable",
+        message: "Artifact storage unavailable",
+      }),
+    })
+  })
+  await page.getByRole("button", { name: "下载" }).click()
+  await expect(page.getByRole("alert")).toHaveText("PDF 存储暂时不可用，请重试")
+  await page.unroute(failedDownload)
 
   const downloadPromise = page.waitForEvent("download")
   await page.getByRole("button", { name: "下载" }).click()
@@ -230,6 +269,13 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
   await page.getByRole("button", { name: "创建待确认记录" }).click()
   await expect(page).toHaveURL(/\/applications\/[0-9a-f]{8}-/)
   const applicationId = page.url().match(/\/applications\/([0-9a-f-]+)/)![1]
+  await expect(page.getByRole("heading", { name: "待确认" })).toBeVisible()
+  await expect(page.getByText("尚无状态转换")).toBeVisible()
+  const plannedRecord = await page.request.get(`/api/application-records/${applicationId}`, {
+    headers: { Authorization: `Bearer ${userASession.token}` },
+  })
+  expect(plannedRecord.status()).toBe(200)
+  expect((await plannedRecord.json()).status).toBe("planned")
 
   await page.getByRole("button", { name: "已投递" }).click()
   await page.getByRole("combobox").selectOption("公司官网")
@@ -287,14 +333,83 @@ test("M4 定制简历：apply 入口、编辑排序、刷新恢复与双用户�
     headers: { Authorization: `Bearer ${userBSession.token}` },
   })
   expect(foreignDraft.status()).toBe(404)
+  const foreignDraftWrite = await page.request.post(`/api/message-drafts/${draftId}/revisions`, {
+    headers: {
+      Authorization: `Bearer ${userBSession.token}`,
+      "Idempotency-Key": "m4-e2e-foreign-draft-write",
+    },
+    data: { base_version: 2, text: "foreign edit must stay invisible" },
+  })
+  expect(foreignDraftWrite.status()).toBe(404)
+  const foreignPdfGenerate = await page.request.post(`/api/resume-variants/${variantId}/pdf`, {
+    headers: { Authorization: `Bearer ${userBSession.token}` },
+  })
+  expect(foreignPdfGenerate.status()).toBe(404)
   await page.goto(`/applications/${applicationId}`)
   await expect(page.getByText("对象不存在或无权访问")).toBeVisible()
+  const foreignApplication = await page.request.get(`/api/application-records/${applicationId}`, {
+    headers: { Authorization: `Bearer ${userBSession.token}` },
+  })
+  expect(foreignApplication.status()).toBe(404)
+  const foreignTransition = await page.request.post(
+    `/api/application-records/${applicationId}/transitions`,
+    {
+      headers: {
+        Authorization: `Bearer ${userBSession.token}`,
+        "Idempotency-Key": "m4-e2e-foreign-application-write",
+      },
+      data: {
+        base_version: 3,
+        to_status: "offer_received",
+        occurred_at: new Date().toISOString(),
+        channel: null,
+        note: null,
+      },
+    },
+  )
+  expect(foreignTransition.status()).toBe(404)
   await page.goto(`/interviews/${interviewId}`)
   await expect(page.getByText("对象不存在或无权访问")).toBeVisible()
   const foreignInterview = await page.request.get(`/api/interviews/${interviewId}`, {
     headers: { Authorization: `Bearer ${userBSession.token}` },
   })
   expect(foreignInterview.status()).toBe(404)
+  const foreignInterviewWrite = await page.request.post(`/api/interviews/${interviewId}/versions`, {
+    headers: {
+      Authorization: `Bearer ${userBSession.token}`,
+      "Idempotency-Key": "m4-e2e-foreign-interview-write",
+    },
+    data: {
+      base_version: 2,
+      starts_at: interviewDate.toISOString(),
+      timezone: "Asia/Shanghai",
+      mode: "phone",
+      location: null,
+      meeting_url: null,
+      round_number: 3,
+      note: null,
+      status: "scheduled",
+    },
+  })
+  expect(foreignInterviewWrite.status()).toBe(404)
+
+  await page.getByRole("button", { name: "退出登录" }).click()
+  await login(page, userA)
+  await page.goto(`/resume-variants/${variantId}`)
+  await expect(page.getByText("M4 定制用户", { exact: true })).toBeVisible()
+  await expect(page.getByText("SHA-256", { exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "打开 v2" })).toBeVisible()
+  await page.goto(`/messages/${draftId}`)
+  await expect(page.getByLabel("消息草稿内容")).toHaveValue(editedText)
+  await expect(page.getByText("版本 2", { exact: false }).first()).toBeVisible()
+  await page.goto(`/applications/${applicationId}`)
+  await expect(page.getByRole("heading", { name: "面试中" })).toBeVisible()
+  await expect(page.getByText("待确认 → 已投递")).toBeVisible()
+  await expect(page.getByText("已投递 → 面试中")).toBeVisible()
+  await page.goto(`/interviews/${interviewId}`)
+  await expect(page.getByText("安排 v2")).toBeVisible()
+  await expect(page.getByText("E2E 上海办公室")).toBeVisible()
+  expect([...outsideRequests]).toEqual([])
 })
 
 test("M4 公司情报：录入、固定报告版本、追加版本与双用户隔离", async ({ page }) => {

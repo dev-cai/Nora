@@ -139,7 +139,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 
 - M2 分析就绪状态与输入 E2E（Current）；
 - M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，证据见 `current-capabilities.toml`）；
-- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、手工投递记录和最小面试通知（Current）；Beta 部署与最终验收仍为 Planned；
+- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、手工投递记录、最小面试通知与完整浏览器关闭门禁（Current）；真实 Beta Environment/Runner 供应和首次公网发布仍为 Planned；
 - M5 Evidence、检索引用和可选模型增强版本；
 - 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
 
@@ -388,7 +388,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | Current 基线 | Vue 工程、认证、岗位文本、主档、简历、岗位要求确认页面、前端 CI 和基础浏览器 E2E |
 | M2 | 分析就绪状态、输入 E2E；截图 OCR/链接预览经后端接口返回正文预览 |
 | M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
-| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录与最小面试通知 Current；Beta 部署和最终完整 E2E Planned |
+| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录、最小面试通知与隔离生产安全浏览器 E2E Current；真实 Beta 供应/首次发布 Planned |
 | M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示 |
 
 ## 15. 技术选型（Current 基线）

@@ -10,6 +10,7 @@ import { defineConfig } from "@playwright/test"
  */
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: "beta-security.spec.ts",
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,
