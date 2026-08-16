@@ -1,0 +1,218 @@
+name: ${BETA_E2E_PROJECT:-nora-beta-e2e}
+
+x-api-build: &api-build
+  context: .
+  dockerfile: docker/Dockerfile.api
+  target: runtime
+
+x-api-environment: &api-environment
+  ENV: prod
+  DEBUG: "false"
+  LOG_LEVEL: INFO
+  DATABASE_URL_FILE: /run/secrets/database_url
+  AUTH_KEY_RING_DIRECTORY: /run/secrets/jwt
+  AUTH_ACTIVE_KID: active
+  AUTH_RATE_LIMIT_SECRET_FILE: /run/secrets/auth_rate_limit_secret
+  AUTH_ACCESS_TOKEN_MINUTES: "30"
+  PUBLIC_ORIGIN: https://localhost:8443
+  TRUSTED_PROXY_CIDR: 172.29.240.0/24
+  ARTIFACT_STORAGE_ENDPOINT: storage:9000
+  ARTIFACT_STORAGE_ACCESS_KEY_FILE: /run/secrets/artifact_access_key
+  ARTIFACT_STORAGE_SECRET_KEY_FILE: /run/secrets/artifact_secret_key
+  ARTIFACT_STORAGE_BUCKET: nora-beta-e2e
+  ARTIFACT_STORAGE_SECURE: "false"
+  BAIDU_OCR_API_KEY: ""
+  BAIDU_OCR_SECRET_KEY: ""
+
+x-api-volumes: &api-volumes
+  - beta_e2e_secrets:/run/secrets:ro
+
+services:
+  secrets-init:
+    image: alpine:3.22.1@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1
+    environment:
+      BETA_E2E_ARTIFACT_ACCESS_KEY: ${BETA_E2E_ARTIFACT_ACCESS_KEY:?set test access key}
+      BETA_E2E_ARTIFACT_SECRET_KEY: ${BETA_E2E_ARTIFACT_SECRET_KEY:?set test secret key}
+      BETA_E2E_AUTH_RATE_LIMIT_SECRET: ${BETA_E2E_AUTH_RATE_LIMIT_SECRET:?set test rate-limit secret}
+      BETA_E2E_DATABASE_URL: postgresql+asyncpg://nora_beta:${BETA_E2E_POSTGRES_PASSWORD:?set test database password}@db:5432/nora_beta
+      BETA_E2E_JWT_SECRET: ${BETA_E2E_JWT_SECRET:?set test JWT secret}
+      BETA_E2E_OWNER_EMAIL: ${BETA_E2E_OWNER_EMAIL:?set owner email}
+      BETA_E2E_OWNER_PASSWORD: ${BETA_E2E_OWNER_PASSWORD:?set owner password}
+      BETA_E2E_OWNER_RECOVERY_PASSWORD: ${BETA_E2E_OWNER_RECOVERY_PASSWORD:?set recovery password}
+      BETA_E2E_OWNER_USERNAME: ${BETA_E2E_OWNER_USERNAME:?set owner username}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        umask 077
+        mkdir -p /secrets/jwt
+        printf '%s' "$$BETA_E2E_DATABASE_URL" > /secrets/database_url
+        printf '%s' "$$BETA_E2E_JWT_SECRET" > /secrets/jwt/active
+        printf '%s' "$$BETA_E2E_AUTH_RATE_LIMIT_SECRET" > /secrets/auth_rate_limit_secret
+        printf '%s' "$$BETA_E2E_ARTIFACT_ACCESS_KEY" > /secrets/artifact_access_key
+        printf '%s' "$$BETA_E2E_ARTIFACT_SECRET_KEY" > /secrets/artifact_secret_key
+        printf '%s' "$$BETA_E2E_OWNER_USERNAME" > /secrets/owner_username
+        printf '%s' "$$BETA_E2E_OWNER_EMAIL" > /secrets/owner_email
+        printf '%s' "$$BETA_E2E_OWNER_PASSWORD" > /secrets/owner_password
+        printf '%s' "$$BETA_E2E_OWNER_RECOVERY_PASSWORD" > /secrets/owner_recovery_password
+        find /secrets -maxdepth 1 -type f -exec chmod 0400 {} +
+        chmod 0500 /secrets/jwt
+        chmod 0400 /secrets/jwt/active
+        chown -R 10001:10001 /secrets
+    volumes:
+      - beta_e2e_secrets:/secrets
+
+  db:
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    environment:
+      POSTGRES_DB: nora_beta
+      POSTGRES_PASSWORD: ${BETA_E2E_POSTGRES_PASSWORD:?set test database password}
+      POSTGRES_USER: nora_beta
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nora_beta -d nora_beta"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  storage:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_PASSWORD: ${BETA_E2E_MINIO_ROOT_PASSWORD:?set test storage password}
+      MINIO_ROOT_USER: ${BETA_E2E_MINIO_ROOT_USER:?set test storage user}
+    tmpfs:
+      - /data
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  storage-init:
+    build: *api-build
+    environment:
+      ARTIFACT_BACKUP_ACCESS_KEY: ${BETA_E2E_ARTIFACT_BACKUP_ACCESS_KEY:?set test backup access key}
+      ARTIFACT_BACKUP_SECRET_KEY: ${BETA_E2E_ARTIFACT_BACKUP_SECRET_KEY:?set test backup secret key}
+      ARTIFACT_STORAGE_ACCESS_KEY: ${BETA_E2E_ARTIFACT_ACCESS_KEY:?set test access key}
+      ARTIFACT_STORAGE_BUCKET: nora-beta-e2e
+      ARTIFACT_STORAGE_ENDPOINT: storage:9000
+      ARTIFACT_STORAGE_SECRET_KEY: ${BETA_E2E_ARTIFACT_SECRET_KEY:?set test secret key}
+      MINIO_ROOT_PASSWORD: ${BETA_E2E_MINIO_ROOT_PASSWORD:?set test storage password}
+      MINIO_ROOT_USER: ${BETA_E2E_MINIO_ROOT_USER:?set test storage user}
+    command: ["python", "scripts/init_artifact_storage.py"]
+    depends_on:
+      storage:
+        condition: service_healthy
+    networks:
+      - data
+
+  migration:
+    build: *api-build
+    environment: *api-environment
+    command: ["alembic", "upgrade", "head"]
+    volumes: *api-volumes
+    depends_on:
+      db:
+        condition: service_healthy
+      secrets-init:
+        condition: service_completed_successfully
+    networks:
+      - data
+
+  owner-bootstrap:
+    build: *api-build
+    environment: *api-environment
+    command:
+      - python
+      - -m
+      - app.apps.identity_management
+      - bootstrap-owner
+      - --request-id
+      - beta-e2e-bootstrap
+      - --username-file
+      - /run/secrets/owner_username
+      - --email-file
+      - /run/secrets/owner_email
+      - --password-file
+      - /run/secrets/owner_password
+    volumes: *api-volumes
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    networks:
+      - data
+
+  api:
+    build: *api-build
+    environment: *api-environment
+    volumes: *api-volumes
+    depends_on:
+      owner-bootstrap:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+    networks:
+      - edge
+      - data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)"
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      target: runtime
+    environment:
+      VITE_NORA_PROXY_TARGET: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  ingress:
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    ports:
+      - "8443:443"
+    volumes:
+      - ./deploy/Caddyfile.beta-e2e:/etc/caddy/Caddyfile:ro
+      - beta_e2e_caddy_data:/data
+      - beta_e2e_caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    networks:
+      edge:
+        ipv4_address: 172.29.240.10
+
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.29.240.0/24
+  data: {}
+
+volumes:
+  beta_e2e_caddy_config:
+  beta_e2e_caddy_data:
+  beta_e2e_secrets:

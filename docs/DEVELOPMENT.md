@@ -436,8 +436,8 @@ docker compose logs -f web
 
 ### 浏览器级真实 Compose E2E
 
-当前质量门禁在真实浏览器中验证 M2 输入与 M3 决策闭环。E2E 使用 Playwright（用例位于 `frontend/e2e/`），在 Compose 栈
-就绪后运行：
+当前质量门禁在真实浏览器中验证 M2 输入、M3 决策与 M4 投递闭环。E2E 使用 Playwright（用例位于 `frontend/e2e/`），先在
+开发形态的隔离 Compose 栈运行完整用户旅程：
 
 ```bash
 docker compose up -d --build db api web
@@ -453,11 +453,19 @@ npm run e2e
 - 用例 `frontend/e2e/main-flow.spec.ts` 覆盖：注册/登录 → 刷新保持登录 → 创建岗位 → 主档保存 → 简历列表 →
   登出后受保护路由跳转登录。
 - 用例 `frontend/e2e/analysis-ready.spec.ts` 覆盖：确认主档与简历 → 岗位要求版本追加 → 刷新恢复 → 双用户隔离。
-- 用例 `frontend/e2e/decision-flow.spec.ts` 覆盖：创建固定版本 DecisionCase → 断言 match/unknown 规则结果 → 生成并刷新恢复报告 → 记录并恢复 skip 决定 → 双用户读取与写入隔离 → 原用户重新登录后按固定标识恢复案例、报告和决定；主流程不使用 Mock 或外部 Provider，完整 HTTP 错误组合由 API 契约和集成测试承担。
-- 失败时在 `frontend/test-results/` 与 `frontend/playwright-report/` 生成截图与 trace；可执行
-  `npm run e2e:report` 查看。
+- 用例 `frontend/e2e/decision-flow.spec.ts` 除 M3 决策外，还覆盖 apply → ResumeVariant → PDF 生成/预览/下载 →
+  MessageDraft 生成/编辑/复制 → planned ApplicationRecord → 用户确认 applied → interviewing/InterviewCase。生成和下载失败必须可见且
+  不能伪造可用或已投递；刷新、退出与原用户重新登录后恢复全部版本，第二用户的读取、下载、草稿修改、PDF 生成、投递推进与面试更新
+  均固定 404。浏览器请求保持在 Nora 本地 Origin，API 容器不配置模型或外部发送/投递凭据。
+- 生产安全回归使用 `docker-compose.beta-e2e.yml`、`deploy/Caddyfile.beta-e2e` 与
+  `frontend/e2e/beta-security.spec.ts`：从当前源码构建 production Web 和 `ENV=prod` API，在临时 Secret volume、PostgreSQL、MinIO 与
+  本地 HTTPS ingress 上执行迁移和单 owner bootstrap，验证无公共注册入口、登录/刷新、credential recovery 撤销旧 Token、退出、429、
+  未授权 Origin 与伪造代理头边界。运行所需值由 CI 写入权限受限的临时 env 文件；该栈是生产安全契约证据，不冒充真实公网 Beta 部署。
+- 默认旅程失败时在 `frontend/test-results/` 与 `frontend/playwright-report/` 生成截图与 trace，可执行 `npm run e2e:report` 查看；
+  生产安全用例关闭 trace/HTML report，避免临时 owner 凭据进入失败 Artifact，只保留不显示密码明文的失败截图和 Job 日志。
 - 每次运行使用隔离随机账号，不在业务数据中制造冲突。
-- CI：`.github/workflows/e2e.yml` 在每个 PR 和 main push 上启动 Compose、迁移隔离数据库、执行 Web/API smoke 与同一套浏览器用例，并在成功或失败后通过 `docker compose down --volumes --remove-orphans` 清理隔离环境。
+- CI：`.github/workflows/e2e.yml` 在每个 PR 和 main push 上依次运行上述两个独立项目；无论成功或失败，均删除对应容器、网络、数据卷和
+  临时 env 文件，不复用开发数据库或对象存储。
 
 ### 请求关联标识
 
