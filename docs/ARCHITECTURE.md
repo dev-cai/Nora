@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#171、#174、#183、#184、#185、#186、#187。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#171、#174、#183、#184、#185、#186、#187、#224。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -60,8 +60,8 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-016 | DecisionCase 身份 | Decision & Reporting 拥有的不可变 ID，不预留常量版本字段 | #185 / M4 | CompanyAssessment 只引用 case ID；迁移双向重算生成身份并删除公开固定版本字段 |
 | D-017 | 前端 HTTP 契约 | FastAPI OpenAPI + `openapi-typescript` / `openapi-fetch` | #186 / M4 | 生成类型只镜像传输契约；手写 transport 保留认证、超时、错误与 Blob 策略，CI 阻止漂移 |
 | D-018 | 类型化错误契约 | 协议无关 `ErrorCode` + `ErrorCategory` 注册表 | #187 / M4 | API 只按 category 映射 HTTP；OpenAPI 枚举是前端类型真源，未知异常固定脱敏 500 |
-| D-019 | Beta 部署与发布 | 单区域 Linux 主机 + Docker Compose；GitHub Actions 为唯一 CD 控制面 | #171 / M4 | 同源 TLS、私有数据服务、GHCR 摘要、受控 Secret、跨故障域备份和前向迁移失败边界 |
-| D-020 | Beta 注册与会话安全 | 运维 bootstrap 唯一用户 + 短时 JWT key ring + PostgreSQL 登录限额 | #174 / M4 | 生产关闭公共注册；精确 Origin、单跳可信代理、会话版本与脱敏安全信号 |
+| D-019 | Beta 部署与发布 | Host Reverse Proxy/TLS -> localhost Web -> API；GitHub Actions 为唯一 CD 控制面 | #171、#224 / M4 | 只有 Web 发布 localhost 端口；真实 HTTPS public smoke 先于健康指针；不支持容器内生产 ingress |
+| D-020 | Beta 注册与会话安全 | 运维 bootstrap 唯一用户 + 短时 JWT key ring + PostgreSQL 登录限额 | #174、#224 / M4 | 生产关闭公共注册；精确 Origin；API 只信任固定 Web IP `/32` 和单值 forwarded headers |
 
 ## 5. 系统上下文
 
@@ -660,7 +660,8 @@ Current 开发契约公开 `POST /auth/register`、`POST /auth/login` 和 `GET /
 Secret 签发 Bearer JWT；开发 CORS 允许任意 Origin，浏览器把 Token 保存在标签页级 `sessionStorage`。这些事实只适用于受控
 开发和测试，不能直接作为公网 Beta 配置。
 
-D-019 已固定一个公网 TLS ingress、一个 API 实例和 PostgreSQL，且 M4 不引入 Redis、WAF、OAuth Provider 或长期 Session 服务。
+D-019 已固定一个 Host Reverse Proxy/TLS Terminator、一个 Web runtime、一个 API 实例和 PostgreSQL，且 M4 不引入 Redis、WAF、
+OAuth Provider 或长期 Session 服务。
 据此作出以下选择：
 
 | 主题 | 选择 | 拒绝理由或残余风险 |
@@ -669,7 +670,7 @@ D-019 已固定一个公网 TLS ingress、一个 API 实例和 PostgreSQL，且 
 | 滥用防护 | API 粗尝试限额 + PostgreSQL 持久登录失败桶 | 仅内存计数可被重启清空且多进程不一致；Redis/WAF 没有触发证据 |
 | Session | 30 分钟上限的 HS256 Bearer JWT key ring，Token 带 `kid` 和会话版本 | HttpOnly Cookie/Refresh Token 会引入 CSRF、服务端 Session 和新恢复契约；`sessionStorage` 仍暴露于同源 XSS |
 | Browser Origin | 单一同源 HTTPS 入口，精确 Origin allowlist | 通配符、正则和反射请求 Origin 都可能扩大浏览器信任边界 |
-| 客户端地址 | 只信任单跳 ingress 覆盖写入的一个规范 IP | 任意信任 `X-Forwarded-For` 可绕过限额和伪造安全信号 |
+| 客户端地址 | Host Proxy 覆盖客户端 forwarded headers；Web 原样转发唯一规范值；API 只信任固定 Web IP `/32` | 信任整个 edge subnet、追加 forwarded chain 或任意信任 `X-Forwarded-For` 都可绕过限额和伪造安全信号 |
 
 #### 唯一用户 bootstrap 与恢复
 
@@ -750,17 +751,19 @@ operator 递增唯一 owner 的 `session_version`。M4 不维护单 Token denyli
 | 带 `Origin` 的实际请求 | 在读取认证/注册正文或调用 Use Case 前做精确 scheme/host/port 比较 | `origin_not_allowed/forbidden/403`，不添加 CORS allow header |
 | CORS preflight | 只允许配置 Origin、已发布 method 和 `Authorization`、`Content-Type`、`Idempotency-Key`、`X-Request-ID` headers | 不允许的 Origin/method/header 固定 403 |
 | 无 `Origin` 的客户端 | 允许进入正常认证和限额；CORS 不是 API 客户端认证 | 按认证、限额或业务契约处理 |
-| Browser -> ingress | 只接受 D-019 的 HTTPS 入口；HTTP 只在 ingress 重定向，HSTS 由 ingress 设置 | 非 TLS 公网请求不得转发 API |
-| ingress -> API | ingress 删除客户端提供的全部 forwarded headers，再写入一个规范客户端 IP 和 `proto=https` | 缺失或多个值不作为可信输入 |
+| Browser -> Host Proxy | 只接受 D-019 的 HTTPS 入口；HTTP 只在 Host Proxy 重定向，HSTS 由 Host Proxy 设置 | 非 TLS 公网请求不得转发 Web/API |
+| Host Proxy -> Web | Host Proxy 删除客户端提供的全部 forwarded headers，写入唯一真实客户端 IP 和唯一 `proto=https`，只转发到 localhost Web published port | 不得直连 API，也不得把客户端 header 追加成 chain |
+| Web -> API | Web 不生成客户端 IP，只保留并转发 Host Proxy 的单值 `X-Forwarded-For`/`X-Forwarded-Proto`；API peer 必须是固定 Web IP | 缺失、重复、逗号 chain 或 `proto` 非 `https` 均不作为可信输入 |
 | 非可信 peer -> API | 忽略其 `Forwarded`、`X-Forwarded-*` 和 Host 派生安全声明，客户端身份使用直接 peer IP | 不得绕过限额或 TLS/Origin 判断 |
 
 `forbidden` 是 D-018 新增且只映射 HTTP 403 的稳定 category；本决策新增 `origin_not_allowed` code。Bearer Token 使用
 `Authorization` header 且 `allow_credentials=false`，API 不设置认证 Cookie。CORS 响应只允许公开 Origin，显式列出 method/header，
 暴露 `X-Request-ID`，禁止请求 Origin 反射。即使无 Origin 客户端可访问登录端点，仍受相同限额和统一错误约束。
 
-API 只在连接的直接 peer 匹配配置的单跳 ingress 私有地址/CIDR 时读取代理头，并只接受 ingress 覆盖写入的单个规范 IP；不解析
-客户端提交的链。生产未配置可信 ingress、配置覆盖公网或 ingress 未执行 header strip/overwrite 时 readiness 失败，不能用第一个或
-最后一个未经证明的 `X-Forwarded-For` 值猜测客户端。
+API 只在连接的直接 peer 精确匹配生产 Compose 固定 Web IP `/32` 时读取代理头；该值是内部拓扑事实，不是 operator 可扩大为 edge
+subnet 的配置。API 只接受恰好一个规范 `X-Forwarded-For` 和恰好一个 `X-Forwarded-Proto=https`，拒绝逗号 chain、重复 header、空值
+和其他 proto，不能用第一个或最后一个值猜测客户端。生产未固定 Web peer、Host Proxy 未执行 strip/overwrite 或 Web 追加/重写代理头时
+readiness 或安全回归必须 fail closed；同一 edge network 的其他容器不能通过伪造 forwarded headers 获得可信客户端身份。
 
 #### Browser Token 决策与残余风险
 
@@ -768,9 +771,10 @@ M4 保留 Current `sessionStorage` + Bearer Token：只在当前标签页保存 
 用户退出、任意 API 401 或恢复失败时同步清除内存和 `sessionStorage`。Token 不进入 `localStorage`、URL、日志、错误、Analytics、
 Service Worker cache 或跨标签页 channel。退出是客户端删除，服务端 Token 最迟在 30 分钟后过期；紧急全局失效使用 key/session version。
 
-该选择不抵御同源 XSS。#175/#138 必须保持 Vue 文本转义，禁止用户 HTML、内联脚本、`eval` 和未审查第三方脚本，并由 ingress
-设置不允许 `unsafe-inline`/`unsafe-eval` 的 CSP、HSTS、`nosniff`、frame 限制和严格 Referrer Policy。Bearer header 不由浏览器
-自动附加，降低传统 CSRF 风险，但 Origin 校验、CORS 和输入安全仍不能替代 XSS 防护。
+该选择不抵御同源 XSS。#175/#138 必须保持 Vue 文本转义，禁止用户 HTML、内联脚本、`eval` 和未审查第三方脚本。HSTS 只由真实
+HTTPS 终止的 Host Proxy 设置；Nora Web runtime 对 HTML、静态资源和 API proxy response 统一设置不允许 `unsafe-inline`/
+`unsafe-eval` 的 CSP、`nosniff`、frame 限制和严格 Referrer Policy。Bearer header 不由浏览器自动附加，降低传统 CSRF 风险，但
+Origin 校验、CORS 和输入安全仍不能替代 XSS 防护。
 
 出现多用户、长期会话、跨设备登录、第三方脚本、逐 Token 撤销、浏览器重启后保持登录或独立前后端 Origin 任一需求时，必须通过新
 Identity/Security Issue 评估 HttpOnly `Secure`/`SameSite` Cookie、CSRF Token、Refresh Token 和服务端 Session；不得由前端单独切换。
@@ -785,11 +789,11 @@ IP、Token 或 `kid` 作为高基数/敏感指标标签。告警阈值由 #175 �
 | Issue | 必须消费的责任 | 不得重新选择 |
 | :--- | :--- | :--- |
 | #175 | bootstrap/recovery、生产注册关闭、粗尝试与登录失败安全桶、统一登录错误、JWT key ring/session version、Origin/代理校验，以及 Beta Web 注册入口关闭 | 公共注册、邀请码、内存/Redis 限额、Cookie/Refresh Token、通配 CORS 或多跳代理猜测 |
-| #138 | D-019 ingress/TLS、CSP/安全 headers、root-owned Secret 文件、readiness 与真实部署配置验证；可增加不改变 API 契约的纵深连接限额 | Identity 状态机、JWT 生命周期、认证 429 事实源或另一 Secret 真源 |
+| #138 | D-019 生产运行、root-owned Secret 文件、readiness 与真实部署配置验证；#224 后由 Host Proxy 拥有 TLS/HSTS、Web 拥有应用安全 headers | Identity 状态机、JWT 生命周期、认证 429 事实源或另一 Secret 真源 |
 | #165 | 真实 Beta 的无注册入口、登录、刷新恢复、退出、过期/撤销 Token、429、Origin 拒绝与伪造代理头负向浏览器证据 | 在 E2E 内修补认证或部署实现 |
-| #171 | 继续拥有单主机、TLS ingress、Secret 文件和网络信任边界 | 认证策略、账户生命周期或浏览器 Token 行为 |
+| #171/#224 | 继续拥有单主机、Host Proxy/TLS、localhost Web、Secret 文件和固定 Web `/32` 网络信任边界 | 认证策略、账户生命周期或浏览器 Token 行为 |
 
-Issue #175 若证明 PostgreSQL 安全桶无法在 Argon2 预算内承受已定义阈值，或 #138 证明 provider ingress 无法可靠覆盖代理头，必须带测量
+Issue #175 若证明 PostgreSQL 安全桶无法在 Argon2 预算内承受已定义阈值，或 #138 证明 Host Proxy 无法可靠覆盖代理头，必须带测量
 证据重开 Architecture 决策；不得在实现 Task 内静默引入 Redis/WAF、放宽 Origin 或信任任意代理头。
 
 Issue #175 已按该决策实现 `0021_beta_auth_security`、`nora-identity` 管理命令、PostgreSQL 固定窗口认证桶、JWT key ring/session version、
@@ -1261,22 +1265,25 @@ M4: Vue Web     → API → PostgreSQL / Object Storage（投递材料与记录�
 
 #### 目标、拓扑、区域与成本
 
-Beta 目标是一个提供持久块存储和可恢复快照的 Linux VM/VPS。一个受审查的 Compose Project 在该主机运行反向代理、Web、
-API、PostgreSQL 16 和私有 MinIO；部署 Runner 以独立 OS 身份运行在同一主机，只能调用 root 拥有的固定发布入口。
+Beta 目标是一个提供持久块存储和可恢复快照的 Linux VM/VPS。宿主运行产品无关的 Host Reverse Proxy/TLS Terminator；一个受审查的
+Compose Project 只运行 Web、API、PostgreSQL 16 和私有 MinIO。部署 Runner 以独立 OS 身份运行在同一主机，只能调用 root 拥有的
+固定发布入口。
 PostgreSQL 与 MinIO 使用相互独立的持久卷，容器文件系统和 Runner 工作目录不保存业务事实。该拓扑没有热备或自动故障转移；
 主机、区域或数据卷故障通过新主机恢复处理。
 
 ```text
-Internet
-   |
-   v
-DNS -> TLS ingress :443 -> Web static assets
-                          `-> /api/* -> API
-                                           |
-                      private Compose network
-                         |                 |
-                         v                 v
-                    PostgreSQL          MinIO
+Internet -> HTTPS -> Host Reverse Proxy / TLS Terminator
+                         |
+                         | HTTP 127.0.0.1:${NORA_WEB_PORT}
+                         v
+                    Web runtime :5173
+                    | static / SPA
+                    ` /api/* -> API :8000
+                                  |
+                         private Compose networks
+                            |               |
+                            v               v
+                       PostgreSQL         MinIO
 
 GitHub Actions -> protected Environment -> deployment Runner (outbound HTTPS only)
                                               `-> fixed deploy entrypoint
@@ -1291,25 +1298,29 @@ RPO/RTO 设置上限。Beta 不为 Jenkins 控制器、Kubernetes 控制面、�
 
 | 责任方 | 拥有的责任 | 不拥有的责任 |
 | :--- | :--- | :--- |
-| Beta operator | provider/region 记录、DNS、主机、Secret、备份、恢复、发布授权和人工接管 | 修改应用领域事实或绕过审查发布任意镜像 |
+| Beta operator | provider/region 记录、DNS、Host Proxy/TLS、主机、Secret、备份、恢复、发布授权和人工接管 | 修改应用领域事实或绕过审查发布任意镜像 |
 | GitHub | 仓库、Actions、Environment Gate、GHCR 和工作流审计记录 | Beta 数据、运行时 Secret、数据库恢复和应用可用性 |
 | 基础设施 provider | VM、网络、卷和 provider 级快照的可用性边界 | Nora 迁移、Artifact 引用一致性或发布回滚 |
-| Nora 应用 | readiness、迁移、owner 隔离、Artifact 状态机和脱敏日志 | 基础设施快照原子性、证书签发或 provider 灾难恢复 |
+| Nora 应用 | Web 同源静态/API 路由与应用安全 headers、readiness、迁移、owner 隔离、Artifact 状态机和脱敏日志 | 公网监听、TLS/HSTS、证书签发、基础设施快照原子性或 provider 灾难恢复 |
 
 #### 网络、TLS 与防火墙
 
 | 路径 | 规则 |
 | :--- | :--- |
-| 浏览器 -> ingress | 公网只允许 `443/tcp`；`80/tcp` 只能重定向到 HTTPS。TLS 1.2+，证书自动续期并监控到期 |
-| ingress -> Web/API | 仅私有 Compose 网络；Web 与 `/api/*` 同源，API 容器端口不绑定公网地址 |
+| 浏览器 -> Host Proxy | 公网只允许 `443/tcp`；`80/tcp` 只能重定向到 HTTPS。TLS 1.2+，证书自动续期并监控到期；Host Proxy 设置 HSTS |
+| Host Proxy -> Web | 只允许 HTTP 到 `127.0.0.1:${NORA_WEB_PORT}`；Host Proxy 覆盖 forwarded headers，禁止直接转发到 API |
+| Web -> API | Web 与 `/api/*` 同源并在 edge network 内代理到 API；Web 固定内部 IP，API 只信任该 IP `/32` |
 | API -> PostgreSQL | 仅私有网络 `5432/tcp`，只用应用数据库身份；数据库不得绑定公网或宿主全接口 |
 | API -> MinIO | 仅私有网络 S3 API；Bucket 私有。MinIO Console、root API 和对象端口不得公网暴露 |
 | deployment Runner -> GitHub/GHCR | 仅出站 `443/tcp`，用于取 Job、拉取固定摘要和发布审计；不接收入站 GitHub 连接 |
 | 运行时出站 | 默认拒绝；按功能逐项允许 DNS、NTP、证书续期和已配置的 OCR/受审查 Provider 目标，不允许任意扫描或私网访问 |
 | 运维入口 | 日常发布不开放 SSH；紧急访问只经 provider Console、VPN 或固定管理员 allowlist，并使用短期密钥与独立审计 |
 
-反向代理是唯一 TLS 终止点，必须设置 HSTS、安全响应头、请求体上限和真实客户端地址信任边界。内部明文流量仅限单主机隔离网络；
-若任一数据服务迁出主机，则迁移必须先经 Architecture Review，并使用双向认证或 provider 私网 TLS，不得直接开放公网端口。
+Host Reverse Proxy 是唯一 TLS 终止点，必须设置 HSTS、请求体上限并覆盖客户端传入的 forwarded headers，只写入唯一真实客户端 IP
+和唯一 `proto=https`。Nora Web runtime 负责 CSP、`X-Frame-Options: DENY`、`Referrer-Policy: no-referrer` 和
+`X-Content-Type-Options: nosniff`，这些 header 覆盖 HTML、静态资源和 API proxy response，但不得破坏 API 的 Content-Type、
+Content-Length、Retry-After 或 WWW-Authenticate。Web 不输出 HSTS。内部明文流量仅限 localhost 和单主机隔离网络；若任一数据服务
+迁出主机，则迁移必须先经 Architecture Review，并使用双向认证或 provider 私网 TLS，不得直接开放公网端口。
 
 #### 镜像、SBOM 与部署身份
 
@@ -1332,7 +1343,7 @@ Shell trace 或日志。GitHub Environment 只保存触发发布所需的短期�
 
 | Secret 类别 | 创建与读取者 | 轮换与撤销边界 |
 | :--- | :--- | :--- |
-| TLS 私钥 | 反向代理的受控 ACME/证书流程；仅 ingress 可读 | 自动续期；私钥泄露立即撤销证书并重新签发，API/Web 不持有私钥 |
+| TLS 私钥 | Host Proxy 的受控证书流程；仅宿主 TLS 终止层可读 | 自动续期；私钥泄露立即撤销证书并重新签发，Nora Compose、API/Web 和 Runner 不持有私钥 |
 | JWT key ring 与限额 HMAC key | operator 通过 CSPRNG 创建；仅 API 可读 | 按 D-020 正常轮换保留受限验证窗口；泄露时撤销 key 或提升 session version，HMAC key 轮换会重置限额桶 |
 | PostgreSQL 管理身份 | operator/数据库初始化入口 | 不注入 API；只用于建库、恢复和受控迁移，泄露时撤销并检查角色授权 |
 | PostgreSQL 应用身份 | operator 创建；仅 API 和显式迁移命令可读 | 新旧凭据短时重叠，验证新连接后撤销旧角色/密码；权限只覆盖 Nora Schema 必需动作 |
@@ -1359,7 +1370,7 @@ Secret 创建、轮换和撤销必须生成不含值的操作记录，包含类�
 
 #### 发布、失败停止与回滚顺序
 
-正常发布固定为以下单并发状态机，#153 不得改变顺序或另建发布入口：
+正常发布固定为以下单并发状态机，GitHub Actions 继续是唯一 CD 控制面，不得改变顺序或另建发布入口：
 
 1. `preflight`：获取 `beta` Environment 锁，确认目标 Commit 位于 `main`，验证镜像 digest、SBOM/来源证明、迁移 revision、
    Secret 文件权限和磁盘余量，并记录当前最后健康 release。
@@ -1367,30 +1378,36 @@ Secret 创建、轮换和撤销必须生成不含值的操作记录，包含类�
 3. `pull`：只拉取清单中的摘要并再次核对；失败即停止，不能改写当前 Compose release。
 4. `migrate`：进入维护窗口、停止 Web/API 新流量，保持 PostgreSQL/MinIO 运行；使用候选 API 镜像执行一次前向
    `alembic upgrade head`。迁移失败时保持维护状态并转人工恢复，禁止继续启动候选版本。
-5. `start`：以同一清单启动 API/Web，先检查 `/live`，再等待 `/ready`；就绪前 ingress 不导入业务流量。
-6. `smoke`：执行认证、API/Web 与 Artifact 上传/读取的无外部写 smoke；失败即停止晋升。
-7. `promote`：恢复入口流量，记录 Commit、全部 digest、SBOM、migration revision、时间和 smoke 结果，释放环境锁。
+5. `start`：以同一清单启动 PostgreSQL、MinIO、API 和 Web，等待 healthcheck，并验证 API `/live` 与 `/ready`。
+6. `internal-smoke`：执行认证/API smoke、Web container smoke 与临时 Artifact put/get/delete；失败即停止晋升。
+7. `public-smoke`：通过唯一 `NORA_PUBLIC_ORIGIN` 使用正常 TLS 证书校验访问 Web、`/api/live` 和 `/api/ready`，验证 HTML、API JSON、
+   Web 应用安全 headers、Host Proxy HSTS 和 `/api` 确实经过 Web proxy；禁止 `--insecure`，失败即停止晋升。
+8. `promote`：只有 public smoke 完整通过后，才原子替换生产 env，写入 `current.json`、`last-healthy.json` 和 healthy result，并记录
+   Commit、全部 digest、SBOM、migration revision、时间与两类 smoke 结果，最后释放环境锁。
 
 迁移前失败不改变最后健康版本。迁移成功后的应用失败只能在“上一镜像已声明兼容新 Schema”时自动回退镜像摘要；数据库迁移
 默认只前进，不自动执行 Alembic downgrade。破坏性 Schema 变更必须使用跨发布 expand/migrate/contract，且 contract 前保留一个
 已验证恢复窗口。兼容性不明、迁移部分失败、Secret 轮换失败或数据校验失败时保持维护状态，由 operator 从发布前恢复点在隔离环境
-验证后恢复；不得把应用回滚伪装成数据库恢复。回滚同样执行 readiness/smoke 并形成新 release 记录。
+验证后恢复；不得把应用回滚伪装成数据库恢复。候选 public smoke 失败时不得留下候选 Web/API 对外服务；只有上一镜像与当前 Schema
+相同或被显式声明兼容时才可自动恢复旧 env/images。恢复后必须重新通过 `internal-smoke` 和 `public-smoke`，两者都通过后才能记录
+rollback healthy 或更新指针；任一步失败或不存在安全回滚条件时停止 Web/API 并保持维护态。人工 rollback 遵守相同门禁，不执行
+Alembic downgrade。
 
 人工接管先取消/禁用当前 workflow、取得同一 Environment 锁并保留现场证据；operator 只能对固定摘要调用同一发布入口或执行
 文档化恢复流程，不允许用临时 Compose 文件、可变 tag 或未审查命令覆盖环境。接管结束必须记录原因、动作、结果和后续修复。
 
-Current 实现以 `.github/workflows/beta-deploy.yml` 作为唯一控制面：受保护 `main` check run、GHCR digest、SPDX SBOM、GitHub
-attestation、迁移 revision 与受审查 Schema 兼容策略共同形成 manifest；专用 Runner 只把短期 GHCR Token 通过 stdin 交给
-root-owned `/usr/local/sbin/nora-release`。主机入口同时持有非阻塞文件锁，执行上述七阶段并原子维护 `last-healthy/current`
-记录；API 认证边界、Web 与临时 Artifact round-trip smoke 均不需要 owner 密码或业务数据。仓库当前没有真实 `beta`
-Environment、专用 Runner 或主机配置，因此该实现是 fail-closed 的发布能力，不是已完成目标环境部署的声明。
+Issue #224 已接受上述八阶段目标契约，但 Architecture PR 不把它声明为 Current。决策合并时，仓库中的生产 Compose、发布入口和 Beta E2E
+仍实现被替代的容器内 ingress/七阶段路径；后续独立 Implementation Task 必须直接迁移并删除旧生产拓扑，不能增加兼容开关、双 Compose、
+第二发布路径或 TLS fallback。在该 Task 合并且 Current 能力台账更新前，现有部署文件不得作为符合 D-019 的生产发布证据。仓库当前也
+没有真实 `beta` Environment、专用 Runner 或主机配置，因此本决策本身不是已完成目标环境部署的声明。
 
 #### 后续 Issue 的消费契约
 
 | Issue | 必须实现或验证 | 不得重新选择 |
 | :--- | :--- | :--- |
 | #138 | 单主机 Compose 运行基线、非 root/最小权限、同源 TLS、Secret 文件消费、安全扫描/SBOM、联合备份与隔离恢复、RPO/RTO/成本证据 | provider 特有托管数据库/S3、第二地域、Kubernetes、Jenkins 或另一 Secret 事实源 |
-| #153 | GitHub Actions `beta` Environment、专用部署 Runner、GHCR 摘要清单、单并发锁、上述七阶段状态机、兼容性受限镜像回滚和人工接管 | Jenkins、手工主发布路径、可变 tag、自动数据库 downgrade、蓝绿/灰度发布 |
+| #153 | GitHub Actions `beta` Environment、专用部署 Runner、GHCR 摘要清单、单并发锁；#224 后状态机扩展为 internal/public smoke 八阶段 | Jenkins、手工主发布路径、可变 tag、自动数据库 downgrade、蓝绿/灰度发布 |
+| #224 后续 Implementation Task | localhost-only Web、固定 Web IP `/32`、八阶段发布、真实 HTTPS public smoke、test-only reference proxy 和旧生产 Caddy 删除 | 旧拓扑兼容层、可配置 bind/可信 subnet、第二 CD 控制面或 production reference proxy |
 
 Issue #138 若发现目标 provider/region 无法提供持久卷、跨故障域私有备份或安全运维入口，或 #153 证明 GitHub Runner 无法出站访问
 GitHub/GHCR，必须带可核验证据重新开启 Architecture 决策；不得在 Task 内静默改用 Jenkins、托管数据服务或公网数据库。

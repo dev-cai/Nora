@@ -145,7 +145,7 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `AUTH_ACTIVE_KID` | `dev` | API 当前签发 key 的安全标识 | 只能使用 `[A-Za-z0-9._-]{1,64}`，必须存在于 key ring |
 | `AUTH_RATE_LIMIT_SECRET` | 开发专用示例值 | API PostgreSQL 限额桶 HMAC 真源 | 生产必须替换，且不得与任何 JWT key 相同；原始用户名、邮箱和 IP 不落库 |
 | `PUBLIC_ORIGIN` | 空（开发允许通配 CORS） | 生产唯一浏览器 HTTPS Origin | 禁止 wildcard、`null`、HTTP、路径、查询、片段和正则 |
-| `TRUSTED_PROXY_CIDR` | 空（开发直连 peer） | 生产单跳私有 ingress peer 网络 | 只接受 ingress 覆盖写入的单个 `X-Forwarded-For` 与 `https`，不猜多跳链 |
+| `TRUSTED_PROXY_CIDR` | 空（开发直连 peer） | 开发/测试 API 配置；#224 目标生产值由 Compose 固定为 Web IP `/32` | 生产不接受 operator 配置或整个 edge subnet；只接受固定 Web peer 转发的单个 `X-Forwarded-For` 与 `https`，拒绝 chain |
 | `BAIDU_OCR_API_KEY` | 空 | API / Settings（百度智能云 OCR 应用凭据） | 生产环境必须配置且不得提交；未配置时 OCR 接口返回稳定 `ocr_failed` |
 | `BAIDU_OCR_SECRET_KEY` | 空 | API / Settings（百度智能云 OCR 应用凭据） | 生产环境必须配置且不得提交；与 API Key 成对 |
 | `BAIDU_OCR_ENDPOINT` | `accurate_basic` | API / Settings | 百度 OCR 接口名，如 `general_basic` / `accurate_basic` |
@@ -457,10 +457,10 @@ npm run e2e
   MessageDraft 生成/编辑/复制 → planned ApplicationRecord → 用户确认 applied → interviewing/InterviewCase。生成和下载失败必须可见且
   不能伪造可用或已投递；刷新、退出与原用户重新登录后恢复全部版本，第二用户的读取、下载、草稿修改、PDF 生成、投递推进与面试更新
   均固定 404。浏览器请求保持在 Nora 本地 Origin，API 容器不配置模型或外部发送/投递凭据。
-- 生产安全回归使用 `docker-compose.beta-e2e.yml`、`deploy/Caddyfile.beta-e2e` 与
-  `frontend/e2e/beta-security.spec.ts`：从当前源码构建 production Web 和 `ENV=prod` API，在临时 Secret volume、PostgreSQL、MinIO 与
-  本地 HTTPS ingress 上执行迁移和单 owner bootstrap，验证无公共注册入口、登录/刷新、credential recovery 撤销旧 Token、退出、429、
-  未授权 Origin 与伪造代理头边界。运行所需值由 CI 写入权限受限的临时 env 文件；该栈是生产安全契约证据，不冒充真实公网 Beta 部署。
+- #224 接受的生产安全回归目标使用 test-only reference proxy 模拟 `Host TLS Proxy -> Web -> API`：reference proxy 负责 HTTPS、HSTS
+  和覆盖 forwarded headers，Web 负责静态/SPA、`/api` proxy 与应用安全 headers，API 只信任固定 Web IP `/32`。决策合并时现有
+  `docker-compose.beta-e2e.yml` 与 `deploy/Caddyfile.beta-e2e` 尚未迁移；后续 Implementation Task 必须重命名并隔离 fixture，且不得把
+  reference proxy 写入 production Compose 或能力声明。迁移前现有 HTTPS fixture 不构成符合 #224 的生产拓扑证据。
 - 默认旅程失败时在 `frontend/test-results/` 与 `frontend/playwright-report/` 生成截图与 trace，可执行 `npm run e2e:report` 查看；
   生产安全用例关闭 trace/HTML report，避免临时 owner 凭据进入失败 Artifact，只保留不显示密码明文的失败截图和 Job 日志。
 - 每次运行使用隔离随机账号，不在业务数据中制造冲突。
@@ -600,9 +600,14 @@ curl --fail http://localhost:8000/ready
 
 ### Beta 单主机生产基线
 
-[`deploy/compose.production.yml`](../deploy/compose.production.yml) 是 D-019 单 Linux 主机拓扑的可执行基线。只有 ingress 映射
-宿主 `80/443`；Web、API、PostgreSQL 和 MinIO 只加入 Compose 网络。API/Web 使用镜像内固定非 root 用户，所有服务使用只读
-根文件系统、`no-new-privileges` 和 capability allowlist；PostgreSQL、MinIO 与 Caddy 状态写入彼此独立的宿主目录。
+Issue #224 已把 D-019 的唯一目标生产拓扑收敛为 `Host Reverse Proxy/TLS -> 127.0.0.1:${NORA_WEB_PORT} -> Web -> API`。Host Proxy 是
+产品无关的宿主职责，拥有公网 `80/443`、TLS、HTTP 到 HTTPS、HSTS 和 forwarded header 覆盖；Nora Compose 只允许 Web 发布
+`127.0.0.1` HTTP 端口，API、PostgreSQL 和 MinIO 不发布宿主端口。Web 固定内部 IP并负责静态/SPA、`/api` proxy 与 CSP/XFO/
+Referrer/`nosniff`，API 只信任该 Web IP `/32`。
+
+Architecture PR 合并时，[`deploy/compose.production.yml`](../deploy/compose.production.yml)、production env、preflight、release 和 E2E
+仍实现被替代的容器内 Caddy/ingress 路径。它们在后续独立 Implementation Task 合并前不得作为符合 D-019 的生产部署基线，也不得
+用于生成新的 Current 或真实 Beta 证据。实施必须直接删除旧路径，不提供 legacy mode、双 Compose、双发布路径或 TLS fallback。
 
 复制 [`deploy/production.env.example`](../deploy/production.env.example) 到主机私有位置后，必须填写真实 provider、region、DNS、
 月度预算、告警阈值、跨故障域备份目的地标识和完整 `image@sha256:<digest>`。示例中的 `UNSET`、示例域名和零 digest 只用于
@@ -615,26 +620,16 @@ curl --fail http://localhost:8000/ready
 并与 PostgreSQL 初始化密码、迁移管理 URL 使用不同文件和凭据。数据目录的 owner 分别为 PostgreSQL `70:70`、其余 runtime
 `10001:10001`，且不得对 other 开放。
 
-```bash
-python deploy/preflight.py --env-file /etc/nora/production.env
-docker compose --env-file /etc/nora/production.env \
-  -f deploy/compose.production.yml --profile initialize run --rm storage-init
-docker compose --env-file /etc/nora/production.env \
-  -f deploy/compose.production.yml --profile initialize run --rm migration
-docker compose --env-file /etc/nora/production.env \
-  -f deploy/compose.production.yml --profile initialize run --rm db-init
-docker compose --env-file /etc/nora/production.env \
-  -f deploy/compose.production.yml --profile public up -d
-```
-
 `migration` 只读取管理 URL 并执行 Alembic；随后 `db-init` 创建/轮换非 superuser、非 createdb/createrole 的应用身份，并授予 Nora
 Schema 现有及后续表/序列所需的 DML 权限。API 不接收 PostgreSQL 初始化或迁移身份。`storage-init` 同样只在初始化 profile 使用
 MinIO root，分别创建 Bucket 读写删应用身份和只读备份身份；API 与备份入口均不接收 MinIO root。
 
 `preflight.py` 会 fail closed：拒绝 mutable tag、环境文件中的直接 Secret、非法或重复变量名、示例目标信息、重复/相对数据或 Secret 路径，以及 owner、group、
-mode 不正确的 Secret 或数据目录。root operator 脚本不 source env 文件，只通过 preflight 的字段白名单读取所需非 Secret 值。首次启动后使用已有 `nora-identity bootstrap-owner` 管理命令建立唯一 owner，再验证 `/live`、
-`/ready`、Web `/api` 同源调用、容器 UID、`CapEff`、只读根文件系统和仅 `80/443` 的宿主监听。生产 `/ready` 必须同时验证唯一
-owner、PostgreSQL 与 Artifact Storage；不得以 `/live` 或 MinIO 进程存活替代就绪。
+mode 不正确的 Secret 或数据目录。root operator 脚本不 source env 文件，只通过 preflight 的字段白名单读取所需非 Secret 值。#224
+实施后，preflight 还必须严格验证唯一 HTTPS `NORA_PUBLIC_ORIGIN` 和 `1024..65535` 的 `NORA_WEB_PORT`；Web bind 与 API 可信 `/32`
+是 Compose 内部事实，不能由 production env 放宽。首次启动后使用已有 `nora-identity bootstrap-owner` 管理命令建立唯一 owner，再验证
+`/live`、`/ready`、Web `/api` 同源调用、容器 UID、`CapEff`、只读根文件系统、只有 localhost Web published port，以及 API/DB/MinIO
+无宿主端口。生产 `/ready` 必须同时验证唯一 owner、PostgreSQL 与 Artifact Storage；不得以 `/live` 或 MinIO 进程存活替代就绪。
 
 #### Beta 自动发布与回滚
 
@@ -660,15 +655,15 @@ sudo visudo -cf /etc/sudoers.d/nora-release
 入口验证 manifest、SBOM 哈希、Schema 兼容策略哈希、主干 check run ID 和 GitHub attestation 后立即登录拉取，结束时 logout。
 GitHub Environment 不保存数据库、MinIO、JWT、owner 密码或备份解密材料。
 
-发布固定记录 `preflight -> backup -> pull -> migrate -> start -> smoke -> promote`。无 Schema 变化时 backup 明确记录为 skipped；
-迁移前失败不改写生产 env 或 `last-healthy.json`。迁移会先停止 ingress/Web/API，保持 PostgreSQL/MinIO 运行；候选服务通过
-Compose `--wait` 后执行 `/live`、`/ready`、生产注册隐藏、无效登录/未授权边界、Web shell 和临时 Artifact put/get/delete smoke，
-全部通过才恢复 ingress 并原子替换生产 env。release 记录只保存 Commit、workflow/check IDs、镜像/SBOM digest、attestation、
-迁移 revision、阶段与结果，不保存 Secret、对象键或业务正文。
+目标发布固定记录 `preflight -> backup -> pull -> migrate -> start -> internal-smoke -> public-smoke -> promote`。无 Schema 变化时 backup
+明确记录为 skipped；迁移前失败不改写生产 env 或 `last-healthy.json`。迁移停止 Web/API、保持 PostgreSQL/MinIO 运行；候选服务先完成
+内部 API/Web/Artifact smoke，再通过真实 `NORA_PUBLIC_ORIGIN`、正常 TLS 校验验证 Web、`/api/live`、`/api/ready`、应用安全 headers、
+Host Proxy HSTS 与 Web API proxy 链。只有 public smoke 全部通过才能替换 production env 和写健康指针；禁止 `--insecure`。
 
 自动回滚不会执行 Alembic downgrade。同一 Schema revision 可回退到已知健康镜像；跨 revision 只有当前 Commit 中
-`deploy/schema-compatibility.json` 明确允许且其哈希已进入 manifest 时，start/smoke 失败才自动回退。其他迁移后失败保持维护
-状态，由 operator 先取消 workflow、取得同一 Environment/主机锁并使用联合恢复流程。人工镜像回滚仍调用同一入口：
+`deploy/schema-compatibility.json` 明确允许且其哈希已进入 manifest 时，候选失败才可自动回退。恢复旧版本后仍必须重新通过
+internal smoke 和 public smoke，之后才可更新 env/指针并记录 rollback healthy；无安全回滚条件或恢复 smoke 失败时停止 Web/API 并
+保持维护态。其他迁移后失败由 operator 先取消 workflow、取得同一 Environment/主机锁并使用联合恢复流程。人工镜像回滚仍调用同一入口：
 
 ```bash
 gh workflow run beta-deploy.yml \
@@ -680,15 +675,15 @@ gh workflow run beta-deploy.yml \
 
 截至 2026-08-16，仓库尚未配置真实 `beta` Environment、专用 Runner、provider/region 或主机 Secret，因此上述 workflow 会在
 部署 Job 前保持不可运行/等待，不构成已完成的 Beta 发布证据。不得把单元测试、GitHub-hosted build 或本地 Compose 结果写成真实
-目标环境部署；供应完成后的首次 workflow run、release manifest、主机阶段记录和 smoke 结果才是部署证据。
+目标环境部署；供应完成后的首次 workflow run、release manifest、主机八阶段记录和真实 HTTPS public smoke 结果才是部署证据。
 
 #### 联合备份与隔离恢复
 
 主机需安装 `age`。备份目的地必须是已挂载的私有跨故障域、append-only 位置；`NORA_BACKUP_AGE_RECIPIENT` 只在 operator
 进程环境中提供，不写入 env 文件。preflight、备份和恢复由受控 root operator 执行，以核验跨 group Secret 并把明文 staging
-显式交给固定 UID `10001` 的 ops 容器；脚本拒绝非 root 调用。备份脚本停止 ingress/Web/API 形成显式停写屏障，依次生成 PostgreSQL custom dump、available
-Artifact manifest、删除台账和 MinIO 对象副本，恢复入口后再加密写入新恢复点；元数据导出只挂载应用数据库 URL，对象复制只挂载只读备份身份且不接收 MinIO root，失败时
-trap 会恢复入口并清除明文 staging。
+显式交给固定 UID `10001` 的 ops 容器；目标备份屏障停止 Web/API，依次生成 PostgreSQL custom dump、available Artifact manifest、
+删除台账和 MinIO 对象副本，恢复 Web/API 后再加密写入新恢复点；元数据导出只挂载应用数据库 URL，对象复制只挂载只读备份身份且
+不接收 MinIO root，失败时 trap 会恢复 Web/API 并清除明文 staging。
 
 ```bash
 NORA_BACKUP_AGE_RECIPIENT='age1...' \
