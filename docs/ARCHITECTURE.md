@@ -1396,10 +1396,10 @@ Alembic downgrade。
 人工接管先取消/禁用当前 workflow、取得同一 Environment 锁并保留现场证据；operator 只能对固定摘要调用同一发布入口或执行
 文档化恢复流程，不允许用临时 Compose 文件、可变 tag 或未审查命令覆盖环境。接管结束必须记录原因、动作、结果和后续修复。
 
-Issue #224 已接受上述八阶段目标契约，但 Architecture PR 不把它声明为 Current。决策合并时，仓库中的生产 Compose、发布入口和 Beta E2E
-仍实现被替代的容器内 ingress/七阶段路径；后续独立 Implementation Task 必须直接迁移并删除旧生产拓扑，不能增加兼容开关、双 Compose、
-第二发布路径或 TLS fallback。在该 Task 合并且 Current 能力台账更新前，现有部署文件不得作为符合 D-019 的生产发布证据。仓库当前也
-没有真实 `beta` Environment、专用 Runner 或主机配置，因此本决策本身不是已完成目标环境部署的声明。
+Issue #226 已实现上述运行和八阶段发布契约：生产 Compose 不含容器内 ingress，只有 localhost Web published port；Web 固定 IP，API
+只信任其 `/32`；public smoke 和 rollback smoke 通过后才写健康指针；Beta E2E 使用 test-only reference proxy 模拟 Host TLS Proxy。
+实现未增加兼容开关、双 Compose、第二发布路径或 TLS fallback。仓库当前仍没有真实 `beta` Environment、专用 Runner 或主机配置，
+因此这些 Current 代码与本地/CI 证据不是已完成目标环境部署的声明。
 
 #### 后续 Issue 的消费契约
 
@@ -1407,7 +1407,7 @@ Issue #224 已接受上述八阶段目标契约，但 Architecture PR 不把它�
 | :--- | :--- | :--- |
 | #138 | 单主机 Compose 运行基线、非 root/最小权限、同源 TLS、Secret 文件消费、安全扫描/SBOM、联合备份与隔离恢复、RPO/RTO/成本证据 | provider 特有托管数据库/S3、第二地域、Kubernetes、Jenkins 或另一 Secret 事实源 |
 | #153 | GitHub Actions `beta` Environment、专用部署 Runner、GHCR 摘要清单、单并发锁；#224 后状态机扩展为 internal/public smoke 八阶段 | Jenkins、手工主发布路径、可变 tag、自动数据库 downgrade、蓝绿/灰度发布 |
-| #224 后续 Implementation Task | localhost-only Web、固定 Web IP `/32`、八阶段发布、真实 HTTPS public smoke、test-only reference proxy 和旧生产 Caddy 删除 | 旧拓扑兼容层、可配置 bind/可信 subnet、第二 CD 控制面或 production reference proxy |
+| #226 | localhost-only Web、固定 Web IP `/32`、八阶段发布、真实 HTTPS public smoke、test-only reference proxy 和旧生产 Caddy 删除 | 旧拓扑兼容层、可配置 bind/可信 subnet、第二 CD 控制面或 production reference proxy |
 
 Issue #138 若发现目标 provider/region 无法提供持久卷、跨故障域私有备份或安全运维入口，或 #153 证明 GitHub Runner 无法出站访问
 GitHub/GHCR，必须带可核验证据重新开启 Architecture 决策；不得在 Task 内静默改用 Jenkins、托管数据服务或公网数据库。

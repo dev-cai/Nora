@@ -3,6 +3,8 @@
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 PREFLIGHT_PATH = Path(__file__).parents[3] / "deploy" / "preflight.py"
 SPEC = importlib.util.spec_from_file_location("nora_production_preflight", PREFLIGHT_PATH)
 assert SPEC is not None and SPEC.loader is not None
@@ -24,8 +26,8 @@ def _values() -> dict[str, str]:
         "NORA_BACKUP_DESTINATION_ID": "private-backup-a",
         "NORA_MONTHLY_BUDGET": "100 CNY",
         "NORA_BUDGET_ALERT": "80 CNY",
-        "NORA_DOMAIN": "nora.internal.test",
         "NORA_PUBLIC_ORIGIN": "https://nora.internal.test",
+        "NORA_WEB_PORT": "18080",
         "NORA_DATABASE_URL_FILE": "/secrets/database-url",
         "NORA_DATABASE_ADMIN_URL_FILE": "/secrets/database-admin-url",
         "NORA_POSTGRES_PASSWORD_FILE": "/secrets/postgres-password",
@@ -40,8 +42,6 @@ def _values() -> dict[str, str]:
         "NORA_JWT_KEY_RING_DIR": "/secrets/jwt",
         "NORA_POSTGRES_DATA_DIR": "/data/postgres",
         "NORA_MINIO_DATA_DIR": "/data/minio",
-        "NORA_CADDY_DATA_DIR": "/data/caddy-data",
-        "NORA_CADDY_CONFIG_DIR": "/data/caddy-config",
         "NORA_BACKUP_STAGE_DIR": "/data/stage",
     }
 
@@ -55,7 +55,6 @@ def test_config_preflight_rejects_mutable_images_direct_secrets_and_placeholder_
         "NORA_API_IMAGE": "ghcr.io/dev-cai/nora-api:latest",
         "DATABASE_URL": "postgresql+asyncpg://nora:secret@db/nora",
         "NORA_PROVIDER": "UNSET",
-        "NORA_DOMAIN": "nora.example.com",
         "NORA_PUBLIC_ORIGIN": "http://nora.example.com",
     }
 
@@ -64,8 +63,7 @@ def test_config_preflight_rejects_mutable_images_direct_secrets_and_placeholder_
     assert any("DATABASE_URL" in error for error in errors)
     assert any("NORA_API_IMAGE" in error for error in errors)
     assert any("NORA_PROVIDER" in error for error in errors)
-    assert any("real Beta DNS" in error for error in errors)
-    assert any("HTTPS Beta origin" in error for error in errors)
+    assert any("valid HTTPS origin" in error for error in errors)
 
 
 def test_environment_reader_preserves_structured_values(tmp_path: Path) -> None:
@@ -93,6 +91,41 @@ def test_environment_reader_rejects_invalid_or_duplicate_names(tmp_path: Path) -
             pass
         else:
             raise AssertionError("unsafe environment input must be rejected")
+
+
+def test_environment_reader_rejects_web_port_whitespace_or_non_digits(tmp_path: Path) -> None:
+    for value in (" 18080", "18080 ", "+18080", "18080.0", "'18080'"):
+        env_file = tmp_path / "production.env"
+        env_file.write_text(f"NORA_WEB_PORT={value}\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="NORA_WEB_PORT"):
+            read_environment(env_file)
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "http://nora.internal.test",
+        "https://localhost",
+        "https://nora.example.com",
+        "https://127.0.0.1",
+        "https://user:pass@nora.internal.test",
+        "https://nora.internal.test/path",
+        "https://nora.internal.test?query=1",
+        "https://nora.internal.test#fragment",
+        "https://invalid_host.internal",
+        "https://invalid host.internal",
+        "https://invalid\\host.internal",
+    ],
+)
+def test_config_preflight_rejects_invalid_public_origins(origin: str) -> None:
+    errors = validate_environment(_values() | {"NORA_PUBLIC_ORIGIN": origin}, check_host=False)
+    assert any("NORA_PUBLIC_ORIGIN" in error for error in errors)
+
+
+@pytest.mark.parametrize("port", ["", "-1", "0", "80", "65536", "1.5", "not-a-port"])
+def test_config_preflight_rejects_invalid_web_ports(port: str) -> None:
+    errors = validate_environment(_values() | {"NORA_WEB_PORT": port}, check_host=False)
+    assert any("NORA_WEB_PORT" in error for error in errors)
 
 
 def test_root_operator_scripts_do_not_source_environment_files() -> None:

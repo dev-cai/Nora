@@ -457,10 +457,9 @@ npm run e2e
   MessageDraft 生成/编辑/复制 → planned ApplicationRecord → 用户确认 applied → interviewing/InterviewCase。生成和下载失败必须可见且
   不能伪造可用或已投递；刷新、退出与原用户重新登录后恢复全部版本，第二用户的读取、下载、草稿修改、PDF 生成、投递推进与面试更新
   均固定 404。浏览器请求保持在 Nora 本地 Origin，API 容器不配置模型或外部发送/投递凭据。
-- #224 接受的生产安全回归目标使用 test-only reference proxy 模拟 `Host TLS Proxy -> Web -> API`：reference proxy 负责 HTTPS、HSTS
-  和覆盖 forwarded headers，Web 负责静态/SPA、`/api` proxy 与应用安全 headers，API 只信任固定 Web IP `/32`。决策合并时现有
-  `docker-compose.beta-e2e.yml` 与 `deploy/Caddyfile.beta-e2e` 尚未迁移；后续 Implementation Task 必须重命名并隔离 fixture，且不得把
-  reference proxy 写入 production Compose 或能力声明。迁移前现有 HTTPS fixture 不构成符合 #224 的生产拓扑证据。
+- 生产安全回归使用 test-only [`reference-proxy.Caddyfile`](../deploy/reference-proxy.Caddyfile) 模拟
+  `Host TLS Proxy -> Web -> API`：reference proxy 只负责 HTTPS、HSTS 和覆盖 forwarded headers，Web 负责静态/SPA、`/api` proxy 与
+  应用安全 headers，API 只信任固定 Web IP `/32`。该 fixture 只存在于 `docker-compose.beta-e2e.yml`，不是生产组件或真实公网证据。
 - 默认旅程失败时在 `frontend/test-results/` 与 `frontend/playwright-report/` 生成截图与 trace，可执行 `npm run e2e:report` 查看；
   生产安全用例关闭 trace/HTML report，避免临时 owner 凭据进入失败 Artifact，只保留不显示密码明文的失败截图和 Job 日志。
 - 每次运行使用隔离随机账号，不在业务数据中制造冲突。
@@ -605,12 +604,13 @@ Issue #224 已把 D-019 的唯一目标生产拓扑收敛为 `Host Reverse Proxy
 `127.0.0.1` HTTP 端口，API、PostgreSQL 和 MinIO 不发布宿主端口。Web 固定内部 IP并负责静态/SPA、`/api` proxy 与 CSP/XFO/
 Referrer/`nosniff`，API 只信任该 Web IP `/32`。
 
-Architecture PR 合并时，[`deploy/compose.production.yml`](../deploy/compose.production.yml)、production env、preflight、release 和 E2E
-仍实现被替代的容器内 Caddy/ingress 路径。它们在后续独立 Implementation Task 合并前不得作为符合 D-019 的生产部署基线，也不得
-用于生成新的 Current 或真实 Beta 证据。实施必须直接删除旧路径，不提供 legacy mode、双 Compose、双发布路径或 TLS fallback。
+[`deploy/compose.production.yml`](../deploy/compose.production.yml) 已实现该唯一拓扑：Web 固定使用 `172.28.0.10` 并只发布
+`127.0.0.1:${NORA_WEB_PORT}:5173`，API 的 `TRUSTED_PROXY_CIDR` 固定为 `172.28.0.10/32`，data network 为 internal。production
+runtime 不包含 Caddy、ingress、80/443 映射或旧拓扑兼容开关；Host Proxy 不得绕过 Web 直接访问 API。
 
-复制 [`deploy/production.env.example`](../deploy/production.env.example) 到主机私有位置后，必须填写真实 provider、region、DNS、
-月度预算、告警阈值、跨故障域备份目的地标识和完整 `image@sha256:<digest>`。示例中的 `UNSET`、示例域名和零 digest 只用于
+复制 [`deploy/production.env.example`](../deploy/production.env.example) 到主机私有位置后，必须填写真实 provider、region、唯一
+HTTPS `NORA_PUBLIC_ORIGIN`、`1024..65535` 的 `NORA_WEB_PORT`、月度预算、告警阈值、跨故障域备份目的地标识和完整
+`image@sha256:<digest>`。示例中的 `UNSET`、示例域名和零 digest 只用于
 `docker compose config`，不能部署或作为 Beta 证据。自动发布由下述唯一 GitHub Actions 管道消费同一 env 和 Compose 契约。
 
 生产 Secret 事实源是 root-owned 主机目录。API、迁移与 MinIO/备份 Secret 使用 `root:10001`、PostgreSQL 初始化密码使用 `root:70`，
@@ -624,10 +624,10 @@ Architecture PR 合并时，[`deploy/compose.production.yml`](../deploy/compose.
 Schema 现有及后续表/序列所需的 DML 权限。API 不接收 PostgreSQL 初始化或迁移身份。`storage-init` 同样只在初始化 profile 使用
 MinIO root，分别创建 Bucket 读写删应用身份和只读备份身份；API 与备份入口均不接收 MinIO root。
 
-`preflight.py` 会 fail closed：拒绝 mutable tag、环境文件中的直接 Secret、非法或重复变量名、示例目标信息、重复/相对数据或 Secret 路径，以及 owner、group、
-mode 不正确的 Secret 或数据目录。root operator 脚本不 source env 文件，只通过 preflight 的字段白名单读取所需非 Secret 值。#224
-实施后，preflight 还必须严格验证唯一 HTTPS `NORA_PUBLIC_ORIGIN` 和 `1024..65535` 的 `NORA_WEB_PORT`；Web bind 与 API 可信 `/32`
-是 Compose 内部事实，不能由 production env 放宽。首次启动后使用已有 `nora-identity bootstrap-owner` 管理命令建立唯一 owner，再验证
+`preflight.py` 会 fail closed：拒绝 mutable tag、环境文件中的直接 Secret、非法或重复变量名、示例目标信息、非法 HTTPS
+`NORA_PUBLIC_ORIGIN`、非法 `NORA_WEB_PORT`、重复/相对数据或 Secret 路径，以及 owner、group、mode 不正确的 Secret 或数据目录。
+root operator 脚本不 source env 文件，只通过 preflight 的字段白名单读取所需非 Secret 值。Web bind 与 API 可信 `/32` 是 Compose
+内部事实，不能由 production env 放宽。首次启动后使用已有 `nora-identity bootstrap-owner` 管理命令建立唯一 owner，再验证
 `/live`、`/ready`、Web `/api` 同源调用、容器 UID、`CapEff`、只读根文件系统、只有 localhost Web published port，以及 API/DB/MinIO
 无宿主端口。生产 `/ready` 必须同时验证唯一 owner、PostgreSQL 与 Artifact Storage；不得以 `/live` 或 MinIO 进程存活替代就绪。
 
@@ -650,7 +650,7 @@ sudo stat -c '%U:%G %a %n' /usr/local/sbin/nora-release /opt/nora/deploy/release
 sudo visudo -cf /etc/sudoers.d/nora-release
 ```
 
-安装脚本只把经审查的发布、preflight、backup 与 Compose 文件复制到 `/opt/nora/deploy`，固定入口为
+安装脚本只把经审查的发布、preflight、public smoke、backup 与 Compose 文件复制到 `/opt/nora/deploy`，固定入口为
 `/usr/local/sbin/nora-release`，状态目录为 `/var/lib/nora/releases`。Runner 通过 stdin 提供当前 Job 的短期 GHCR Token；root
 入口验证 manifest、SBOM 哈希、Schema 兼容策略哈希、主干 check run ID 和 GitHub attestation 后立即登录拉取，结束时 logout。
 GitHub Environment 不保存数据库、MinIO、JWT、owner 密码或备份解密材料。
@@ -658,7 +658,7 @@ GitHub Environment 不保存数据库、MinIO、JWT、owner 密码或备份解�
 目标发布固定记录 `preflight -> backup -> pull -> migrate -> start -> internal-smoke -> public-smoke -> promote`。无 Schema 变化时 backup
 明确记录为 skipped；迁移前失败不改写生产 env 或 `last-healthy.json`。迁移停止 Web/API、保持 PostgreSQL/MinIO 运行；候选服务先完成
 内部 API/Web/Artifact smoke，再通过真实 `NORA_PUBLIC_ORIGIN`、正常 TLS 校验验证 Web、`/api/live`、`/api/ready`、应用安全 headers、
-Host Proxy HSTS 与 Web API proxy 链。只有 public smoke 全部通过才能替换 production env 和写健康指针；禁止 `--insecure`。
+Host Proxy HSTS 与 Web API proxy 链标记。只有 public smoke 全部通过才能替换 production env 和写健康指针；禁止 `--insecure`。
 
 自动回滚不会执行 Alembic downgrade。同一 Schema revision 可回退到已知健康镜像；跨 revision 只有当前 Commit 中
 `deploy/schema-compatibility.json` 明确允许且其哈希已进入 manifest 时，候选失败才可自动回退。恢复旧版本后仍必须重新通过
@@ -691,7 +691,7 @@ NORA_BACKUP_AGE_RECIPIENT='age1...' \
 ```
 
 恢复 env 必须使用不同 Compose project、数据库目录、Bucket 数据目录、Secret、DNS 记录和报告目录，project 名必须包含
-`restore` 或 `rehearsal`。恢复命令不启用 `public` profile，不绑定宿主端口，也不执行任何外部写；恢复归档只接受固定元数据文件、
+`restore` 或 `rehearsal`。恢复命令不启动 Web/API，不绑定宿主端口，也不执行任何外部写；恢复归档只接受固定元数据文件、
 常规对象文件和安全相对路径，拒绝链接、特殊文件、路径穿越及未知顶层条目。它恢复 PostgreSQL 与对象后，
 记录 Schema revision，并核验 owner/版本引用、Artifact size/SHA-256、缺失/损坏对象、孤儿对象和删除状态；任一差异以退出码 `2` 阻止
 晋升，报告只保存 Artifact/owner ID 与对象键的短哈希，不保存原始对象键或正文。

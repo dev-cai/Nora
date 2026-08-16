@@ -149,10 +149,12 @@ jobs:
           docker pull "$web_tag"
           api_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$api_tag")
           web_image=$(docker image inspect --format '{{index .RepoDigests 0}}' "$web_tag")
-          echo "api_image=$api_image" >> "$GITHUB_OUTPUT"
-          echo "web_image=$web_image" >> "$GITHUB_OUTPUT"
-          echo "api_digest=${api_image##*@}" >> "$GITHUB_OUTPUT"
-          echo "web_digest=${web_image##*@}" >> "$GITHUB_OUTPUT"
+          {
+            echo "api_image=$api_image"
+            echo "web_image=$web_image"
+            echo "api_digest=${api_image##*@}"
+            echo "web_digest=${web_image##*@}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Generate API SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0

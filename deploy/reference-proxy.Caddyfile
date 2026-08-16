@@ -1,0 +1,21 @@
+# Test-only Host TLS reference proxy. This file is not a production runtime input.
+{
+	admin off
+}
+
+https://localhost, https://127.0.0.1 {
+	tls internal
+	encode zstd gzip
+
+	reverse_proxy web:5173 {
+		header_up -X-Forwarded-For
+		header_up X-Forwarded-For {http.request.remote.host}
+		header_up -X-Forwarded-Proto
+		header_up X-Forwarded-Proto https
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}

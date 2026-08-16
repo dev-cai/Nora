@@ -15,7 +15,7 @@ x-api-environment: &api-environment
   AUTH_RATE_LIMIT_SECRET_FILE: /run/secrets/auth_rate_limit_secret
   AUTH_ACCESS_TOKEN_MINUTES: "30"
   PUBLIC_ORIGIN: https://localhost:8443
-  TRUSTED_PROXY_CIDR: 172.29.240.0/24
+  TRUSTED_PROXY_CIDR: 172.29.240.20/32
   ARTIFACT_STORAGE_ENDPOINT: storage:9000
   ARTIFACT_STORAGE_ACCESS_KEY_FILE: /run/secrets/artifact_access_key
   ARTIFACT_STORAGE_SECRET_KEY_FILE: /run/secrets/artifact_secret_key
@@ -181,31 +181,31 @@ services:
       api:
         condition: service_healthy
     networks:
-      - edge
+      host-proxy:
+      edge:
+        ipv4_address: 172.29.240.20
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
       interval: 2s
       timeout: 5s
       retries: 30
 
-  ingress:
+  reference-proxy:
     image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
     ports:
       - "8443:443"
     volumes:
-      - ./deploy/Caddyfile.beta-e2e:/etc/caddy/Caddyfile:ro
-      - beta_e2e_caddy_data:/data
-      - beta_e2e_caddy_config:/config
+      - ./deploy/reference-proxy.Caddyfile:/etc/caddy/Caddyfile:ro
+      - beta_e2e_reference_proxy_data:/data
+      - beta_e2e_reference_proxy_config:/config
     depends_on:
-      api:
-        condition: service_healthy
       web:
         condition: service_healthy
     networks:
-      edge:
-        ipv4_address: 172.29.240.10
+      - host-proxy
 
 networks:
+  host-proxy: {}
   edge:
     ipam:
       config:
@@ -213,6 +213,6 @@ networks:
   data: {}
 
 volumes:
-  beta_e2e_caddy_config:
-  beta_e2e_caddy_data:
+  beta_e2e_reference_proxy_config:
+  beta_e2e_reference_proxy_data:
   beta_e2e_secrets:

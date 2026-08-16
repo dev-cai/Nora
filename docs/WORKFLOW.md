@@ -177,6 +177,10 @@ Environment 的并发锁不能替代主机文件锁；Runner 也不能直接调�
 入口；失败后不得临时 SSH 执行未审查 Compose、可变 tag 或 Alembic downgrade。真实 Environment/Runner 尚未供应时，合并发布
 代码只表示控制面已交付，不表示 Beta 已上线。
 
+主机入口执行固定八阶段 `preflight -> backup -> pull -> migrate -> start -> internal-smoke -> public-smoke -> promote`。Nora 只发布
+localhost Web 端口，真实 Host TLS Proxy 必须覆盖 forwarded headers 后转发到 Web；public smoke 使用正常证书校验验证真实 HTTPS
+Origin、HSTS、Web 安全 Header 和 `/api` Web proxy 链，完成前不得写 production env、current 或 last-healthy 指针。
+
 ---
 
 ## 逐步操作指南
@@ -242,9 +246,9 @@ docker compose --profile test run --rm test
 
 浏览器门禁由 `.github/workflows/e2e.yml` 在 PR 与 main push 上执行两个隔离项目：开发形态栈覆盖 M2/M3 与 M4 的
 apply → ResumeVariant → PDF → MessageDraft → 用户确认 ApplicationRecord/InterviewCase 完整旅程、失败可见性、重新登录恢复、双用户
-读写/下载隔离和无外部写；随后生产安全形态栈覆盖 HTTPS、受控 owner bootstrap、公共注册关闭、Token 撤销、退出、429、Origin 与代理头
-边界。工作流无论成功或失败都删除两套容器、网络、数据卷和临时 Secret env，不复用开发数据库或对象存储；隔离栈通过不等于真实公网
-Beta 已部署。
+读写/下载隔离和无外部写；随后生产安全形态栈使用 test-only `Host TLS reference proxy -> Web -> API`，覆盖 HSTS、Web 安全 Header、
+受控 owner bootstrap、公共注册关闭、Token 撤销、退出、429、Origin，以及客户端伪造 forwarded headers 不能绕过限流。工作流无论
+成功或失败都删除两套容器、网络、数据卷和临时 Secret env，不复用开发数据库或对象存储；隔离栈通过不等于真实公网 Beta 已部署。
 
 ### 步骤 7：提交 Commit
 

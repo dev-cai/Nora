@@ -21,7 +21,7 @@ command -v visudo >/dev/null
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 install -d -o root -g root -m 0755 /opt/nora/deploy
-for name in Caddyfile compose.production.yml preflight.py release.py release_manifest.py \
+for name in compose.production.yml preflight.py public_smoke.py release.py release_manifest.py \
   verify_release_ci.py verify_release_control.py
 do
   install -o root -g root -m 0644 "$script_dir/$name" "/opt/nora/deploy/$name"

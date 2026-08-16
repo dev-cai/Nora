@@ -9,44 +9,19 @@ x-runtime-security: &runtime-security
     - ALL
 
 services:
-  ingress:
-    <<: *runtime-security
-    profiles: ["public"]
-    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
-    user: "10001:10001"
-    cap_add:
-      - NET_BIND_SERVICE
-    environment:
-      NORA_DOMAIN: ${NORA_DOMAIN:?set NORA_DOMAIN}
-      NORA_TLS_EMAIL: ${NORA_TLS_EMAIL:?set NORA_TLS_EMAIL}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ${NORA_CADDY_DATA_DIR:?set NORA_CADDY_DATA_DIR}:/data
-      - ${NORA_CADDY_CONFIG_DIR:?set NORA_CADDY_CONFIG_DIR}:/config
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001
-    networks:
-      - edge
-    depends_on:
-      web:
-        condition: service_healthy
-      api:
-        condition: service_healthy
-    restart: unless-stopped
-
   web:
     <<: *runtime-security
     image: ${NORA_WEB_IMAGE:?set digest-pinned NORA_WEB_IMAGE}
     user: "1000:1000"
     environment:
       VITE_NORA_PROXY_TARGET: http://api:8000
+    ports:
+      - "127.0.0.1:${NORA_WEB_PORT:?set NORA_WEB_PORT}:5173"
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=1000,gid=1000
     networks:
-      - edge
+      edge:
+        ipv4_address: 172.28.0.10
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
       interval: 10s
@@ -68,7 +43,7 @@ services:
       AUTH_RATE_LIMIT_SECRET_FILE: /run/secrets/auth_rate_limit_secret
       AUTH_ACCESS_TOKEN_MINUTES: ${NORA_AUTH_ACCESS_TOKEN_MINUTES:-30}
       PUBLIC_ORIGIN: ${NORA_PUBLIC_ORIGIN:?set NORA_PUBLIC_ORIGIN}
-      TRUSTED_PROXY_CIDR: ${NORA_TRUSTED_PROXY_CIDR:-172.28.0.0/16}
+      TRUSTED_PROXY_CIDR: 172.28.0.10/32
       ARTIFACT_STORAGE_ENDPOINT: storage:9000
       ARTIFACT_STORAGE_ACCESS_KEY_FILE: /run/secrets/artifact_access_key
       ARTIFACT_STORAGE_SECRET_KEY_FILE: /run/secrets/artifact_secret_key

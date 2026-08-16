@@ -71,6 +71,8 @@ def _write_manifest(path: Path, manifest: object) -> None:
 def _environment(path: Path) -> None:
     path.write_text(
         "NORA_COMPOSE_PROJECT=nora-beta\n"
+        "NORA_PUBLIC_ORIGIN=https://nora.internal.test\n"
+        "NORA_WEB_PORT=18080\n"
         f"NORA_API_IMAGE=ghcr.io/dev-cai/nora-api@sha256:{'5' * 64}\n"
         f"NORA_WEB_IMAGE=ghcr.io/dev-cai/nora-web@sha256:{'6' * 64}\n",
         encoding="utf-8",
@@ -190,7 +192,7 @@ def test_beta_api_smoke_checks_readiness_and_negative_authentication_boundaries(
     API_SMOKE_MODULE.main()
 
 
-def test_successful_deploy_records_seven_phases_and_promotes_atomically(
+def test_successful_deploy_records_eight_phases_and_promotes_atomically(
     tmp_path: Path,
 ) -> None:
     env_file = tmp_path / "production.env"
@@ -232,7 +234,8 @@ def test_successful_deploy_records_seven_phases_and_promotes_atomically(
         ("pull", "passed"),
         ("migrate", "passed"),
         ("start", "passed"),
-        ("smoke", "passed"),
+        ("internal-smoke", "passed"),
+        ("public-smoke", "passed"),
         ("promote", "passed"),
     ]
     assert json.loads((state_dir / "last-healthy.json").read_text())["release_id"] == (
@@ -243,6 +246,7 @@ def test_successful_deploy_records_seven_phases_and_promotes_atomically(
     assert any(
         "artifact_storage_smoke.py" in argument for command in commands for argument in command
     )
+    assert any("public_smoke.py" in argument for command in commands for argument in command)
 
 
 def test_failed_pull_does_not_replace_last_healthy_release(tmp_path: Path) -> None:
@@ -280,7 +284,7 @@ def test_failed_pull_does_not_replace_last_healthy_release(tmp_path: Path) -> No
     assert "sha256:" + "5" * 64 in env_file.read_text(encoding="utf-8")
 
 
-def test_smoke_failure_only_rolls_back_when_schema_is_declared_compatible(
+def test_internal_smoke_failure_only_rolls_back_when_schema_is_declared_compatible(
     tmp_path: Path,
 ) -> None:
     env_file = tmp_path / "production.env"
@@ -333,6 +337,98 @@ def test_smoke_failure_only_rolls_back_when_schema_is_declared_compatible(
     assert json.loads((state_dir / "last-healthy.json").read_text()) == current
 
 
+def test_public_smoke_failure_without_previous_release_stops_candidate_before_promotion(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / "production.env"
+    state_dir = tmp_path / "releases"
+    manifest_path = tmp_path / "manifest.json"
+    _environment(env_file)
+    original_environment = env_file.read_text(encoding="utf-8")
+    manifest = _manifest(run_id=45)
+    _write_manifest(manifest_path, manifest)
+    commands: list[list[str]] = []
+
+    def run(arguments: list[str]) -> subprocess.CompletedProcess[str]:
+        commands.append(arguments)
+        if any(value.endswith("public_smoke.py") for value in arguments):
+            assert env_file.read_text(encoding="utf-8") == original_environment
+            assert not (state_dir / "current.json").exists()
+            assert not (state_dir / "last-healthy.json").exists()
+            raise subprocess.CalledProcessError(1, arguments)
+        return subprocess.CompletedProcess(arguments, 0, "", "")
+
+    manager = ReleaseManager(
+        env_file=env_file,
+        state_dir=state_dir,
+        backup_destination=tmp_path / "backup",
+        script_dir=DEPLOY_DIR,
+        run_command=run,
+        free_bytes=lambda _path: RELEASE_MODULE.MIN_FREE_BYTES,
+    )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        manager.deploy(manifest_path)
+
+    assert env_file.read_text(encoding="utf-8") == original_environment
+    assert not (state_dir / "current.json").exists()
+    assert not (state_dir / "last-healthy.json").exists()
+    assert commands[-1][-3:] == ["stop", "web", "api"]
+    result = json.loads((state_dir / manifest.release_id / "result.json").read_text())
+    assert result == {
+        "error": "CalledProcessError",
+        "phase": "public-smoke",
+        "status": "failed",
+    }
+
+
+def test_failed_public_smoke_during_automatic_rollback_never_records_rollback_healthy(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / "production.env"
+    previous_env = tmp_path / "previous.env"
+    state_dir = tmp_path / "releases"
+    state_dir.mkdir(mode=0o700)
+    manifest_path = tmp_path / "manifest.json"
+    _environment(env_file)
+    _environment(previous_env)
+    manifest = _manifest(run_id=46)
+    _write_manifest(manifest_path, manifest)
+    previous = {
+        "release_id": "b" * 12 + "-10",
+        "commit_sha": "b" * 40,
+        "workflow_run_id": 10,
+        "api_image": f"ghcr.io/dev-cai/nora-api@sha256:{'5' * 64}",
+        "web_image": f"ghcr.io/dev-cai/nora-web@sha256:{'6' * 64}",
+        "migration_revision": manifest.migration_revision,
+        "environment_file": str(previous_env),
+        "operation": "deploy",
+        "recorded_at": "2026-08-15T00:00:00Z",
+    }
+    (state_dir / "last-healthy.json").write_text(json.dumps(previous), encoding="utf-8")
+
+    def run(arguments: list[str]) -> subprocess.CompletedProcess[str]:
+        if any(value.endswith("public_smoke.py") for value in arguments):
+            raise subprocess.CalledProcessError(1, arguments)
+        return subprocess.CompletedProcess(arguments, 0, "", "")
+
+    manager = ReleaseManager(
+        env_file=env_file,
+        state_dir=state_dir,
+        backup_destination=tmp_path / "backup",
+        script_dir=DEPLOY_DIR,
+        run_command=run,
+        free_bytes=lambda _path: RELEASE_MODULE.MIN_FREE_BYTES,
+    )
+
+    with pytest.raises(ReleaseFailure, match="automatic rollback failed"):
+        manager.deploy(manifest_path)
+
+    assert json.loads((state_dir / "last-healthy.json").read_text()) == previous
+    assert not (state_dir / "current.json").exists()
+    assert list(state_dir.glob("rollback-*")) == []
+
+
 def test_manual_rollback_refuses_cross_schema_target(tmp_path: Path) -> None:
     env_file = tmp_path / "production.env"
     state_dir = tmp_path / "releases"
@@ -360,6 +456,54 @@ def test_manual_rollback_refuses_cross_schema_target(tmp_path: Path) -> None:
         manager.rollback(target_id, "operator request")
 
 
+def test_manual_rollback_requires_public_smoke_before_updating_pointers(tmp_path: Path) -> None:
+    env_file = tmp_path / "production.env"
+    target_env = tmp_path / "target.env"
+    state_dir = tmp_path / "releases"
+    target_id = "b" * 12 + "-11"
+    target_dir = state_dir / target_id
+    target_dir.mkdir(parents=True)
+    os.chmod(state_dir, 0o700)
+    _environment(env_file)
+    _environment(target_env)
+    current = {"release_id": "c" * 12 + "-12", "migration_revision": "0022_interview_cases"}
+    target = {
+        "status": "healthy",
+        "release_id": target_id,
+        "commit_sha": "b" * 40,
+        "workflow_run_id": 11,
+        "api_image": f"ghcr.io/dev-cai/nora-api@sha256:{'5' * 64}",
+        "web_image": f"ghcr.io/dev-cai/nora-web@sha256:{'6' * 64}",
+        "migration_revision": "0022_interview_cases",
+        "environment_file": str(target_env),
+        "operation": "deploy",
+        "recorded_at": "2026-08-15T00:00:00Z",
+    }
+    (target_dir / "result.json").write_text(json.dumps(target), encoding="utf-8")
+    (state_dir / "current.json").write_text(json.dumps(current), encoding="utf-8")
+
+    def run(arguments: list[str]) -> subprocess.CompletedProcess[str]:
+        if any(value.endswith("public_smoke.py") for value in arguments):
+            assert json.loads((state_dir / "current.json").read_text()) == current
+            raise subprocess.CalledProcessError(1, arguments)
+        return subprocess.CompletedProcess(arguments, 0, "", "")
+
+    manager = ReleaseManager(
+        env_file=env_file,
+        state_dir=state_dir,
+        backup_destination=tmp_path / "backup",
+        script_dir=DEPLOY_DIR,
+        run_command=run,
+        free_bytes=lambda _path: RELEASE_MODULE.MIN_FREE_BYTES,
+    )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        manager.rollback(target_id, "operator request")
+
+    assert json.loads((state_dir / "current.json").read_text()) == current
+    assert list(state_dir.glob("rollback-*")) == []
+
+
 def test_beta_workflow_uses_one_environment_locked_host_entrypoint() -> None:
     workflow = (ROOT / ".github/workflows/beta-deploy.yml").read_text(encoding="utf-8")
     assert "group: beta-deployment" in workflow
@@ -377,4 +521,6 @@ def test_release_installation_fixes_root_ownership_and_minimal_sudo_entrypoint()
     assert "/etc/sudoers.d/nora-release" in installer
     assert "visudo -cf" in installer
     assert "docker compose" not in installer
+    assert "public_smoke.py" in installer
+    assert "Caddyfile" not in installer
     assert "exec python /opt/nora/deploy/release.py" in wrapper

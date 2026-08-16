@@ -88,7 +88,8 @@
   依赖管理              锁定文件（uv.lock）+ uv audit
                         新增依赖需通过 Architecture Issue
 
-  生产运行              digest 固定镜像；非 root/只读 rootfs；仅 ingress 暴露 80/443
+  生产运行              digest 固定镜像；非 root/只读 rootfs；仅 Web 绑定 127.0.0.1
+                        TLS/HSTS 由宿主代理负责；API/数据库/对象存储不发布端口
                         Secret 由 root-owned 文件只读挂载，不进入环境文件、参数或日志
 
   备份恢复              PostgreSQL + Artifact 在停写屏障内联合取点并使用 age 加密
