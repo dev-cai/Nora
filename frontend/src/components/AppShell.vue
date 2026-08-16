@@ -3,6 +3,7 @@ import { computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import {
   BriefcaseBusiness,
+  Building2,
   ChartNoAxesCombined,
   ClipboardList,
   FileText,
@@ -16,6 +17,7 @@ import {
 import { useAuthStore } from "@/stores/auth"
 import { useAnalysisStore } from "@/stores/analysis"
 import { useApplicationsStore } from "@/stores/applications"
+import { useCompaniesStore } from "@/stores/companies"
 import { useJobsStore } from "@/stores/jobs"
 import { useMessagesStore } from "@/stores/messages"
 import { useProfileStore } from "@/stores/profile"
@@ -25,6 +27,7 @@ import { useVariantsStore } from "@/stores/variants"
 const auth = useAuthStore()
 const analysis = useAnalysisStore()
 const applications = useApplicationsStore()
+const companies = useCompaniesStore()
 const jobs = useJobsStore()
 const messages = useMessagesStore()
 const profile = useProfileStore()
@@ -41,6 +44,7 @@ function logout(): void {
   resumes.reset()
   analysis.reset()
   applications.reset()
+  companies.reset()
   variants.reset()
   messages.reset()
   void router.push({ name: "login" })
@@ -106,6 +110,14 @@ function logout(): void {
         >
           <ClipboardList :size="18" />
           <span>投递记录</span>
+        </RouterLink>
+        <RouterLink
+          class="nav-item"
+          :class="{ active: route.name === 'company-new' || route.name === 'company-detail' }"
+          to="/companies/new"
+        >
+          <Building2 :size="18" />
+          <span>公司情报</span>
         </RouterLink>
         <RouterLink
           class="nav-item"

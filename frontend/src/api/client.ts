@@ -1,15 +1,22 @@
 import type {
+  AppendCompanySnapshotInput,
   ApplicationDecision,
   ApplicationRecord,
   ApplicationRecordList,
   ApplicationRecordTransition,
+  Artifact,
   CandidateProfile,
   CandidateProfileInput,
+  CompanyAssessment,
+  CompanySnapshot,
+  CreateCompanyAssessmentInput,
+  CreateCompanySnapshotInput,
   CreateDecisionCaseInput,
   CreateApplicationDecisionInput,
   CreateApplicationRecordInput,
   CreateJobPostingInput,
   CreateResumeVariantInput,
+  CreateSourceInput,
   DecisionAnalysis,
   DecisionCase,
   DecisionReport,
@@ -28,6 +35,7 @@ import type {
   ResumeVersionList,
   ResumeVariant,
   ResumeVariantList,
+  SourceDocument,
   TemplateDefinition,
   TransitionApplicationRecordInput,
   TokenResponse,
@@ -80,6 +88,13 @@ const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
   application_record_key_taken: "该操作标识已用于其他投递更新",
   application_record_transition_conflict: "当前投递状态不允许此操作",
   application_record_version_conflict: "投递记录已更新，请刷新后重试",
+  company_assessment_conflict: "报告已经固定了另一版公司情报",
+  company_assessment_unavailable: "公司情报暂时无法用于当前报告",
+  company_snapshot_version_conflict: "公司情报已更新，请刷新后重试",
+  invalid_company_assessment_status: "公司评估状态无效",
+  invalid_company_fact_status: "公司字段值与确认状态不一致",
+  invalid_company_name: "公司名称无效",
+  invalid_company_text: "公司情报文本无效",
   invalid_application_record: "投递记录的材料或确认信息无效",
   invalid_variant_field: "定制字段不在来源简历或模板允许范围内",
   required_variant_field: "定制内容缺少模板必填字段",
@@ -168,7 +183,8 @@ async function requestBlob(path: string): Promise<Blob> {
 async function requestResponse(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set("Accept", "application/json")
-  if (init.body !== undefined) headers.set("Content-Type", "application/json")
+  const hasFormData = typeof FormData !== "undefined" && init.body instanceof FormData
+  if (init.body !== undefined && !hasFormData) headers.set("Content-Type", "application/json")
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`)
 
   const controller = new AbortController()
@@ -294,6 +310,48 @@ export const api = {
     headers: { "Idempotency-Key": idempotencyKey },
     body: JSON.stringify(input),
   }),
+  uploadSourceArtifact: (file: File, idempotencyKey: string) => {
+    const body = new FormData()
+    body.set("file", file)
+    body.set("kind", "source")
+    return request<Artifact>("/artifacts", {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body,
+    })
+  },
+  createSource: (input: CreateSourceInput) =>
+    request<SourceDocument>("/sources", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  createCompanySnapshot: (input: CreateCompanySnapshotInput) =>
+    request<CompanySnapshot>("/companies", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  appendCompanySnapshot: (snapshotId: string, input: AppendCompanySnapshotInput) =>
+    request<CompanySnapshot>(`/companies/${encodeURIComponent(snapshotId)}/versions`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  getLatestCompanySnapshot: (snapshotId: string) =>
+    request<CompanySnapshot>(`/companies/${encodeURIComponent(snapshotId)}`),
+  getCompanySnapshotVersion: (snapshotId: string, version: number) =>
+    request<CompanySnapshot>(
+      `/companies/${encodeURIComponent(snapshotId)}/versions/${version}`,
+    ),
+  listCompanySnapshotVersions: (snapshotId: string) =>
+    request<CompanySnapshot[]>(`/companies/${encodeURIComponent(snapshotId)}/versions`),
+  getCompanyAssessment: async (reportId: string) =>
+    (await request<CompanyAssessment | undefined>(
+      `/reports/${encodeURIComponent(reportId)}/company-assessment`,
+    )) ?? null,
+  createCompanyAssessment: (reportId: string, input: CreateCompanyAssessmentInput) =>
+    request<CompanyAssessment>(`/reports/${encodeURIComponent(reportId)}/company-assessment`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
   listTemplates: () => request<TemplateDefinition[]>("/templates"),
   getTemplate: (id: string, version: number) =>
     request<TemplateDefinition>(`/templates/${encodeURIComponent(id)}/versions/${version}`),

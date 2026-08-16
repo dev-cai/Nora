@@ -37,6 +37,7 @@ describe("report decision errors", () => {
       routes: [
         { path: "/reports", component: { template: "<div />" } },
         { path: "/reports/:id", component: ReportDetailView },
+        { path: "/companies/new", component: { template: "<div />" } },
       ],
     })
     await router.push("/reports/report-1")

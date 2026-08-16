@@ -30,6 +30,8 @@ export function createAppRouter(pinia: Pinia) {
       { path: "/applications", name: "applications", component: () => import("@/views/ApplicationRecordsView.vue"), meta: { requiresAuth: true, title: "投递记录" } },
       { path: "/applications/new", name: "application-new", component: () => import("@/views/ApplicationRecordCreateView.vue"), meta: { requiresAuth: true, title: "确认投递材料" } },
       { path: "/applications/:id", name: "application-detail", component: () => import("@/views/ApplicationRecordDetailView.vue"), meta: { requiresAuth: true, title: "投递详情" } },
+      { path: "/companies/new", name: "company-new", component: () => import("@/views/CompanyCreateView.vue"), meta: { requiresAuth: true, title: "录入公司情报" } },
+      { path: "/companies/:id", name: "company-detail", component: () => import("@/views/CompanyDetailView.vue"), meta: { requiresAuth: true, title: "公司情报版本" } },
       { path: "/analysis/new", name: "analysis-new", component: () => import("@/views/AnalysisNewView.vue"), meta: { requiresAuth: true, title: "发起分析" } },
       { path: "/analysis/:id", name: "analysis-detail", component: () => import("@/views/AnalysisDetailView.vue"), meta: { requiresAuth: true, title: "分析结果" } },
       { path: "/reports", name: "reports", component: () => import("@/views/ReportsView.vue"), meta: { requiresAuth: true, title: "分析报告" } },

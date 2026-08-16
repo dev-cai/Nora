@@ -139,7 +139,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 
 - M2 分析就绪状态与输入 E2E（Current）；
 - M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，证据见 `current-capabilities.toml`）；
-- M4 声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制和手工投递记录（Current）；最小面试通知和 Beta 流程仍为 Planned；
+- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制和手工投递记录（Current）；最小面试通知和 Beta 流程仍为 Planned；
 - M5 Evidence、检索引用和可选模型增强版本；
 - 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
 
@@ -167,7 +167,8 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | 手工投递记录与状态确认 | `/applications`、`/applications/new`、`/applications/:id` | Current，M4 |
 | 发起适配分析 | `/analysis/new` | Current，M3 |
 | 查看同步分析结果 | `/analysis/:id` | Current，M3 |
-| 决策报告（匹配/差距/未知/建议） | `/reports/:id` | Current，M3；公司情报 Planned，M4 |
+| 决策报告（匹配/差距/未知/建议） | `/reports/:id` | Current，M3；公司情报固定版本展示 Current，M4 |
+| 公司情报录入与版本 | `/companies/new`、`/companies/:id` | Current，M4 |
 | 投/不投决定 | 报告页内 `DecisionBar` | Current，M3 |
 | 定制简历（选模板与 PDF） | `/templates`、`/resumes/:id/customize`、`/resume-variants/:id` | Current，M4 |
 | 打招呼语草稿 | `/messages/:id` | Current，M4 |
@@ -202,6 +203,8 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 /applications               手工投递记录列表〔Current，M4〕
 /applications/new           选择精确材料并创建 planned 记录〔Current，M4〕
 /applications/:id           投递详情、状态确认与转换历史〔Current，M4〕
+/companies/new              录入并可选绑定报告的公司情报〔Current，M4〕
+/companies/:id              公司情报精确版本与追加版本〔Current，M4〕
 /interviews                 最小面试通知〔M4 Planned〕
 ```
 
@@ -259,13 +262,22 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 - 分区展示：
   - **事实（Fact）**：已确认主档与岗位的结构化字段；
   - **规则结果（Rule Result）**：技能/技术栈覆盖、经验年限、地点兼容、学历要求；每条带 `rule_id`、状态（match/partial/mismatch/unknown）、输入字段定位与原因；
-  - **公司情报**（M4 Planned）：网评摘要 + 规模 + 行业 + 来源与时效标签；缺失显示 unknown；
+  - **公司情报**（Current，M4）：固定 CompanyAssessment/CompanySnapshot 精确版本，展示来源摘要、规模、行业、字段状态、来源层级、许可、哈希与时效；缺失保持 unknown，匿名来源明确为非事实；
   - **未知项（Unknown）**：规则缺输入项；
   - **建议（Recommendation）**：确定性下一步；
   - 明确"确定性规则"标识；M5 前显示"AI 增强未启用"。
 - 幂等：重复"生成报告"返回既有报告，版本不变。
 - API：`POST /decisions/{id}/reports`、`GET /reports/{id}`、`GET /reports`（Current）。列表从第 1 页开始，默认每页 20 条、最多 100 条，按生成时间倒序，空集合返回空 `items` 与 `total = 0`。
 - 组件：`ReportContent`、`RuleStatusBadge`，统一呈现报告分区、规则状态与字段级引用。
+- 公司情报：无附件时可进入 `/companies/new?report=<id>` 完成私有来源 Artifact、SourceDocument 与 CompanySnapshot 创建并绑定；也可按 ID/版本绑定已有快照。报告后续始终展示已绑定精确版本，新版本不会静默覆盖历史。
+
+### 10.7A 公司情报 `/companies/new`、`/companies/:id`（Current，M4）
+
+- 录入页串联私有文本 Artifact、SourceDocument 和 CompanySnapshot，支持人工记录或 HTTP(S) 网页来源、来源层级、获取/发布时间、许可说明、规模、行业、来源摘要及各字段确认状态。
+- 匿名来源不能将字段标为 confirmed；超过时效的来源不能显示为当前确认事实。anonymous、stale、unknown、conflicted 和 superseded 均使用显式标签，不提供聚合评分。
+- 详情页从认证 API 读取最新版本、完整版本列表和 URL 指定的精确历史版本；追加版本使用最新 `expected_version` 保护并发，`409` 提示刷新后重试。
+- API：`POST /artifacts`、`POST /sources`、`POST /companies`、`GET /companies/{id}`、`GET/POST /companies/{id}/versions`、`GET /companies/{id}/versions/{version}` 与 `GET/POST /reports/{id}/company-assessment`。
+- 刷新和重新登录按 URL/报告附件恢复服务端固定版本；登出清空 `companiesStore`。跨用户 Source、CompanySnapshot、CompanyAssessment 与报告统一不可见。
 
 ### 10.8 投/不投决定（M3，M3.9）
 
@@ -318,6 +330,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | `variantsStore` | 模板、ResumeVariant 列表/详情、精确模板恢复、幂等创建与 PDF 状态 | templates、variants、current、currentTemplate、currentPdf、generatingPdf |
 | `messagesStore` | MessageDraft 生成、详情恢复、修订历史与幂等编辑 | latestForVariant、current、versions、generating、saving |
 | `applicationsStore` | 手工投递列表/详情、材料确认、转换历史与幂等状态更新 | records、current、transitions、saving |
+| `companiesStore` | 来源上传、公司情报创建/追加、精确版本恢复与报告绑定 | latest、current、versions、saving、attaching |
 
 规则：Store 只保存展示状态与缓存快照，不持有业务事实权威；页面刷新后从后端重新加载；跨页共享使用稳定 ID。
 
@@ -358,6 +371,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | `ResumeCustomizeView` / `ResumeVariantDetailView` | 受控字段编排、不可变变体恢复与 PDF 生成/预览/下载 | Current，M4 |
 | `MessageDraftView` | 纯文本草稿编辑、追加版本、刷新恢复与浏览器复制 | Current，M4 |
 | `ApplicationRecordsView` / `ApplicationRecordCreateView` / `ApplicationRecordDetailView` | 列表恢复、精确材料确认、用户确认状态转换与历史 | Current，M4 |
+| `CompanySnapshotForm` / `CompanySnapshotCard` / Company views | 来源录入、字段状态、精确版本、时效与报告固定附件 | Current，M4 |
 | `AppErrorBoundary` | 顶层渲染错误边界 | Current |
 | `ErrorState` / `LoadingState` / `EmptyState` | 可复用通用状态组件 | Planned；当前页面内联处理 |
 
@@ -368,7 +382,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 | Current 基线 | Vue 工程、认证、岗位文本、主档、简历、岗位要求确认页面、前端 CI 和基础浏览器 E2E |
 | M2 | 分析就绪状态、输入 E2E；截图 OCR/链接预览经后端接口返回正文预览 |
 | M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
-| M4 | 模板、ResumeVariant、确定性 PDF、MessageDraft 与手工投递记录 Current；最小面试通知和完整 Beta E2E Planned |
+| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft 与手工投递记录 Current；最小面试通知和完整 Beta E2E Planned |
 | M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示 |
 
 ## 15. 技术选型（Current 基线）

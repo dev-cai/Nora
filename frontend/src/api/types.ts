@@ -1,3 +1,5 @@
+import type { components } from "./generated/schema"
+
 export interface User {
   id: string
   username: string
@@ -286,6 +288,7 @@ export interface DecisionReport {
   risks: string[]
   next_steps: string[]
   generated_at: string
+  company_assessment?: CompanyAssessment | null
 }
 
 export interface DecisionReportList {
@@ -294,6 +297,18 @@ export interface DecisionReportList {
   page_size: number
   total: number
 }
+
+export type Artifact = components["schemas"]["ArtifactResponse"]
+export type SourceDocument = components["schemas"]["SourceResponse"]
+export type CreateSourceInput = components["schemas"]["CreateSourceRequest"]
+export type CompanyFieldStatus = components["schemas"]["CompanyFieldStatus"]
+export type CompanySourceTier = components["schemas"]["CompanySourceTier"]
+export type CompanyFreshness = components["schemas"]["Freshness"]
+export type CompanySnapshot = components["schemas"]["CompanySnapshotResponse"]
+export type CreateCompanySnapshotInput = components["schemas"]["CreateCompanySnapshotRequest"]
+export type AppendCompanySnapshotInput = components["schemas"]["AppendCompanySnapshotRequest"]
+export type CompanyAssessment = components["schemas"]["CompanyAssessmentResponse"]
+export type CreateCompanyAssessmentInput = components["schemas"]["CreateCompanyAssessmentRequest"]
 
 export type ApplicationDecisionStatus = "apply" | "skip"
 
