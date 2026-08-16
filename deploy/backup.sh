@@ -47,7 +47,7 @@ barrier=0
 
 cleanup() {
   if [ "$barrier" -eq 1 ]; then
-    compose --profile public start api web ingress >/dev/null 2>&1 || true
+    compose start api web >/dev/null 2>&1 || true
   fi
   find "$stage" -type f -exec chmod 0600 {} \; -delete 2>/dev/null || true
   find "$stage" -depth -type d -empty -delete 2>/dev/null || true
@@ -56,7 +56,7 @@ trap cleanup EXIT HUP INT TERM
 
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 started_epoch=$(date +%s)
-compose --profile public stop ingress web api
+compose stop web api
 barrier=1
 
 compose --profile ops run --rm --no-deps backup-metadata
@@ -69,7 +69,7 @@ compose --profile ops run --rm --no-deps backup-storage-client -c '
 '
 
 barrier_seconds=$(($(date +%s) - started_epoch))
-compose --profile public start api web ingress
+compose start api web
 barrier=0
 
 printf '{"barrier_seconds":%s,"created_at":"%s","format_version":1}\n' \

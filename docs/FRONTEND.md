@@ -41,16 +41,18 @@ frontend/
 
 ```mermaid
 flowchart LR
-    Browser["Browser"] --> Web["Vue Web"]
-    Web -->|"HTTPS / JSON"| API["FastAPI API"]
+    Browser["Browser"] -->|"HTTPS"| HostProxy["Host TLS Proxy"]
+    HostProxy -->|"HTTP localhost"| Web["Vue Web runtime"]
+    Web -->|"HTTP / JSON"| API["FastAPI API"]
     API --> PG[("PostgreSQL")]
 ```
 
-- 本地 Compose 计划新增 `web` 服务；API 继续由 `api` 服务拥有。
+- Compose 中 `web` 服务拥有静态文件、SPA fallback 与 `/api` proxy；API 继续由 `api` 服务拥有。
 - 浏览器只访问 Web 入口和公开 API，不访问 Compose 内部基础设施端口。
 - 开发代理可以把浏览器的 `/api` 请求转发到 Compose 中的 `api:8000`，但不得改变后端真实路由。
+- 生产只发布 `127.0.0.1:${NORA_WEB_PORT}:5173`；Host Proxy 负责 TLS/HSTS 和覆盖 forwarded headers，Web 输出 CSP、XFO、
+  Referrer/`nosniff` 且不输出 HSTS。API 只信任固定 Web IP `/32`。
 - `/api/v1` 是 Issue #59 定义的目标版本边界；当前已发布路由保持兼容，切换必须由独立 Issue 提供双端契约测试。
-- 生产静态资源托管、TLS 和同源反向代理属于 M4 Beta 运行基线，不在更早的输入或决策页面中提前承诺。
 
 ## 4. API 契约
 
@@ -106,7 +108,8 @@ flowchart LR
 - 收到 `401` 时清除前端会话并返回登录状态；`403` 不得被解释为未登录。
 - 收到 `429` 时保留稳定的“尝试过于频繁”提示和整数 `Retry-After` 语义；生产构建不包含公共注册路由或入口。
 - 改用 HttpOnly Cookie、刷新令牌或持久会话需要独立的 Identity/Security Issue，不由前端单方面实现。
-- 当前开发 CORS 配置不是生产安全承诺；D-020 要求 Beta 使用单一同源 HTTPS 入口、精确 Origin allowlist、显式 method/header 和单跳可信代理，未授权 Origin 在业务处理前拒绝。
+- 当前开发 CORS 配置不是生产安全承诺；Beta production 使用单一同源 HTTPS 入口、精确 Origin allowlist、显式 method/header 和
+  固定 Web `/32` 单跳可信代理，未授权 Origin 在业务处理前拒绝，客户端伪造 forwarded headers 不改变限流身份。
 
 ## 6. 错误与可观测性
 
@@ -133,6 +136,7 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 - API client、认证状态与岗位 / 主档 / 简历页面；
 - 岗位要求确认与版本历史页面（`/jobs/:id/requirements`，M2 交付）；
 - `web` Compose 服务、开发代理、单元 / 组件测试与生产构建验证；
+- production Web runtime 的静态/SPA、`/api` proxy、安全 Header 与链路标记测试；
 - 前端 CI：固定 Node 版本（`frontend/.nvmrc`）、锁文件安装、lint、类型检查、单元测试、生产构建与 Playwright 真实 Compose 浏览器 E2E。
 
 ### M2-M4 Current 与后续 Planned

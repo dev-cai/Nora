@@ -48,7 +48,16 @@ test("M4 Beta 生产认证：受控开户、恢复、撤销、限额与 Origin �
   const username = requiredEnvironment("BETA_E2E_OWNER_USERNAME")
   const password = requiredEnvironment("BETA_E2E_OWNER_PASSWORD")
   const recoveryPassword = requiredEnvironment("BETA_E2E_OWNER_RECOVERY_PASSWORD")
-  await page.goto("/register")
+  const registerPage = await page.goto("/register")
+  expect(registerPage).not.toBeNull()
+  const pageHeaders = registerPage?.headers() || {}
+  expect(pageHeaders["strict-transport-security"]).toContain("max-age=31536000")
+  expect(pageHeaders["content-security-policy"]).toBe(
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+  )
+  expect(pageHeaders["x-content-type-options"]).toBe("nosniff")
+  expect(pageHeaders["x-frame-options"]).toBe("DENY")
+  expect(pageHeaders["referrer-policy"]).toBe("no-referrer")
   await expect(page.getByRole("heading", { name: "页面不存在" })).toBeVisible()
   await expect(page.getByRole("link", { name: "创建账号" })).toHaveCount(0)
 
@@ -58,6 +67,13 @@ test("M4 Beta 生产认证：受控开户、恢复、撤销、限额与 Origin �
   })
   expect(hiddenRegistration.status()).toBe(404)
   expect((await hiddenRegistration.json()).error_code).toBe("entity_not_found")
+  expect(hiddenRegistration.headers()["x-nora-web-proxy"]).toBe("true")
+  expect(hiddenRegistration.headers()["strict-transport-security"]).toContain("max-age=31536000")
+
+  const live = await page.request.get("/api/live")
+  expect(live.status()).toBe(200)
+  expect(await live.json()).toEqual({ status: "live" })
+  expect(live.headers()["x-nora-web-proxy"]).toBe("true")
 
   await login(page, username, password)
   const originalSession = await page.evaluate(() => ({

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import re
 import stat
 from pathlib import Path
@@ -10,6 +11,7 @@ from urllib.parse import unquote, urlsplit
 
 IMAGE_PATTERN = re.compile(r"[^\s@]+@sha256:[0-9a-f]{64}")
 ENV_NAME_PATTERN = re.compile(r"[A-Z][A-Z0-9_]*")
+DNS_LABEL_PATTERN = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
 SCRIPT_VALUE_NAMES = {
     "NORA_BACKUP_STAGE_DIR",
     "NORA_COMPOSE_PROJECT",
@@ -47,8 +49,6 @@ FILE_GROUPS = {
 DATA_OWNERS = {
     "NORA_POSTGRES_DATA_DIR": 70,
     "NORA_MINIO_DATA_DIR": 10001,
-    "NORA_CADDY_DATA_DIR": 10001,
-    "NORA_CADDY_CONFIG_DIR": 10001,
     "NORA_BACKUP_STAGE_DIR": 10001,
 }
 
@@ -56,18 +56,22 @@ DATA_OWNERS = {
 def read_environment(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     for line_number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
             continue
-        if "=" not in line:
+        if "=" not in raw_line:
             raise ValueError(f"invalid env line {line_number}")
-        name, value = line.split("=", 1)
+        name, raw_value = raw_line.split("=", 1)
         name = name.strip()
         if ENV_NAME_PATTERN.fullmatch(name) is None:
             raise ValueError(f"invalid env name on line {line_number}")
         if name in values:
             raise ValueError(f"duplicate env name on line {line_number}")
-        value = value.strip()
+        if name in {"NORA_PUBLIC_ORIGIN", "NORA_WEB_PORT"} and raw_value != raw_value.strip():
+            raise ValueError(f"{name} must not contain surrounding whitespace")
+        if name == "NORA_WEB_PORT" and re.fullmatch(r"[0-9]+", raw_value) is None:
+            raise ValueError("NORA_WEB_PORT must contain only decimal digits")
+        value = raw_value.strip()
         if value[:1] == value[-1:] and value.startswith(("'", '"')):
             value = value[1:-1]
         values[name] = value
@@ -91,11 +95,12 @@ def validate_environment(values: dict[str, str], *, check_host: bool) -> list[st
     ):
         if not values.get(name) or values[name].lower() in {"unset", "example", "unknown"}:
             errors.append(f"{name} must record the real Beta environment before promotion")
-    domain = values.get("NORA_DOMAIN", "")
-    if not domain or domain.endswith("example.com"):
-        errors.append("NORA_DOMAIN must be the real Beta DNS name")
-    if values.get("NORA_PUBLIC_ORIGIN") != f"https://{domain}":
-        errors.append("NORA_PUBLIC_ORIGIN must exactly match the HTTPS Beta origin")
+    origin_error = validate_public_origin(values.get("NORA_PUBLIC_ORIGIN", ""))
+    if origin_error is not None:
+        errors.append(origin_error)
+    port_error = validate_web_port(values.get("NORA_WEB_PORT", ""))
+    if port_error is not None:
+        errors.append(port_error)
     paths = {
         name: Path(values.get(name, ""))
         for name in (*FILE_GROUPS, *DATA_OWNERS, "NORA_JWT_KEY_RING_DIR")
@@ -104,7 +109,7 @@ def validate_environment(values: dict[str, str], *, check_host: bool) -> list[st
         errors.append("all Secret and data paths must be absolute")
     data_paths = [str(paths[name]) for name in DATA_OWNERS]
     if len(set(data_paths)) != len(data_paths):
-        errors.append("PostgreSQL, MinIO, Caddy and backup staging paths must be distinct")
+        errors.append("PostgreSQL, MinIO and backup staging paths must be distinct")
     secret_paths = [str(paths[name]) for name in FILE_GROUPS]
     if len(set(secret_paths)) != len(secret_paths):
         errors.append(
@@ -119,6 +124,59 @@ def validate_environment(values: dict[str, str], *, check_host: bool) -> list[st
         errors.extend(_validate_data_directory(name, paths[name], expected_owner))
     errors.extend(_validate_database_identities(values, paths))
     return errors
+
+
+def validate_public_origin(value: str) -> str | None:
+    if value != value.strip():
+        return "NORA_PUBLIC_ORIGIN must not contain surrounding whitespace"
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        parsed.port
+    except ValueError:
+        return "NORA_PUBLIC_ORIGIN must be a valid HTTPS origin"
+    if parsed.scheme != "https" or not hostname:
+        return "NORA_PUBLIC_ORIGIN must be a valid HTTPS origin"
+    if parsed.username is not None or parsed.password is not None:
+        return "NORA_PUBLIC_ORIGIN must not contain user information"
+    if parsed.path not in {"", "/"}:
+        return "NORA_PUBLIC_ORIGIN must not contain a path"
+    if parsed.query:
+        return "NORA_PUBLIC_ORIGIN must not contain a query"
+    if parsed.fragment:
+        return "NORA_PUBLIC_ORIGIN must not contain a fragment"
+    normalized_host = hostname.rstrip(".").lower()
+    try:
+        ascii_host = normalized_host.encode("idna").decode("ascii")
+    except UnicodeError:
+        return "NORA_PUBLIC_ORIGIN must use a valid DNS hostname"
+    labels = ascii_host.split(".")
+    if (
+        len(ascii_host) > 253
+        or any(not 1 <= len(label) <= 63 for label in labels)
+        or any(DNS_LABEL_PATTERN.fullmatch(label) is None for label in labels)
+    ):
+        return "NORA_PUBLIC_ORIGIN must use a valid DNS hostname"
+    if ascii_host == "localhost":
+        return "NORA_PUBLIC_ORIGIN must not use localhost"
+    if ascii_host == "example.com" or ascii_host.endswith(".example.com"):
+        return "NORA_PUBLIC_ORIGIN must not use example.com"
+    try:
+        ipaddress.ip_address(ascii_host)
+    except ValueError:
+        pass
+    else:
+        return "NORA_PUBLIC_ORIGIN must use a DNS hostname, not an IP address"
+    return None
+
+
+def validate_web_port(value: str) -> str | None:
+    if re.fullmatch(r"[0-9]+", value) is None:
+        return "NORA_WEB_PORT must be a decimal integer from 1024 to 65535"
+    port = int(value)
+    if not 1024 <= port <= 65535:
+        return "NORA_WEB_PORT must be a decimal integer from 1024 to 65535"
+    return None
 
 
 def _validate_secret_file(name: str, path: Path, expected_group: int) -> list[str]:

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Sequence
 
+from preflight import read_environment
 from release_manifest import ReleaseManifest, load_manifest, load_schema_compatibility
 from verify_release_ci import load_check_runs, successful_check_run_ids
 
@@ -59,6 +60,7 @@ class ReleaseManager:
             self._write_json(release_dir / "manifest.json", asdict(manifest))
             current = self._load_pointer("last-healthy.json")
             migrated = False
+            candidate_runtime_active = False
             phase = "preflight"
             try:
                 self._event(release_dir, phase, "started")
@@ -87,24 +89,29 @@ class ReleaseManager:
 
                 phase = "migrate"
                 self._event(release_dir, phase, "started")
-                self._compose(candidate_env, "--profile", "public", "stop", "ingress", "web", "api")
+                self._stop_runtime(candidate_env)
                 self._compose(candidate_env, "--profile", "initialize", "run", "--rm", "migration")
                 migrated = True
                 self._event(release_dir, phase, "passed")
 
                 phase = "start"
                 self._event(release_dir, phase, "started")
+                candidate_runtime_active = True
                 self._start_and_wait(candidate_env)
                 self._event(release_dir, phase, "passed")
 
-                phase = "smoke"
+                phase = "internal-smoke"
                 self._event(release_dir, phase, "started")
-                self._smoke(candidate_env)
+                self._internal_smoke(candidate_env)
+                self._event(release_dir, phase, "passed")
+
+                phase = "public-smoke"
+                self._event(release_dir, phase, "started")
+                self._public_smoke(candidate_env)
                 self._event(release_dir, phase, "passed")
 
                 phase = "promote"
                 self._event(release_dir, phase, "started")
-                self._compose(candidate_env, "--profile", "public", "up", "-d", "ingress")
                 self._replace_environment(candidate_env)
                 pointer = self._release_pointer(manifest, release_dir, operation="deploy")
                 self._write_json(self.state_dir / "last-healthy.json", pointer)
@@ -117,12 +124,23 @@ class ReleaseManager:
                     release_dir / "result.json",
                     {"status": "failed", "phase": phase, "error": type(exc).__name__},
                 )
-                if migrated and phase in {"start", "smoke"} and current is not None:
-                    if (
+                rollback_allowed = (
+                    migrated
+                    and candidate_runtime_active
+                    and current is not None
+                    and (
                         current["migration_revision"] == manifest.migration_revision
                         or manifest.previous_schema_compatible
-                    ):
+                    )
+                )
+                if rollback_allowed:
+                    try:
                         self._rollback_to_pointer(current, reason=f"automatic-{phase}-failure")
+                    except Exception as rollback_error:
+                        self._stop_runtime(candidate_env)
+                        raise ReleaseFailure("automatic rollback failed") from rollback_error
+                elif candidate_runtime_active:
+                    self._stop_runtime(candidate_env)
                 raise
 
     def rollback(self, release_id: str, reason: str) -> None:
@@ -144,7 +162,7 @@ class ReleaseManager:
     def _preflight(self, candidate_env: Path) -> None:
         if self.free_bytes(self.state_dir) < MIN_FREE_BYTES:
             raise ReleaseFailure("release state filesystem has less than 2 GiB free")
-        self._command(self.script_dir / "preflight.py", "--env-file", candidate_env)
+        self._command(sys.executable, self.script_dir / "preflight.py", "--env-file", candidate_env)
         self._command(
             "docker",
             "compose",
@@ -201,19 +219,34 @@ class ReleaseManager:
             "urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5)",
         )
 
-    def _smoke(self, env_file: Path) -> None:
+    def _internal_smoke(self, env_file: Path) -> None:
         self._compose(env_file, "exec", "-T", "api", "python", "scripts/beta_api_smoke.py")
         self._compose(
             env_file, "exec", "-T", "web", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"
         )
         self._compose(env_file, "exec", "-T", "api", "python", "scripts/artifact_storage_smoke.py")
 
+    def _public_smoke(self, env_file: Path) -> None:
+        values = read_environment(env_file)
+        try:
+            origin = values["NORA_PUBLIC_ORIGIN"]
+        except KeyError as exc:
+            raise ReleaseFailure("production environment is missing NORA_PUBLIC_ORIGIN") from exc
+        self._command(sys.executable, self.script_dir / "public_smoke.py", "--origin", origin)
+
+    def _stop_runtime(self, env_file: Path) -> None:
+        self._compose(env_file, "stop", "web", "api")
+
     def _rollback_to_pointer(self, target: dict[str, object], *, reason: str) -> None:
         target_env = Path(str(target["environment_file"]))
-        self._compose(target_env, "--profile", "public", "stop", "ingress", "web", "api")
-        self._start_and_wait(target_env)
-        self._smoke(target_env)
-        self._compose(target_env, "--profile", "public", "up", "-d", "ingress")
+        self._stop_runtime(target_env)
+        try:
+            self._start_and_wait(target_env)
+            self._internal_smoke(target_env)
+            self._public_smoke(target_env)
+        except Exception:
+            self._stop_runtime(target_env)
+            raise
         self._replace_environment(target_env)
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         rollback_dir = self.state_dir / f"rollback-{timestamp}"

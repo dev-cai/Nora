@@ -121,7 +121,7 @@ CandidateProfile
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、结构化岗位要求（JobRequirementSnapshot）、受控链接抓取与截图 OCR 输入、Vue 工作台、JD 输入契约，以及 M2 输入、M3 确定性决策和 M4 投递闭环；公司情报、材料生成、手工投递/面试记录、恢复与隔离已有完整浏览器门禁，并已交付 fail-closed 的 Beta 自动发布/回滚控制面，逐项范围、代码路径和证据只见能力台账 |
+| **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、结构化岗位要求（JobRequirementSnapshot）、受控链接抓取与截图 OCR 输入、Vue 工作台、JD 输入契约，以及 M2 输入、M3 确定性决策和 M4 投递闭环；公司情报、材料生成、手工投递/面试记录、恢复与隔离已有完整浏览器门禁，并已交付 localhost-only Host Proxy 接入契约和 fail-closed 八阶段 Beta 发布/回滚控制面，逐项范围、代码路径和证据只见能力台账 |
 | **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | 真实 Beta Environment/Runner 供应与首次公网发布，M5 Evidence/AI 增强 |
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | 外部平台写入、深度面试复盘、实时出行、Agent Runtime、Milvus 和服务拆分 |
 
