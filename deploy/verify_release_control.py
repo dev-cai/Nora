@@ -17,6 +17,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# Lowercased comparison set. GitHub's own runs-on label matching is case-insensitive, but
+# Environment/Runner labels returned by the REST API preserve their original display casing
+# (for example "Linux"/"X64"), so validate_runners() must normalize before comparing.
 REQUIRED_RUNNER_LABELS = {"self-hosted", "linux", "x64", "nora-beta-deploy"}
 
 
@@ -52,7 +55,7 @@ def validate_runners(values: list[dict[str, object]]) -> list[str]:
         if runner.get("status") != "online" or not isinstance(labels, list):
             continue
         names = {
-            str(label.get("name"))
+            str(label.get("name")).lower()
             for label in labels
             if isinstance(label, dict) and label.get("name")
         }

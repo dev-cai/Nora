@@ -139,6 +139,21 @@ def test_release_control_requires_reviewed_beta_environment_and_online_runner() 
     assert any("online" in error for error in CONTROL_MODULE.validate_runners(runners))
 
 
+def test_release_control_matches_runner_labels_case_insensitively() -> None:
+    runners = [
+        {
+            "status": "online",
+            "labels": [
+                {"name": "self-hosted"},
+                {"name": "Linux"},
+                {"name": "X64"},
+                {"name": "nora-beta-deploy"},
+            ],
+        }
+    ]
+    assert CONTROL_MODULE.validate_runners(runners) == []
+
+
 def test_release_control_prefers_dedicated_administration_token_over_github_token() -> None:
     assert (
         CONTROL_MODULE.resolve_token(
