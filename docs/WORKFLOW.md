@@ -166,6 +166,17 @@ FastAPI OpenAPI 与 TypeScript 声明，再通过 tracked-file、`git diff --exi
 Milestone 关闭前执行一次收口审计：逐项核对 Current 能力台账、默认分支代码路径、测试和已合并 PR 证据；随后运行完整文档门禁。
 计划进度以 GitHub Milestone/Issue 为准，不为封版结果再创建平行的 Markdown 状态表。
 
+### Beta 发布工作流
+
+`.github/workflows/beta-deploy.yml` 不属于 PR 门禁，也不在分支上自动部署。它只允许在 PR 已合并、目标完整 SHA 位于受保护
+`main` 且该 SHA 的后端、前端、浏览器、容器、安全和文档 check run 全部成功后手工触发。API/Web 镜像、SBOM、attestation 与
+release manifest 由同一 run 产生；部署 Job 必须经过 `beta` Environment 审批并落到带 `nora-beta-deploy` 标签的专用 Runner。
+
+Environment 的并发锁不能替代主机文件锁；Runner 也不能直接调用 Docker Compose、读取运行时 Secret 或修改 root-owned 发布
+文件，只能通过 stdin 交付短期 GHCR Token，并以最小 sudo 权限调用 `/usr/local/sbin/nora-release`。正常部署和人工回滚使用同一
+入口；失败后不得临时 SSH 执行未审查 Compose、可变 tag 或 Alembic downgrade。真实 Environment/Runner 尚未供应时，合并发布
+代码只表示控制面已交付，不表示 Beta 已上线。
+
 ---
 
 ## 逐步操作指南

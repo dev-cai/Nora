@@ -531,3 +531,25 @@ code_paths = [
   "frontend/e2e/decision-flow.spec.ts",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/221"]
+
+[[capabilities]]
+id = "beta-deployment-pipeline"
+name = "Beta 摘要发布与兼容性受限回滚管道"
+milestone = "M4"
+status = "current"
+summary = "提供唯一 GitHub Actions `beta-deploy` 控制面：手工 deploy 必须固定受保护 main Commit 并重新核对后端、前端、浏览器、容器、安全和文档 check run，随后由同一次 run 构建 GHCR digest、SPDX SBOM、provenance/SBOM attestation 和迁移绑定 manifest；受保护 beta Environment、单并发锁与专用 self-hosted Runner 只允许通过 stdin 把短期 GHCR Token 交给 root-owned 固定入口。主机入口再次核对 CI、attestation、SBOM/Schema 策略哈希，执行 preflight、条件联合备份、pull、前向 migrate、Compose readiness、认证/API/Web/Artifact smoke 和原子 promote，文件锁保护并发且失败不覆盖 last healthy。回滚不执行数据库 downgrade；同 revision 可回退，跨 revision 只有受审查策略声明兼容时才自动回退，否则保持维护并转隔离恢复。当前仓库尚无真实 beta Environment、专用 Runner、provider/region 或主机 Secret，因此能力 fail closed，不能作为已完成线上部署证据。"
+code_paths = [
+  ".github/actionlint.yaml",
+  ".github/workflows/beta-deploy.yml",
+  "deploy/release.py",
+  "deploy/release.sh",
+  "deploy/install_release_entrypoint.sh",
+  "deploy/release_manifest.py",
+  "deploy/verify_release_ci.py",
+  "deploy/verify_release_control.py",
+  "deploy/schema-compatibility.json",
+  "backend/scripts/beta_api_smoke.py",
+  "backend/scripts/artifact_storage_smoke.py",
+  "backend/tests/unit/test_beta_release.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/222"]

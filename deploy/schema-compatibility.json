@@ -1,0 +1,9 @@
+{
+  "format_version": 1,
+  "revisions": {
+    "0022_interview_cases": {
+      "previous_schema_compatible": false,
+      "reason": "Initial automated Beta release baseline has no earlier healthy release evidence."
+    }
+  }
+}
