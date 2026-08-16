@@ -235,4 +235,34 @@ describe("API client", () => {
     expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("Idempotency-Key")).toBe("generate-key")
     expect(new Headers(fetchMock.mock.calls[6]?.[1]?.headers).get("Idempotency-Key")).toBe("edit-key")
   })
+
+  it("uses multipart source uploads and exact company intelligence versions", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({})))
+
+    await api.uploadSourceArtifact(new File(["source"], "company.txt", { type: "text/plain" }), "source-key")
+    await api.createSource({} as never)
+    await api.createCompanySnapshot({} as never)
+    await api.appendCompanySnapshot("company/1", {} as never)
+    await api.getLatestCompanySnapshot("company/1")
+    await api.getCompanySnapshotVersion("company/1", 2)
+    await api.listCompanySnapshotVersions("company/1")
+    await api.getCompanyAssessment("report/1")
+    await api.createCompanyAssessment("report/1", {} as never)
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
+      ["/api/artifacts", "POST"],
+      ["/api/sources", "POST"],
+      ["/api/companies", "POST"],
+      ["/api/companies/company%2F1/versions", "POST"],
+      ["/api/companies/company%2F1", "GET"],
+      ["/api/companies/company%2F1/versions/2", "GET"],
+      ["/api/companies/company%2F1/versions", "GET"],
+      ["/api/reports/report%2F1/company-assessment", "GET"],
+      ["/api/reports/report%2F1/company-assessment", "POST"],
+    ])
+    const uploadHeaders = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
+    expect(uploadHeaders.get("Idempotency-Key")).toBe("source-key")
+    expect(uploadHeaders.has("Content-Type")).toBe(false)
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBeInstanceOf(FormData)
+  })
 })

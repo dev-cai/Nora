@@ -409,7 +409,7 @@ id = "company-intelligence"
 name = "最小公司情报与报告附件"
 milestone = "M4"
 status = "current"
-summary = "支持认证后的 CompanySnapshot 创建、精确版本读取和追加版本，固定 SourceDocument 版本、来源分层、许可、哈希与时效；字段保留 confirmed、unconfirmed、unknown、conflicted、superseded 状态，匿名评价和 stale 数据不能升级为当前事实。CompanyAssessment 以用户范围的报告、不可变 DecisionCase ID 和快照精确版本生成幂等附件，固定 available、unknown、conflicted、stale 状态及原因；报告兼容字段只读取已绑定版本，新快照或来源删除不会改写历史附件；不包含自动采集、聚合评分、LLM、RAG 或浏览器界面。"
+summary = "支持认证后的 CompanySnapshot 创建、精确版本读取和追加版本，固定 SourceDocument 版本、来源分层、许可、哈希与时效；字段保留 confirmed、unconfirmed、unknown、conflicted、superseded 状态，匿名评价和 stale 数据不能升级为当前事实。CompanyAssessment 以用户范围的报告、不可变 DecisionCase ID 和快照精确版本生成幂等附件，固定 available、unknown、conflicted、stale 状态及原因；Vue 录入页串联私有来源 Artifact、SourceDocument 与 CompanySnapshot，详情页恢复最新及精确历史版本，报告页创建或绑定附件后只展示固定版本，新快照或来源删除不会改写历史附件。刷新、重新登录、失败重试和双用户隔离均沿服务端事实恢复；不包含自动采集、聚合评分、LLM、RAG 或外部写。"
 code_paths = [
   "backend/app/domain/opportunity/company.py",
   "backend/app/domain/decision/company_assessment.py",
@@ -421,6 +421,12 @@ code_paths = [
   "backend/app/apps/api/routes/decisions.py",
   "backend/alembic/versions/0015_company_intelligence.py",
   "backend/alembic/versions/0019_company_assessment_identity.py",
+  "frontend/src/stores/companies.ts",
+  "frontend/src/components/CompanySnapshotForm.vue",
+  "frontend/src/components/CompanySnapshotCard.vue",
+  "frontend/src/views/CompanyCreateView.vue",
+  "frontend/src/views/CompanyDetailView.vue",
+  "frontend/src/views/ReportDetailView.vue",
 ]
 evidence = [
   "https://github.com/dev-cai/Nora/pull/179",

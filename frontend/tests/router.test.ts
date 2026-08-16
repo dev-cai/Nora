@@ -75,5 +75,13 @@ describe("route guards", () => {
     await router.push("/applications/application-1")
     expect(router.currentRoute.value.name).toBe("application-detail")
     expect(router.currentRoute.value.meta.requiresAuth).toBe(true)
+
+    await router.push("/companies/new?report=report-1")
+    expect(router.currentRoute.value.name).toBe("company-new")
+    expect(router.currentRoute.value.query.report).toBe("report-1")
+
+    await router.push("/companies/company-1?version=2")
+    expect(router.currentRoute.value.name).toBe("company-detail")
+    expect(router.currentRoute.value.query.version).toBe("2")
   })
 })
