@@ -19,11 +19,11 @@ recovery_point=$2
 identity_file=$3
 report_directory=$4
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-python "$script_dir/preflight.py" --env-file "$env_file"
+python3 "$script_dir/preflight.py" --env-file "$env_file"
 command -v age >/dev/null
 
 env_value() {
-  python "$script_dir/preflight.py" --env-file "$env_file" --get "$1"
+  python3 "$script_dir/preflight.py" --env-file "$env_file" --get "$1"
 }
 NORA_COMPOSE_PROJECT=$(env_value NORA_COMPOSE_PROJECT)
 NORA_BACKUP_STAGE_DIR=$(env_value NORA_BACKUP_STAGE_DIR)
@@ -50,7 +50,7 @@ started_epoch=$(date +%s)
 age --decrypt --identity "$identity_file" "$recovery_point" >"$stage/recovery.tar"
 chmod 0600 "$stage/recovery.tar"
 payload="$stage/payload"
-python "$script_dir/extract_recovery.py" --archive "$stage/recovery.tar" --destination "$payload"
+python3 "$script_dir/extract_recovery.py" --archive "$stage/recovery.tar" --destination "$payload"
 chown -R 10001:10001 "$payload"
 export NORA_BACKUP_STAGE_DIR=$payload
 test -s "$payload/postgres.dump"
