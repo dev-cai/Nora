@@ -598,7 +598,7 @@ curl --fail http://localhost:8000/ready
 
 复制 [`deploy/production.env.example`](../deploy/production.env.example) 到主机私有位置后，必须填写真实 provider、region、DNS、
 月度预算、告警阈值、跨故障域备份目的地标识和完整 `image@sha256:<digest>`。示例中的 `UNSET`、示例域名和零 digest 只用于
-`docker compose config`，不能部署或作为 Beta 证据。自动 CD、release promotion 与回滚编排仍由独立交付项负责。
+`docker compose config`，不能部署或作为 Beta 证据。自动发布由下述唯一 GitHub Actions 管道消费同一 env 和 Compose 契约。
 
 生产 Secret 事实源是 root-owned 主机目录。API、迁移与 MinIO/备份 Secret 使用 `root:10001`、PostgreSQL 初始化密码使用 `root:70`，
 文件权限固定 `0440`；JWT key ring 目录为 `root:10001`/`0750`，其中每个 key 为 `0440`。Secret 文件必须是绝对路径、常规文件、
@@ -627,6 +627,52 @@ MinIO root，分别创建 Bucket 读写删应用身份和只读备份身份；AP
 mode 不正确的 Secret 或数据目录。root operator 脚本不 source env 文件，只通过 preflight 的字段白名单读取所需非 Secret 值。首次启动后使用已有 `nora-identity bootstrap-owner` 管理命令建立唯一 owner，再验证 `/live`、
 `/ready`、Web `/api` 同源调用、容器 UID、`CapEff`、只读根文件系统和仅 `80/443` 的宿主监听。生产 `/ready` 必须同时验证唯一
 owner、PostgreSQL 与 Artifact Storage；不得以 `/live` 或 MinIO 进程存活替代就绪。
+
+#### Beta 自动发布与回滚
+
+`.github/workflows/beta-deploy.yml` 是 D-019 的唯一正常发布控制面，只接受手工 `workflow_dispatch`。`deploy` 操作要求完整
+`main` Commit SHA，重新核对该 Commit 的后端、前端、浏览器、容器、安全与文档 check run 均成功，然后构建并推送
+API/Web GHCR digest、生成 SPDX SBOM、发布 GitHub provenance/SBOM attestation，并生成不可变 release manifest。`rollback`
+只接受已记录的健康 release ID 和非空原因。工作流使用 `beta-deployment` 单并发锁；实际部署与回滚 Job 还必须经过受保护
+`beta` Environment，并只运行在 `[self-hosted, linux, x64, nora-beta-deploy]` 专用 Runner 上。
+构建前还会回读 GitHub 元数据，要求 Environment 存在、至少一个 required reviewer、仅允许受保护分支且关闭管理员绕过，并要求
+至少一个带完整标签的专用 Runner 在线；缺少任一条件即 fail closed，不允许 GitHub 静默创建无保护 Environment。
+
+主机供应完成后，operator 从已验证的 `main` checkout 安装 root-owned 固定入口，并确认专用 Runner 用户没有登录 Shell、Docker
+管理权限或运行时 Secret 读取权：
+
+```bash
+sudo deploy/install_release_entrypoint.sh nora-deploy
+sudo stat -c '%U:%G %a %n' /usr/local/sbin/nora-release /opt/nora/deploy/release.py
+sudo visudo -cf /etc/sudoers.d/nora-release
+```
+
+安装脚本只把经审查的发布、preflight、backup 与 Compose 文件复制到 `/opt/nora/deploy`，固定入口为
+`/usr/local/sbin/nora-release`，状态目录为 `/var/lib/nora/releases`。Runner 通过 stdin 提供当前 Job 的短期 GHCR Token；root
+入口验证 manifest、SBOM 哈希、Schema 兼容策略哈希、主干 check run ID 和 GitHub attestation 后立即登录拉取，结束时 logout。
+GitHub Environment 不保存数据库、MinIO、JWT、owner 密码或备份解密材料。
+
+发布固定记录 `preflight -> backup -> pull -> migrate -> start -> smoke -> promote`。无 Schema 变化时 backup 明确记录为 skipped；
+迁移前失败不改写生产 env 或 `last-healthy.json`。迁移会先停止 ingress/Web/API，保持 PostgreSQL/MinIO 运行；候选服务通过
+Compose `--wait` 后执行 `/live`、`/ready`、生产注册隐藏、无效登录/未授权边界、Web shell 和临时 Artifact put/get/delete smoke，
+全部通过才恢复 ingress 并原子替换生产 env。release 记录只保存 Commit、workflow/check IDs、镜像/SBOM digest、attestation、
+迁移 revision、阶段与结果，不保存 Secret、对象键或业务正文。
+
+自动回滚不会执行 Alembic downgrade。同一 Schema revision 可回退到已知健康镜像；跨 revision 只有当前 Commit 中
+`deploy/schema-compatibility.json` 明确允许且其哈希已进入 manifest 时，start/smoke 失败才自动回退。其他迁移后失败保持维护
+状态，由 operator 先取消 workflow、取得同一 Environment/主机锁并使用联合恢复流程。人工镜像回滚仍调用同一入口：
+
+```bash
+gh workflow run beta-deploy.yml \
+  -f operation=deploy -f commit_sha=<完整 main SHA>
+gh workflow run beta-deploy.yml \
+  -f operation=rollback -f rollback_release_id=<release-id> \
+  -f rollback_reason='operator-approved reason'
+```
+
+截至 2026-08-16，仓库尚未配置真实 `beta` Environment、专用 Runner、provider/region 或主机 Secret，因此上述 workflow 会在
+部署 Job 前保持不可运行/等待，不构成已完成的 Beta 发布证据。不得把单元测试、GitHub-hosted build 或本地 Compose 结果写成真实
+目标环境部署；供应完成后的首次 workflow run、release manifest、主机阶段记录和 smoke 结果才是部署证据。
 
 #### 联合备份与隔离恢复
 

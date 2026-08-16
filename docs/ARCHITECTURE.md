@@ -1379,6 +1379,12 @@ Secret 创建、轮换和撤销必须生成不含值的操作记录，包含类�
 人工接管先取消/禁用当前 workflow、取得同一 Environment 锁并保留现场证据；operator 只能对固定摘要调用同一发布入口或执行
 文档化恢复流程，不允许用临时 Compose 文件、可变 tag 或未审查命令覆盖环境。接管结束必须记录原因、动作、结果和后续修复。
 
+Current 实现以 `.github/workflows/beta-deploy.yml` 作为唯一控制面：受保护 `main` check run、GHCR digest、SPDX SBOM、GitHub
+attestation、迁移 revision 与受审查 Schema 兼容策略共同形成 manifest；专用 Runner 只把短期 GHCR Token 通过 stdin 交给
+root-owned `/usr/local/sbin/nora-release`。主机入口同时持有非阻塞文件锁，执行上述七阶段并原子维护 `last-healthy/current`
+记录；API 认证边界、Web 与临时 Artifact round-trip smoke 均不需要 owner 密码或业务数据。仓库当前没有真实 `beta`
+Environment、专用 Runner 或主机配置，因此该实现是 fail-closed 的发布能力，不是已完成目标环境部署的声明。
+
 #### 后续 Issue 的消费契约
 
 | Issue | 必须实现或验证 | 不得重新选择 |
