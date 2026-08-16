@@ -118,7 +118,8 @@ API 进程存活时 `/live` 返回：
 
 `/live` 不检查外部依赖。PostgreSQL 可连接且 `SELECT 1` 成功时 `/ready` 返回 `200` 与
 `{"status":"ready"}`；未配置、连接失败、查询失败或超时时返回 `503` 与
-`{"status":"not_ready","database":"unavailable"}`。
+`{"status":"not_ready","database":"unavailable"}`。生产环境还要求私有 Artifact Bucket 可访问；对象存储失败或超时返回
+`503` 与 `{"status":"not_ready","artifact_storage":"unavailable"}`，响应不包含 endpoint、Bucket、对象键或凭据。
 
 ## 环境变量与 Compose 对照
 
@@ -158,6 +159,8 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `MINIO_ROOT_PASSWORD` | `change-me-local` | Compose 只注入 `storage` 容器 | 公开值仅限本地，真实值不得提交 |
 | `ARTIFACT_STORAGE_ACCESS_KEY` | `nora-app` | `storage-init` 创建并注入 API | 仅有目标私有 Bucket 的读写删权限，不是 root 凭据 |
 | `ARTIFACT_STORAGE_SECRET_KEY` | `development-artifact-secret` | `storage-init` 与 API | 公开值仅限本地；非开发环境必须通过 Secret 管理注入 |
+| `ARTIFACT_BACKUP_ACCESS_KEY` | `nora-backup` | `storage-init` 创建、备份入口读取 | 仅允许列出目标 Bucket 并读取对象，不能写入或删除 |
+| `ARTIFACT_BACKUP_SECRET_KEY` | `development-backup-secret` | `storage-init` 与备份入口 | 公开值仅限本地；不得与 MinIO root 或应用身份复用 |
 | `ARTIFACT_STORAGE_BUCKET` | `nora-artifacts` | `storage-init` 与 API / Settings | Bucket 保持私有，不提供匿名或长期签名 URL |
 | `ARTIFACT_STORAGE_ENDPOINT` | Compose 固定 `storage:9000`；模板为 `localhost:9000` | API / Settings | 使用 `host:port`，不得包含 scheme 或路径 |
 | `ARTIFACT_STORAGE_SECURE` | Compose 与模板为 `false` | API / Settings | Beta/生产按 #171 的 TLS 边界配置 |
@@ -190,7 +193,8 @@ Settings 还提供以下应用级默认值，但当前 Compose 没有把它们�
 ### Beta owner 管理
 
 生产不开放 `POST /auth/register`。唯一 owner 必须在维护窗口通过不提供 HTTP 路由的管理命令创建或恢复；用户名、邮箱和密码分别从
-owner-only Secret 文件读取，不能写入命令参数、Shell history、日志或 Compose 配置：
+只允许 owner 管理命令所属 consumer group 读取的 `root:10001`/`0440` 非 symlink Secret 文件读取，不能写入命令参数、Shell
+history、日志或 Compose 配置：
 
 ```bash
 docker compose exec api nora-identity bootstrap-owner \
@@ -585,6 +589,74 @@ curl --fail http://localhost:8000/ready
 
 镜像升级需要回滚时，使用 `git revert <image-update-commit>` 恢复上一组已审查 digest，再执行同一套完整重建和健康检查。
 不要只修改本地镜像标签或单个重复引用，否则开发环境与 CI 会使用不同镜像。
+
+### Beta 单主机生产基线
+
+[`deploy/compose.production.yml`](../deploy/compose.production.yml) 是 D-019 单 Linux 主机拓扑的可执行基线。只有 ingress 映射
+宿主 `80/443`；Web、API、PostgreSQL 和 MinIO 只加入 Compose 网络。API/Web 使用镜像内固定非 root 用户，所有服务使用只读
+根文件系统、`no-new-privileges` 和 capability allowlist；PostgreSQL、MinIO 与 Caddy 状态写入彼此独立的宿主目录。
+
+复制 [`deploy/production.env.example`](../deploy/production.env.example) 到主机私有位置后，必须填写真实 provider、region、DNS、
+月度预算、告警阈值、跨故障域备份目的地标识和完整 `image@sha256:<digest>`。示例中的 `UNSET`、示例域名和零 digest 只用于
+`docker compose config`，不能部署或作为 Beta 证据。自动 CD、release promotion 与回滚编排仍由独立交付项负责。
+
+生产 Secret 事实源是 root-owned 主机目录。API、迁移与 MinIO/备份 Secret 使用 `root:10001`、PostgreSQL 初始化密码使用 `root:70`，
+文件权限固定 `0440`；JWT key ring 目录为 `root:10001`/`0750`，其中每个 key 为 `0440`。Secret 文件必须是绝对路径、常规文件、
+非 symlink、UTF-8 且不超过 16 KiB。`DATABASE_URL_FILE`、`AUTH_RATE_LIMIT_SECRET_FILE`、Artifact 应用凭据文件和 JWT key ring
+只挂载到消费者；Compose、命令参数和日志中不出现值。API 的 `DATABASE_URL_FILE` 必须使用 `nora_app` 等非 superuser 应用身份，
+并与 PostgreSQL 初始化密码、迁移管理 URL 使用不同文件和凭据。数据目录的 owner 分别为 PostgreSQL `70:70`、其余 runtime
+`10001:10001`，且不得对 other 开放。
+
+```bash
+python deploy/preflight.py --env-file /etc/nora/production.env
+docker compose --env-file /etc/nora/production.env \
+  -f deploy/compose.production.yml --profile initialize run --rm storage-init
+docker compose --env-file /etc/nora/production.env \
+  -f deploy/compose.production.yml --profile initialize run --rm migration
+docker compose --env-file /etc/nora/production.env \
+  -f deploy/compose.production.yml --profile initialize run --rm db-init
+docker compose --env-file /etc/nora/production.env \
+  -f deploy/compose.production.yml --profile public up -d
+```
+
+`migration` 只读取管理 URL 并执行 Alembic；随后 `db-init` 创建/轮换非 superuser、非 createdb/createrole 的应用身份，并授予 Nora
+Schema 现有及后续表/序列所需的 DML 权限。API 不接收 PostgreSQL 初始化或迁移身份。`storage-init` 同样只在初始化 profile 使用
+MinIO root，分别创建 Bucket 读写删应用身份和只读备份身份；API 与备份入口均不接收 MinIO root。
+
+`preflight.py` 会 fail closed：拒绝 mutable tag、环境文件中的直接 Secret、非法或重复变量名、示例目标信息、重复/相对数据或 Secret 路径，以及 owner、group、
+mode 不正确的 Secret 或数据目录。root operator 脚本不 source env 文件，只通过 preflight 的字段白名单读取所需非 Secret 值。首次启动后使用已有 `nora-identity bootstrap-owner` 管理命令建立唯一 owner，再验证 `/live`、
+`/ready`、Web `/api` 同源调用、容器 UID、`CapEff`、只读根文件系统和仅 `80/443` 的宿主监听。生产 `/ready` 必须同时验证唯一
+owner、PostgreSQL 与 Artifact Storage；不得以 `/live` 或 MinIO 进程存活替代就绪。
+
+#### 联合备份与隔离恢复
+
+主机需安装 `age`。备份目的地必须是已挂载的私有跨故障域、append-only 位置；`NORA_BACKUP_AGE_RECIPIENT` 只在 operator
+进程环境中提供，不写入 env 文件。preflight、备份和恢复由受控 root operator 执行，以核验跨 group Secret 并把明文 staging
+显式交给固定 UID `10001` 的 ops 容器；脚本拒绝非 root 调用。备份脚本停止 ingress/Web/API 形成显式停写屏障，依次生成 PostgreSQL custom dump、available
+Artifact manifest、删除台账和 MinIO 对象副本，恢复入口后再加密写入新恢复点；元数据导出只挂载应用数据库 URL，对象复制只挂载只读备份身份且不接收 MinIO root，失败时
+trap 会恢复入口并清除明文 staging。
+
+```bash
+NORA_BACKUP_AGE_RECIPIENT='age1...' \
+  deploy/backup.sh /etc/nora/production.env /mnt/private-append-only/nora
+```
+
+恢复 env 必须使用不同 Compose project、数据库目录、Bucket 数据目录、Secret、DNS 记录和报告目录，project 名必须包含
+`restore` 或 `rehearsal`。恢复命令不启用 `public` profile，不绑定宿主端口，也不执行任何外部写；恢复归档只接受固定元数据文件、
+常规对象文件和安全相对路径，拒绝链接、特殊文件、路径穿越及未知顶层条目。它恢复 PostgreSQL 与对象后，
+记录 Schema revision，并核验 owner/版本引用、Artifact size/SHA-256、缺失/损坏对象、孤儿对象和删除状态；任一差异以退出码 `2` 阻止
+晋升，报告只保存 Artifact/owner ID 与对象键的短哈希，不保存原始对象键或正文。
+
+```bash
+NORA_ISOLATED_RESTORE_CONFIRMATION=isolated-no-public-ingress \
+  deploy/restore.sh /etc/nora/restore.env recovery-point.tar.age \
+  /etc/nora/restore-age-identity /var/lib/nora/restore-report
+```
+
+`backup-record.json` 记录停写秒数，`restore-record.json` 记录隔离恢复秒数和无公网/无外部写边界。它们是某次演练数据，不自动等于
+RPO/RTO 承诺。只有真实 Beta provider/region、跨故障域目的地、成本、保留期、责任人及首次恢复演练均已记录，才能形成目标环境
+证据；本地 Compose 演练不得冒充该证据。逻辑删除立即撤销 API 可见性，物理删除失败保持可重试状态；PostgreSQL 继续是生命周期
+事实源，MinIO 只保存字节。当前没有全账户数据导出 API，operator dump 只用于受控恢复，不对用户界面开放。
 
 ### 缓存目录
 

@@ -126,6 +126,17 @@ git config core.hooksPath .githooks
 `.githooks/pre-commit` 使用 Compose `tools` 容器执行格式、lint、类型检查、单元测试和架构测试，
 不依赖宿主 Python。hook 失败时修复问题后重试，不使用 `--no-verify` 绕过检查。完整集成测试仍在下方本地门禁中执行。
 
+### 安全供应链门禁
+
+PR 与 main push 的 `PR conventions / Secret, dependency, SBOM, and vulnerability gates` 使用固定 Commit SHA 的 Action：完整历史
+Secret scan、PR dependency review、API/Web runtime 镜像 SPDX JSON SBOM，以及容器 OS/应用依赖漏洞扫描。SBOM 作为 workflow
+artifact 保留 30 天。存在已修复的 High/Critical 漏洞、High 以上新增依赖风险或 Secret 命中时门禁失败，不能以 `exit-code: 0`、
+删除扫描步骤或 mutable Action tag 绕过。
+
+确属误报或当前无修复版本的发现项必须逐项记录：标识符、受影响镜像/包、可利用性判断、补偿控制、owner、关联 Issue 或私密安全
+记录，以及不超过 30 天的到期日。到期前必须升级、移除或重新审查；例外只能进入受审查的扫描配置，不能把真实 Secret、个人数据或
+漏洞利用细节写入公开仓库。无处置记录的发现项保持阻塞。
+
 ### PR 规范
 
 - 如关联 Issue，正文包含唯一 `Closes #<编号>`；Issue 可选

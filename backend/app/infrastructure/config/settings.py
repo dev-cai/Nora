@@ -5,7 +5,7 @@ from enum import StrEnum
 from functools import lru_cache
 from ipaddress import IPv4Network, IPv6Network, ip_network
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 from urllib.parse import urlsplit
 
 from pydantic import Field, model_validator
@@ -55,23 +55,31 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
     log_format: LogFormat = LogFormat.JSON
-    database_url: str | None = None
+    database_url: str | None = Field(default=None, repr=False)
+    database_url_file: Path | None = Field(default=None, repr=False)
     database_pool_size: int = 5
     database_max_overflow: int = 10
     database_pool_timeout: float = 30.0
-    auth_secret_key: str = Field(default=DEFAULT_AUTH_SECRET_KEY, min_length=32)
+    auth_secret_key: str = Field(default=DEFAULT_AUTH_SECRET_KEY, min_length=32, repr=False)
     auth_access_token_minutes: int = Field(default=30, ge=1, le=30)
     auth_key_ring_directory: Path | None = None
     auth_active_kid: str = "dev"
-    auth_rate_limit_secret: str = Field(default=DEFAULT_AUTH_RATE_LIMIT_SECRET, min_length=32)
+    auth_rate_limit_secret: str = Field(
+        default=DEFAULT_AUTH_RATE_LIMIT_SECRET, min_length=32, repr=False
+    )
+    auth_rate_limit_secret_file: Path | None = Field(default=None, repr=False)
     public_origin: str | None = None
     trusted_proxy_cidr: str | None = None
     baidu_ocr_api_key: str = ""
     baidu_ocr_secret_key: str = ""
     baidu_ocr_endpoint: str = "accurate_basic"
     artifact_storage_endpoint: str = "storage:9000"
-    artifact_storage_access_key: str = "nora-app"
-    artifact_storage_secret_key: str = Field(default="development-artifact-secret", min_length=16)
+    artifact_storage_access_key: str = Field(default="nora-app", repr=False)
+    artifact_storage_access_key_file: Path | None = Field(default=None, repr=False)
+    artifact_storage_secret_key: str = Field(
+        default="development-artifact-secret", min_length=16, repr=False
+    )
+    artifact_storage_secret_key_file: Path | None = Field(default=None, repr=False)
     artifact_storage_bucket: str = "nora-artifacts"
     artifact_storage_secure: bool = False
     artifact_max_size_bytes: int = Field(default=10 * 1024 * 1024, ge=1, le=100 * 1024 * 1024)
@@ -86,6 +94,31 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def load_secret_files(cls, values: Any) -> Any:
+        """Resolve supported ``*_FILE`` settings without exposing values to Compose."""
+
+        if not isinstance(values, dict):
+            return values
+        resolved = dict(values)
+        for value_name in (
+            "database_url",
+            "auth_rate_limit_secret",
+            "artifact_storage_access_key",
+            "artifact_storage_secret_key",
+        ):
+            file_name = f"{value_name}_file"
+            path_value = resolved.get(file_name)
+            if path_value is None:
+                continue
+            if value_name in resolved:
+                raise ValueError(
+                    f"{value_name.upper()} and {file_name.upper()} are mutually exclusive"
+                )
+            resolved[value_name] = _read_secret_file(Path(path_value), file_name.upper())
+        return resolved
+
     @model_validator(mode="after")
     def validate_environment_contracts(self) -> Self:
         """验证数据库驱动和非开发环境的认证密钥。"""
@@ -93,7 +126,11 @@ class Settings(BaseSettings):
         if self.database_url is not None:
             require_postgresql_database_url(self.database_url)
 
-        if self.env is not Environment.DEV and self.auth_secret_key == DEFAULT_AUTH_SECRET_KEY:
+        if (
+            self.env is not Environment.DEV
+            and self.auth_key_ring_directory is None
+            and self.auth_secret_key == DEFAULT_AUTH_SECRET_KEY
+        ):
             raise ValueError("AUTH_SECRET_KEY must be changed outside the dev environment")
         if KID_PATTERN.fullmatch(self.auth_active_kid) is None:
             raise ValueError("AUTH_ACTIVE_KID must match [A-Za-z0-9._-]{1,64}")
@@ -193,3 +230,27 @@ def get_settings() -> Settings:
     """返回进程内复用的配置实例。"""
 
     return Settings()
+
+
+def _read_secret_file(path: Path, setting_name: str) -> str:
+    """Read one small, non-symlink Secret file with private permissions."""
+
+    if not path.is_absolute():
+        raise ValueError(f"{setting_name} must be an absolute path")
+    try:
+        stat = path.lstat()
+    except OSError as exc:
+        raise ValueError(f"{setting_name} must identify a readable Secret file") from exc
+    if path.is_symlink() or not path.is_file():
+        raise ValueError(f"{setting_name} must identify a regular non-symlink Secret file")
+    if stat.st_mode & 0o027:
+        raise ValueError(f"{setting_name} must not be group-writable or accessible by others")
+    if stat.st_size < 1 or stat.st_size > 16 * 1024:
+        raise ValueError(f"{setting_name} must contain 1-16384 bytes")
+    try:
+        value = path.read_text(encoding="utf-8").rstrip("\r\n")
+    except (OSError, UnicodeError) as exc:
+        raise ValueError(f"{setting_name} must identify a readable UTF-8 Secret file") from exc
+    if not value or "\x00" in value:
+        raise ValueError(f"{setting_name} must contain a non-empty text value")
+    return value

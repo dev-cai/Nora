@@ -14,6 +14,11 @@ RUN npm run build
 
 FROM node:24.18.1-alpine@sha256:f70403e87646dc51b45295f4b8b70cdad0b63d2297c4c9899119b03f7af7a6b3 AS runtime
 WORKDIR /app
-COPY --from=build /workspace/frontend ./
+RUN rm -rf /usr/local/lib/node_modules /opt/yarn-v1.22.22 \
+    && rm -f /usr/local/bin/corepack /usr/local/bin/npm /usr/local/bin/npx \
+        /usr/local/bin/yarn /usr/local/bin/yarnpkg
+COPY --from=build --chown=node:node /workspace/frontend/dist ./dist
+COPY --chown=node:node frontend/scripts/serve-dist.mjs ./scripts/serve-dist.mjs
 EXPOSE 5173
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
+USER node
+CMD ["node", "scripts/serve-dist.mjs"]

@@ -87,7 +87,20 @@
 
   依赖管理              锁定文件（uv.lock）+ uv audit
                         新增依赖需通过 Architecture Issue
+
+  生产运行              digest 固定镜像；非 root/只读 rootfs；仅 ingress 暴露 80/443
+                        Secret 由 root-owned 文件只读挂载，不进入环境文件、参数或日志
+
+  备份恢复              PostgreSQL + Artifact 在停写屏障内联合取点并使用 age 加密
+                        只在无公网、无外部写的隔离环境恢复；一致性失败禁止晋升
 ```
+
+供应链门禁扫描完整 Git 历史、依赖变化和 API/Web runtime 镜像，并生成 SPDX JSON SBOM。已修复的 High/Critical 发现项直接阻塞；
+例外必须记录影响、补偿控制、owner 和最长 30 天到期日。Secret scan 不允许用公开 allowlist 隐藏真实凭据。
+
+Artifact 保留与删除以 PostgreSQL 生命周期为事实源：逻辑删除立即撤销读取，物理删除失败保持不可见且可重试，孤儿、缺失或哈希不符
+对象阻止恢复环境晋升。备份明文 staging 必须在加密后清除，恢复报告不得包含对象键、签名 URL、正文或 Secret。实际保留期、RPO、
+RTO、provider、region 与成本必须来自目标环境演练；本地演练不能替代。
 
 ---
 

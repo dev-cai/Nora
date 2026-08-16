@@ -37,6 +37,11 @@ class PublishAndCleanupFailingMinio(CleanupFailingMinio):
         raise RuntimeError("cleanup defect")
 
 
+class UnavailableMinio(CleanupFailingMinio):
+    def bucket_exists(self, _bucket: str) -> bool:
+        raise MinioException("private endpoint details")
+
+
 @pytest.mark.asyncio
 async def test_temporary_cleanup_failure_is_observable_without_sensitive_details(
     caplog: pytest.LogCaptureFixture,
@@ -67,3 +72,12 @@ async def test_unknown_temporary_cleanup_failure_preserves_primary_error() -> No
 
     assert str(error.value.exceptions[0]) == "publish defect"
     assert str(error.value.exceptions[1]) == "cleanup defect"
+
+
+@pytest.mark.asyncio
+async def test_readiness_only_reports_bucket_availability() -> None:
+    available = MinioArtifactStorage(CleanupFailingMinio(), "artifacts")  # type: ignore[arg-type]
+    unavailable = MinioArtifactStorage(UnavailableMinio(), "artifacts")  # type: ignore[arg-type]
+
+    assert await available.ready() is True
+    assert await unavailable.ready() is False

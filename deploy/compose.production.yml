@@ -1,0 +1,306 @@
+name: ${NORA_COMPOSE_PROJECT:-nora-beta}
+
+x-runtime-security: &runtime-security
+  read_only: true
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  ingress:
+    <<: *runtime-security
+    profiles: ["public"]
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    user: "10001:10001"
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      NORA_DOMAIN: ${NORA_DOMAIN:?set NORA_DOMAIN}
+      NORA_TLS_EMAIL: ${NORA_TLS_EMAIL:?set NORA_TLS_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${NORA_CADDY_DATA_DIR:?set NORA_CADDY_DATA_DIR}:/data
+      - ${NORA_CADDY_CONFIG_DIR:?set NORA_CADDY_CONFIG_DIR}:/config
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001
+    networks:
+      - edge
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    <<: *runtime-security
+    image: ${NORA_WEB_IMAGE:?set digest-pinned NORA_WEB_IMAGE}
+    user: "1000:1000"
+    environment:
+      VITE_NORA_PROXY_TARGET: http://api:8000
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=1000,gid=1000
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  api:
+    <<: *runtime-security
+    image: ${NORA_API_IMAGE:?set digest-pinned NORA_API_IMAGE}
+    user: "10001:10001"
+    environment: &api-environment
+      ENV: prod
+      DEBUG: "false"
+      LOG_LEVEL: ${NORA_LOG_LEVEL:-INFO}
+      DATABASE_URL_FILE: /run/secrets/database_url
+      AUTH_KEY_RING_DIRECTORY: /run/secrets/jwt
+      AUTH_ACTIVE_KID: ${NORA_AUTH_ACTIVE_KID:?set NORA_AUTH_ACTIVE_KID}
+      AUTH_RATE_LIMIT_SECRET_FILE: /run/secrets/auth_rate_limit_secret
+      AUTH_ACCESS_TOKEN_MINUTES: ${NORA_AUTH_ACCESS_TOKEN_MINUTES:-30}
+      PUBLIC_ORIGIN: ${NORA_PUBLIC_ORIGIN:?set NORA_PUBLIC_ORIGIN}
+      TRUSTED_PROXY_CIDR: ${NORA_TRUSTED_PROXY_CIDR:-172.28.0.0/16}
+      ARTIFACT_STORAGE_ENDPOINT: storage:9000
+      ARTIFACT_STORAGE_ACCESS_KEY_FILE: /run/secrets/artifact_access_key
+      ARTIFACT_STORAGE_SECRET_KEY_FILE: /run/secrets/artifact_secret_key
+      ARTIFACT_STORAGE_BUCKET: ${NORA_ARTIFACT_BUCKET:-nora-artifacts}
+      ARTIFACT_STORAGE_SECURE: "false"
+      BAIDU_OCR_API_KEY: ""
+      BAIDU_OCR_SECRET_KEY: ""
+    volumes: &api-secret-volumes
+      - ${NORA_DATABASE_URL_FILE:?set NORA_DATABASE_URL_FILE}:/run/secrets/database_url:ro
+      - ${NORA_JWT_KEY_RING_DIR:?set NORA_JWT_KEY_RING_DIR}:/run/secrets/jwt:ro
+      - ${NORA_AUTH_RATE_LIMIT_SECRET_FILE:?set NORA_AUTH_RATE_LIMIT_SECRET_FILE}:/run/secrets/auth_rate_limit_secret:ro
+      - ${NORA_ARTIFACT_ACCESS_KEY_FILE:?set NORA_ARTIFACT_ACCESS_KEY_FILE}:/run/secrets/artifact_access_key:ro
+      - ${NORA_ARTIFACT_SECRET_KEY_FILE:?set NORA_ARTIFACT_SECRET_KEY_FILE}:/run/secrets/artifact_secret_key:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m,uid=10001,gid=10001
+    networks:
+      - edge
+      - data
+    depends_on:
+      db:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  db:
+    <<: *runtime-security
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    user: "70:70"
+    environment:
+      POSTGRES_USER: ${NORA_POSTGRES_ADMIN_USER:-nora_admin}
+      POSTGRES_DB: ${NORA_POSTGRES_DB:-nora}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    volumes:
+      - ${NORA_POSTGRES_DATA_DIR:?set NORA_POSTGRES_DATA_DIR}:/var/lib/postgresql/data
+      - ${NORA_POSTGRES_PASSWORD_FILE:?set NORA_POSTGRES_PASSWORD_FILE}:/run/secrets/postgres_password:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=70,gid=70
+      - /run/postgresql:rw,nosuid,nodev,size=16m,uid=70,gid=70
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  storage:
+    <<: *runtime-security
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    user: "10001:10001"
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    volumes:
+      - ${NORA_MINIO_DATA_DIR:?set NORA_MINIO_DATA_DIR}:/data
+      - ${NORA_MINIO_ROOT_USER_FILE:?set NORA_MINIO_ROOT_USER_FILE}:/run/secrets/minio_root_user:ro
+      - ${NORA_MINIO_ROOT_PASSWORD_FILE:?set NORA_MINIO_ROOT_PASSWORD_FILE}:/run/secrets/minio_root_password:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  storage-init:
+    <<: *runtime-security
+    profiles: ["initialize"]
+    image: ${NORA_API_IMAGE:?set digest-pinned NORA_API_IMAGE}
+    user: "10001:10001"
+    command: ["python", "scripts/init_artifact_storage.py"]
+    environment:
+      ARTIFACT_STORAGE_ENDPOINT: storage:9000
+      ARTIFACT_STORAGE_BUCKET: ${NORA_ARTIFACT_BUCKET:-nora-artifacts}
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+      ARTIFACT_STORAGE_ACCESS_KEY_FILE: /run/secrets/artifact_access_key
+      ARTIFACT_STORAGE_SECRET_KEY_FILE: /run/secrets/artifact_secret_key
+      ARTIFACT_BACKUP_ACCESS_KEY_FILE: /run/secrets/artifact_backup_access_key
+      ARTIFACT_BACKUP_SECRET_KEY_FILE: /run/secrets/artifact_backup_secret_key
+    volumes:
+      - ${NORA_MINIO_ROOT_USER_FILE:?set NORA_MINIO_ROOT_USER_FILE}:/run/secrets/minio_root_user:ro
+      - ${NORA_MINIO_ROOT_PASSWORD_FILE:?set NORA_MINIO_ROOT_PASSWORD_FILE}:/run/secrets/minio_root_password:ro
+      - ${NORA_ARTIFACT_ACCESS_KEY_FILE:?set NORA_ARTIFACT_ACCESS_KEY_FILE}:/run/secrets/artifact_access_key:ro
+      - ${NORA_ARTIFACT_SECRET_KEY_FILE:?set NORA_ARTIFACT_SECRET_KEY_FILE}:/run/secrets/artifact_secret_key:ro
+      - ${NORA_ARTIFACT_BACKUP_ACCESS_KEY_FILE:?set NORA_ARTIFACT_BACKUP_ACCESS_KEY_FILE}:/run/secrets/artifact_backup_access_key:ro
+      - ${NORA_ARTIFACT_BACKUP_SECRET_KEY_FILE:?set NORA_ARTIFACT_BACKUP_SECRET_KEY_FILE}:/run/secrets/artifact_backup_secret_key:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001
+    networks:
+      - data
+    depends_on:
+      storage:
+        condition: service_healthy
+
+  migration:
+    <<: *runtime-security
+    profiles: ["initialize"]
+    image: ${NORA_API_IMAGE:?set digest-pinned NORA_API_IMAGE}
+    user: "10001:10001"
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      ENV: dev
+      DATABASE_URL_FILE: /run/secrets/database_admin_url
+    volumes:
+      - ${NORA_DATABASE_ADMIN_URL_FILE:?set NORA_DATABASE_ADMIN_URL_FILE}:/run/secrets/database_admin_url:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001
+    networks:
+      - data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db-init:
+    <<: *runtime-security
+    profiles: ["initialize"]
+    image: ${NORA_API_IMAGE:?set digest-pinned NORA_API_IMAGE}
+    user: "10001:10001"
+    command: ["python", "scripts/init_postgres_role.py"]
+    environment:
+      DATABASE_ADMIN_URL_FILE: /run/secrets/database_admin_url
+      POSTGRES_APP_USER: ${NORA_POSTGRES_APP_USER:-nora_app}
+      POSTGRES_APP_PASSWORD_FILE: /run/secrets/postgres_app_password
+    volumes:
+      - ${NORA_DATABASE_ADMIN_URL_FILE:?set NORA_DATABASE_ADMIN_URL_FILE}:/run/secrets/database_admin_url:ro
+      - ${NORA_POSTGRES_APP_PASSWORD_FILE:?set NORA_POSTGRES_APP_PASSWORD_FILE}:/run/secrets/postgres_app_password:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001
+    networks:
+      - data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backup-metadata:
+    <<: *runtime-security
+    profiles: ["ops"]
+    image: ${NORA_API_IMAGE:?set digest-pinned NORA_API_IMAGE}
+    user: "10001:10001"
+    entrypoint: ["python", "-m", "app.apps.operations"]
+    command: ["export-metadata", "--output-dir", "/backup"]
+    environment:
+      ENV: dev
+      DATABASE_URL_FILE: /run/secrets/database_url
+    volumes:
+      - ${NORA_DATABASE_URL_FILE:?set NORA_DATABASE_URL_FILE}:/run/secrets/database_url:ro
+      - ${NORA_BACKUP_STAGE_DIR:-/var/lib/nora/backup-stage}:/backup
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001
+    networks:
+      - data
+
+  reconcile:
+    <<: *runtime-security
+    profiles: ["ops"]
+    image: ${NORA_API_IMAGE:?set digest-pinned NORA_API_IMAGE}
+    user: "10001:10001"
+    entrypoint: ["python", "-m", "app.apps.operations"]
+    command: ["reconcile", "--report", "/backup/reconciliation.json"]
+    environment:
+      ENV: dev
+      DATABASE_URL_FILE: /run/secrets/database_url
+      ARTIFACT_STORAGE_ENDPOINT: storage:9000
+      ARTIFACT_STORAGE_ACCESS_KEY_FILE: /run/secrets/artifact_access_key
+      ARTIFACT_STORAGE_SECRET_KEY_FILE: /run/secrets/artifact_secret_key
+      ARTIFACT_STORAGE_BUCKET: ${NORA_ARTIFACT_BUCKET:-nora-artifacts}
+      ARTIFACT_STORAGE_SECURE: "false"
+    volumes:
+      - ${NORA_DATABASE_URL_FILE:?set NORA_DATABASE_URL_FILE}:/run/secrets/database_url:ro
+      - ${NORA_ARTIFACT_ACCESS_KEY_FILE:?set NORA_ARTIFACT_ACCESS_KEY_FILE}:/run/secrets/artifact_access_key:ro
+      - ${NORA_ARTIFACT_SECRET_KEY_FILE:?set NORA_ARTIFACT_SECRET_KEY_FILE}:/run/secrets/artifact_secret_key:ro
+      - ${NORA_BACKUP_STAGE_DIR:-/var/lib/nora/backup-stage}:/backup
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001
+    networks:
+      - data
+
+  backup-storage-client:
+    <<: *runtime-security
+    profiles: ["ops"]
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    user: "10001:10001"
+    entrypoint: ["/bin/sh"]
+    environment:
+      NORA_ARTIFACT_BUCKET: ${NORA_ARTIFACT_BUCKET:-nora-artifacts}
+    volumes:
+      - ${NORA_ARTIFACT_BACKUP_ACCESS_KEY_FILE:?set NORA_ARTIFACT_BACKUP_ACCESS_KEY_FILE}:/run/secrets/artifact_backup_access_key:ro
+      - ${NORA_ARTIFACT_BACKUP_SECRET_KEY_FILE:?set NORA_ARTIFACT_BACKUP_SECRET_KEY_FILE}:/run/secrets/artifact_backup_secret_key:ro
+      - ${NORA_BACKUP_STAGE_DIR:-/var/lib/nora/backup-stage}:/backup
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001
+    networks:
+      - data
+
+  restore-storage-client:
+    <<: *runtime-security
+    profiles: ["ops"]
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    user: "10001:10001"
+    entrypoint: ["/bin/sh"]
+    environment:
+      NORA_ARTIFACT_BUCKET: ${NORA_ARTIFACT_BUCKET:-nora-artifacts}
+    volumes:
+      - ${NORA_MINIO_ROOT_USER_FILE:?set NORA_MINIO_ROOT_USER_FILE}:/run/secrets/minio_root_user:ro
+      - ${NORA_MINIO_ROOT_PASSWORD_FILE:?set NORA_MINIO_ROOT_PASSWORD_FILE}:/run/secrets/minio_root_password:ro
+      - ${NORA_BACKUP_STAGE_DIR:-/var/lib/nora/backup-stage}:/backup
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,uid=10001,gid=10001
+    networks:
+      - data
+
+networks:
+  edge:
+    internal: false
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+  data:
+    internal: true

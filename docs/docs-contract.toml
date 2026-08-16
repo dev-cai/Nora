@@ -197,6 +197,7 @@ description = "Runtime and Compose configuration are documented in DEVELOPMENT."
 patterns = [
   "docker-compose*.yml",
   "docker/**",
+  "deploy/**",
   ".env.example",
   "backend/.env.example",
   "frontend/.env.example",

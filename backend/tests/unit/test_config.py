@@ -145,3 +145,39 @@ def test_artifact_storage_configuration_is_private_and_bounded() -> None:
         Settings(artifact_storage_endpoint="http://storage:9000", _env_file=None)
     with pytest.raises(ValidationError, match="bucket"):
         Settings(artifact_storage_bucket="Invalid/Bucket", _env_file=None)
+
+
+def test_secret_file_settings_load_without_exposing_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    secret_file = tmp_path / "database-url"
+    secret_file.write_text("postgresql+asyncpg://nora:private@db/nora\n", encoding="utf-8")
+    secret_file.chmod(0o440)
+
+    settings = Settings(database_url_file=secret_file, _env_file=None)
+
+    assert settings.database_url == "postgresql+asyncpg://nora:private@db/nora"
+    assert "private" not in repr(settings)
+
+
+def test_secret_file_settings_reject_ambiguous_or_unsafe_sources(tmp_path: Path) -> None:
+    secret_file = tmp_path / "rate-secret"
+    secret_file.write_text("s" * 32, encoding="utf-8")
+    secret_file.chmod(0o440)
+
+    with pytest.raises(ValidationError, match="mutually exclusive"):
+        Settings(
+            auth_rate_limit_secret="x" * 32,
+            auth_rate_limit_secret_file=secret_file,
+            _env_file=None,
+        )
+
+    secret_file.chmod(0o444)
+    with pytest.raises(ValidationError, match="accessible by others"):
+        Settings(auth_rate_limit_secret_file=secret_file, _env_file=None)
+
+    link = tmp_path / "rate-secret-link"
+    link.symlink_to(secret_file)
+    with pytest.raises(ValidationError, match="non-symlink"):
+        Settings(auth_rate_limit_secret_file=link, _env_file=None)

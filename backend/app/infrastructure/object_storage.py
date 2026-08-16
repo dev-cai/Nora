@@ -25,6 +25,14 @@ class MinioArtifactStorage:
         if not exists:
             await asyncio.to_thread(self.client.make_bucket, self.bucket)
 
+    async def ready(self) -> bool:
+        """Check the configured private bucket without creating or mutating it."""
+
+        try:
+            return await asyncio.to_thread(self.client.bucket_exists, self.bucket)
+        except MinioException:
+            return False
+
     async def put(self, *, object_key: str, data: bytes, content_type: str) -> None:
         self._validate_key(object_key)
         temporary_key = f".pending/{uuid4().hex}"

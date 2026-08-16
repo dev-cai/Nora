@@ -60,6 +60,7 @@ from app.infrastructure.logging import (
     log_http_request_metrics,
     log_security_signal,
 )
+from app.infrastructure.object_storage import create_minio_storage
 
 _CORRELATION_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 _READINESS_TIMEOUT_SECONDS = 2.0
@@ -356,6 +357,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except Exception:
                 pass
             else:
+                if app_settings.env is Environment.PROD:
+                    storage = create_minio_storage(
+                        endpoint=app_settings.artifact_storage_endpoint,
+                        access_key=app_settings.artifact_storage_access_key,
+                        secret_key=app_settings.artifact_storage_secret_key,
+                        bucket=app_settings.artifact_storage_bucket,
+                        secure=app_settings.artifact_storage_secure,
+                    )
+                    try:
+                        async with asyncio.timeout(_READINESS_TIMEOUT_SECONDS):
+                            storage_ready = await storage.ready()
+                    except Exception:
+                        storage_ready = False
+                    if not storage_ready:
+                        return JSONResponse(
+                            status_code=503,
+                            content={
+                                "status": "not_ready",
+                                "artifact_storage": "unavailable",
+                            },
+                        )
                 return JSONResponse(status_code=200, content={"status": "ready"})
 
         return JSONResponse(
