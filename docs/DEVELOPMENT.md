@@ -639,7 +639,10 @@ API/Web GHCR digest、生成 SPDX SBOM、发布 GitHub provenance/SBOM attestati
 只接受已记录的健康 release ID 和非空原因。工作流使用 `beta-deployment` 单并发锁；实际部署与回滚 Job 还必须经过受保护
 `beta` Environment，并只运行在 `[self-hosted, linux, x64, nora-beta-deploy]` 专用 Runner 上。
 构建前还会回读 GitHub 元数据，要求 Environment 存在、至少一个 required reviewer、仅允许受保护分支且关闭管理员绕过，并要求
-至少一个带完整标签的专用 Runner 在线；缺少任一条件即 fail closed，不允许 GitHub 静默创建无保护 Environment。
+至少一个带完整标签的专用 Runner 在线；缺少任一条件即 fail closed，不允许 GitHub 静默创建无保护 Environment。读取 Environment
+保护规则和 Runner 列表要求 Administration 只读权限，`GITHUB_TOKEN` 不能通过 workflow `permissions:` 获得该权限；`verify` Job
+改用仓库 Secret `RELEASE_CONTROL_TOKEN`（限定该仓库 Administration:read 的 fine-grained PAT），只在该 Secret 缺失时才回落到
+`GITHUB_TOKEN` 供本地/手工调用；该 Token 只用于只读校验，不写入镜像层、Compose 文件或日志。
 
 主机供应完成后，operator 从已验证的 `main` checkout 安装 root-owned 固定入口，并确认专用 Runner 用户没有登录 Shell、Docker
 管理权限或运行时 Secret 读取权：

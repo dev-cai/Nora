@@ -78,7 +78,7 @@ jobs:
 
       - name: Verify protected Environment and dedicated Runner
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_CONTROL_TOKEN: ${{ secrets.RELEASE_CONTROL_TOKEN }}
         run: python deploy/verify_release_control.py --repository "$GITHUB_REPOSITORY"
 
       - name: Set up Python
