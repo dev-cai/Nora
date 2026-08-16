@@ -10,7 +10,7 @@ if [ "$#" -ne 3 ]; then
   exit 2
 fi
 
-exec python /opt/nora/deploy/release.py \
+exec python3 /opt/nora/deploy/release.py \
   --env-file /etc/nora/production.env \
   --state-dir /var/lib/nora/releases \
   --backup-destination /mnt/private-append-only/nora \

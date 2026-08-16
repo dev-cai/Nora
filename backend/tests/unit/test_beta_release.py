@@ -562,4 +562,4 @@ def test_release_installation_fixes_root_ownership_and_minimal_sudo_entrypoint()
     assert "docker compose" not in installer
     assert "public_smoke.py" in installer
     assert "Caddyfile" not in installer
-    assert "exec python /opt/nora/deploy/release.py" in wrapper
+    assert "exec python3 /opt/nora/deploy/release.py" in wrapper

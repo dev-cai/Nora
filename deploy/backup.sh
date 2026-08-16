@@ -13,12 +13,12 @@ fi
 env_file=$1
 destination=$2
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-python "$script_dir/preflight.py" --env-file "$env_file"
+python3 "$script_dir/preflight.py" --env-file "$env_file"
 command -v age >/dev/null
 command -v docker >/dev/null
 
 env_value() {
-  python "$script_dir/preflight.py" --env-file "$env_file" --get "$1"
+  python3 "$script_dir/preflight.py" --env-file "$env_file" --get "$1"
 }
 NORA_POSTGRES_DATA_DIR=$(env_value NORA_POSTGRES_DATA_DIR)
 NORA_MINIO_DATA_DIR=$(env_value NORA_MINIO_DATA_DIR)
