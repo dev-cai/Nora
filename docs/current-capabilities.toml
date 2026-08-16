@@ -50,7 +50,10 @@ code_paths = [
   "backend/app/infrastructure/config/settings.py",
   ".github/workflows/pr-conventions.yml",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/219"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/219",
+  "https://github.com/dev-cai/Nora/pull/227",
+]
 
 [[capabilities]]
 id = "local-identity"
@@ -573,4 +576,7 @@ code_paths = [
   "frontend/e2e/decision-flow.spec.ts",
   "frontend/e2e/beta-security.spec.ts",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/223"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/223",
+  "https://github.com/dev-cai/Nora/pull/227",
+]
