@@ -659,7 +659,10 @@ sudo visudo -cf /etc/sudoers.d/nora-release
 GitHub Environment 不保存数据库、MinIO、JWT、owner 密码或备份解密材料。
 
 目标发布固定记录 `preflight -> backup -> pull -> migrate -> start -> internal-smoke -> public-smoke -> promote`。无 Schema 变化时 backup
-明确记录为 skipped；迁移前失败不改写生产 env 或 `last-healthy.json`。迁移停止 Web/API、保持 PostgreSQL/MinIO 运行；候选服务先完成
+明确记录为 skipped；迁移前失败不改写生产 env 或 `last-healthy.json`。`migrate` 阶段依次执行 Alembic 迁移、`db-init` 与
+`storage-init`：迁移先建好表，`db-init` 再用 admin 身份幂等创建/更新最小权限 PostgreSQL 运行时角色并授予表与序列权限，
+`storage-init` 幂等创建私有 Artifact Bucket 与最小权限对象存储身份；三者都幂等，每次发布都会重新执行，首次部署无需 operator 手工
+初始化数据库角色或 Bucket。迁移停止 Web/API、保持 PostgreSQL/MinIO 运行；候选服务先完成
 内部 API/Web/Artifact smoke，再通过真实 `NORA_PUBLIC_ORIGIN`、正常 TLS 校验验证 Web、`/api/live`、`/api/ready`、应用安全 headers、
 Host Proxy HSTS 与 Web API proxy 链标记。只有 public smoke 全部通过才能替换 production env 和写健康指针；禁止 `--insecure`。
 
