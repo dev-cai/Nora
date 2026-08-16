@@ -286,6 +286,15 @@ def test_successful_deploy_records_eight_phases_and_promotes_atomically(
         "artifact_storage_smoke.py" in argument for command in commands for argument in command
     )
     assert any("public_smoke.py" in argument for command in commands for argument in command)
+    assert any(command[-1] == "db-init" for command in commands)
+    assert any(command[-1] == "storage-init" for command in commands)
+    migration_index = next(
+        index for index, command in enumerate(commands) if command[-1] == "migration"
+    )
+    db_init_index = next(
+        index for index, command in enumerate(commands) if command[-1] == "db-init"
+    )
+    assert migration_index < db_init_index
 
 
 def test_failed_pull_does_not_replace_last_healthy_release(tmp_path: Path) -> None:

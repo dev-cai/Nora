@@ -91,6 +91,10 @@ class ReleaseManager:
                 self._event(release_dir, phase, "started")
                 self._stop_runtime(candidate_env)
                 self._compose(candidate_env, "--profile", "initialize", "run", "--rm", "migration")
+                self._compose(candidate_env, "--profile", "initialize", "run", "--rm", "db-init")
+                self._compose(
+                    candidate_env, "--profile", "initialize", "run", "--rm", "storage-init"
+                )
                 migrated = True
                 self._event(release_dir, phase, "passed")
 
