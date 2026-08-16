@@ -139,6 +139,30 @@ def test_release_control_requires_reviewed_beta_environment_and_online_runner() 
     assert any("online" in error for error in CONTROL_MODULE.validate_runners(runners))
 
 
+def test_release_control_prefers_dedicated_administration_token_over_github_token() -> None:
+    assert (
+        CONTROL_MODULE.resolve_token(
+            {"RELEASE_CONTROL_TOKEN": "dedicated", "GITHUB_TOKEN": "default"}
+        )
+        == "dedicated"
+    )
+    assert CONTROL_MODULE.resolve_token({"GITHUB_TOKEN": "default"}) == "default"
+    assert CONTROL_MODULE.resolve_token({}) is None
+
+
+def test_beta_workflow_verify_job_uses_dedicated_release_control_token() -> None:
+    workflow = (ROOT / ".github/workflows/beta-deploy.yml").read_text(encoding="utf-8")
+    assert "secrets.RELEASE_CONTROL_TOKEN" in workflow
+    verify_section = workflow.split("verify:", 1)[1].split("\n  build:", 1)[0]
+    assert "Verify protected Environment and dedicated Runner" in verify_section
+    assert (
+        "github.token"
+        not in verify_section.split("Verify protected Environment and dedicated Runner", 1)[
+            1
+        ].split("- name:", 1)[0]
+    )
+
+
 def test_release_bundle_rejects_modified_sbom(tmp_path: Path) -> None:
     manifest = _manifest()
     manifest_path = tmp_path / "release-manifest.json"

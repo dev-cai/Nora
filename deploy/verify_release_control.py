@@ -1,4 +1,12 @@
-"""Verify the protected Beta Environment and dedicated deployment Runner."""
+"""Verify the protected Beta Environment and dedicated deployment Runner.
+
+Reading Environment protection rules and self-hosted Runner status requires a token with
+"Administration" repository permission (read). The default GitHub Actions ``GITHUB_TOKEN`` cannot
+be granted that scope through workflow ``permissions:``, so this script requires a dedicated
+``RELEASE_CONTROL_TOKEN`` (a fine-grained personal access token scoped to Administration:read on
+this repository only) and falls back to ``GITHUB_TOKEN`` only for local/manual invocations where
+the caller already holds a token with sufficient scope.
+"""
 
 from __future__ import annotations
 
@@ -53,6 +61,11 @@ def validate_runners(values: list[dict[str, object]]) -> list[str]:
     return ["an online dedicated nora-beta-deploy Runner is required"]
 
 
+def resolve_token(environment: dict[str, str]) -> str | None:
+    """Prefer a dedicated Administration-scoped token; GITHUB_TOKEN cannot hold that scope."""
+    return environment.get("RELEASE_CONTROL_TOKEN") or environment.get("GITHUB_TOKEN")
+
+
 def load_json(repository: str, path: str, token: str) -> object:
     request = urllib.request.Request(
         f"https://api.github.com/repos/{repository}/{path}",
@@ -70,9 +83,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", default="dev-cai/Nora")
     arguments = parser.parse_args()
-    token = os.environ.get("GITHUB_TOKEN")
+    token = resolve_token(os.environ)
     if not token:
-        raise SystemExit("release_control_error=GITHUB_TOKEN is required")
+        raise SystemExit(
+            "release_control_error=RELEASE_CONTROL_TOKEN (or GITHUB_TOKEN) is required"
+        )
     try:
         environment = load_json(
             arguments.repository,
