@@ -35,16 +35,10 @@ def upgrade() -> None:
         sa.Column("case_updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("version >= 1", name="ck_interview_case_version"),
         sa.CheckConstraint("actor_id = owner_id", name="ck_interview_case_actor_owner"),
-        sa.CheckConstraint(
-            "mode IN ('onsite', 'online', 'phone')", name="ck_interview_case_mode"
-        ),
-        sa.CheckConstraint(
-            "status IN ('scheduled', 'cancelled')", name="ck_interview_case_status"
-        ),
+        sa.CheckConstraint("mode IN ('onsite', 'online', 'phone')", name="ck_interview_case_mode"),
+        sa.CheckConstraint("status IN ('scheduled', 'cancelled')", name="ck_interview_case_status"),
         sa.CheckConstraint("source = 'user_confirmation'", name="ck_interview_case_source"),
-        sa.CheckConstraint(
-            "round_number BETWEEN 1 AND 20", name="ck_interview_case_round"
-        ),
+        sa.CheckConstraint("round_number BETWEEN 1 AND 20", name="ck_interview_case_round"),
         sa.CheckConstraint(
             "(mode = 'onsite' AND location IS NOT NULL AND meeting_url IS NULL) OR "
             "(mode = 'online' AND location IS NULL AND meeting_url IS NOT NULL) OR "
@@ -52,8 +46,7 @@ def upgrade() -> None:
             name="ck_interview_case_mode_fields",
         ),
         sa.CheckConstraint(
-            "length(idempotency_key) BETWEEN 1 AND 255 AND "
-            "length(request_fingerprint) = 64",
+            "length(idempotency_key) BETWEEN 1 AND 255 AND length(request_fingerprint) = 64",
             name="ck_interview_case_identity",
         ),
         sa.ForeignKeyConstraint(["owner_id"], ["users.id"], ondelete="CASCADE"),
@@ -69,9 +62,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("owner_id", "idempotency_key", name="uq_interview_case_owner_key"),
     )
     op.create_index("ix_interview_cases_id", "interview_cases", ["id"], unique=False)
-    op.create_index(
-        "ix_interview_cases_owner_id", "interview_cases", ["owner_id"], unique=False
-    )
+    op.create_index("ix_interview_cases_owner_id", "interview_cases", ["owner_id"], unique=False)
     op.create_index(
         "ix_interview_cases_owner_start",
         "interview_cases",
