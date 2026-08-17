@@ -244,11 +244,11 @@ category、status 和 transport/unknown 保留通用失败回退。FastAPI 请�
 ### 10.4 岗位输入与要求确认（M2）
 
 - 文本模式：JD 正文 textarea + 标题/公司/地点结构化字段。
-- 截图模式（API Current，浏览器 Planned）：图片上传（大小/格式限制）→ OCR 结果预览可编辑 → 用户确认保存。
-- 链接模式（API Current，浏览器 Planned）：URL 输入 → 受控抓取预览 → 用户确认保存；失败展示稳定错误码（如 `fetch_failed`）。
+- 截图模式（Current）：`JobCreateView` 选择本地 PNG/JPEG 图片 → OCR 结果预览回填 JD textarea 可编辑 → 用户确认后走既有文本创建路径。
+- 链接模式（Current）：`JobCreateView` 输入 URL → 受控抓取正文预览回填 JD textarea 可编辑 → 用户确认后走既有文本创建路径；失败展示稳定错误码对应的中文提示（如 `fetch_failed`、`unsafe_url`）。
 - 岗位要求（Current）：原始 `JobPosting` 与 `JobRequirementSnapshot` 分开显示；用户补充、修正和确认后创建新版本。
-- API：`POST /job-postings/image`、`POST /job-postings/fetch` 与岗位要求端点均为 Current；`POST /job-postings` 保持兼容。
-- 组件：`FileUpload`、`OCRPreview`、`LinkFetchPreview` 仍为 Planned；当前 `JobCreateView` 只接线文本模式。
+- API：`POST /job-postings/image`、`POST /job-postings/fetch` 与岗位要求端点均为 Current；两者只返回正文预览，不直接创建岗位快照，仍需经 `POST /job-postings` 文本路径确认写入。
+- 组件：截图与链接输入未拆出独立组件，直接内嵌在 `JobCreateView` 的可切换 tab 中；两个输入方式的预览状态与创建状态在 `jobsStore` 中分离，预览失败不污染岗位列表/详情状态。
 
 ### 10.5 岗位列表 / 详情（Current）
 

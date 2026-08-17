@@ -18,6 +18,7 @@ import type {
   CreateJobPostingInput,
   CreateResumeVariantInput,
   CreateSourceInput,
+  JdInputPreview,
   DecisionAnalysis,
   DecisionCase,
   DecisionReport,
@@ -110,6 +111,18 @@ const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
   message_draft_version_conflict: "草稿已更新，请刷新后重试",
   invalid_draft_text: "消息草稿内容无效",
   skip_reason_required: "选择不投时需要填写原因",
+  unsupported_image: "图片格式不受支持，请使用 PNG 或 JPEG",
+  image_too_large: "图片超过 10 MiB 大小限制",
+  decode_failed: "图片无法解码，请更换图片后重试",
+  invalid_url: "链接格式不合法",
+  unsafe_url: "链接指向的地址不允许访问",
+  too_many_redirects: "链接跳转次数过多",
+  response_too_large: "页面内容超过大小限制",
+  fetch_timeout: "抓取页面超时，请稍后重试",
+  fetch_failed: "无法抓取该链接，请稍后重试",
+  ocr_failed: "图片识别失败，请更换图片后重试",
+  empty_content: "未能从图片或链接中提取到有效内容",
+  content_too_large: "提取的正文超过长度限制",
 }
 
 const categoryMessages: Record<ServerErrorCategory, string> = {
@@ -257,6 +270,16 @@ export const api = {
       headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(input),
     }),
+  fetchJobPreview: (url: string) =>
+    request<JdInputPreview>("/job-postings/fetch", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    }),
+  ocrJobPreview: (file: File) => {
+    const body = new FormData()
+    body.set("file", file)
+    return request<JdInputPreview>("/job-postings/image", { method: "POST", body })
+  },
   getProfile: (version?: number) =>
     request<CandidateProfile>(`/profile${version ? `?version=${version}` : ""}`),
   saveProfile: (input: CandidateProfileInput) =>

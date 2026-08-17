@@ -40,6 +40,14 @@ export interface CreateJobPostingInput {
   source_type: "manual"
 }
 
+export type JdInputKind = "image" | "url"
+
+export interface JdInputPreview {
+  jd_text: string
+  source_url: string | null
+  kind: JdInputKind
+}
+
 export type ConfirmationStatus = "unconfirmed" | "confirmed" | "rejected" | "superseded"
 
 export interface ProfileFact<T> {

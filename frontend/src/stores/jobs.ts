@@ -2,7 +2,7 @@ import { computed, ref } from "vue"
 import { defineStore } from "pinia"
 
 import { api } from "@/api/client"
-import type { CreateJobPostingInput, JobPosting } from "@/api/types"
+import type { CreateJobPostingInput, JdInputPreview, JobPosting } from "@/api/types"
 
 export const useJobsStore = defineStore("jobs", () => {
   const jobs = ref<JobPosting[]>([])
@@ -10,6 +10,7 @@ export const useJobsStore = defineStore("jobs", () => {
   const total = ref(0)
   const listLoading = ref(false)
   const detailLoading = ref(false)
+  const previewLoading = ref(false)
   const isLoading = computed(() => listLoading.value || detailLoading.value)
   let latestListRequest = 0
   let latestDetailRequest = 0
@@ -61,16 +62,47 @@ export const useJobsStore = defineStore("jobs", () => {
     return job
   }
 
+  async function fetchPreviewFromUrl(url: string): Promise<JdInputPreview> {
+    previewLoading.value = true
+    try {
+      return await api.fetchJobPreview(url)
+    } finally {
+      previewLoading.value = false
+    }
+  }
+
+  async function fetchPreviewFromImage(file: File): Promise<JdInputPreview> {
+    previewLoading.value = true
+    try {
+      return await api.ocrJobPreview(file)
+    } finally {
+      previewLoading.value = false
+    }
+  }
+
   function reset(): void {
     latestListRequest += 1
     latestDetailRequest += 1
     listLoading.value = false
     detailLoading.value = false
+    previewLoading.value = false
     pendingCreate = null
     jobs.value = []
     current.value = null
     total.value = 0
   }
 
-  return { jobs, current, total, isLoading, fetchJobs, fetchJob, createJob, reset }
+  return {
+    jobs,
+    current,
+    total,
+    isLoading,
+    previewLoading,
+    fetchJobs,
+    fetchJob,
+    createJob,
+    fetchPreviewFromUrl,
+    fetchPreviewFromImage,
+    reset,
+  }
 })
