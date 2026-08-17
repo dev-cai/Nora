@@ -287,4 +287,38 @@ describe("API client", () => {
     expect(uploadHeaders.has("Content-Type")).toBe(false)
     expect(fetchMock.mock.calls[0]?.[1]?.body).toBeInstanceOf(FormData)
   })
+
+  it("uses JSON for the URL preview and multipart for the image preview", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(response({
+      jd_text: "Backend role",
+      source_url: "https://example.com/jobs/1",
+      kind: "url",
+    })))
+
+    await api.fetchJobPreview("https://example.com/jobs/1")
+    await api.ocrJobPreview(new File(["screenshot"], "jd.png", { type: "image/png" }))
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [String(url), init?.method || "GET"])).toEqual([
+      ["/api/job-postings/fetch", "POST"],
+      ["/api/job-postings/image", "POST"],
+    ])
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      url: "https://example.com/jobs/1",
+    })
+    const imageHeaders = new Headers(fetchMock.mock.calls[1]?.[1]?.headers)
+    expect(imageHeaders.has("Content-Type")).toBe(false)
+    expect(fetchMock.mock.calls[1]?.[1]?.body).toBeInstanceOf(FormData)
+  })
+
+  it("maps stable JD input error codes to Chinese messages", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response({
+      error_code: "unsafe_url",
+      error_category: "invalid_input",
+      message: "URL resolves to a private address",
+    }, 400))
+
+    const error = await api.fetchJobPreview("https://169.254.169.254/").catch((reason: unknown) => reason)
+
+    expect(error).toMatchObject({ errorCode: "unsafe_url", message: "链接指向的地址不允许访问" })
+  })
 })

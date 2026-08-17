@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from "pinia"
 
 import { api } from "@/api/client"
-import type { CreateJobPostingInput, JobPosting, JobPostingList } from "@/api/types"
+import type { CreateJobPostingInput, JdInputPreview, JobPosting, JobPostingList } from "@/api/types"
 import { useJobsStore } from "@/stores/jobs"
 
 vi.mock("@/api/client", () => ({
@@ -9,6 +9,8 @@ vi.mock("@/api/client", () => ({
     listJobs: vi.fn(),
     getJob: vi.fn(),
     createJob: vi.fn(),
+    fetchJobPreview: vi.fn(),
+    ocrJobPreview: vi.fn(),
   },
 }))
 
@@ -48,6 +50,8 @@ describe("jobs store", () => {
     vi.mocked(api.listJobs).mockReset()
     vi.mocked(api.getJob).mockReset()
     vi.mocked(api.createJob).mockReset()
+    vi.mocked(api.fetchJobPreview).mockReset()
+    vi.mocked(api.ocrJobPreview).mockReset()
   })
 
   it("ignores an older list response that completes after the latest request", async () => {
@@ -113,5 +117,63 @@ describe("jobs store", () => {
     expect(store.jobs).toEqual([])
     expect(store.total).toBe(0)
     expect(store.isLoading).toBe(false)
+  })
+
+  it("tracks preview loading while fetching a URL preview and clears it on success", async () => {
+    const preview: JdInputPreview = { jd_text: "Fetched JD", source_url: "https://example.com/jobs/1", kind: "url" }
+    const pending = deferred<JdInputPreview>()
+    vi.mocked(api.fetchJobPreview).mockReturnValueOnce(pending.promise)
+    const store = useJobsStore()
+
+    const request = store.fetchPreviewFromUrl("https://example.com/jobs/1")
+    expect(store.previewLoading).toBe(true)
+    pending.resolve(preview)
+    await expect(request).resolves.toEqual(preview)
+    expect(store.previewLoading).toBe(false)
+    expect(api.fetchJobPreview).toHaveBeenCalledWith("https://example.com/jobs/1")
+  })
+
+  it("clears preview loading when a URL preview fails", async () => {
+    vi.mocked(api.fetchJobPreview).mockRejectedValueOnce(new Error("unsafe_url"))
+    const store = useJobsStore()
+
+    await expect(store.fetchPreviewFromUrl("https://169.254.169.254/")).rejects.toThrow("unsafe_url")
+    expect(store.previewLoading).toBe(false)
+  })
+
+  it("tracks preview loading while OCR-extracting an image preview", async () => {
+    const preview: JdInputPreview = { jd_text: "OCR JD", source_url: null, kind: "image" }
+    const pending = deferred<JdInputPreview>()
+    vi.mocked(api.ocrJobPreview).mockReturnValueOnce(pending.promise)
+    const store = useJobsStore()
+    const file = new File(["screenshot"], "jd.png", { type: "image/png" })
+
+    const request = store.fetchPreviewFromImage(file)
+    expect(store.previewLoading).toBe(true)
+    pending.resolve(preview)
+    await expect(request).resolves.toEqual(preview)
+    expect(store.previewLoading).toBe(false)
+    expect(api.ocrJobPreview).toHaveBeenCalledWith(file)
+  })
+
+  it("clears preview loading when an image preview fails", async () => {
+    vi.mocked(api.ocrJobPreview).mockRejectedValueOnce(new Error("ocr_failed"))
+    const store = useJobsStore()
+
+    await expect(store.fetchPreviewFromImage(new File(["x"], "jd.png"))).rejects.toThrow("ocr_failed")
+    expect(store.previewLoading).toBe(false)
+  })
+
+  it("resets preview loading state", async () => {
+    const pending = deferred<JdInputPreview>()
+    vi.mocked(api.fetchJobPreview).mockReturnValueOnce(pending.promise)
+    const store = useJobsStore()
+    const request = store.fetchPreviewFromUrl("https://example.com/jobs/1")
+
+    store.reset()
+
+    expect(store.previewLoading).toBe(false)
+    pending.resolve({ jd_text: "late", source_url: null, kind: "url" })
+    await request
   })
 })

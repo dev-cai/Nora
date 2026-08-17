@@ -296,12 +296,15 @@ id = "jd-url-fetch"
 name = "受控链接抓取输入"
 milestone = "M2"
 status = "current"
-summary = "提供 SSRF 安全的受控链接抓取：连接前验证公网单播地址并固定解析结果（防 DNS Rebinding），限制重定向、响应大小、超时与 Content-Type，返回 HTML 正文预览。"
+summary = "提供 SSRF 安全的受控链接抓取：连接前验证公网单播地址并固定解析结果（防 DNS Rebinding），限制重定向、响应大小、超时与 Content-Type，返回 HTML 正文预览；岗位录入页可切换到链接输入方式提交 URL，预览正文回填 JD 输入框供用户编辑确认后再走既有创建路径。"
 code_paths = [
   "backend/app/infrastructure/jd_fetch.py",
   "backend/app/apps/api/routes/job_inputs.py",
+  "frontend/src/api/client.ts",
+  "frontend/src/stores/jobs.ts",
+  "frontend/src/views/JobCreateView.vue",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/147"]
+evidence = ["https://github.com/dev-cai/Nora/pull/147", "https://github.com/dev-cai/Nora/pull/234"]
 
 [[capabilities]]
 id = "deterministic-decision-rules"
@@ -335,13 +338,16 @@ id = "jd-image-ocr"
 name = "截图 OCR 输入"
 milestone = "M2"
 status = "current"
-summary = "提供截图 OCR 输入：PIL 受限解码（像素与解压膨胀防护）后经百度智能云 OCR 识别为 JD 文本，返回正文预览，错误返回稳定错误码。"
+summary = "提供截图 OCR 输入：PIL 受限解码（像素与解压膨胀防护）后经百度智能云 OCR 识别为 JD 文本，返回正文预览，错误返回稳定错误码；岗位录入页可切换到截图输入方式选择本地图片，OCR 正文回填 JD 输入框供用户编辑确认后再走既有创建路径。"
 code_paths = [
   "backend/app/infrastructure/jd_ocr.py",
   "backend/app/apps/api/routes/job_inputs.py",
   "backend/app/ports/jd_input.py",
+  "frontend/src/api/client.ts",
+  "frontend/src/stores/jobs.ts",
+  "frontend/src/views/JobCreateView.vue",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/148"]
+evidence = ["https://github.com/dev-cai/Nora/pull/148", "https://github.com/dev-cai/Nora/pull/234"]
 
 [[capabilities]]
 id = "decision-report-api"
