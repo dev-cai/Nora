@@ -95,6 +95,9 @@ Pydantic Schema、引用归属和 Application Policy 校验，校验失败不得
 
 - 实现只读取 `DASHSCOPE_API_KEY` 的受控 Secret 注入，不把值写入仓库、数据库、日志、Prompt、异常或命令参数；开发环境可用
   进程环境变量，Beta 继承 D-019 的 root-owned Secret 文件和唯一消费者权限；
+- `DASHSCOPE_API_KEY` 由 operator 在百炼控制台创建、轮换和撤销：先创建新 Key、更新受权限保护的 Secret 文件并验证一次受控
+  连接，再撤销旧 Key；每次操作只记录 Secret 类别、版本、操作者、时间、消费者和验证结果，不记录 Key 值。轮换或撤销失败时
+  保留旧 Key 直到新 Key 验证成功，Secret 缺失或已撤销统一进入稳定失败，不影响 M3/M4；
 - Chat 单次应用层软预算为人民币 0.50 元，单次 Embedding ingestion 软预算为人民币 0.20 元，月度总软预算为人民币
   20 元；请求前按当前公开单价和最大 Token 估算，预计超限时不调用，Provider 控制台另设置不高于该月度值的费用预警/额度；
 - 默认 timeout 由 #85 固定；只对连接错误、`429` 和明确 `5xx` 做至多一次带抖动重试，不重试认证、权限、输入、Schema
