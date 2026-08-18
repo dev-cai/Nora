@@ -130,10 +130,11 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
 
 ## 8. 技术与 Provider 边界
 
-- M5 的初期向量能力候选是 PostgreSQL + pgvector；模型、版本、维度和归一化契约必须在 Schema 设计前确认。
-- BGE-M3 只是候选 Embedding 方向，不在规划中预先锁定；Reranker 只有在固定评测集证明收益后才引入。
-- 模型通过 Provider-neutral Model Gateway 访问；DeepSeek、GLM、OpenAI 兼容 Provider 等均为候选配置，不在产品愿景中锁定
-  尚未验证的具体版本。
+- M5 的初期向量能力候选是 PostgreSQL + pgvector；D-007 已冻结首个 Embedding 为阿里云百炼北京地域的
+  `qwen3.7-text-embedding` dense 1024 维，持久化 Schema 仍须在独立实现 Issue 中验证。
+- BGE-M3 是已被 D-007 替代的历史候选；Reranker 只有在固定评测集证明收益后才引入。
+- 模型通过最小 Provider-neutral `ModelPort` 访问；首个真实 Provider、Chat 模型、Embedding 模型、地域和预算以
+  [`ARCHITECTURE.md`](ARCHITECTURE.md) 的 D-007 为准，后续替换必须重新经过 Architecture Review。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应
   Architecture/Task Issue 验收。
 - Agent Runtime 不属于 M2-M5 的默认退出条件；M3 使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。
