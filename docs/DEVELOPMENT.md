@@ -567,7 +567,8 @@ docker compose --profile test run --rm test \
 ### 镜像版本升级与回滚
 
 Dockerfile 和 Compose 中的 Python、uv、PostgreSQL 与 MinIO 镜像均固定到 manifest digest；Python、uv 和
-PostgreSQL 同时保留可读版本标签。容器构建门禁（CI `containers` job）只依赖 Docker 构建上下文，不要求
+PostgreSQL 同时保留可读版本标签。API Dockerfile 还固定 Debian 安全补丁包版本，避免基础镜像更新窗口中的已修复
+HIGH/Critical 漏洞重新进入运行时。容器构建门禁（CI `containers` job）只依赖 Docker 构建上下文，不要求
 Runner 或开发宿主预装 Python、uv；后端 `quality` job 则通过 `actions/setup-python` 与 `astral-sh/setup-uv`
 在运行时按需安装，同样不依赖预装环境。
 
