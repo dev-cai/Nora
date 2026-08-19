@@ -28,13 +28,18 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["interview_case_id", "interview_case_version", "owner_id"],
             ["interview_cases.id", "interview_cases.version", "interview_cases.owner_id"],
-            name="fk_interview_review_case_owner", ondelete="CASCADE",
+            name="fk_interview_review_case_owner",
+            ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("owner_id", "interview_case_id", "version", name="uq_interview_review_version"),
+        sa.UniqueConstraint(
+            "owner_id", "interview_case_id", "version", name="uq_interview_review_version"
+        ),
     )
     op.create_index("ix_interview_reviews_owner_id", "interview_reviews", ["owner_id"])
-    op.create_index("ix_interview_reviews_interview_case_id", "interview_reviews", ["interview_case_id"])
+    op.create_index(
+        "ix_interview_reviews_interview_case_id", "interview_reviews", ["interview_case_id"]
+    )
     op.create_table(
         "memory_candidates",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -56,9 +61,18 @@ def upgrade() -> None:
         sa.Column("confirmed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("rejected_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint("review_version >= 1", name="ck_memory_candidate_review_version"),
-        sa.CheckConstraint("confidence IS NULL OR (confidence >= 0 AND confidence <= 1)", name="ck_memory_candidate_confidence"),
-        sa.CheckConstraint("kind IN ('skill_gap', 'interview_pattern', 'resume_issue', 'knowledge_gap')", name="ck_memory_candidate_kind"),
-        sa.CheckConstraint("status IN ('proposed', 'confirmed', 'rejected', 'revoked')", name="ck_memory_candidate_status"),
+        sa.CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
+            name="ck_memory_candidate_confidence",
+        ),
+        sa.CheckConstraint(
+            "kind IN ('skill_gap', 'interview_pattern', 'resume_issue', 'knowledge_gap')",
+            name="ck_memory_candidate_kind",
+        ),
+        sa.CheckConstraint(
+            "status IN ('proposed', 'confirmed', 'rejected', 'revoked')",
+            name="ck_memory_candidate_status",
+        ),
         sa.ForeignKeyConstraint(["owner_id"], ["users.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["review_id"], ["interview_reviews.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

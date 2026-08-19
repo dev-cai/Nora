@@ -30,8 +30,7 @@ def test_interview_review_migration_creates_confirmation_contract(database_url: 
         async with engine.connect() as connection:
             tables = await connection.execute(
                 text(
-                    "SELECT table_name FROM information_schema.tables "
-                    "WHERE table_schema = 'public'"
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
                 )
             )
             constraints = await connection.execute(
