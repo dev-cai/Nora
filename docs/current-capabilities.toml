@@ -2,6 +2,24 @@ version = 1
 status = "current-only"
 
 [[capabilities]]
+id = "minimal-rag-vertical-slice"
+name = "最小 RAG 纵向链路"
+milestone = "M5"
+status = "current"
+summary = "已交付受用户范围和精确 Source/Artifact 版本约束的 Source → 确定性 Chunk → 可重建 Embedding → exact cosine 检索 → grounded/unknown 回答链路；派生 Chunk 在源重建时替换，Artifact 删除后立即不可检索，Provider 未配置或输出引用越界时稳定降级为 unknown。"
+code_paths = [
+  "backend/app/domain/knowledge/artifact.py",
+  "backend/app/application/knowledge/rag_service.py",
+  "backend/app/ports/knowledge.py",
+  "backend/app/infrastructure/embedding.py",
+  "backend/app/infrastructure/database/knowledge.py",
+  "backend/app/apps/api/routes/knowledge.py",
+  "backend/alembic/versions/0024_knowledge_chunks.py",
+  "backend/tests/unit/test_rag_vertical_slice.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/244"]
+
+[[capabilities]]
 id = "engineering-baseline"
 name = "工程与容器基线"
 milestone = "M0"

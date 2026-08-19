@@ -1,5 +1,6 @@
 """Immutable Artifact and SourceDocument lifecycle rules."""
 
+import hashlib
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -203,6 +204,68 @@ class SourceDocument:
             acquired_at=_utc(acquired_at),
             published_at=_utc(published_at) if published_at else None,
             content_sha256=artifact.sha256,
+            created_at=_utc(now),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class KnowledgeChunk:
+    """Immutable, rebuildable text slice tied to an exact Source version."""
+
+    id: UUID
+    owner_id: UUID
+    source_id: UUID
+    source_version: int
+    artifact_id: UUID
+    artifact_version: int
+    ordinal: int
+    locator: str
+    text: str
+    content_sha256: str
+    embedding: tuple[float, ...]
+    embedding_model: str
+    embedding_version: str
+    embedding_dimension: int
+    created_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        source: SourceDocument,
+        ordinal: int,
+        text: str,
+        embedding: tuple[float, ...],
+        embedding_model: str,
+        embedding_version: str,
+        now: datetime | None = None,
+    ) -> "KnowledgeChunk":
+        value = text.strip()
+        if not value or ordinal < 0:
+            raise DomainError("Chunk is invalid", error_code=ErrorCode.INVALID_SOURCE_RANGE)
+        if not embedding or any(not (-1 <= item <= 1) for item in embedding):
+            raise DomainError("Embedding is invalid", error_code=ErrorCode.INVALID_SOURCE_RANGE)
+        model = " ".join(embedding_model.split())
+        version = " ".join(embedding_version.split())
+        if not model or not version:
+            raise DomainError(
+                "Embedding identity is invalid", error_code=ErrorCode.INVALID_SOURCE_RANGE
+            )
+        return cls(
+            id=uuid4(),
+            owner_id=source.owner_id,
+            source_id=source.id,
+            source_version=source.version,
+            artifact_id=source.artifact_id,
+            artifact_version=source.artifact_version,
+            ordinal=ordinal,
+            locator=f"{source.locator}#chunk-{ordinal}" if source.locator else f"chunk-{ordinal}",
+            text=value,
+            content_sha256=hashlib.sha256(value.encode("utf-8")).hexdigest(),
+            embedding=tuple(float(item) for item in embedding),
+            embedding_model=model,
+            embedding_version=version,
+            embedding_dimension=len(embedding),
             created_at=_utc(now),
         )
 

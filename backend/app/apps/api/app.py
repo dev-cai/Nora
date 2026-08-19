@@ -39,6 +39,7 @@ from app.apps.api.routes.interviews import (
 from app.apps.api.routes.job_inputs import router as job_inputs_router
 from app.apps.api.routes.job_postings import router as job_postings_router
 from app.apps.api.routes.job_requirements import router as job_requirements_router
+from app.apps.api.routes.knowledge import router as knowledge_router
 from app.apps.api.routes.message_drafts import router as message_drafts_router
 from app.apps.api.routes.profile import router as profile_router
 from app.apps.api.routes.resume_pdfs import router as resume_pdfs_router
@@ -148,6 +149,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     common_responses = problem_responses()
     app.include_router(auth_router, responses=problem_responses(ErrorCategory.RATE_LIMITED))
     app.include_router(artifacts_router, responses=common_responses)
+    app.include_router(knowledge_router, responses=common_responses)
     app.include_router(application_records_router, responses=common_responses)
     app.include_router(application_interviews_router, responses=common_responses)
     app.include_router(companies_router, responses=common_responses)

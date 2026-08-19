@@ -6,7 +6,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.domain.base.exceptions import InfrastructureError
-from app.domain.knowledge import Artifact, SourceDocument
+from app.domain.knowledge import Artifact, KnowledgeChunk, SourceDocument
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +39,33 @@ class ArtifactRepository(Protocol):
 class SourceDocumentRepository(Protocol):
     async def add(self, source: SourceDocument) -> SourceDocument: ...
     async def get_by_id(self, source_id: UUID) -> SourceDocument | None: ...
+    async def get_by_identity(self, source_id: UUID, version: int) -> SourceDocument | None: ...
+    async def commit(self) -> None: ...
+
+
+class EmbeddingPort(Protocol):
+    model: str
+    version: str
+    dimension: int
+
+    async def embed(self, text: str) -> tuple[float, ...]: ...
+
+
+class ChunkRepository(Protocol):
+    async def replace_for_source(
+        self, source: SourceDocument, chunks: list[KnowledgeChunk]
+    ) -> None: ...
+
+    async def search(
+        self,
+        *,
+        owner_id: UUID,
+        query_embedding: tuple[float, ...],
+        source_id: UUID | None = None,
+        source_version: int | None = None,
+        limit: int = 5,
+    ) -> list[tuple[KnowledgeChunk, float]]: ...
+
     async def commit(self) -> None: ...
 
 

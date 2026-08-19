@@ -45,7 +45,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-001 | 架构形态 | 模块化单体，按需启用 API/Worker 进程 | M0–M5 | 单仓库、共享领域模型；进程按职责隔离 |
 | D-002 | 依赖方向 | Apps/Adapters → Application → Domain | M0 起 | 内层不导入 Web、ORM、Agent 或 SDK 类型 |
 | D-003 | 业务事实源 | PostgreSQL | M0 起 | 领域状态、版本、审批、运行和审计均以 PostgreSQL 为准 |
-| D-004 | 初期向量能力 | PostgreSQL + pgvector | M5 | Embedding 契约先于 Schema；索引是可重建派生数据；M2-M4 不依赖向量能力 |
+| D-004 | 初期向量能力 | PostgreSQL exact cosine（pgvector 兼容演进边界） | M5 | #235 先交付可重建 JSON 向量派生索引和确定性 exact 检索；Embedding 契约先于 pgvector Schema，M2-M4 不依赖向量能力 |
 | D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | 规模触发后评估 | 达到规模或检索隔离触发条件后再引入 |
 | D-006 | Agent 编排 | LangGraph Adapter 候选 | 触发后评估 | 只有多 Tool、分支和暂停/恢复需求成立后引入；不拥有领域事实 |
 | D-007 | 模型访问 | 最小 ModelPort + 阿里云百炼北京地域单 Provider | M5 | Chat 使用 `qwen3.8-max`，Embedding 使用 `qwen3.7-text-embedding` 1024 维；M2-M4 无模型也可完成 |
@@ -509,7 +509,7 @@ flowchart LR
 | 简历版本、模板配置、简历变体、PDF/消息草稿元数据 | PostgreSQL | 结构化事实与版本 | 记录用户归属、状态、输入版本、模板版本、生成身份、生成器版本和 Artifact 精确引用 |
 | Run、Approval、ToolCall、Audit | PostgreSQL | 治理事实 | 追加式或受状态机约束，不由队列状态替代 |
 | 原始简历、截图、附件、长文档、生成 PDF | Object Storage | 不可变或版本化对象 | 私有访问、摘要校验、短期签名引用；生成产物不得提交 Git |
-| Chunk、Embedding、稀疏索引 | pgvector；后续可迁移 Milvus | 可重建派生数据 | 必须引用 Source/Artifact 版本和生成器版本 |
+| Chunk、Embedding、稀疏索引 | PostgreSQL exact 派生索引；pgvector 后续演进 | 可重建派生数据 | #235 已固定 Source/Artifact 版本、模型身份、维度和删除过滤；达到规模门槛后再迁移 pgvector/Milvus |
 | 缓存、锁、限流、幂等占用 | Redis | 临时状态 | 必须有 TTL；丢失后可从事实源恢复 |
 | Celery 任务消息 | Redis Broker | 传输状态 | 只携带 ID 和版本；不保存最终业务结果 |
 | Agent Checkpoint | PostgreSQL Adapter | 可恢复编排状态 | 不包含密钥、大型正文和未版本化对象 |

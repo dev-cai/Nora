@@ -67,6 +67,16 @@ class StructuredJobFitAnalysis(BaseModel):
     citations: Annotated[list[StructuredJobFitCitation], Field(min_length=1, max_length=100)]
 
 
+class GroundedAnswer(BaseModel):
+    """Strict answer contract whose citations can only point to retrieved ordinals."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    answer: Annotated[str, Field(min_length=1, max_length=4000)]
+    status: Literal["grounded", "unknown"]
+    citation_ordinals: Annotated[list[int], Field(max_length=20)]
+
+
 class VerifyStructuredModelUseCase:
     """Execute one fixed, non-sensitive structured request without business writes."""
 
@@ -94,6 +104,7 @@ __all__ = (
     "JOB_FIT_PROMPT_VERSION",
     "MODEL_PROBE_PROMPT_VERSION",
     "StructuredJobFitAnalysis",
+    "GroundedAnswer",
     "StructuredJobFitCitation",
     "StructuredJobFitInsight",
     "StructuredModelProbe",
