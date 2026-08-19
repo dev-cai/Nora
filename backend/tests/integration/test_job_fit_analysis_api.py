@@ -20,6 +20,7 @@ class CatalogJobFitModel:
     def __init__(self) -> None:
         self.calls = 0
         self.fail = False
+        self.illegal_citation = False
 
     async def generate_structured(
         self,
@@ -91,6 +92,8 @@ class CatalogJobFitModel:
                 citation(experience, "experience"),
             ],
         }
+        if self.illegal_citation:
+            result["citations"][0]["object_id"] = str(uuid4())
         return cast(ModelOutputT, output_type.model_validate(result))
 
 
@@ -272,7 +275,18 @@ def test_job_fit_analysis_api_generation_recovery_isolation_and_fallback(
         assert restored.json() == body
         assert client.get(f"/reports/{report_id}/job-fit-analysis", headers=bob).status_code == 404
 
+        invalid_report = _report(client, alice, "invalid-citation")
+        model.illegal_citation = True
+        invalid = client.post(
+            f"/reports/{invalid_report['id']}/job-fit-analysis",
+            headers=alice,
+        )
+        assert invalid.status_code == 502
+        assert invalid.json()["error_code"] == "model_output_invalid"
+        assert _analysis_count(database_url) == 1
+
         fallback_report = _report(client, alice, "fallback")
+        model.illegal_citation = False
         model.fail = True
         failed = client.post(f"/reports/{fallback_report['id']}/job-fit-analysis", headers=alice)
         assert failed.status_code == 503
