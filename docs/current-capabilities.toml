@@ -180,7 +180,7 @@ id = "typed-error-contract"
 name = "类型化错误注册表与 HTTP/OpenAPI 映射"
 milestone = "M4"
 status = "current"
-summary = "协议无关 Shared Kernel 以 161 个 ErrorCode、11 个 ErrorCategory 和不可变完整注册表固定公开失败词汇；API Adapter 只按 category 映射 HTTP，并以唯一 ApiProblem 统一 Nora、请求校验、SQLAlchemy 与未知异常响应。内部哨兵和未知异常固定脱敏 500，认证保留 Bearer challenge；OpenAPI 枚举 code/category，前端消费 generated union 并按 code、category、status 与 transport/unknown 顺序本地化回退。"
+summary = "协议无关 Shared Kernel 以 167 个 ErrorCode、13 个 ErrorCategory 和不可变完整注册表固定公开失败词汇；API Adapter 只按 category 映射 HTTP，并以唯一 ApiProblem 统一 Nora、请求校验、SQLAlchemy 与未知异常响应。内部哨兵和未知异常固定脱敏 500，认证保留 Bearer challenge；OpenAPI 枚举 code/category，前端消费 generated union 并按 code、category、status 与 transport/unknown 顺序本地化回退。"
 code_paths = [
   "backend/app/domain/base/exceptions.py",
   "backend/app/apps/api/errors.py",
@@ -586,3 +586,19 @@ evidence = [
   "https://github.com/dev-cai/Nora/pull/223",
   "https://github.com/dev-cai/Nora/pull/227",
 ]
+
+[[capabilities]]
+id = "structured-model-port"
+name = "单 Provider 结构化模型调用边界"
+milestone = "M5"
+status = "current"
+summary = "提供 Provider-neutral ModelPort、固定阿里云百炼北京地域 qwen3.8-max 的 OpenAI-compatible JSON Schema Adapter、Pydantic 本地输出校验和无业务写入的 Application 连通性探测。调用前执行 0.50 元单次软预算，timeout、连接错误、429 和 5xx 最多重试一次；缺少 Secret、超预算、Provider 拒绝/不可用、timeout 和无效输出均以稳定错误失败。日志只保留 Provider、模型、耗时、成功状态和低基数错误类别；普通 CI 使用 Fake Adapter，真实 smoke 仅在显式开关和受控 Secret 下运行。当前不包含 AI 人岗分析、Embedding、RAG、Tool Calling、Agent Runtime、Provider registry、fallback 或业务事实写入。"
+code_paths = [
+  "backend/app/ports/model.py",
+  "backend/app/application/model.py",
+  "backend/app/infrastructure/model.py",
+  "backend/app/infrastructure/config/settings.py",
+  "backend/tests/unit/test_model_port.py",
+  "backend/tests/smoke/test_dashscope_model.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/242"]

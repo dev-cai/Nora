@@ -126,6 +126,8 @@ D-018 Current 错误响应使用稳定结构：
 前端从 OpenAPI generated schema 获得 `ErrorCode`、`ErrorCategory` 与 `ApiProblem`，根据 `error_code` 选择可本地化提示，再按
 category、status 和 transport/unknown 保留通用失败回退。FastAPI 请求校验统一为
 `validation_error/request_validation/422`，不再消费独立的 `HTTPValidationError.detail` 结构。
+生成枚举包含模型未配置、超预算、Provider 拒绝/不可用、timeout 和结构化输出无效六类稳定错误；当前 #85 只提供后端
+Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、路由、Store 或专用 UI 文案，前端仍走 category/status 通用回退。
 响应中的 `X-Request-ID` 可显示在错误详情中用于排障，但不得替代用户可理解的提示，也不得包含敏感数据。
 
 ## 7. 交付边界

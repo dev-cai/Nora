@@ -141,6 +141,12 @@ class ErrorCode(StrEnum):
     MESSAGE_DRAFT_CONFLICT = "message_draft_conflict"
     MESSAGE_DRAFT_INPUT_UNAVAILABLE = "message_draft_input_unavailable"
     MESSAGE_DRAFT_VERSION_CONFLICT = "message_draft_version_conflict"
+    MODEL_BUDGET_EXCEEDED = "model_budget_exceeded"
+    MODEL_NOT_CONFIGURED = "model_not_configured"
+    MODEL_OUTPUT_INVALID = "model_output_invalid"
+    MODEL_PROVIDER_FAILED = "model_provider_failed"
+    MODEL_PROVIDER_UNAVAILABLE = "model_provider_unavailable"
+    MODEL_TIMEOUT = "model_timeout"
     NORA_ERROR = "nora_error"
     OCR_FAILED = "ocr_failed"
     ORIGIN_NOT_ALLOWED = "origin_not_allowed"
@@ -328,8 +334,13 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
         ErrorCategory.UNSUPPORTED_MEDIA_TYPE: (ErrorCode.UNSUPPORTED_ARTIFACT_TYPE,),
         ErrorCategory.REQUEST_VALIDATION: (ErrorCode.VALIDATION_ERROR,),
         ErrorCategory.RATE_LIMITED: (ErrorCode.AUTHENTICATION_RATE_LIMITED,),
-        ErrorCategory.UPSTREAM_FAILURE: (ErrorCode.FETCH_FAILED, ErrorCode.OCR_FAILED),
-        ErrorCategory.UPSTREAM_TIMEOUT: (ErrorCode.FETCH_TIMEOUT,),
+        ErrorCategory.UPSTREAM_FAILURE: (
+            ErrorCode.FETCH_FAILED,
+            ErrorCode.MODEL_OUTPUT_INVALID,
+            ErrorCode.MODEL_PROVIDER_FAILED,
+            ErrorCode.OCR_FAILED,
+        ),
+        ErrorCategory.UPSTREAM_TIMEOUT: (ErrorCode.FETCH_TIMEOUT, ErrorCode.MODEL_TIMEOUT),
         ErrorCategory.SERVICE_UNAVAILABLE: (
             ErrorCode.APPLICATION_DECISION_PERSISTENCE_FAILED,
             ErrorCode.APPLICATION_RECORD_PERSISTENCE_FAILED,
@@ -344,6 +355,9 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
             ErrorCode.IDENTITY_PERSISTENCE_FAILED,
             ErrorCode.JOB_POSTING_PERSISTENCE_FAILED,
             ErrorCode.MESSAGE_DRAFT_INPUT_UNAVAILABLE,
+            ErrorCode.MODEL_BUDGET_EXCEEDED,
+            ErrorCode.MODEL_NOT_CONFIGURED,
+            ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
             ErrorCode.PDF_GENERATION_FAILED,
             ErrorCode.PDF_RENDER_FAILED,
             ErrorCode.RESUME_PDF_PERSISTENCE_FAILED,

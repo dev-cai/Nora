@@ -22,6 +22,7 @@ class LayerRule:
     relative_path: Path
     allowed_app_prefixes: frozenset[str]
     standard_library_only: bool
+    allowed_third_party_roots: frozenset[str] = frozenset()
 
 
 LAYER_RULES = (
@@ -36,12 +37,14 @@ LAYER_RULES = (
         relative_path=Path("app/ports"),
         allowed_app_prefixes=frozenset({"app.domain", "app.ports"}),
         standard_library_only=True,
+        allowed_third_party_roots=frozenset({"pydantic"}),
     ),
     LayerRule(
         name="application",
         relative_path=Path("app/application"),
         allowed_app_prefixes=frozenset({"app.application", "app.domain", "app.ports"}),
         standard_library_only=True,
+        allowed_third_party_roots=frozenset({"pydantic"}),
     ),
     LayerRule(
         name="infrastructure",
@@ -68,8 +71,8 @@ RULES_BY_NAME = {rule.name: rule for rule in LAYER_RULES}
 
 FORBIDDEN_FRAMEWORK_IMPORTS = {
     "domain": frozenset({"asyncpg", "fastapi", "httpx", "langgraph", "pydantic", "sqlalchemy"}),
-    "ports": frozenset({"asyncpg", "fastapi", "httpx", "langgraph", "pydantic", "sqlalchemy"}),
-    "application": frozenset({"asyncpg", "fastapi", "langgraph", "pydantic", "sqlalchemy"}),
+    "ports": frozenset({"asyncpg", "fastapi", "httpx", "langgraph", "sqlalchemy"}),
+    "application": frozenset({"asyncpg", "fastapi", "langgraph", "sqlalchemy"}),
     "infrastructure": frozenset({"fastapi"}),
 }
 
@@ -174,7 +177,11 @@ def package_dependency_violations(root: Path, rule: LayerRule) -> set[str]:
         if imported_root == "app":
             allowed = _matches_prefix(reference.imported_module, rule.allowed_app_prefixes)
         else:
-            allowed = not rule.standard_library_only or imported_root in stdlib_module_names
+            allowed = (
+                not rule.standard_library_only
+                or imported_root in stdlib_module_names
+                or imported_root in rule.allowed_third_party_roots
+            )
         if not allowed:
             relative_source = reference.source_path.relative_to(root)
             violations.add(
@@ -281,6 +288,21 @@ def test_domain_rule_rejects_outer_layer_and_third_party(tmp_path: Path) -> None
     assert len(violations) == 2
     assert any("app.application.identity" in violation for violation in violations)
     assert any("pendulum" in violation for violation in violations)
+
+
+@pytest.mark.parametrize("rule_name", ["ports", "application"])
+def test_inner_model_layers_allow_only_pydantic_as_third_party(
+    tmp_path: Path,
+    rule_name: str,
+) -> None:
+    rule = RULES_BY_NAME[rule_name]
+    source_path = tmp_path / rule.relative_path / "model_schema.py"
+    source_path.parent.mkdir(parents=True)
+    source_path.write_text("from pydantic import BaseModel\nimport openai\n", encoding="utf-8")
+
+    violations = package_dependency_violations(tmp_path, rule)
+
+    assert violations == {f"{rule.relative_path}/model_schema.py:2 imports openai"}
 
 
 def test_framework_blacklists_remain_explicit_supplementary_guards(tmp_path: Path) -> None:

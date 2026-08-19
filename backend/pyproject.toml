@@ -68,6 +68,9 @@ select = ["E", "F", "I"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 cache_dir = ".cache/pytest"
+markers = [
+    "dynamic_provider: opt-in test that calls an external provider with explicit credentials",
+]
 
 [tool.mypy]
 python_version = "3.11"

@@ -107,6 +107,18 @@ Pydantic Schema、引用归属和 Application Policy 校验，校验失败不得
 - 普通 CI 只使用 Fake/Recorded 契约证据；真实 Chat/Embedding smoke 只在显式 Secret 环境运行。没有真实凭据时必须记录
   `not run`，不能把 Fake 结果写成 Provider 动态通过。
 
+#85 将 Chat 边界实现为 `ModelPort.generate_structured(request, output_type)`：Application 拥有版本化 Prompt、输入 token 上限、
+输出 token 上限、temperature 和 Pydantic 输出 Schema；Infrastructure 只接受业务空间 ID，并固定拼接北京地域
+`{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1` 与 `qwen3.8-max`，不得从运行时配置换模或跨地域。
+Adapter 默认 30 秒 timeout，对连接错误、timeout、`429` 和 `5xx` 最多重试
+一次并加入短抖动；认证/权限/其他 `4xx`、预算和输出校验失败不重试。调用固定关闭思考模式，不请求或保存 chain-of-thought。
+调用前以请求声明的最大 token 和配置中经审查、只允许向上调整的单价执行
+人民币 0.50 元单次软预算，月度人民币 20 元仍由 Provider 控制台执行，不在 Nora 内新增成本仓库。缺少 Secret 时只让模型调用以
+稳定错误失败，不影响 M3/M4 组合与启动。
+
+当前只交付固定无敏感正文的 Application 连通性探测、Fake Adapter 和显式凭据动态 smoke，证明 Port 到真实 Provider 的
+结构化调用链；探测结果不写入业务事实，也不表示 AI 人岗分析、Embedding、RAG、Tool Calling 或 Agent Runtime 已交付。
+
 本决策依据以下官方资料形成；价格、模型、地域或数据条款发生实质变化时停止新增模型调用并重新审查：
 
 - [百炼模型与地域](https://help.aliyun.com/zh/model-studio/models)
@@ -177,7 +189,9 @@ flowchart TB
 强制规则：
 
 - Domain 只使用 Python 标准库和领域自身类型。
-- Application 可以依赖 Domain 和 Application Ports，不依赖具体 Adapter。
+- Application 可以依赖 Domain、Application Ports 和经 D-007 审批的 Pydantic 结构化输出 Schema，不依赖具体 Adapter；Ports
+  只为 `ModelPort` 的 Provider-neutral 泛型输出引用 Pydantic，不得引入模型 Provider SDK。架构门禁对两个内层只开放
+  `pydantic` 这一项第三方根模块，FastAPI、HTTP client、ORM、Agent Runtime 与 Provider SDK 仍属于外层。
 - Agent Runtime 属于外层编排模块，只保存 ID、版本和结果引用。
 - ORM Model、API DTO、Domain Entity、Application Command、Agent State 必须是不同类型。
 - 跨上下文交互使用 ID、明确 DTO、领域事件或 Application Service，不共享 ORM Model 和 Repository。
