@@ -82,7 +82,8 @@ Checkpoint，但不拥有业务事实，也不是 M2-M5 的默认组件。
 独立受限进程，负责浏览器自动化或外部连接器。只读采集与外部写动作分离；遇到验证码或不确定状态立即转人工。
 
 ### Model Gateway（模型网关）
-Provider 无关的模型访问层。负责请求路由、Prompt 版本管理、成本预算和响应校验。DeepSeek 等 Provider 由配置选择。
+Provider 无关的模型访问概念。在 Nora 中由最小 `ModelPort` 与受控 Provider Adapter 承载；Prompt/Schema 版本、成本预算和
+响应校验属于调用边界，具体首个 Provider 以架构决策 D-007 为准。
 
 ---
 
@@ -95,7 +96,8 @@ Provider 无关的模型访问层。负责请求路由、Prompt 版本管理、�
 对 Source Snapshot 进行解析和分片后得到的版本化文本片段。每个 Chunk 引用其来源的 Artifact 版本。
 
 ### Embedding
-将 Chunk 转化为向量表示的过程。M5 在独立 Issue 中先确定模型、版本、维度和归一化契约，再决定持久化 Schema。
+将 Chunk 转化为向量表示的过程。D-007 已冻结首个模型为阿里云百炼北京地域的 `qwen3.7-text-embedding` dense 1024 维；
+持久化 Schema 和索引仍须由独立实现 Issue 验证。
 
 ### pgvector
 PostgreSQL 的向量检索扩展。M5 计划在 Embedding 契约确定后评估并启用，是可重建的派生索引存储。
@@ -198,7 +200,7 @@ GitHub 的代码所有者机制。Nora 的 CODEOWNERS 指向 `@dev-cai`，所有
 | **pgvector** | PostgreSQL 向量检索扩展，M5 在 Embedding 契约确定后计划启用的派生索引方案 |
 | **Milvus / Zilliz** | 专用向量数据库，作为 pgvector 的演进选项（达到触发条件后评估） |
 | **LangGraph** | LLM Agent 编排框架；仅在 Agent Runtime 触发条件成立后评估 |
-| **BGE-M3** | 候选嵌入模型；是否采用须由 M5 Embedding 契约和评测决定 |
+| **BGE-M3** | 已被 D-007 替代的历史嵌入候选；不属于当前首个 Provider 选择 |
 | **pytest** | Python 测试框架 |
 | **ruff** | Python 代码检查和格式化工具 |
 | **uv** | Python 包管理器，替代 pip/poetry |

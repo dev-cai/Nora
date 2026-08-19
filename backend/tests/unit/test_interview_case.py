@@ -19,7 +19,8 @@ from app.domain.followup import (
     InterviewMode,
 )
 
-NOW = datetime(2026, 8, 16, 4, 0, tzinfo=timezone.utc)
+# The use-case create path uses the production clock, so keep this fixture safely future-dated.
+NOW = datetime(2099, 1, 1, 4, 0, tzinfo=timezone.utc)
 STARTS_AT = NOW + timedelta(days=2)
 
 

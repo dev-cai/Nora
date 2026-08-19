@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#171、#174、#183、#184、#185、#186、#187、#224。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#166、#171、#174、#183、#184、#185、#186、#187、#224。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -48,7 +48,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-004 | 初期向量能力 | PostgreSQL + pgvector | M5 | Embedding 契约先于 Schema；索引是可重建派生数据；M2-M4 不依赖向量能力 |
 | D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | 规模触发后评估 | 达到规模或检索隔离触发条件后再引入 |
 | D-006 | Agent 编排 | LangGraph Adapter 候选 | 触发后评估 | 只有多 Tool、分支和暂停/恢复需求成立后引入；不拥有领域事实 |
-| D-007 | 模型访问 | Provider-neutral Model Gateway | M5 | Provider 由配置选择，不绑定未验证版本；M2-M4 无模型也可完成 |
+| D-007 | 模型访问 | 最小 ModelPort + 阿里云百炼北京地域单 Provider | M5 | Chat 使用 `qwen3.8-max`，Embedding 使用 `qwen3.7-text-embedding` 1024 维；M2-M4 无模型也可完成 |
 | D-008 | 异步任务 | Task Queue Port；候选 Adapter 为 Celery + Redis | M5 条件评估 | 仅在指标成立时引入；最终结果不保存在 Celery Result Backend |
 | D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | Current/M2 延伸 | 既有工作台已交付；新增输入确认由 M2 完成，始终通过公开 HTTP API |
 | D-010 | 对象存储 | Object Storage Port + MinIO/S3 首个真实 Adapter | M4 起 | 开发、集成 CI 与 Beta 统一验证私有 MinIO；Application 不依赖具体 SDK |
@@ -62,6 +62,59 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-018 | 类型化错误契约 | 协议无关 `ErrorCode` + `ErrorCategory` 注册表 | #187 / M4 | API 只按 category 映射 HTTP；OpenAPI 枚举是前端类型真源，未知异常固定脱敏 500 |
 | D-019 | Beta 部署与发布 | Host Reverse Proxy/TLS -> localhost Web -> API；GitHub Actions 为唯一 CD 控制面 | #171、#224 / M4 | 只有 Web 发布 localhost 端口；真实 HTTPS public smoke 先于健康指针；不支持容器内生产 ingress |
 | D-020 | Beta 注册与会话安全 | 运维 bootstrap 唯一用户 + 短时 JWT key ring + PostgreSQL 登录限额 | #174、#224 / M4 | 生产关闭公共注册；精确 Origin；API 只信任固定 Web IP `/32` 和单值 forwarded headers |
+
+### 首个模型 Provider 与最小数据边界（D-007 / #166）
+
+截至 2026-08-18，M5 首个真实模型调用只允许使用阿里云百炼按量付费 API 的中国大陆北京地域。Chat 固定
+`qwen3.8-max`，通过 OpenAI 兼容 Chat Completions 的 JSON Schema Structured Output 生成受校验结果；Embedding 固定
+`qwen3.7-text-embedding`、dense 输出和 1024 维。两个模型属于同一 Provider、同一地域和同一账单边界；模型别名、地域、
+维度或 Provider 的任何变化都必须先通过新的 Architecture Review，不能在实现 Issue 中静默替换。
+
+选择依据与拒绝项：
+
+- 百炼官方文档明确提供 JSON Schema 结构化输出、OpenAI 兼容调用和 `qwen3.7-text-embedding` 的 1024 维输出；
+- 按量付费 API 的官方隐私说明承诺不将客户数据用于模型训练，并说明传输数据加密；Nora 不使用数据条款不同的 Coding Plan
+  或 Token Plan 个人版，也不宣称 Provider 零保留；
+- 中国大陆北京地域可直接服务当前开发与 Beta 边界，API Key、Endpoint 和模型均不得跨地域混用；
+- OpenAI 直接 API 不作为首个 Provider，因为其 2026-08-18 官方支持国家与地区列表不包含中国大陆；
+- 不引入第二 Chat/Embedding Provider、本地模型、fallback chain、动态路由、托管知识库、Provider 文件存储或 Reranker。
+
+允许发送的数据仅限当前 Use Case 明确选择并在请求前完成 owner/版本校验的以下内容：
+
+| 用途 | 允许发送 | 禁止发送 |
+| :--- | :--- | :--- |
+| AI 人岗分析 | 岗位正文、已确认岗位要求、用户明确选择的主档/简历字段、确定性报告字段 | 密码、JWT、API Key、内部日志、审计正文、无关联系方式、未选择的简历或主档字段 |
+| RAG | 用户可见的 Source Chunk、查询文本、最小 source/version/locator 引用 | 原始文件字节、对象存储键、跨用户内容、已删除/不可见 Source、无关 Artifact |
+| 诊断与计量 | 模型 ID、Prompt/Schema 版本、Token 用量、耗时、低基数错误分类 | Prompt/Response 正文、chain-of-thought、Secret、完整异常正文 |
+
+所有用户材料和检索片段都按不可信 data 放入用户消息或结构化字段，不能拼入系统指令。Nora 只调用无托管会话状态的
+Chat Completions 与 Embeddings 接口，不启用百炼应用、知识库、文件托管、联网搜索或 Tool；模型输出必须再次经过本地
+Pydantic Schema、引用归属和 Application Policy 校验，校验失败不得发布业务对象。
+
+凭据、预算与失败边界：
+
+- 实现只读取 `DASHSCOPE_API_KEY` 的受控 Secret 注入，不把值写入仓库、数据库、日志、Prompt、异常或命令参数；开发环境可用
+  进程环境变量，Beta 继承 D-019 的 root-owned Secret 文件和唯一消费者权限；
+- `DASHSCOPE_API_KEY` 由 operator 在百炼控制台创建、轮换和撤销：先创建新 Key、更新受权限保护的 Secret 文件并验证一次受控
+  连接，再撤销旧 Key；每次操作只记录 Secret 类别、版本、操作者、时间、消费者和验证结果，不记录 Key 值。轮换或撤销失败时
+  保留旧 Key 直到新 Key 验证成功，Secret 缺失或已撤销统一进入稳定失败，不影响 M3/M4；
+- Chat 单次应用层软预算为人民币 0.50 元，单次 Embedding ingestion 软预算为人民币 0.20 元，月度总软预算为人民币
+  20 元；请求前按当前公开单价和最大 Token 估算，预计超限时不调用，Provider 控制台另设置不高于该月度值的费用预警/额度；
+- 默认 timeout 由 #85 固定；只对连接错误、`429` 和明确 `5xx` 做至多一次带抖动重试，不重试认证、权限、输入、Schema
+  或预算错误；
+- Secret 缺失、超预算、Provider/区域不可用、限流或输出无效时，AI/RAG Use Case 返回稳定失败且允许显式重试，M3/M4
+  确定性报告、投递材料和面试记录继续可用；失败不能伪造成 `unknown` 分析或成功版本；
+- 普通 CI 只使用 Fake/Recorded 契约证据；真实 Chat/Embedding smoke 只在显式 Secret 环境运行。没有真实凭据时必须记录
+  `not run`，不能把 Fake 结果写成 Provider 动态通过。
+
+本决策依据以下官方资料形成；价格、模型、地域或数据条款发生实质变化时停止新增模型调用并重新审查：
+
+- [百炼模型与地域](https://help.aliyun.com/zh/model-studio/models)
+- [千问结构化输出](https://help.aliyun.com/zh/model-studio/qwen-structured-output)
+- [文本 Embedding 同步接口](https://help.aliyun.com/zh/model-studio/text-embedding-synchronous-api)
+- [百炼模型价格](https://help.aliyun.com/zh/model-studio/model-pricing)
+- [百炼合规资质与隐私说明](https://help.aliyun.com/zh/model-studio/privacy-notice)
+- [OpenAI API 支持国家和地区](https://developers.openai.com/api/docs/supported-countries)
 
 ## 5. 系统上下文
 
@@ -563,7 +616,7 @@ flowchart LR
     Input["不可信来源"] --> Snapshot["Source Snapshot"]
     Snapshot --> Parse["解析与规范化"]
     Parse --> Chunk["Versioned Chunks"]
-    Chunk --> Embed["BGE-M3 Embedding"]
+    Chunk --> Embed["qwen3.7-text-embedding (1024d)"]
     Embed --> Index["pgvector / Milvus Index"]
     Query["业务查询"] --> Retrieve["Hybrid Retrieve"]
     Index --> Retrieve
@@ -1482,7 +1535,7 @@ M5 条件: Client → API → Redis/Task Queue → Worker → PostgreSQL / Objec
 - 第三方身份 Provider、Session/OAuth 和生产身份联邦；
 - Celery Broker、重试、取消和可靠事件发布；
 - Artifact 之外其他用户数据的导出、保留与删除策略；
-- BGE-M3 部署方式、Reranker 和检索 Benchmark；
+- Reranker 和检索 Benchmark；
 - Milvus 引入阈值与迁移方案；
-- Model Gateway Provider、Prompt 版本和成本预算；
+- #85 的最小 ModelPort、Prompt/Schema 版本和 D-007 预算执行；
 - 浏览器与飞书集成的授权和安全模型。
