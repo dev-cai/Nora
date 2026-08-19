@@ -31,7 +31,7 @@
       "recall@5": 0.0,
       "citation_precision@5": 0.0,
       "unknown_false_positive_rate": 0.25,
-      "mean_latency_us": 174.12,
+      "mean_latency_us": 164.01,
       "cost_usd": 0.0
     },
     "lexical": {
@@ -45,7 +45,7 @@
       "recall@5": 0.5625,
       "citation_precision@5": 0.5417,
       "unknown_false_positive_rate": 0.0,
-      "mean_latency_us": 21.18,
+      "mean_latency_us": 20.46,
       "cost_usd": 0.0
     }
   },

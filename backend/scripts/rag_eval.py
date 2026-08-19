@@ -47,6 +47,25 @@ def _lexical(query: Counter[str], text: Counter[str]) -> float:
     return overlap / sum(query.values())
 
 
+def _rrf(
+    vector_ranked: list[tuple[dict[str, Any], float]],
+    lexical_ranked: list[tuple[dict[str, Any], float]],
+    *,
+    constant: int = 60,
+) -> list[tuple[dict[str, Any], float]]:
+    """Fuse two deterministic rankings for the offline Hybrid decision only."""
+    scores: dict[str, float] = {}
+    items: dict[str, dict[str, Any]] = {}
+    for ranked in (vector_ranked, lexical_ranked):
+        for rank, (item, _score) in enumerate(ranked, start=1):
+            items[item["id"]] = item
+            scores[item["id"]] = scores.get(item["id"], 0.0) + 1 / (constant + rank)
+    return sorted(
+        ((items[item_id], score) for item_id, score in scores.items()),
+        key=lambda pair: (-pair[1], pair[0]["ordinal"], pair[0]["id"]),
+    )
+
+
 async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
     from app.infrastructure.embedding import DeterministicEmbeddingAdapter
 
@@ -86,6 +105,7 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
             key=lambda pair: (-pair[1], pair[0]["ordinal"], pair[0]["id"]),
         )
         lexical_elapsed_us = (time.perf_counter_ns() - started) / 1000
+        hybrid_ranked = _rrf(vector_ranked, lexical_ranked)
         relevant = set(query["relevant_chunk_ids"])
         row: dict[str, Any] = {
             "id": query["id"],
@@ -108,6 +128,12 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
                 "top": [
                     {"chunk_id": item["id"], "score": round(score, 6)}
                     for item, score in lexical_ranked[: max(ks)]
+                ],
+            },
+            "hybrid": {
+                "top": [
+                    {"chunk_id": item["id"], "score": round(score, 6)}
+                    for item, score in hybrid_ranked[: max(ks)]
                 ],
             },
         }

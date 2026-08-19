@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
-from scripts.rag_eval import evaluate, load_fixture
+from scripts.rag_eval import _rrf, evaluate, load_fixture
 
 FIXTURE = Path(__file__).parents[1] / "fixtures" / "rag_eval_v1.json"
 RESULTS = FIXTURE.with_name("rag_eval_v1.results.json")
@@ -46,6 +46,13 @@ async def test_evaluation_is_repeatable_and_preserves_negative_filters() -> None
 
 def test_fixture_is_valid_json() -> None:
     json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+
+def test_rrf_is_deterministic_and_keeps_both_rankings() -> None:
+    vector = [({"id": "a", "ordinal": 0}, 0.9), ({"id": "b", "ordinal": 1}, 0.8)]
+    lexical = [({"id": "b", "ordinal": 1}, 0.7), ({"id": "c", "ordinal": 2}, 0.6)]
+    fused = _rrf(vector, lexical)
+    assert [item["id"] for item, _score in fused] == ["b", "a", "c"]
 
 
 def test_checked_in_result_snapshot_records_the_baseline_decision() -> None:
