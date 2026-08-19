@@ -84,7 +84,14 @@ class DashScopeChatAdapter(ModelPort):
             self._validate_output_type(output_type)
             request_payload = _chat_payload(request, output_type)
             self._validate_preflight(request, request_payload)
-            payload = await self._request_with_retry(request_payload)
+            try:
+                async with asyncio.timeout(self._timeout_seconds):
+                    payload = await self._request_with_retry(request_payload)
+            except TimeoutError:
+                raise ModelError(
+                    "Model provider timed out",
+                    ErrorCode.MODEL_TIMEOUT,
+                ) from None
             result = self._validated_output(payload, output_type)
         except ModelError as exc:
             self._log_result(
@@ -140,12 +147,11 @@ class DashScopeChatAdapter(ModelPort):
         ) as client:
             for attempt in range(_MAX_ATTEMPTS):
                 try:
-                    async with asyncio.timeout(self._timeout_seconds):
-                        response = await client.post(
-                            _chat_completions_url(self._workspace_id),
-                            headers=headers,
-                            json=request_payload,
-                        )
+                    response = await client.post(
+                        _chat_completions_url(self._workspace_id),
+                        headers=headers,
+                        json=request_payload,
+                    )
                 except (TimeoutError, httpx.TimeoutException):
                     if attempt + 1 < _MAX_ATTEMPTS:
                         await self._retry_delay()

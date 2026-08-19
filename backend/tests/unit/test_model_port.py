@@ -1,5 +1,6 @@
 """ModelPort, DashScope adapter, budget, retry and redaction tests."""
 
+import asyncio
 import json
 from collections.abc import Callable
 from decimal import Decimal
@@ -56,11 +57,12 @@ def _adapter(
     *,
     api_key: str = API_KEY,
     request_budget: Decimal = Decimal("0.50"),
+    timeout_seconds: float = 1,
 ) -> DashScopeChatAdapter:
     return DashScopeChatAdapter(
         api_key=api_key,
         workspace_id=WORKSPACE_ID,
-        timeout_seconds=1,
+        timeout_seconds=timeout_seconds,
         input_price_cny_per_million_tokens=Decimal("12"),
         output_price_cny_per_million_tokens=Decimal("36"),
         request_budget_cny=request_budget,
@@ -154,6 +156,27 @@ async def test_adapter_retries_timeout_only_once() -> None:
     assert error.value.error_code is ErrorCode.MODEL_TIMEOUT
     assert attempts == 2
     assert error.value.__cause__ is None
+
+
+@pytest.mark.asyncio
+async def test_adapter_timeout_is_one_wall_clock_budget_across_retries() -> None:
+    attempts = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        await asyncio.sleep(0.07)
+        if attempts == 1:
+            return httpx.Response(503, json={"error": "temporary"})
+        return _success_response()
+
+    with pytest.raises(ModelError) as error:
+        await _adapter(handler, timeout_seconds=0.1).generate_structured(
+            _request(), SkillExtraction
+        )
+
+    assert error.value.error_code is ErrorCode.MODEL_TIMEOUT
+    assert attempts == 2
 
 
 @pytest.mark.asyncio

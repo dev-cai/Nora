@@ -152,7 +152,7 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `DASHSCOPE_API_KEY` | 空 | 显式模型 smoke / Settings | 百炼北京地域 API Key；不得提交、记录或传入命令参数，未配置不影响 M3/M4 |
 | `DASHSCOPE_API_KEY_FILE` | 空 | Settings 的受控 Secret 文件入口 | 与直接值互斥；必须是绝对路径、非 symlink、1-16384 bytes 且 group 不可写、others 不可访问 |
 | `DASHSCOPE_WORKSPACE_ID` | 空 | DashScope Chat Adapter | 北京地域业务空间 ID；只接受最长 63 字符的小写 DNS label，Adapter 固定拼接 `cn-beijing.maas.aliyuncs.com` |
-| `DASHSCOPE_CHAT_TIMEOUT_SECONDS` | `30` | DashScope Chat Adapter | 允许 `(0, 60]` 秒；timeout 最多重试一次后返回稳定失败 |
+| `DASHSCOPE_CHAT_TIMEOUT_SECONDS` | `30` | DashScope Chat Adapter | 单次调用总墙钟允许 `(0, 60]` 秒；timeout 最多重试一次后返回稳定失败 |
 | `DASHSCOPE_CHAT_INPUT_PRICE_CNY_PER_MILLION_TOKENS` | `12` | 单次预算预检 | 2026-08-19 官方北京地域每百万输入 token 单价；只允许上调，价格实质变化先停止新增调用并重新审查 |
 | `DASHSCOPE_CHAT_OUTPUT_PRICE_CNY_PER_MILLION_TOKENS` | `36` | 单次预算预检 | 2026-08-19 官方北京地域每百万输出 token 单价；只允许上调，不得用降低配置规避预算 |
 | `DASHSCOPE_CHAT_REQUEST_BUDGET_CNY` | `0.50` | 单次预算预检 | 只允许 `(0, 0.50]`；月度 20 元软预算在 Provider 控制台执行 |
