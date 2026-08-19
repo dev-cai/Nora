@@ -369,7 +369,11 @@ M4 Current `ApplicationRecord` 只允许从 apply 决定和属于该决定的不
 
 M4 Current `InterviewCase` 只记录用户确认的面试通知事实，并固定属于一条已由用户推进到 `interviewing` 的 ApplicationRecord。每个安排以 v1 创建，后续对尚未开始的安排只追加 v2..N，不覆盖历史；精确版本、最新版本和完整版本列表均按 owner 隔离读取。方式限定为线下、线上或电话：线下必须有地点且无会议链接，线上必须有不含凭据的 HTTPS 链接且无地点，电话不得保存两者；时区使用 IANA 名称，轮次限定 1..20。
 
-InterviewCase 创建和版本追加使用 owner 范围幂等键，请求指纹包含 ApplicationRecord、`base_version` 和全部规范化字段；`(id, version)` 唯一约束保护并发追加，过期或并发失败稳定返回 `interview_case_version_conflict/409`。InterviewCase 与 AuditEvent 在共享事务中原子提交，审计摘要只包含 ApplicationRecord、版本、状态、方式、开始时间、时区和轮次，不记录会议链接或备注。公开接口为 `POST /application-records/{id}/interviews`、`GET /interviews`、`GET /interviews/{id}`、`POST/GET /interviews/{id}/versions` 与 `GET /interviews/{id}/versions/{version}`；不包含邮件/日历读取、通知发送、面试准备、复盘、地图或天气 Provider。
+InterviewCase 创建和版本追加使用 owner 范围幂等键，请求指纹包含 ApplicationRecord、`base_version` 和全部规范化字段；`(id, version)` 唯一约束保护并发追加，过期或并发失败稳定返回 `interview_case_version_conflict/409`。InterviewCase 与 AuditEvent 在共享事务中原子提交，审计摘要只包含 ApplicationRecord、版本、状态、方式、开始时间、时区和轮次，不记录会议链接或备注。公开接口为 `POST /application-records/{id}/interviews`、`GET /interviews`、`GET /interviews/{id}`、`POST/GET /interviews/{id}/versions` 与 `GET /interviews/{id}/versions/{version}`；不包含邮件/日历读取、通知发送、复盘、地图或天气 Provider。
+
+M5 Current `InterviewPreparation` 固定 InterviewCase、ApplicationRecord、DecisionCase 和可用 DecisionReport 的精确身份，调用 Core-3 `KnowledgeRagService` 检索 owner 范围的可用 Source Chunk。生成器只发布项目深挖、技术栈与基础、简历风险与反问三类受控主题，每项包含 priority、reason、预计投入、建议、grounded/unknown 状态和 Retrieval citation。无证据或模型不可用时仍发布明确的 `unknown` 与通用建议，不把建议伪装为来源事实。
+
+每次刷新都向 PostgreSQL 追加新的准备版本，不覆盖历史；版本内容以 JSONB 保存，citation 固定 Source ID/版本、Chunk ID、locator、摘要和检索分数。读取最新、列表和精确版本均先验证 InterviewCase owner，跨用户对象统一不可见。公开接口为 `POST/GET /interviews/{id}/preparation`、`GET /interviews/{id}/preparation/versions` 与 `GET /interviews/{id}/preparation/versions/{version}`。本切片不包含题库编排、模拟面试评分、面试复盘、出行或外部写。
 
 ### 简历模板、PDF 与 MessageDraft
 

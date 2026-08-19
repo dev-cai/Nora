@@ -121,7 +121,7 @@ CandidateProfile
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、结构化岗位要求（JobRequirementSnapshot）、受控链接抓取与截图 OCR 输入、Vue 工作台、JD 输入契约，以及 M2 输入、M3 确定性决策、M5.3 固定输入 AI 人岗语义分析、M5 最小 Source→Chunk→Embedding→exact retrieval→grounded/unknown RAG 链路和 M4 投递闭环；公司情报、材料生成、手工投递/面试记录、恢复与隔离已有完整浏览器门禁，并已交付 localhost-only Host Proxy 接入契约、fail-closed 八阶段 Beta 发布/回滚控制面和结构化 ModelPort 调用边界，逐项范围、代码路径和证据只见能力台账 |
+| **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、结构化岗位要求（JobRequirementSnapshot）、受控链接抓取与截图 OCR 输入、Vue 工作台、JD 输入契约，以及 M2 输入、M3 确定性决策、M5.3 固定输入 AI 人岗语义分析、M5 最小 Source→Chunk→Embedding→exact retrieval→grounded/unknown RAG 链路、基于该检索链路的版本化面试准备和 M4 投递闭环；公司情报、材料生成、手工投递/面试记录、恢复与隔离已有完整浏览器门禁，并已交付 localhost-only Host Proxy 接入契约、fail-closed 八阶段 Beta 发布/回滚控制面和结构化 ModelPort 调用边界，逐项范围、代码路径和证据只见能力台账 |
 | **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | 真实 Beta Environment/Runner 供应与首次公网发布，M5 Evidence/RAG、Agent Runtime 和其他 AI 增强 |
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | 外部平台写入、深度面试复盘、实时出行、Agent Runtime、Milvus 和服务拆分 |
 

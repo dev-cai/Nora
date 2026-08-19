@@ -5,6 +5,7 @@ import { api } from "@/api/client"
 import type {
   CreateInterviewCaseInput,
   InterviewCase,
+  InterviewPreparation,
   UpdateInterviewCaseInput,
 } from "@/api/types"
 
@@ -12,6 +13,8 @@ export const useInterviewsStore = defineStore("interviews", () => {
   const items = ref<InterviewCase[]>([])
   const current = ref<InterviewCase | null>(null)
   const versions = ref<InterviewCase[]>([])
+  const preparation = ref<InterviewPreparation | null>(null)
+  const preparationVersions = ref<InterviewPreparation[]>([])
   const total = ref(0)
   const loading = ref(false)
   const saving = ref(false)
@@ -31,6 +34,8 @@ export const useInterviewsStore = defineStore("interviews", () => {
   async function fetchInterview(id: string): Promise<InterviewCase> {
     current.value = null
     versions.value = []
+    preparation.value = null
+    preparationVersions.value = []
     loading.value = true
     try {
       const value = await api.getInterview(id)
@@ -45,6 +50,32 @@ export const useInterviewsStore = defineStore("interviews", () => {
     const values = await api.listInterviewVersions(id)
     versions.value = values
     return values
+  }
+
+  async function fetchPreparation(id: string): Promise<InterviewPreparation | null> {
+    try {
+      preparation.value = await api.getInterviewPreparation(id)
+      preparationVersions.value = await api.listInterviewPreparationVersions(id)
+      return preparation.value
+    } catch (error) {
+      if (error instanceof Error && "status" in error && (error as { status?: number }).status === 404) {
+        preparation.value = null
+        preparationVersions.value = []
+        return null
+      }
+      throw error
+    }
+  }
+
+  async function generatePreparation(id: string): Promise<InterviewPreparation> {
+    saving.value = true
+    try {
+      preparation.value = await api.generateInterviewPreparation(id)
+      preparationVersions.value = await api.listInterviewPreparationVersions(id)
+      return preparation.value
+    } finally {
+      saving.value = false
+    }
   }
 
   async function create(
@@ -94,6 +125,8 @@ export const useInterviewsStore = defineStore("interviews", () => {
     items.value = []
     current.value = null
     versions.value = []
+    preparation.value = null
+    preparationVersions.value = []
     total.value = 0
     loading.value = false
     saving.value = false
@@ -110,6 +143,10 @@ export const useInterviewsStore = defineStore("interviews", () => {
     fetchInterviews,
     fetchInterview,
     fetchVersions,
+    preparation,
+    preparationVersions,
+    fetchPreparation,
+    generatePreparation,
     create,
     update,
     reset,

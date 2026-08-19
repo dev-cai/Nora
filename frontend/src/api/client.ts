@@ -31,6 +31,7 @@ import type {
   JobRequirementSnapshotList,
   InterviewCase,
   InterviewCaseList,
+  InterviewPreparation,
   EditMessageDraftInput,
   GenerateMessageDraftInput,
   MessageDraft,
@@ -520,4 +521,15 @@ export const api = {
       body: JSON.stringify(input),
     },
   ),
+  getInterviewPreparation: (interviewId: string) =>
+    request<InterviewPreparation>(`/interviews/${encodeURIComponent(interviewId)}/preparation`),
+  listInterviewPreparationVersions: (interviewId: string) =>
+    request<InterviewPreparation[]>(
+      `/interviews/${encodeURIComponent(interviewId)}/preparation/versions`,
+    ),
+  generateInterviewPreparation: (interviewId: string) =>
+    request<InterviewPreparation>(
+      `/interviews/${encodeURIComponent(interviewId)}/preparation`,
+      { method: "POST" },
+    ),
 }

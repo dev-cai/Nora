@@ -573,3 +573,41 @@ export interface InterviewCaseList {
   page_size: number
   total: number
 }
+
+export type PreparationPriority = "high" | "medium" | "low"
+
+export interface InterviewPreparationCitation {
+  citation_id: string
+  source_id: string
+  source_version: number
+  locator: string
+  excerpt: string
+  score: number
+  url: string
+}
+
+export interface InterviewPreparationTopic {
+  topic_id: string
+  title: string
+  priority: PreparationPriority
+  reason: string
+  estimated_effort_minutes: number
+  status: string
+  suggestion: string
+  citation_ids: string[]
+}
+
+export interface InterviewPreparation {
+  id: string
+  interview_case_id: string
+  interview_case_version: number
+  version: number
+  generator_version: string
+  prompt_version: string
+  decision_case_id: string
+  decision_report_id: string | null
+  decision_report_version: number | null
+  topics: InterviewPreparationTopic[]
+  citations: InterviewPreparationCitation[]
+  created_at: string
+}
