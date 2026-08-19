@@ -3,7 +3,7 @@
 from typing import Protocol
 from uuid import UUID
 
-from app.domain.decision import CompanyAssessment, DecisionCase, DecisionReport
+from app.domain.decision import CompanyAssessment, DecisionCase, DecisionReport, JobFitAnalysis
 
 
 class DecisionCaseRepository(Protocol):
@@ -41,6 +41,20 @@ class DecisionReportRepository(Protocol):
     async def list(self, *, offset: int, limit: int) -> list[DecisionReport]: ...
 
     async def count(self) -> int: ...
+
+    async def commit(self) -> None: ...
+
+
+class JobFitAnalysisRepository(Protocol):
+    """User-scoped immutable AI job-fit analysis storage."""
+
+    async def next_version(self, report_id: UUID) -> int: ...
+
+    async def add(self, analysis: JobFitAnalysis) -> JobFitAnalysis: ...
+
+    async def get_by_generation(self, generation_identity: str) -> JobFitAnalysis | None: ...
+
+    async def get_for_report(self, report_id: UUID) -> JobFitAnalysis | None: ...
 
     async def commit(self) -> None: ...
 

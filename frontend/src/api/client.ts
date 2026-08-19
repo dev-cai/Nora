@@ -25,6 +25,7 @@ import type {
   DecisionReportList,
   JobPosting,
   JobPostingList,
+  JobFitAnalysis,
   JobRequirementSaveInput,
   JobRequirementSnapshot,
   JobRequirementSnapshotList,
@@ -123,6 +124,12 @@ const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
   ocr_failed: "图片识别失败，请更换图片后重试",
   empty_content: "未能从图片或链接中提取到有效内容",
   content_too_large: "提取的正文超过长度限制",
+  model_not_configured: "AI 分析服务尚未配置，确定性报告仍可正常使用",
+  model_provider_failed: "AI 分析服务调用失败，请稍后重试",
+  model_provider_unavailable: "AI 分析服务暂时不可用，请稍后重试",
+  model_timeout: "AI 分析服务响应超时，请稍后重试",
+  model_output_invalid: "AI 返回内容未通过引用校验，请重新生成",
+  model_budget_exceeded: "本次 AI 分析超过调用预算，未生成结果",
 }
 
 const categoryMessages: Record<ServerErrorCategory, string> = {
@@ -324,6 +331,14 @@ export const api = {
     request<DecisionReportList>(`/reports?page=${page}&page_size=${pageSize}`),
   getDecisionReport: (reportId: string) =>
     request<DecisionReport>(`/reports/${encodeURIComponent(reportId)}`),
+  getJobFitAnalysis: async (reportId: string) =>
+    (await request<JobFitAnalysis | undefined>(
+      `/reports/${encodeURIComponent(reportId)}/job-fit-analysis`,
+    )) ?? null,
+  generateJobFitAnalysis: (reportId: string) =>
+    request<JobFitAnalysis>(`/reports/${encodeURIComponent(reportId)}/job-fit-analysis`, {
+      method: "POST",
+    }),
   getApplicationDecision: async (reportId: string) =>
     (await request<ApplicationDecision | undefined>(
       `/reports/${encodeURIComponent(reportId)}/decision`,

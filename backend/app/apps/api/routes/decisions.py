@@ -14,6 +14,8 @@ from app.application.decision import (
     CreateCompanyAssessmentCommand,
     CreateDecisionCaseCommand,
     CreateDecisionCaseUseCase,
+    GenerateJobFitAnalysisCommand,
+    GenerateJobFitAnalysisUseCase,
     GenerateStoredDecisionReportCommand,
     GenerateStoredDecisionReportUseCase,
     GetDecisionReportQuery,
@@ -37,6 +39,8 @@ from app.apps.api.dependencies.decision import (
     get_company_assessment_repository,
     get_decision_case_repository,
     get_decision_report_repository,
+    get_job_fit_analysis_repository,
+    get_model_port,
 )
 from app.apps.api.dependencies.followup import get_application_decision_repository
 from app.apps.api.dependencies.governance import get_audit_event_repository
@@ -51,12 +55,18 @@ from app.apps.api.dependencies.opportunity import (
 )
 from app.apps.api.dependencies.transaction import get_transaction
 from app.apps.api.routes.companies import CompanySnapshotResponse
+from app.domain.base.exceptions import ApplicationError, ErrorCode
 from app.domain.decision import (
     RULE_SET_VERSION,
     CompanyAssessmentStatus,
     DecisionCase,
     DecisionCaseStatus,
     DecisionReport,
+    JobFitAnalysis,
+    JobFitCitation,
+    JobFitCitationSource,
+    JobFitInsight,
+    JobFitLevel,
     ReportCitation,
     ReportFact,
     ReportRecommendation,
@@ -74,10 +84,12 @@ from app.ports.decision import (
     CompanyAssessmentRepository,
     DecisionCaseRepository,
     DecisionReportRepository,
+    JobFitAnalysisRepository,
 )
 from app.ports.followup import ApplicationDecisionRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.knowledge import ArtifactRepository, SourceDocumentRepository
+from app.ports.model import ModelPort
 from app.ports.opportunity import (
     CompanySnapshotRepository,
     JobPostingRepository,
@@ -348,6 +360,82 @@ class DecisionReportListResponse(BaseModel):
     total: int
 
 
+class JobFitCitationResponse(BaseModel):
+    citation_id: str
+    source: JobFitCitationSource
+    object_id: UUID
+    version: int
+    field_path: str
+
+    @classmethod
+    def from_domain(cls, item: JobFitCitation) -> "JobFitCitationResponse":
+        return cls.model_validate(item, from_attributes=True)
+
+
+class JobFitInsightResponse(BaseModel):
+    text: str
+    citation_ids: list[str]
+
+    @classmethod
+    def from_domain(cls, item: JobFitInsight) -> "JobFitInsightResponse":
+        return cls(text=item.text, citation_ids=list(item.citation_ids))
+
+
+class JobFitAnalysisResponse(BaseModel):
+    id: UUID
+    report_id: UUID
+    report_version: int
+    decision_case_id: UUID
+    version: int
+    prompt_version: str
+    provider: str
+    model: str
+    generator_version: str
+    generation_identity: str
+    overall_fit: JobFitLevel
+    overall_fit_reason: JobFitInsightResponse
+    strong_matches: list[JobFitInsightResponse]
+    transferable_evidence: list[JobFitInsightResponse]
+    critical_gaps: list[JobFitInsightResponse]
+    non_blocking_gaps: list[JobFitInsightResponse]
+    resume_actions: list[JobFitInsightResponse]
+    project_deep_dive_risks: list[JobFitInsightResponse]
+    interview_focus: list[JobFitInsightResponse]
+    unknowns: list[JobFitInsightResponse]
+    citations: list[JobFitCitationResponse]
+    generated_at: datetime
+
+    @classmethod
+    def from_domain(cls, analysis: JobFitAnalysis) -> "JobFitAnalysisResponse":
+        def insights(items: tuple[JobFitInsight, ...]) -> list[JobFitInsightResponse]:
+            return [JobFitInsightResponse.from_domain(item) for item in items]
+
+        return cls(
+            id=analysis.id,
+            report_id=analysis.report_id,
+            report_version=analysis.report_version,
+            decision_case_id=analysis.decision_case_id,
+            version=analysis.version,
+            prompt_version=analysis.prompt_version,
+            provider=analysis.provider,
+            model=analysis.model,
+            generator_version=analysis.generator_version,
+            generation_identity=analysis.generation_identity,
+            overall_fit=analysis.overall_fit,
+            overall_fit_reason=JobFitInsightResponse.from_domain(analysis.overall_fit_reason),
+            strong_matches=insights(analysis.strong_matches),
+            transferable_evidence=insights(analysis.transferable_evidence),
+            critical_gaps=insights(analysis.critical_gaps),
+            non_blocking_gaps=insights(analysis.non_blocking_gaps),
+            resume_actions=insights(analysis.resume_actions),
+            project_deep_dive_risks=insights(analysis.project_deep_dive_risks),
+            interview_focus=insights(analysis.interview_focus),
+            unknowns=insights(analysis.unknowns),
+            citations=[JobFitCitationResponse.from_domain(item) for item in analysis.citations],
+            generated_at=analysis.generated_at,
+        )
+
+
 class CreateApplicationDecisionRequest(BaseModel):
     status: ApplicationDecisionStatus
     reason: str | None = Field(default=None, max_length=1_000)
@@ -540,6 +628,100 @@ async def get_decision_report(
         report,
         None if attachment is None else _company_assessment_response(attachment),
     )
+
+
+@report_router.post(
+    "/{report_id}/job-fit-analysis",
+    response_model=JobFitAnalysisResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def generate_job_fit_analysis(
+    report_id: UUID,
+    response: Response,
+    user: User = Depends(get_current_user),
+    analysis_repository: JobFitAnalysisRepository = Depends(get_job_fit_analysis_repository),
+    model: ModelPort = Depends(get_model_port),
+    report_repository: DecisionReportRepository = Depends(get_decision_report_repository),
+    case_repository: DecisionCaseRepository = Depends(get_decision_case_repository),
+    profile_repository: CandidateProfileRepository = Depends(get_candidate_profile_repository),
+    resume_repository: ResumeVersionRepository = Depends(get_resume_version_repository),
+    posting_repository: JobPostingRepository = Depends(get_job_posting_repository),
+    requirement_repository: JobRequirementSnapshotRepository = Depends(
+        get_job_requirement_snapshot_repository
+    ),
+    assessment_repository: CompanyAssessmentRepository = Depends(get_company_assessment_repository),
+    snapshot_repository: CompanySnapshotRepository = Depends(get_company_snapshot_repository),
+) -> JobFitAnalysisResponse:
+    report = await report_repository.get_by_id(report_id)
+    if report is None:
+        raise ApplicationError("Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
+    decision_case = await case_repository.get_by_id(report.decision_case_id)
+    if decision_case is None:
+        raise ApplicationError(
+            "Fixed job-fit inputs are unavailable",
+            error_code=ErrorCode.DECISION_INPUT_UNAVAILABLE,
+        )
+    profile = await profile_repository.get_version(decision_case.candidate_profile_version)
+    resume = await resume_repository.get_by_identity(
+        decision_case.resume_version_id, decision_case.resume_version
+    )
+    posting = await posting_repository.get_by_id(decision_case.job_posting_id)
+    requirements = await requirement_repository.get_by_identity(
+        decision_case.job_requirement_snapshot_id,
+        decision_case.job_requirement_snapshot_version,
+    )
+    if profile is None or resume is None or posting is None or requirements is None:
+        raise ApplicationError(
+            "Fixed job-fit inputs are unavailable",
+            error_code=ErrorCode.DECISION_INPUT_UNAVAILABLE,
+        )
+    company_snapshot = None
+    company_assessment = await assessment_repository.get_for_report(report.id)
+    if company_assessment is not None:
+        company_snapshot = await snapshot_repository.get_by_identity(
+            company_assessment.company_snapshot_id,
+            company_assessment.company_snapshot_version,
+        )
+        if company_snapshot is None:
+            raise ApplicationError(
+                "Fixed company input is unavailable",
+                error_code=ErrorCode.COMPANY_ASSESSMENT_UNAVAILABLE,
+            )
+    result = await GenerateJobFitAnalysisUseCase(analysis_repository, model).execute(
+        GenerateJobFitAnalysisCommand(owner_id=user.id),
+        decision_case=decision_case,
+        report=report,
+        profile=profile,
+        resume=resume,
+        posting=posting,
+        requirements=requirements,
+        company_snapshot=company_snapshot,
+    )
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    return JobFitAnalysisResponse.from_domain(result.analysis)
+
+
+@report_router.get(
+    "/{report_id}/job-fit-analysis",
+    response_model=JobFitAnalysisResponse,
+    responses={status.HTTP_204_NO_CONTENT: {"description": "No AI job-fit analysis"}},
+)
+async def get_job_fit_analysis(
+    report_id: UUID,
+    response: Response,
+    user: User = Depends(get_current_user),
+    analysis_repository: JobFitAnalysisRepository = Depends(get_job_fit_analysis_repository),
+    report_repository: DecisionReportRepository = Depends(get_decision_report_repository),
+) -> JobFitAnalysisResponse | Response:
+    report = await report_repository.get_by_id(report_id)
+    if report is None or report.owner_id != user.id:
+        raise ApplicationError("Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
+    analysis = await analysis_repository.get_for_report(report.id)
+    if analysis is None:
+        response.status_code = status.HTTP_204_NO_CONTENT
+        return response
+    return JobFitAnalysisResponse.from_domain(analysis)
 
 
 @report_router.post(

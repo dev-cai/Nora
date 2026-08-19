@@ -2460,6 +2460,229 @@
         "title": "JdInputPreviewResponse",
         "type": "object"
       },
+      "JobFitAnalysisResponse": {
+        "properties": {
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitCitationResponse"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "critical_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitInsightResponse"
+            },
+            "title": "Critical Gaps",
+            "type": "array"
+          },
+          "decision_case_id": {
+            "format": "uuid",
+            "title": "Decision Case Id",
+            "type": "string"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "generation_identity": {
+            "title": "Generation Identity",
+            "type": "string"
+          },
+          "generator_version": {
+            "title": "Generator Version",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "interview_focus": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitInsightResponse"
+            },
+            "title": "Interview Focus",
+            "type": "array"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "non_blocking_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitInsightResponse"
+            },
+            "title": "Non Blocking Gaps",
+            "type": "array"
+          },
+          "overall_fit": {
+            "$ref": "#/components/schemas/JobFitLevel"
+          },
+          "overall_fit_reason": {
+            "$ref": "#/components/schemas/JobFitInsightResponse"
+          },
+          "project_deep_dive_risks": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitInsightResponse"
+            },
+            "title": "Project Deep Dive Risks",
+            "type": "array"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "report_id": {
+            "format": "uuid",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "report_version": {
+            "title": "Report Version",
+            "type": "integer"
+          },
+          "resume_actions": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitInsightResponse"
+            },
+            "title": "Resume Actions",
+            "type": "array"
+          },
+          "strong_matches": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitInsightResponse"
+            },
+            "title": "Strong Matches",
+            "type": "array"
+          },
+          "transferable_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitInsightResponse"
+            },
+            "title": "Transferable Evidence",
+            "type": "array"
+          },
+          "unknowns": {
+            "items": {
+              "$ref": "#/components/schemas/JobFitInsightResponse"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "report_id",
+          "report_version",
+          "decision_case_id",
+          "version",
+          "prompt_version",
+          "provider",
+          "model",
+          "generator_version",
+          "generation_identity",
+          "overall_fit",
+          "overall_fit_reason",
+          "strong_matches",
+          "transferable_evidence",
+          "critical_gaps",
+          "non_blocking_gaps",
+          "resume_actions",
+          "project_deep_dive_risks",
+          "interview_focus",
+          "unknowns",
+          "citations",
+          "generated_at"
+        ],
+        "title": "JobFitAnalysisResponse",
+        "type": "object"
+      },
+      "JobFitCitationResponse": {
+        "properties": {
+          "citation_id": {
+            "title": "Citation Id",
+            "type": "string"
+          },
+          "field_path": {
+            "title": "Field Path",
+            "type": "string"
+          },
+          "object_id": {
+            "format": "uuid",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/JobFitCitationSource"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "citation_id",
+          "source",
+          "object_id",
+          "version",
+          "field_path"
+        ],
+        "title": "JobFitCitationResponse",
+        "type": "object"
+      },
+      "JobFitCitationSource": {
+        "enum": [
+          "candidate_profile",
+          "resume_version",
+          "job_posting",
+          "job_requirement_snapshot",
+          "decision_report",
+          "company_snapshot"
+        ],
+        "title": "JobFitCitationSource",
+        "type": "string"
+      },
+      "JobFitInsightResponse": {
+        "properties": {
+          "citation_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Citation Ids",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "citation_ids"
+        ],
+        "title": "JobFitInsightResponse",
+        "type": "object"
+      },
+      "JobFitLevel": {
+        "enum": [
+          "strong",
+          "moderate",
+          "weak",
+          "unknown"
+        ],
+        "title": "JobFitLevel",
+        "type": "string"
+      },
       "JobPostingListResponse": {
         "description": "用户范围岗位快照的稳定分页响应。",
         "properties": {
@@ -10460,6 +10683,243 @@
           }
         ],
         "summary": "Create Application Decision",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/{report_id}/job-fit-analysis": {
+      "get": {
+        "operationId": "get_job_fit_analysis_reports__report_id__job_fit_analysis_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFitAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "204": {
+            "description": "No AI job-fit analysis"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Authentication required or failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request origin is not allowed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Job Fit Analysis",
+        "tags": [
+          "reports"
+        ]
+      },
+      "post": {
+        "operationId": "generate_job_fit_analysis_reports__report_id__job_fit_analysis_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobFitAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Authentication required or failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request origin is not allowed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generate Job Fit Analysis",
         "tags": [
           "reports"
         ]

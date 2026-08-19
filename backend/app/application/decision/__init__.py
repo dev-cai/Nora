@@ -17,6 +17,11 @@ from .company import (
     CreateCompanyAssessmentCommand,
     ReportCompanyAssessment,
 )
+from .job_fit_service import (
+    GenerateJobFitAnalysisCommand,
+    GenerateJobFitAnalysisResult,
+    GenerateJobFitAnalysisUseCase,
+)
 from .report_service import (
     GenerateDecisionReportCommand,
     GenerateDecisionReportResult,
@@ -44,6 +49,9 @@ __all__ = (
     "GenerateDecisionReportUseCase",
     "GenerateStoredDecisionReportCommand",
     "GenerateStoredDecisionReportUseCase",
+    "GenerateJobFitAnalysisCommand",
+    "GenerateJobFitAnalysisResult",
+    "GenerateJobFitAnalysisUseCase",
     "GetDecisionCaseQuery",
     "GetDecisionCaseUseCase",
     "GetDecisionReportQuery",

@@ -1,7 +1,8 @@
 import { createPinia, setActivePinia } from "pinia"
 
 import { api } from "@/api/client"
-import type { ApplicationDecision, DecisionAnalysis, DecisionCase, DecisionReport } from "@/api/types"
+import { ApiError } from "@/api/client"
+import type { ApplicationDecision, DecisionAnalysis, DecisionCase, DecisionReport, JobFitAnalysis } from "@/api/types"
 import { useAnalysisStore } from "@/stores/analysis"
 
 const decisionCase: DecisionCase = {
@@ -54,6 +55,31 @@ const decision: ApplicationDecision = {
   decided_at: "2026-08-12T00:00:03Z",
 }
 
+const jobFit: JobFitAnalysis = {
+  id: "job-fit-1",
+  report_id: "report-1",
+  report_version: 1,
+  decision_case_id: "case-1",
+  version: 1,
+  prompt_version: "job-fit-v1",
+  provider: "dashscope-cn-beijing",
+  model: "qwen3.8-max",
+  generator_version: "job-fit-analysis-v1",
+  generation_identity: "a".repeat(64),
+  overall_fit: "moderate",
+  overall_fit_reason: { text: "Python 匹配。", citation_ids: ["skill"] },
+  strong_matches: [],
+  transferable_evidence: [],
+  critical_gaps: [],
+  non_blocking_gaps: [],
+  resume_actions: [],
+  project_deep_dive_risks: [],
+  interview_focus: [],
+  unknowns: [],
+  citations: [{ citation_id: "skill", source: "candidate_profile", object_id: "profile-1", version: 3, field_path: "skills" }],
+  generated_at: "2026-08-12T00:00:04Z",
+}
+
 describe("analysis store", () => {
   beforeEach(() => setActivePinia(createPinia()))
 
@@ -97,6 +123,7 @@ describe("analysis store", () => {
       resolveReport = resolve
     }))
     vi.spyOn(api, "getApplicationDecision").mockResolvedValue(null)
+    vi.spyOn(api, "getJobFitAnalysis").mockResolvedValue(null)
     const store = useAnalysisStore()
     store.$patch({
       currentCase: decisionCase,
@@ -121,6 +148,7 @@ describe("analysis store", () => {
   it("restores and records the immutable application decision", async () => {
     vi.spyOn(api, "getDecisionReport").mockResolvedValue(report)
     vi.spyOn(api, "getApplicationDecision").mockResolvedValue(decision)
+    vi.spyOn(api, "getJobFitAnalysis").mockResolvedValue(jobFit)
     const createDecision = vi.spyOn(api, "createApplicationDecision").mockResolvedValue(decision)
     const store = useAnalysisStore()
 
@@ -128,10 +156,47 @@ describe("analysis store", () => {
     await store.decide("report-1", { status: "skip", reason: "岗位地点不合适" })
 
     expect(store.decision).toEqual(decision)
+    expect(store.jobFitAnalysis).toEqual(jobFit)
     expect(createDecision).toHaveBeenCalledWith(
       "report-1",
       { status: "skip", reason: "岗位地点不合适" },
       expect.any(String),
     )
+  })
+
+  it("generates and recovers one immutable AI analysis", async () => {
+    vi.spyOn(api, "getDecisionReport").mockResolvedValue(report)
+    vi.spyOn(api, "getApplicationDecision").mockResolvedValue(null)
+    vi.spyOn(api, "getJobFitAnalysis").mockResolvedValue(jobFit)
+    const generate = vi.spyOn(api, "generateJobFitAnalysis").mockResolvedValue(jobFit)
+    const store = useAnalysisStore()
+
+    await store.fetchReport("report-1")
+    await store.generateJobFit("report-1")
+
+    expect(store.jobFitAnalysis).toEqual(jobFit)
+    expect(generate).toHaveBeenCalledWith("report-1")
+    expect(store.jobFitGenerating).toBe(false)
+  })
+
+  it("keeps the deterministic report when AI recovery and generation fail", async () => {
+    const unavailable = new ApiError(
+      "AI 分析服务暂时不可用，请稍后重试",
+      503,
+      "model_provider_unavailable",
+    )
+    vi.spyOn(api, "getDecisionReport").mockResolvedValue(report)
+    vi.spyOn(api, "getApplicationDecision").mockResolvedValue(null)
+    vi.spyOn(api, "getJobFitAnalysis").mockRejectedValue(unavailable)
+    vi.spyOn(api, "generateJobFitAnalysis").mockRejectedValue(unavailable)
+    const store = useAnalysisStore()
+
+    await store.fetchReport("report-1")
+    await expect(store.generateJobFit("report-1")).rejects.toBe(unavailable)
+
+    expect(store.report).toEqual(report)
+    expect(store.decision).toBeNull()
+    expect(store.jobFitAnalysis).toBeNull()
+    expect(store.jobFitError).toContain("暂时不可用")
   })
 })

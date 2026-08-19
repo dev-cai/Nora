@@ -71,6 +71,8 @@ flowchart LR
 - `POST /decisions/{id}/reports`
 - `GET /reports/{id}`
 - `GET /reports`
+- `POST /reports/{id}/job-fit-analysis`
+- `GET /reports/{id}/job-fit-analysis`
 - `GET /templates`
 - `GET /templates/{id}/versions/{version}`
 - `POST /resume-variants`
@@ -95,7 +97,7 @@ flowchart LR
 - `GET /live`
 - `GET /ready`
 
-简历版本、声明式模板、ResumeVariant、确定性 PDF、MessageDraft 与手工 ApplicationRecord 接口均属于 Current。分析、报告与投/不投决定的后端 API 及浏览器页面也属于 Current。招聘平台自动投递仍未交付；前端不得根据路线图伪造响应或绕过未交付 API。
+简历版本、声明式模板、ResumeVariant、确定性 PDF、MessageDraft 与手工 ApplicationRecord 接口均属于 Current。分析、确定性报告、AI JobFitAnalysis、报告内 citation 展示与投/不投决定的后端 API 及浏览器页面也属于 Current。AI 页面将模型推断、建议和未知与确定性规则分区；Provider 失败时只显示局部错误，报告和决定控件继续可用。招聘平台自动投递仍未交付；前端不得根据路线图伪造响应或绕过未交付 API。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
 构建产物，因此只能保存公开配置，禁止写入数据库凭据、签名密钥、Provider Token 或其他秘密。

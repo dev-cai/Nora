@@ -1,7 +1,7 @@
 import { computed, ref } from "vue"
 import { defineStore } from "pinia"
 
-import { api } from "@/api/client"
+import { api, userMessage } from "@/api/client"
 import type {
   ApplicationDecision,
   CreateApplicationDecisionInput,
@@ -9,12 +9,15 @@ import type {
   DecisionAnalysis,
   DecisionCase,
   DecisionReport,
+  JobFitAnalysis,
 } from "@/api/types"
 
 export const useAnalysisStore = defineStore("analysis", () => {
   const currentCase = ref<DecisionCase | null>(null)
   const analysis = ref<DecisionAnalysis | null>(null)
   const report = ref<DecisionReport | null>(null)
+  const jobFitAnalysis = ref<JobFitAnalysis | null>(null)
+  const jobFitError = ref("")
   const decision = ref<ApplicationDecision | null>(null)
   const reports = ref<DecisionReport[]>([])
   const total = ref(0)
@@ -23,6 +26,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
   const generating = ref(false)
   const listLoading = ref(false)
   const reportLoading = ref(false)
+  const jobFitGenerating = ref(false)
   const deciding = ref(false)
   const isLoading = computed(
     () => creating.value || analyzing.value || generating.value || listLoading.value || reportLoading.value || deciding.value,
@@ -39,6 +43,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
       currentCase.value = created
       analysis.value = null
       report.value = null
+      jobFitAnalysis.value = null
+      jobFitError.value = ""
       decision.value = null
       return created
     } finally {
@@ -80,7 +86,13 @@ export const useAnalysisStore = defineStore("analysis", () => {
     const request = ++reportRequest
     report.value = null
     decision.value = null
+    jobFitAnalysis.value = null
+    jobFitError.value = ""
     reportLoading.value = true
+    const jobFitRequest = api.getJobFitAnalysis(reportId).then(
+      (value) => ({ value } as const),
+      (error: unknown) => ({ error } as const),
+    )
     try {
       const [loaded, loadedDecision] = await Promise.all([
         api.getDecisionReport(reportId),
@@ -90,9 +102,32 @@ export const useAnalysisStore = defineStore("analysis", () => {
         report.value = loaded
         decision.value = loadedDecision
       }
+      const recoveredJobFit = await jobFitRequest
+      if (request === reportRequest) {
+        if ("value" in recoveredJobFit) {
+          jobFitAnalysis.value = recoveredJobFit.value
+        } else {
+          jobFitError.value = userMessage(recoveredJobFit.error)
+        }
+      }
       return loaded
     } finally {
       if (request === reportRequest) reportLoading.value = false
+    }
+  }
+
+  async function generateJobFit(reportId: string): Promise<JobFitAnalysis> {
+    jobFitGenerating.value = true
+    jobFitError.value = ""
+    try {
+      const generated = await api.generateJobFitAnalysis(reportId)
+      if (report.value?.id === reportId) jobFitAnalysis.value = generated
+      return generated
+    } catch (error) {
+      if (report.value?.id === reportId) jobFitError.value = userMessage(error)
+      throw error
+    } finally {
+      jobFitGenerating.value = false
     }
   }
 
@@ -140,6 +175,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
     currentCase.value = null
     analysis.value = null
     report.value = null
+    jobFitAnalysis.value = null
+    jobFitError.value = ""
     decision.value = null
     reports.value = []
     total.value = 0
@@ -148,6 +185,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     generating.value = false
     listLoading.value = false
     reportLoading.value = false
+    jobFitGenerating.value = false
     deciding.value = false
     pendingDecision = null
   }
@@ -156,6 +194,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
     currentCase,
     analysis,
     report,
+    jobFitAnalysis,
+    jobFitError,
     decision,
     reports,
     total,
@@ -164,12 +204,14 @@ export const useAnalysisStore = defineStore("analysis", () => {
     generating,
     listLoading,
     reportLoading,
+    jobFitGenerating,
     deciding,
     isLoading,
     createCase,
     fetchAnalysis,
     generateReport,
     fetchReport,
+    generateJobFit,
     decide,
     fetchReports,
     reset,
