@@ -1,0 +1,1230 @@
+{
+  "schema_version": "nora-rag-eval-v1",
+  "dataset_version": "2026-08-20",
+  "embedding": {
+    "model": "nora-deterministic",
+    "version": "sha256-v1",
+    "dimension": 64
+  },
+  "parameters": {
+    "ks": [
+      1,
+      3,
+      5
+    ],
+    "unknown_score_threshold": 0.35,
+    "lexical_tokenizer": "lowercase alphanumeric and CJK runs",
+    "decision_rule": "vector-only if Hit@5 >= 0.80 and unknown false-positive rate <= 0.10; otherwise hybrid if lexical is complementary; reranker is out of scope"
+  },
+  "query_count": 28,
+  "positive_query_count": 24,
+  "negative_query_count": 4,
+  "metrics": {
+    "vector": {
+      "hit@1": 0.0,
+      "recall@1": 0.0,
+      "citation_precision@1": 0.0,
+      "hit@3": 0.0,
+      "recall@3": 0.0,
+      "citation_precision@3": 0.0,
+      "hit@5": 0.0,
+      "recall@5": 0.0,
+      "citation_precision@5": 0.0,
+      "unknown_false_positive_rate": 0.25,
+      "mean_latency_us": 174.12,
+      "cost_usd": 0.0
+    },
+    "lexical": {
+      "hit@1": 0.5417,
+      "recall@1": 0.5417,
+      "citation_precision@1": 0.5417,
+      "hit@3": 0.5833,
+      "recall@3": 0.5625,
+      "citation_precision@3": 0.5417,
+      "hit@5": 0.5833,
+      "recall@5": 0.5625,
+      "citation_precision@5": 0.5417,
+      "unknown_false_positive_rate": 0.0,
+      "mean_latency_us": 21.18,
+      "cost_usd": 0.0
+    }
+  },
+  "decision": {
+    "selected": "Hybrid",
+    "vector_passes_threshold": false,
+    "lexical_complementary_positive_queries": 14,
+    "reranker": "not evaluated; out of scope for #236"
+  },
+  "failures": [
+    {
+      "query_id": "q-python",
+      "expected": [
+        "src-python-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.217902
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.129534
+        },
+        {
+          "chunk_id": "src-groundtruth-v1-0",
+          "score": 0.078105
+        },
+        {
+          "chunk_id": "src-interview-v1-0",
+          "score": 0.069736
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.067838
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-python-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-postgres",
+      "expected": [
+        "src-postgres-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.114346
+        },
+        {
+          "chunk_id": "src-postgres-v1-0",
+          "score": 0.093648
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.089025
+        },
+        {
+          "chunk_id": "src-lifecycle-v1-0",
+          "score": 0.08839
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.080416
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-vue",
+      "expected": [
+        "src-vue-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.274394
+        },
+        {
+          "chunk_id": "src-jobfit-v1-0",
+          "score": 0.243842
+        },
+        {
+          "chunk_id": "src-versioned-v2-0",
+          "score": 0.173958
+        },
+        {
+          "chunk_id": "src-unknown-v1-0",
+          "score": 0.10679
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.104981
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-rag-chain",
+      "expected": [
+        "src-rag-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-old-version-v1-0",
+          "score": 0.219835
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.184186
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.159744
+        },
+        {
+          "chunk_id": "src-versioned-v2-0",
+          "score": 0.155064
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.119963
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.571429
+        },
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.142857
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.142857
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-rag-unknown",
+      "expected": [
+        "src-rag-v1-1",
+        "src-unknown-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-rag-v1-1",
+          "score": 0.216265
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.192318
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.142683
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.110579
+        },
+        {
+          "chunk_id": "src-security-v1-0",
+          "score": 0.106178
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-owner-filter",
+      "expected": [
+        "src-owner-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-versioned-v2-0",
+          "score": 0.239668
+        },
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.237985
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.20783
+        },
+        {
+          "chunk_id": "src-jobfit-v1-0",
+          "score": 0.196971
+        },
+        {
+          "chunk_id": "src-version-v1-0",
+          "score": 0.154896
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-artifact-delete",
+      "expected": [
+        "src-artifact-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.284004
+        },
+        {
+          "chunk_id": "src-postgres-v1-0",
+          "score": 0.198628
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.111378
+        },
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.097852
+        },
+        {
+          "chunk_id": "src-interview-v1-0",
+          "score": 0.074365
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.4
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.2
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.2
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-embedding",
+      "expected": [
+        "src-embedding-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-interview-v1-0",
+          "score": 0.254162
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.239317
+        },
+        {
+          "chunk_id": "src-version-v1-0",
+          "score": 0.211002
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.182035
+        },
+        {
+          "chunk_id": "src-old-version-v1-0",
+          "score": 0.176891
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-interview-topics",
+      "expected": [
+        "src-interview-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.209609
+        },
+        {
+          "chunk_id": "src-postgres-v1-0",
+          "score": 0.142415
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.133653
+        },
+        {
+          "chunk_id": "src-lifecycle-v1-0",
+          "score": 0.129544
+        },
+        {
+          "chunk_id": "src-groundtruth-v1-0",
+          "score": 0.092838
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-decision",
+      "expected": [
+        "src-decision-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-old-version-v1-0",
+          "score": 0.309584
+        },
+        {
+          "chunk_id": "src-groundtruth-v1-0",
+          "score": 0.264591
+        },
+        {
+          "chunk_id": "src-versioned-v2-0",
+          "score": 0.255505
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.249528
+        },
+        {
+          "chunk_id": "src-version-v1-0",
+          "score": 0.226843
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.75
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.25
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-jobfit",
+      "expected": [
+        "src-jobfit-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.270774
+        },
+        {
+          "chunk_id": "src-version-v1-0",
+          "score": 0.264012
+        },
+        {
+          "chunk_id": "src-old-version-v1-0",
+          "score": 0.248634
+        },
+        {
+          "chunk_id": "src-unknown-v1-0",
+          "score": 0.239772
+        },
+        {
+          "chunk_id": "src-lifecycle-v1-0",
+          "score": 0.227387
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-jobfit-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-model-failure",
+      "expected": [
+        "src-model-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-groundtruth-v1-0",
+          "score": 0.364308
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.206407
+        },
+        {
+          "chunk_id": "src-interview-v1-0",
+          "score": 0.166264
+        },
+        {
+          "chunk_id": "src-old-version-v1-0",
+          "score": 0.148083
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.131223
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-model-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-security",
+      "expected": [
+        "src-security-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.192677
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.164171
+        },
+        {
+          "chunk_id": "src-security-v1-0",
+          "score": 0.163628
+        },
+        {
+          "chunk_id": "src-rag-v1-1",
+          "score": 0.148736
+        },
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.137216
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-ci",
+      "expected": [
+        "src-ci-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-python-v1-0",
+          "score": 0.257505
+        },
+        {
+          "chunk_id": "src-jobfit-v1-0",
+          "score": 0.194262
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.179694
+        },
+        {
+          "chunk_id": "src-rag-v1-1",
+          "score": 0.165312
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.143991
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-architecture",
+      "expected": [
+        "src-architecture-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-rag-v1-1",
+          "score": 0.218567
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.212012
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.14038
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.053605
+        },
+        {
+          "chunk_id": "src-jobfit-v1-0",
+          "score": 0.040376
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.666667
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-version",
+      "expected": [
+        "src-version-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-python-v1-0",
+          "score": 0.159733
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.042858
+        },
+        {
+          "chunk_id": "src-lifecycle-v1-0",
+          "score": 0.040294
+        },
+        {
+          "chunk_id": "src-version-v1-0",
+          "score": 0.038708
+        },
+        {
+          "chunk_id": "src-rag-v1-1",
+          "score": 0.03731
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-unknown-suggestion",
+      "expected": [
+        "src-unknown-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-python-v1-0",
+          "score": 0.122209
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.109408
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.07231
+        },
+        {
+          "chunk_id": "src-postgres-v1-0",
+          "score": 0.067105
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.018835
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-lifecycle",
+      "expected": [
+        "src-lifecycle-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-rag-v1-1",
+          "score": 0.305656
+        },
+        {
+          "chunk_id": "src-python-v1-0",
+          "score": 0.28283
+        },
+        {
+          "chunk_id": "src-security-v1-0",
+          "score": 0.204767
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.201855
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.162065
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-lifecycle-v1-0",
+          "score": 0.6
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-python-english",
+      "expected": [
+        "src-python-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.226418
+        },
+        {
+          "chunk_id": "src-postgres-v1-0",
+          "score": 0.204409
+        },
+        {
+          "chunk_id": "src-model-v1-0",
+          "score": 0.191853
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.184158
+        },
+        {
+          "chunk_id": "src-rag-v1-1",
+          "score": 0.182627
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-python-v1-0",
+          "score": 0.142857
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.142857
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-rag-english",
+      "expected": [
+        "src-rag-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.151688
+        },
+        {
+          "chunk_id": "src-version-v1-0",
+          "score": 0.13244
+        },
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.105011
+        },
+        {
+          "chunk_id": "src-python-v1-0",
+          "score": 0.096122
+        },
+        {
+          "chunk_id": "src-versioned-v2-0",
+          "score": 0.086635
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.3
+        },
+        {
+          "chunk_id": "src-old-version-v1-0",
+          "score": 0.1
+        },
+        {
+          "chunk_id": "src-versioned-v2-0",
+          "score": 0.1
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-cost",
+      "expected": [
+        "src-cost-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-security-v1-0",
+          "score": 0.376427
+        },
+        {
+          "chunk_id": "src-unknown-v1-0",
+          "score": 0.301235
+        },
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.278137
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.248128
+        },
+        {
+          "chunk_id": "src-interview-v1-0",
+          "score": 0.21619
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-decision-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-groundtruth",
+      "expected": [
+        "src-groundtruth-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-python-v1-0",
+          "score": 0.236492
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.188078
+        },
+        {
+          "chunk_id": "src-jobfit-v1-0",
+          "score": 0.182745
+        },
+        {
+          "chunk_id": "src-unknown-v1-0",
+          "score": 0.12053
+        },
+        {
+          "chunk_id": "src-model-v1-0",
+          "score": 0.11343
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-groundtruth-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-architecture-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-ci-v1-0",
+          "score": 0.0
+        },
+        {
+          "chunk_id": "src-cost-v1-0",
+          "score": 0.0
+        }
+      ]
+    },
+    {
+      "query_id": "q-current-vector",
+      "expected": [
+        "src-versioned-v2-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-versioned-v2-0",
+          "score": -0.053849
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-versioned-v2-0",
+          "score": 0.6
+        }
+      ]
+    },
+    {
+      "query_id": "q-source-version",
+      "expected": [
+        "src-jobfit-v1-0",
+        "src-owner-v1-0"
+      ],
+      "vector_top5": [
+        {
+          "chunk_id": "src-postgres-v1-0",
+          "score": 0.212139
+        },
+        {
+          "chunk_id": "src-old-version-v1-0",
+          "score": 0.210863
+        },
+        {
+          "chunk_id": "src-lifecycle-v1-0",
+          "score": 0.162813
+        },
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.138924
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.134405
+        }
+      ],
+      "lexical_top5": [
+        {
+          "chunk_id": "src-embedding-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-owner-v1-0",
+          "score": 0.5
+        },
+        {
+          "chunk_id": "src-artifact-v1-0",
+          "score": 0.25
+        },
+        {
+          "chunk_id": "src-rag-v1-0",
+          "score": 0.25
+        },
+        {
+          "chunk_id": "src-vue-v1-0",
+          "score": 0.25
+        }
+      ]
+    }
+  ]
+}
