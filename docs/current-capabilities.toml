@@ -592,7 +592,7 @@ id = "structured-model-port"
 name = "单 Provider 结构化模型调用边界"
 milestone = "M5"
 status = "current"
-summary = "提供 Provider-neutral ModelPort、固定阿里云百炼北京地域 qwen3.8-max 的 OpenAI-compatible JSON Schema Adapter、Pydantic 本地输出校验和无业务写入的 Application 连通性探测。调用前执行 0.50 元单次软预算，timeout、连接错误、429 和 5xx 最多重试一次；缺少 Secret、超预算、Provider 拒绝/不可用、timeout 和无效输出均以稳定错误失败。日志只保留 Provider、模型、耗时、成功状态和低基数错误类别；普通 CI 使用 Fake Adapter，真实 smoke 仅在显式开关和受控 Secret 下运行。当前不包含 AI 人岗分析、Embedding、RAG、Tool Calling、Agent Runtime、Provider registry、fallback 或业务事实写入。"
+summary = "提供 Provider-neutral ModelPort、固定阿里云百炼北京地域 qwen3.8-max 的 OpenAI-compatible JSON Schema Adapter、Pydantic 本地输出校验和无业务写入的 Application 连通性探测。调用前执行 0.50 元单次软预算，timeout、连接错误、429 和 5xx 最多重试一次；缺少 Secret、超预算、Provider 拒绝/不可用、timeout 和无效输出均以稳定错误失败。日志只保留 Provider、模型、耗时、成功状态和低基数错误类别；普通 CI 使用 Fake Adapter，真实 smoke 仅在显式开关和受控 Secret 下运行。AI JobFitAnalysis 另由 Decision Application 使用此边界生成，模型 Port 本身不拥有业务事实；Embedding、RAG、Tool Calling、Agent Runtime、Provider registry、fallback 仍未交付。"
 code_paths = [
   "backend/app/ports/model.py",
   "backend/app/application/model.py",
@@ -602,3 +602,28 @@ code_paths = [
   "backend/tests/smoke/test_dashscope_model.py",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/242"]
+
+[[capabilities]]
+id = "ai-job-fit-analysis"
+name = "AI 人岗语义分析"
+milestone = "M5"
+status = "current"
+summary = "在固定 DecisionCase 与 DecisionReport 输入上生成不可变 JobFitAnalysis，展示强匹配、可迁移证据、关键缺口、简历行动、项目深挖风险、面试重点和 unknown。每条模型推断/建议都必须引用固定对象、版本和字段路径；生成身份支持同一版本幂等重放与刷新恢复，Provider 失败或非法引用不写入并保留确定性报告和 apply/skip。该能力不包含 RAG、Embedding、Agent Runtime、自动投递或外部写。"
+code_paths = [
+  "backend/app/domain/decision/job_fit.py",
+  "backend/app/application/decision/job_fit_service.py",
+  "backend/app/application/model.py",
+  "backend/app/infrastructure/database/job_fit.py",
+  "backend/app/apps/api/routes/decisions.py",
+  "backend/alembic/versions/0023_job_fit_analyses.py",
+  "backend/tests/unit/test_job_fit_analysis.py",
+  "backend/tests/integration/test_job_fit_analysis_api.py",
+  "backend/tests/integration/test_job_fit_analysis_migration.py",
+  "frontend/src/api/client.ts",
+  "frontend/src/stores/analysis.ts",
+  "frontend/src/components/JobFitAnalysisPanel.vue",
+  "frontend/src/views/ReportDetailView.vue",
+  "frontend/tests/analysis-store.test.ts",
+  "frontend/tests/job-fit-analysis-panel.test.ts",
+]
+evidence = ["https://github.com/dev-cai/Nora/issues/25"]

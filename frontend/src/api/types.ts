@@ -306,6 +306,10 @@ export interface DecisionReportList {
   total: number
 }
 
+export type JobFitAnalysis = components["schemas"]["JobFitAnalysisResponse"]
+export type JobFitCitation = components["schemas"]["JobFitCitationResponse"]
+export type JobFitInsight = components["schemas"]["JobFitInsightResponse"]
+
 export type Artifact = components["schemas"]["ArtifactResponse"]
 export type SourceDocument = components["schemas"]["SourceResponse"]
 export type CreateSourceInput = components["schemas"]["CreateSourceRequest"]

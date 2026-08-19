@@ -2,6 +2,13 @@
 
 from .company_assessment import CompanyAssessment, CompanyAssessmentStatus
 from .decision_case import DecisionCase, DecisionCaseStatus
+from .job_fit import (
+    JobFitAnalysis,
+    JobFitCitation,
+    JobFitCitationSource,
+    JobFitInsight,
+    JobFitLevel,
+)
 from .report import (
     DecisionReport,
     MatchSummary,
@@ -28,6 +35,11 @@ __all__ = (
     "CompanyAssessmentStatus",
     "DecisionCase",
     "DecisionCaseStatus",
+    "JobFitAnalysis",
+    "JobFitCitation",
+    "JobFitCitationSource",
+    "JobFitInsight",
+    "JobFitLevel",
     "DecisionReport",
     "MatchSummary",
     "ReportCitation",

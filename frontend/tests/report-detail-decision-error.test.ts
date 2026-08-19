@@ -28,6 +28,7 @@ const report: DecisionReport = {
 describe("report decision errors", () => {
   it("keeps the report visible when the decision conflicts", async () => {
     vi.spyOn(api, "getDecisionReport").mockResolvedValue(report)
+    vi.spyOn(api, "getJobFitAnalysis").mockResolvedValue(null)
     vi.spyOn(api, "getApplicationDecision").mockResolvedValue(null)
     vi.spyOn(api, "createApplicationDecision").mockRejectedValue(
       new ApiError("该报告已经记录了不同决定", 409, "application_decision_conflict"),

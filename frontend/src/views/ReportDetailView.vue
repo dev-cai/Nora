@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import { ArrowLeft, Building2, FilePenLine, Plus, RefreshCw, ShieldCheck } from "lucide-vue-next"
+import { ArrowLeft, Building2, FilePenLine, Plus, RefreshCw, ShieldCheck, Sparkles } from "lucide-vue-next"
 import { useRoute } from "vue-router"
 
 import { userMessage } from "@/api/client"
 import AppShell from "@/components/AppShell.vue"
 import DecisionBar from "@/components/DecisionBar.vue"
 import CompanySnapshotCard from "@/components/CompanySnapshotCard.vue"
+import JobFitAnalysisPanel from "@/components/JobFitAnalysisPanel.vue"
 import ReportContent from "@/components/ReportContent.vue"
 import StatePanel from "@/components/StatePanel.vue"
 import { useAnalysisStore } from "@/stores/analysis"
@@ -38,6 +39,14 @@ async function decide(input: Parameters<typeof store.decide>[1]): Promise<void> 
     await store.decide(reportId.value, input)
   } catch (reason) {
     decisionError.value = userMessage(reason)
+  }
+}
+
+async function generateJobFit(): Promise<void> {
+  try {
+    await store.generateJobFit(reportId.value)
+  } catch {
+    // The AI error is displayed locally; deterministic report actions remain available.
   }
 }
 
@@ -92,7 +101,17 @@ watch(reportId, () => void load(), { immediate: true })
           <p>生成于 {{ new Date(store.report.generated_at).toLocaleString('zh-CN') }}</p>
         </div>
         <div class="detail-actions">
-          <span class="analysis-mode-badge"><ShieldCheck :size="16" /> AI 增强未启用</span>
+          <span class="analysis-mode-badge">
+            <Sparkles
+              v-if="store.jobFitAnalysis"
+              :size="16"
+            />
+            <ShieldCheck
+              v-else
+              :size="16"
+            />
+            {{ store.jobFitAnalysis ? `AI 分析 v${store.jobFitAnalysis.version}` : '确定性规则报告' }}
+          </span>
           <button
             class="button button-secondary button-small"
             type="button"
@@ -103,6 +122,48 @@ watch(reportId, () => void load(), { immediate: true })
         </div>
       </header>
       <ReportContent :report="store.report" />
+      <section class="job-fit-band">
+        <div class="job-fit-band-heading">
+          <div class="report-section-heading">
+            <Sparkles :size="19" />
+            <div><h3>AI 人岗语义分析</h3><p>只读取本报告固定输入；模型推断、建议和未知均显示字段级引用。</p></div>
+          </div>
+          <button
+            class="button button-primary button-small"
+            type="button"
+            :disabled="store.jobFitGenerating"
+            @click="generateJobFit"
+          >
+            <RefreshCw
+              v-if="store.jobFitAnalysis"
+              :size="16"
+            />
+            <Sparkles
+              v-else
+              :size="16"
+            />
+            {{ store.jobFitGenerating ? '分析中…' : store.jobFitAnalysis ? '恢复同一版本' : '生成 AI 分析' }}
+          </button>
+        </div>
+        <p
+          v-if="store.jobFitError"
+          class="job-fit-error"
+          role="alert"
+        >
+          {{ store.jobFitError }}。确定性报告和投递决定不受影响。
+        </p>
+        <JobFitAnalysisPanel
+          v-if="store.jobFitAnalysis"
+          :analysis="store.jobFitAnalysis"
+        />
+        <div
+          v-else-if="!store.jobFitError"
+          class="job-fit-empty"
+        >
+          <strong>{{ store.jobFitGenerating ? '正在生成语义分析' : '尚未生成 AI 分析' }}</strong>
+          <p>确定性规则结果已经可用，AI 分析是独立的可选增强。</p>
+        </div>
+      </section>
       <section class="company-report-band">
         <div class="report-section-heading">
           <Building2 :size="19" />

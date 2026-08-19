@@ -44,6 +44,7 @@ from .identity import (
     SqlAlchemyUserRepository,
     UserRecord,
 )
+from .job_fit import JobFitAnalysisRecord, SqlAlchemyJobFitAnalysisRepository
 from .knowledge import (
     ArtifactRecord,
     SourceDocumentRecord,
@@ -84,6 +85,7 @@ __all__ = (
     "ArtifactRecord",
     "JobPostingIdempotencyRecord",
     "JobPostingRecord",
+    "JobFitAnalysisRecord",
     "JobRequirementSnapshotRecord",
     "SourceDocumentRecord",
     "SqlAlchemyRepository",
@@ -106,6 +108,7 @@ __all__ = (
     "SqlAlchemyResumeVersionRepository",
     "SqlAlchemySourceDocumentRepository",
     "SqlAlchemyJobPostingRepository",
+    "SqlAlchemyJobFitAnalysisRepository",
     "SqlAlchemyJobRequirementSnapshotRepository",
     "SqlAlchemyUserScopedRepository",
     "create_database_engine",

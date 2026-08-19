@@ -313,6 +313,14 @@ M3 首个规则集版本为 `m3-rules-v1`，只消费 `DecisionCase` 固定引�
 
 公开分析与报告 API 使用同步应用层编排：`POST /decisions` 固定输入版本，`GET /decisions/{id}` 重新加载固定输入并执行规则，`POST /decisions/{id}/reports` 幂等生成报告，`GET /reports/{id}` 与 `GET /reports` 读取用户范围内结果。路由只负责认证、DTO、状态码和错误映射，不执行规则或 SQL。跨用户对象与不存在对象统一返回 `404`；只有当前用户可见对象之间的版本或关系冲突返回 `409`；请求校验返回 `422`；数据库或固定输入基础设施不可用返回脱敏 `503`。报告列表按 `generated_at DESC, id DESC` 稳定排序并使用从 1 开始的分页；缺少 confirmed 规则输入仍成功返回 `unknown`，不伪造失败或异步进度。
 
+### AI JobFitAnalysis 纵向切片（M5.3）
+
+`JobFitAnalysis` 是 Decision & Reporting 上下文拥有的独立、不可变 AI 增强事实。它只接收 `DecisionCase`、`DecisionReport` 及其精确版本对应的 CandidateProfile、ResumeVersion、JobPosting、JobRequirementSnapshot 和可选 CompanySnapshot；Application 用例在调用模型前验证 owner、对象 ID 和每个版本，模型不得读取“最新”对象或修改任何既有业务事实。
+
+模型请求使用固定 `job-fit-v1` Prompt、Provider/模型/生成器身份和受限证据目录。证据目录对超长字段使用固定长度预览、原文长度和 SHA-256 摘要，确保请求不会越过 ModelPort 的字符上限且仍可追溯。输出必须通过严格 Pydantic Schema 与 Domain citation policy：每一条推断、建议和 unknown 至少引用一项固定输入；Citation 的 source、object、version、field path 必须属于本次目录；重复、未解析、未使用或越界引用均拒绝发布。
+
+`JobFitAnalysis.generation_identity` 由 owner、报告/案例精确版本、全部固定输入、Prompt、Provider、模型和生成器版本计算。PostgreSQL 以 owner 范围的生成身份和报告内版本唯一约束并发重试，`POST /reports/{id}/job-fit-analysis` 重放返回同一版本，`GET /reports/{id}/job-fit-analysis` 未生成时返回 `204`。Provider 失败、预算/超时或结构化输出无效不写入分析表，确定性报告和 apply/skip 决定继续可用；本切片不包含 RAG、Embedding、Agent Runtime、自动投递或外部写。
+
 ### 主档、简历与岗位输出关系
 
 ```mermaid

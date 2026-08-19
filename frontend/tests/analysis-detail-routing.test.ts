@@ -60,6 +60,7 @@ const stubs = {
 describe("analysis detail route changes", () => {
   it("reloads the report when the reused route changes its id", async () => {
     const getReport = vi.spyOn(api, "getDecisionReport").mockResolvedValue(report)
+    const getJobFit = vi.spyOn(api, "getJobFitAnalysis").mockResolvedValue(null)
     const getDecision = vi.spyOn(api, "getApplicationDecision").mockResolvedValue(null)
     const router = createRouter({
       history: createMemoryHistory(),
@@ -80,6 +81,8 @@ describe("analysis detail route changes", () => {
     expect(getReport).toHaveBeenNthCalledWith(2, "report-2")
     expect(getDecision).toHaveBeenNthCalledWith(1, "report-1")
     expect(getDecision).toHaveBeenNthCalledWith(2, "report-2")
+    expect(getJobFit).toHaveBeenNthCalledWith(1, "report-1")
+    expect(getJobFit).toHaveBeenNthCalledWith(2, "report-2")
     wrapper.unmount()
   })
 

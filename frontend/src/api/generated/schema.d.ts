@@ -700,6 +700,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reports/{report_id}/job-fit-analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Job Fit Analysis */
+        get: operations["get_job_fit_analysis_reports__report_id__job_fit_analysis_get"];
+        put?: never;
+        /** Generate Job Fit Analysis */
+        post: operations["generate_job_fit_analysis_reports__report_id__job_fit_analysis_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/resume-pdfs/{pdf_id}": {
         parameters: {
             query?: never;
@@ -1834,6 +1852,95 @@ export interface components {
             /** Source Url */
             source_url: string | null;
         };
+        /** JobFitAnalysisResponse */
+        JobFitAnalysisResponse: {
+            /** Citations */
+            citations: components["schemas"]["JobFitCitationResponse"][];
+            /** Critical Gaps */
+            critical_gaps: components["schemas"]["JobFitInsightResponse"][];
+            /**
+             * Decision Case Id
+             * Format: uuid
+             */
+            decision_case_id: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Generation Identity */
+            generation_identity: string;
+            /** Generator Version */
+            generator_version: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Interview Focus */
+            interview_focus: components["schemas"]["JobFitInsightResponse"][];
+            /** Model */
+            model: string;
+            /** Non Blocking Gaps */
+            non_blocking_gaps: components["schemas"]["JobFitInsightResponse"][];
+            overall_fit: components["schemas"]["JobFitLevel"];
+            overall_fit_reason: components["schemas"]["JobFitInsightResponse"];
+            /** Project Deep Dive Risks */
+            project_deep_dive_risks: components["schemas"]["JobFitInsightResponse"][];
+            /** Prompt Version */
+            prompt_version: string;
+            /** Provider */
+            provider: string;
+            /**
+             * Report Id
+             * Format: uuid
+             */
+            report_id: string;
+            /** Report Version */
+            report_version: number;
+            /** Resume Actions */
+            resume_actions: components["schemas"]["JobFitInsightResponse"][];
+            /** Strong Matches */
+            strong_matches: components["schemas"]["JobFitInsightResponse"][];
+            /** Transferable Evidence */
+            transferable_evidence: components["schemas"]["JobFitInsightResponse"][];
+            /** Unknowns */
+            unknowns: components["schemas"]["JobFitInsightResponse"][];
+            /** Version */
+            version: number;
+        };
+        /** JobFitCitationResponse */
+        JobFitCitationResponse: {
+            /** Citation Id */
+            citation_id: string;
+            /** Field Path */
+            field_path: string;
+            /**
+             * Object Id
+             * Format: uuid
+             */
+            object_id: string;
+            source: components["schemas"]["JobFitCitationSource"];
+            /** Version */
+            version: number;
+        };
+        /**
+         * JobFitCitationSource
+         * @enum {string}
+         */
+        JobFitCitationSource: "candidate_profile" | "resume_version" | "job_posting" | "job_requirement_snapshot" | "decision_report" | "company_snapshot";
+        /** JobFitInsightResponse */
+        JobFitInsightResponse: {
+            /** Citation Ids */
+            citation_ids: string[];
+            /** Text */
+            text: string;
+        };
+        /**
+         * JobFitLevel
+         * @enum {string}
+         */
+        JobFitLevel: "strong" | "moderate" | "weak" | "unknown";
         /**
          * JobPostingListResponse
          * @description 用户范围岗位快照的稳定分页响应。
@@ -7318,6 +7425,201 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplicationDecisionResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    get_job_fit_analysis_reports__report_id__job_fit_analysis_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFitAnalysisResponse"];
+                };
+            };
+            /** @description No AI job-fit analysis */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    generate_job_fit_analysis_reports__report_id__job_fit_analysis_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobFitAnalysisResponse"];
                 };
             };
             /** @description Invalid input */
