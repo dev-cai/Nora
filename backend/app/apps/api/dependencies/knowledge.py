@@ -78,3 +78,20 @@ def get_knowledge_rag_service(
         embedding=DeterministicEmbeddingAdapter(),
         model=model,
     )
+
+
+def get_artifact_service(
+    settings: Settings = Depends(get_settings),
+    artifacts: ArtifactRepository = Depends(get_artifact_repository),
+    sources: SourceDocumentRepository = Depends(get_source_document_repository),
+    storage: ArtifactStorage = Depends(get_artifact_storage),
+    audits: AuditEventRepository = Depends(get_audit_event_repository),
+) -> ArtifactService:
+    return ArtifactService(
+        artifacts,
+        sources,
+        storage,
+        audits,
+        max_size_bytes=settings.artifact_max_size_bytes,
+        allowed_content_types=settings.allowed_artifact_content_types,
+    )

@@ -333,7 +333,9 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 - 详情 `/interviews/:id` 对未来安排用当前 `base_version` 追加新版本，并展示完整版本历史；已开始或过去的安排只读。失败重试沿用相同载荷的幂等键，载荷变化后生成新键，冲突提示刷新后重试。
 - 同一详情页加载最新 `InterviewPreparation`，展示项目深挖、技术栈与基础、简历风险与反问主题，以及 priority、预计投入、reason、通用建议和可打开 citation。点击刷新生成只追加准备版本，历史版本列表来自服务端；没有准备计划是正常空态，RAG 无证据显示 `unknown` 而不是伪造结论。
 - API：`POST /application-records/{id}/interviews`、`GET /interviews`、`GET /interviews/{id}`、`POST/GET /interviews/{id}/versions`、`GET /interviews/{id}/versions/{version}`、`POST/GET /interviews/{id}/preparation` 和准备历史读取接口。跨用户对象统一 `404`。
-- 题库编排、模拟面试评分、复盘、出行推荐和通知发送不属于本切片。
+- 面试详情同时提供复盘输入（问题、回答、自评、卡点和结果）、候选生成与逐项确认/拒绝/撤销；候选只有确认后才会作为下一次准备可检索的用户记忆来源，模型失败时不写入业务事实。
+- API：`POST/GET /interviews/{id}/reviews` 与 `POST /interviews/memory-candidates/{id}/confirm|reject|revoke`。页面展示候选状态、原因、置信度和建议动作，不展示模型私有思维链。
+- 题库编排、模拟面试评分、出行推荐和通知发送不属于本切片。
 
 ## 11. 状态管理（Pinia）
 

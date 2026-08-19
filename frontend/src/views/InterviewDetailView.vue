@@ -7,6 +7,9 @@ import {
   History,
   RefreshCw,
   Save,
+  Check,
+  X,
+  RotateCcw,
 } from "lucide-vue-next"
 import { useRoute } from "vue-router"
 
@@ -27,6 +30,11 @@ const location = ref("")
 const meetingUrl = ref("")
 const roundNumber = ref(1)
 const note = ref("")
+const reviewQuestion = ref("")
+const reviewAnswer = ref("")
+const reviewSelfAssessment = ref("")
+const reviewBlockers = ref("")
+const reviewOutcome = ref("")
 const status = ref<InterviewCaseStatus>("scheduled")
 const error = ref("")
 const saved = ref(false)
@@ -64,6 +72,7 @@ async function load(): Promise<void> {
     fill(value)
     await store.fetchVersions(value.id)
     await store.fetchPreparation(value.id)
+    await store.fetchReviews(value.id)
   } catch (reason) { error.value = userMessage(reason) }
 }
 
@@ -85,6 +94,25 @@ async function save(): Promise<void> {
     })
     fill(value)
     saved.value = true
+  } catch (reason) { error.value = userMessage(reason) }
+}
+
+async function createReview(): Promise<void> {
+  if (!reviewQuestion.value.trim() || !reviewAnswer.value.trim()) return
+  error.value = ""
+  try {
+    await store.createReview(interviewId.value, {
+      questions: [reviewQuestion.value.trim()],
+      answers: [reviewAnswer.value.trim()],
+      self_assessment: reviewSelfAssessment.value.trim(),
+      blockers: reviewBlockers.value.split(/[\n,，]/).map((item) => item.trim()).filter(Boolean),
+      outcome: reviewOutcome.value.trim(),
+    })
+    reviewQuestion.value = ""
+    reviewAnswer.value = ""
+    reviewSelfAssessment.value = ""
+    reviewBlockers.value = ""
+    reviewOutcome.value = ""
   } catch (reason) { error.value = userMessage(reason) }
 }
 
@@ -396,6 +424,109 @@ watch(interviewId, () => void load(), { immediate: true })
             </div>
           </li>
         </ol>
+      </section>
+
+      <section class="interview-editor-band review-band">
+        <div class="message-band-heading">
+          <History :size="19" />
+          <h3>面试复盘与记忆候选</h3>
+        </div>
+        <form
+          class="interview-form interview-detail-form"
+          @submit.prevent="createReview"
+        >
+          <label class="interview-wide-field">
+            <span>面试问题</span>
+            <textarea
+              v-model="reviewQuestion"
+              rows="2"
+              required
+              maxlength="8000"
+            />
+          </label>
+          <label class="interview-wide-field">
+            <span>我的回答</span>
+            <textarea
+              v-model="reviewAnswer"
+              rows="3"
+              required
+              maxlength="8000"
+            />
+          </label>
+          <div class="form-grid two-columns">
+            <label><span>自评</span><textarea
+              v-model="reviewSelfAssessment"
+              rows="2"
+              required
+              maxlength="8000"
+            /></label>
+            <label><span>卡点（逗号分隔）</span><textarea
+              v-model="reviewBlockers"
+              rows="2"
+              maxlength="8000"
+            /></label>
+            <label class="interview-wide-field"><span>面试结果</span><input
+              v-model="reviewOutcome"
+              required
+              maxlength="8000"
+            ></label>
+          </div>
+          <div class="form-actions">
+            <button
+              class="button button-primary"
+              type="submit"
+              :disabled="store.saving"
+            >
+              <Save :size="17" /> {{ store.saving ? '正在生成候选…' : '生成待确认候选' }}
+            </button>
+          </div>
+        </form>
+        <div
+          v-for="review in store.reviews"
+          :key="review.id"
+          class="review-candidates"
+        >
+          <p class="eyebrow">
+            复盘 v{{ review.version }} · {{ new Date(review.created_at).toLocaleString('zh-CN') }}
+          </p>
+          <article
+            v-for="candidate in review.candidates"
+            :key="candidate.id"
+            class="preparation-topic"
+          >
+            <div class="topic-heading">
+              <strong>{{ candidate.kind }}</strong><span>{{ candidate.status }}{{ candidate.confidence === null ? '' : ` · ${Math.round(candidate.confidence * 100)}%` }}</span>
+            </div>
+            <p>{{ candidate.text }}</p>
+            <small>{{ candidate.reason }} · 建议：{{ candidate.suggested_action }}</small>
+            <div class="form-actions candidate-actions">
+              <button
+                v-if="candidate.status === 'proposed'"
+                class="button button-primary"
+                type="button"
+                @click="store.updateCandidate(candidate, 'confirm')"
+              >
+                <Check :size="16" /> 确认进入记忆
+              </button>
+              <button
+                v-if="candidate.status === 'proposed'"
+                class="button button-secondary"
+                type="button"
+                @click="store.updateCandidate(candidate, 'reject')"
+              >
+                <X :size="16" /> 拒绝
+              </button>
+              <button
+                v-if="candidate.status === 'confirmed'"
+                class="button button-secondary"
+                type="button"
+                @click="store.updateCandidate(candidate, 'revoke')"
+              >
+                <RotateCcw :size="16" /> 撤销确认
+              </button>
+            </div>
+          </article>
+        </div>
       </section>
     </template>
   </AppShell>

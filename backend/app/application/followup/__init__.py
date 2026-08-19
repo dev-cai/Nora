@@ -17,6 +17,12 @@ from .interview_cases import (
     UpdateInterviewCaseCommand,
 )
 from .interview_preparation import GenerateInterviewPreparationResult, InterviewPreparationUseCases
+from .interview_review import (
+    CreateInterviewReviewResult,
+    InterviewReviewAnalysis,
+    InterviewReviewUseCases,
+    MemoryCandidateSuggestion,
+)
 from .message_draft import (
     EditMessageDraftCommand,
     GenerateMessageDraftCommand,
@@ -81,4 +87,8 @@ __all__ = (
     "UpdateInterviewCaseCommand",
     "InterviewPreparationUseCases",
     "GenerateInterviewPreparationResult",
+    "CreateInterviewReviewResult",
+    "InterviewReviewAnalysis",
+    "InterviewReviewUseCases",
+    "MemoryCandidateSuggestion",
 )

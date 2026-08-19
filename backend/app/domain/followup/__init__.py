@@ -24,6 +24,12 @@ from .interview_preparation import (
     PreparationPriority,
     PreparationTopic,
 )
+from .interview_review import (
+    InterviewReview,
+    MemoryCandidate,
+    MemoryCandidateKind,
+    MemoryCandidateStatus,
+)
 from .message_draft import (
     MAX_DRAFT_TEXT_LENGTH,
     MAX_REFERRAL_CONTEXT_LENGTH,
@@ -59,6 +65,10 @@ __all__ = (
     "PreparationCitation",
     "PreparationPriority",
     "PreparationTopic",
+    "InterviewReview",
+    "MemoryCandidate",
+    "MemoryCandidateKind",
+    "MemoryCandidateStatus",
     "InterviewCaseSource",
     "InterviewCaseStatus",
     "InterviewMode",

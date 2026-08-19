@@ -611,3 +611,46 @@ export interface InterviewPreparation {
   citations: InterviewPreparationCitation[]
   created_at: string
 }
+
+export type MemoryCandidateKind = "skill_gap" | "interview_pattern" | "resume_issue" | "knowledge_gap"
+export type MemoryCandidateStatus = "proposed" | "confirmed" | "rejected" | "revoked"
+
+export interface MemoryCandidate {
+  id: string
+  review_id: string
+  review_version: number
+  kind: MemoryCandidateKind
+  text: string
+  reason: string
+  confidence: number | null
+  unknown: boolean
+  suggested_action: string
+  status: MemoryCandidateStatus
+  source_id: string | null
+  source_version: number | null
+  created_at: string
+  confirmed_at: string | null
+  rejected_at: string | null
+}
+
+export interface InterviewReview {
+  id: string
+  interview_case_id: string
+  interview_case_version: number
+  version: number
+  questions: string[]
+  answers: string[]
+  self_assessment: string
+  blockers: string[]
+  outcome: string
+  created_at: string
+  candidates: MemoryCandidate[]
+}
+
+export interface CreateInterviewReviewInput {
+  questions: string[]
+  answers: string[]
+  self_assessment: string
+  blockers: string[]
+  outcome: string
+}

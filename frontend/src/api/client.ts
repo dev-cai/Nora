@@ -32,6 +32,9 @@ import type {
   InterviewCase,
   InterviewCaseList,
   InterviewPreparation,
+  CreateInterviewReviewInput,
+  InterviewReview,
+  MemoryCandidate,
   EditMessageDraftInput,
   GenerateMessageDraftInput,
   MessageDraft,
@@ -532,4 +535,17 @@ export const api = {
       `/interviews/${encodeURIComponent(interviewId)}/preparation`,
       { method: "POST" },
     ),
+  listInterviewReviews: (interviewId: string) =>
+    request<InterviewReview[]>(`/interviews/${encodeURIComponent(interviewId)}/reviews`),
+  createInterviewReview: (interviewId: string, input: CreateInterviewReviewInput) =>
+    request<InterviewReview>(`/interviews/${encodeURIComponent(interviewId)}/reviews`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  confirmMemoryCandidate: (candidateId: string) =>
+    request<MemoryCandidate>(`/interviews/memory-candidates/${encodeURIComponent(candidateId)}/confirm`, { method: "POST" }),
+  rejectMemoryCandidate: (candidateId: string) =>
+    request<MemoryCandidate>(`/interviews/memory-candidates/${encodeURIComponent(candidateId)}/reject`, { method: "POST" }),
+  revokeMemoryCandidate: (candidateId: string) =>
+    request<MemoryCandidate>(`/interviews/memory-candidates/${encodeURIComponent(candidateId)}/revoke`, { method: "POST" }),
 }

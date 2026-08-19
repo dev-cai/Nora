@@ -48,6 +48,12 @@ from .interview_preparation import (
     InterviewPreparationRecord,
     SqlAlchemyInterviewPreparationRepository,
 )
+from .interview_review import (
+    InterviewReviewRecord,
+    MemoryCandidateRecord,
+    SqlAlchemyInterviewReviewRepository,
+    SqlAlchemyMemoryCandidateRepository,
+)
 from .job_fit import JobFitAnalysisRecord, SqlAlchemyJobFitAnalysisRepository
 from .knowledge import (
     ArtifactRecord,
@@ -94,6 +100,8 @@ __all__ = (
     "JobPostingRecord",
     "JobFitAnalysisRecord",
     "InterviewPreparationRecord",
+    "InterviewReviewRecord",
+    "MemoryCandidateRecord",
     "JobRequirementSnapshotRecord",
     "SourceDocumentRecord",
     "SqlAlchemyRepository",
@@ -119,6 +127,8 @@ __all__ = (
     "SqlAlchemyJobPostingRepository",
     "SqlAlchemyJobFitAnalysisRepository",
     "SqlAlchemyInterviewPreparationRepository",
+    "SqlAlchemyInterviewReviewRepository",
+    "SqlAlchemyMemoryCandidateRepository",
     "SqlAlchemyJobRequirementSnapshotRepository",
     "SqlAlchemyUserScopedRepository",
     "create_database_engine",
