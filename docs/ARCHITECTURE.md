@@ -666,6 +666,9 @@ flowchart LR
 模型不得把检索结果之外的陈述包装为来源事实。无法定位或证据冲突时，输出必须保持 `unknown`、`inferred`、
 `conflicting` 或 `needs_confirmation` 等显式状态。
 
+M5 评测基线已冻结为合成 `nora-rag-eval-v1`（24 个正向问题、4 个负向问题、24 个 Source/Chunk，含跨用户、删除源和错误版本过滤）。
+在 `nora-deterministic/sha256-v1`、`K=1/3/5` 和 `unknown_score_threshold=0.35` 下，Vector-only 的 Hit@5 为 0，且未知问题误召回率为 0.25；lexical baseline 的 Hit@5 为 0.5833、未知问题误召回率为 0。两者在 14 个正向问题上具有互补命中，因此本基线结论为保留离线/受控的简单 Hybrid 评估输入；不引入在线 Reranker、容量平台或长期结果数据库。失败样例与机器可读结果固定在 `backend/tests/fixtures/rag_eval_v1.results.json`，不得修改 Ground Truth 迎合实现。
+
 ## 11. 多智能体边界
 
 目标角色可以包括投递决策、面试准备、出行规划、报告汇总和复盘 Agent，但它们不是独立数据所有者。

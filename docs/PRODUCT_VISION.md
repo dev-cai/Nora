@@ -121,7 +121,7 @@ CandidateProfile
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、结构化岗位要求（JobRequirementSnapshot）、受控链接抓取与截图 OCR 输入、Vue 工作台、JD 输入契约，以及 M2 输入、M3 确定性决策、M5.3 固定输入 AI 人岗语义分析、M5 最小 Source→Chunk→Embedding→exact retrieval→grounded/unknown RAG 链路、基于该检索链路的版本化面试准备和 M4 投递闭环；公司情报、材料生成、手工投递/面试记录、恢复与隔离已有完整浏览器门禁，并已交付 localhost-only Host Proxy 接入契约、fail-closed 八阶段 Beta 发布/回滚控制面和结构化 ModelPort 调用边界，逐项范围、代码路径和证据只见能力台账 |
+| **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、结构化岗位要求（JobRequirementSnapshot）、受控链接抓取与截图 OCR 输入、Vue 工作台、JD 输入契约，以及 M2 输入、M3 确定性决策、M5.3 固定输入 AI 人岗语义分析、M5 最小 Source→Chunk→Embedding→exact retrieval→grounded/unknown RAG 链路、合成评测集驱动的 RAG Vector/lexical 基线与 Hybrid 决策、基于该检索链路的版本化面试准备和 M4 投递闭环；公司情报、材料生成、手工投递/面试记录、恢复与隔离已有完整浏览器门禁，并已交付 localhost-only Host Proxy 接入契约、fail-closed 八阶段 Beta 发布/回滚控制面和结构化 ModelPort 调用边界，逐项范围、代码路径和证据只见能力台账 |
 | **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | 真实 Beta Environment/Runner 供应与首次公网发布，M5 Evidence/RAG、Agent Runtime 和其他 AI 增强 |
 | **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | 外部平台写入、深度面试复盘、实时出行、Agent Runtime、Milvus 和服务拆分 |
 
@@ -132,7 +132,7 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
 
 - M5 的初期向量能力候选是 PostgreSQL + pgvector；D-007 已冻结首个 Embedding 为阿里云百炼北京地域的
   `qwen3.7-text-embedding` dense 1024 维，持久化 Schema 仍须在独立实现 Issue 中验证。
-- BGE-M3 是已被 D-007 替代的历史候选；Reranker 只有在固定评测集证明收益后才引入。
+- BGE-M3 是已被 D-007 替代的历史候选；Reranker 只有在固定评测集证明收益后才引入。当前冻结的合成 RAG 评测基线选择受控 Hybrid 输入，暂不引入在线 Reranker。
 - 模型通过最小 Provider-neutral `ModelPort` 访问；首个真实 Provider、Chat 模型、Embedding 模型、地域和预算以
   [`ARCHITECTURE.md`](ARCHITECTURE.md) 的 D-007 为准，后续替换必须重新经过 Architecture Review。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应
