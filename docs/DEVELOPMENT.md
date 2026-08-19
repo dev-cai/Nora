@@ -149,6 +149,13 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `BAIDU_OCR_API_KEY` | 空 | API / Settings（百度智能云 OCR 应用凭据） | 生产环境必须配置且不得提交；未配置时 OCR 接口返回稳定 `ocr_failed` |
 | `BAIDU_OCR_SECRET_KEY` | 空 | API / Settings（百度智能云 OCR 应用凭据） | 生产环境必须配置且不得提交；与 API Key 成对 |
 | `BAIDU_OCR_ENDPOINT` | `accurate_basic` | API / Settings | 百度 OCR 接口名，如 `general_basic` / `accurate_basic` |
+| `DASHSCOPE_API_KEY` | 空 | 显式模型 smoke / Settings | 百炼北京地域 API Key；不得提交、记录或传入命令参数，未配置不影响 M3/M4 |
+| `DASHSCOPE_API_KEY_FILE` | 空 | Settings 的受控 Secret 文件入口 | 与直接值互斥；必须是绝对路径、非 symlink、1-16384 bytes 且 group 不可写、others 不可访问 |
+| `DASHSCOPE_WORKSPACE_ID` | 空 | DashScope Chat Adapter | 北京地域业务空间 ID；只接受最长 63 字符的小写 DNS label，Adapter 固定拼接 `cn-beijing.maas.aliyuncs.com` |
+| `DASHSCOPE_CHAT_TIMEOUT_SECONDS` | `30` | DashScope Chat Adapter | 单次调用总墙钟允许 `(0, 60]` 秒；timeout 最多重试一次后返回稳定失败 |
+| `DASHSCOPE_CHAT_INPUT_PRICE_CNY_PER_MILLION_TOKENS` | `12` | 单次预算预检 | 2026-08-19 官方北京地域每百万输入 token 单价；只允许上调，价格实质变化先停止新增调用并重新审查 |
+| `DASHSCOPE_CHAT_OUTPUT_PRICE_CNY_PER_MILLION_TOKENS` | `36` | 单次预算预检 | 2026-08-19 官方北京地域每百万输出 token 单价；只允许上调，不得用降低配置规避预算 |
+| `DASHSCOPE_CHAT_REQUEST_BUDGET_CNY` | `0.50` | 单次预算预检 | 只允许 `(0, 0.50]`；月度 20 元软预算在 Provider 控制台执行 |
 | `POSTGRES_USER` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 生产环境不得沿用公开示例凭据 |
 | `POSTGRES_PASSWORD` | `change-me-local` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 仅限本地示例；真实值不得提交或输出到日志 |
 | `POSTGRES_DB` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 数据库名称，不是宿主地址 |
@@ -533,6 +540,23 @@ docker compose run --rm --no-deps tools ruff format --check .
 docker compose run --rm --no-deps tools mypy app/
 docker compose run --rm --no-deps tools pytest tests/unit tests/architecture -q
 ```
+
+### 百炼结构化输出动态 smoke
+
+普通 CI 只运行 Fake/Recorded 测试，不读取真实 Provider Secret。需要验证百炼北京地域的真实调用时，在受控 shell 中通过环境变量
+或权限受限的绝对 Secret 文件显式注入 Key，并同时设置运行开关：
+
+```bash
+cd backend
+NORA_RUN_DASHSCOPE_SMOKE=1 \
+DASHSCOPE_API_KEY_FILE=/absolute/path/to/dashscope-api-key \
+DASHSCOPE_WORKSPACE_ID=<beijing-workspace-id> \
+.venv/bin/pytest tests/smoke/test_dashscope_model.py -q
+```
+
+未设置 `NORA_RUN_DASHSCOPE_SMOKE=1` 时该测试报告 skipped；设置开关但缺少 Key 时明确失败。Smoke 使用固定
+`qwen3.8-max`、JSON Schema 和无敏感探测内容，不写数据库或其他业务事实。不要把真实 Key 放入 `.env`、命令参数、测试输出或
+仓库；月度 20 元费用预警/额度必须先在百炼控制台配置。
 
 集成测试只连接 `test` profile 中的隔离 PostgreSQL。`test-db` 使用 tmpfs，不复用开发数据库或命名卷：
 

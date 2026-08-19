@@ -57,6 +57,8 @@ EXPECTED_ERROR_CODES = frozenset(
     invalid_variant_fingerprint invalid_variant_text invalid_version jd_text_too_long
     job_posting_persistence_failed job_requirement_version_conflict message_draft_conflict
     message_draft_input_unavailable message_draft_version_conflict nora_error ocr_failed
+    model_budget_exceeded model_not_configured model_output_invalid model_provider_failed
+    model_provider_unavailable model_timeout
     origin_not_allowed
     pdf_generation_failed pdf_render_failed profile_has_no_confirmed_data profile_version_conflict
     referral_context_required report_input_mismatch required_variant_field response_too_large
@@ -70,7 +72,7 @@ EXPECTED_ERROR_CODES = frozenset(
 
 
 def test_error_code_registry_is_exact_complete_and_immutable() -> None:
-    assert len(EXPECTED_ERROR_CODES) == 161
+    assert len(EXPECTED_ERROR_CODES) == 167
     assert {code.value for code in ErrorCode} == EXPECTED_ERROR_CODES
     assert set(ErrorCode) == set(ERROR_CATEGORY_BY_CODE)
     with pytest.raises(TypeError):
