@@ -258,6 +258,7 @@ def test_package_dependency_rule_accepts_current_tree(rule: LayerRule) -> None:
     [
         ("ports", "from app.infrastructure.auth import JwtTokenIssuer\n"),
         ("application", "from app.apps.api import create_app\n"),
+        ("application", "import langgraph\n"),
         ("infrastructure", "from app.application.career import CandidateProfileService\n"),
         ("apps", "from app.shared import UnsupportedSharedType\n"),
     ],

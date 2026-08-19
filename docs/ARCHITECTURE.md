@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#166、#171、#174、#183、#184、#185、#186、#187、#224。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#166、#171、#174、#183、#184、#185、#186、#187、#224、#248。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础和公司情报后端切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -47,9 +47,9 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-003 | 业务事实源 | PostgreSQL | M0 起 | 领域状态、版本、审批、运行和审计均以 PostgreSQL 为准 |
 | D-004 | 初期向量能力 | PostgreSQL exact cosine（pgvector 兼容演进边界） | M5 | #235 先交付可重建 JSON 向量派生索引和确定性 exact 检索；Embedding 契约先于 pgvector Schema，M2-M4 不依赖向量能力 |
 | D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | 规模触发后评估 | 达到规模或检索隔离触发条件后再引入 |
-| D-006 | Agent 编排 | LangGraph Adapter 候选 | 触发后评估 | 只有多 Tool、分支和暂停/恢复需求成立后引入；不拥有领域事实 |
+| D-006 | Agent 编排 | Worker 内的单 Agent/单 Graph LangGraph Adapter | M5 / #248 | API 只负责 Run/Approval 查询与恢复；Tool 通过固定 typed DTO 调用既有 Use Case；不拥有领域事实；不引入多 Agent、MCP 或独立服务 |
 | D-007 | 模型访问 | 最小 ModelPort + 阿里云百炼北京地域单 Provider | M5 | Chat 使用 `qwen3.8-max`，Embedding 使用 `qwen3.7-text-embedding` 1024 维；M2-M4 无模型也可完成 |
-| D-008 | 异步任务 | Task Queue Port；候选 Adapter 为 Celery + Redis | M5 条件评估 | 仅在指标成立时引入；最终结果不保存在 Celery Result Backend |
+| D-008 | 异步任务 | Task Queue Port；Celery + Redis 仍为候选 | M5 条件评估 | #248 的 Worker 内 Agent 逻辑不等于引入队列；只有长耗时、重试或故障隔离指标成立后才评估 Celery + Redis；最终结果不保存在 Result Backend |
 | D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | Current/M2 延伸 | 既有工作台已交付；新增输入确认由 M2 完成，始终通过公开 HTTP API |
 | D-010 | 对象存储 | Object Storage Port + MinIO/S3 首个真实 Adapter | M4 起 | 开发、集成 CI 与 Beta 统一验证私有 MinIO；Application 不依赖具体 SDK |
 | D-011 | 工程组织 | 前后端分离；后端业务模块优先、模块内分层 | #59 / 后续 Task | `backend/app` 边界 Current；业务模块内聚渐进迁移 |
@@ -495,10 +495,17 @@ flowchart LR
 
 ### Agent Runtime
 
-- 触发条件成立并通过 Architecture Review 后，先作为 Worker 内的逻辑模块运行，候选使用 LangGraph 管理条件边、暂停、恢复和 Checkpoint。
-- State 只保存业务 ID、输入版本、步骤状态和 Artifact 引用。
-- 不保存数据库 Session、SDK Client、浏览器 Page、密钥或完整敏感文档。
-- 独立扩展或部署只有在 Agent 负载、资源隔离或发布节奏确有需要时进行。
+- #248 固化的第一阶段是 Worker 内的单 Agent、单 Graph LangGraph Adapter；API 不执行 Graph 节点，只提供 Run/Approval
+  查询、批准、拒绝和恢复入口。Worker 是进程边界，不代表本阶段引入 Redis、Celery 或独立部署。
+- Graph 只能依赖固定 Tool 注册表和 typed DTO。Tool 分为 `READ`、`COMPUTE`、`WRITE`：前两类只能读取已确认的版本化
+  DTO/Evidence 或调用确定性 Use Case，`WRITE` 必须先生成 Approval 快照，再调用既有 Application Use Case。
+- Agent State 只保存 `user_goal`、业务 ID/版本、步骤状态、结果引用、`next_action` 和 `stop_reason`；Run、ToolCall、Approval
+  和 Checkpoint 的事实元数据由 PostgreSQL 保存。State 不保存 ORM Entity、数据库 Session、SDK Client、浏览器 Page、密钥、
+  Cookie、完整敏感正文或未版本化外部响应。
+- interrupt 在任何业务写入前发生；reject 可结束或重新规划，approve 后才允许进入既有 Use Case。失败遵循该 Use Case 的
+  事务、幂等和补偿契约，不由 Graph 绕过 Application Policy。
+- 删除 Checkpoint 不删除或回滚业务事实；resume 必须按 owner、对象版本和幂等身份重新加载事实源。只有出现 Agent 负载、资源
+  隔离或发布节奏的可复验证据后，才可重新评估队列、独立服务或多 Agent。
 
 ### Browser/Connector Runtime
 
@@ -673,7 +680,8 @@ M5 评测基线已冻结为合成 `nora-rag-eval-v1`（24 个正向问题、4 �
 
 ## 11. 多智能体边界
 
-目标角色可以包括投递决策、面试准备、出行规划、报告汇总和复盘 Agent，但它们不是独立数据所有者。
+目标角色可以包括投递决策、面试准备、出行规划、报告汇总和复盘 Agent，但它们不是独立数据所有者。#248 当前只允许
+单 Agent、单 Graph 的工具编排；这些角色不是本阶段要创建的多个运行时 Agent。
 
 ```mermaid
 flowchart TB
@@ -706,6 +714,8 @@ flowchart TB
 - Agent 输出是候选 DTO，必须经过 Application Policy 才能持久化或发布。
 - Tool Registry 使用固定注册表和 Pydantic Schema，不接受运行时任意 Python、JavaScript、URL 或选择器。
 - READ、COMPUTE、WRITE Tool 显式分类；WRITE 必须匹配 Approval 中冻结的用户、目标、内容摘要和版本。
+- Graph 只在 Worker 内运行；API 只读取或改变 Run/Approval 状态，不直接执行节点。没有队列、独立 Agent 服务、Supervisor
+  或 MCP Registry 的实现授权。
 - 不保存或暴露模型私有 chain-of-thought；只保存可审查的结构化步骤、引用、规则结果和停止原因。
 
 ## 12. 外部写、审批与幂等
