@@ -9,6 +9,7 @@ from app.ports.model import ModelPort, ModelRequest
 
 MODEL_PROBE_PROMPT_VERSION = "model-probe-v1"
 JOB_FIT_PROMPT_VERSION = "job-fit-v1"
+INTERVIEW_REVIEW_PROMPT_VERSION = "interview-review-memory-v1"
 
 
 class StructuredModelProbe(BaseModel):
@@ -77,6 +78,23 @@ class GroundedAnswer(BaseModel):
     citation_ordinals: Annotated[list[int], Field(max_length=20)]
 
 
+class MemoryCandidateSuggestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["skill_gap", "interview_pattern", "resume_issue", "knowledge_gap"]
+    text: Annotated[str, Field(min_length=1, max_length=8_000)]
+    reason: Annotated[str, Field(min_length=1, max_length=8_000)]
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    unknown: bool
+    suggested_action: Annotated[str, Field(min_length=1, max_length=8_000)]
+
+
+class InterviewReviewAnalysis(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    candidates: list[MemoryCandidateSuggestion] = Field(max_length=20)
+
+
 class VerifyStructuredModelUseCase:
     """Execute one fixed, non-sensitive structured request without business writes."""
 
@@ -105,6 +123,9 @@ __all__ = (
     "MODEL_PROBE_PROMPT_VERSION",
     "StructuredJobFitAnalysis",
     "GroundedAnswer",
+    "INTERVIEW_REVIEW_PROMPT_VERSION",
+    "InterviewReviewAnalysis",
+    "MemoryCandidateSuggestion",
     "StructuredJobFitCitation",
     "StructuredJobFitInsight",
     "StructuredModelProbe",

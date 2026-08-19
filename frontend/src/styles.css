@@ -457,6 +457,9 @@ textarea { min-height: 210px; resize: vertical; line-height: 1.55; }
 .preparation-topic { padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
 .preparation-topic p { margin: 8px 0; }
 .preparation-topic small { color: var(--muted); }
+.review-band .message-band-heading { display: flex; align-items: center; gap: 10px; }
+.review-candidates { display: grid; gap: 12px; margin-top: 18px; }
+.candidate-actions { gap: 8px; margin-top: 12px; }
 .topic-heading { display: flex; justify-content: space-between; gap: 16px; }
 .topic-heading span { color: var(--muted); font-size: .82rem; }
 .topic-citations { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

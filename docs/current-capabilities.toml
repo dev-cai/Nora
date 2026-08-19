@@ -595,6 +595,24 @@ code_paths = [
 evidence = ["https://github.com/dev-cai/Nora/pull/245"]
 
 [[capabilities]]
+id = "interview-review-memory-candidates"
+name = "面试复盘与可确认记忆候选"
+milestone = "M5"
+status = "current"
+summary = "支持按 InterviewCase 精确版本追加保存问题、回答、自评、卡点和结果，调用 ModelPort 生成 skill gap、interview pattern、resume issue、knowledge gap 四类结构化 MemoryCandidate。候选默认 proposed，用户可逐项 confirm/reject/revoke；只有 confirmed 候选复用 Artifact→Source→Chunk→Embedding 链路进入后续 RAG，拒绝不写入，撤销删除派生来源并从新 Retrieval 消失。所有 Review、Candidate、Source 和 Artifact 按 owner 隔离，不自动修改 CandidateProfile、不保存 chain-of-thought。"
+code_paths = [
+  "backend/app/domain/followup/interview_review.py",
+  "backend/app/application/followup/interview_review.py",
+  "backend/app/infrastructure/database/interview_review.py",
+  "backend/app/apps/api/routes/interviews.py",
+  "backend/alembic/versions/0026_interview_reviews_memory.py",
+  "backend/tests/unit/test_interview_review.py",
+  "frontend/src/stores/interviews.ts",
+  "frontend/src/views/InterviewDetailView.vue",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/247"]
+
+[[capabilities]]
 id = "beta-deployment-pipeline"
 name = "Beta 摘要发布与兼容性受限回滚管道"
 milestone = "M4"

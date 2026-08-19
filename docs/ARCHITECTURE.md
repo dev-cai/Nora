@@ -375,6 +375,8 @@ M5 Current `InterviewPreparation` 固定 InterviewCase、ApplicationRecord、Dec
 
 每次刷新都向 PostgreSQL 追加新的准备版本，不覆盖历史；版本内容以 JSONB 保存，citation 固定 Source ID/版本、Chunk ID、locator、摘要和检索分数。读取最新、列表和精确版本均先验证 InterviewCase owner，跨用户对象统一不可见。公开接口为 `POST/GET /interviews/{id}/preparation`、`GET /interviews/{id}/preparation/versions` 与 `GET /interviews/{id}/preparation/versions/{version}`。本切片不包含题库编排、模拟面试评分、面试复盘、出行或外部写。
 
+M5 `InterviewReview` 以 InterviewCase 精确版本追加保存用户问题、回答、自评、卡点和结果。ModelPort 只生成结构化 `MemoryCandidate`（skill gap、interview pattern、resume issue、knowledge gap），候选状态为 proposed、confirmed、rejected 或 revoked；模型输出不能直接修改 CandidateProfile 或进入检索。用户确认候选后，Application 复用现有 Artifact/Source/Chunk 链路生成 `user_confirmed` 来源并建立可重建 Embedding，只有该 Source 可被 Core-3 检索；拒绝不产生来源，撤销会删除派生 Artifact 并使后续检索不可见。所有 Review、Candidate、Source 和 Artifact 按 owner 隔离，确认/拒绝/撤销均可审计，确认后的记忆可撤销，不保存 chain-of-thought。公开接口为 `POST/GET /interviews/{id}/reviews`、`POST /interviews/memory-candidates/{id}/confirm|reject|revoke`。本切片不实现自动画像、自动确认、独立 Memory Vector Store 或遗忘算法。
+
 ### 简历模板、PDF 与 MessageDraft
 
 - Current 模板采用声明式 JSON `TemplateDefinition`：页面尺寸、密度、强调色、区块顺序、允许字段和必填字段。模板发布后不可变，只接受受控枚举与结构化字段路径，不执行 Python、HTML、JavaScript、Jinja，也不加载外部脚本或网络资源。

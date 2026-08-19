@@ -11,24 +11,28 @@ from app.application.followup import (
     CreateInterviewCaseCommand,
     InterviewCaseUseCases,
     InterviewPreparationUseCases,
+    InterviewReviewUseCases,
     ListInterviewCasesQuery,
     UpdateInterviewCaseCommand,
 )
-from app.application.knowledge import KnowledgeRagService
+from app.application.knowledge import ArtifactService, KnowledgeRagService
 from app.apps.api.dependencies.career import get_resume_version_repository
 from app.apps.api.dependencies.common import get_current_user
 from app.apps.api.dependencies.decision import (
     get_decision_case_repository,
     get_decision_report_repository,
     get_job_fit_analysis_repository,
+    get_model_port,
 )
 from app.apps.api.dependencies.followup import (
     get_application_record_repository,
     get_interview_case_repository,
     get_interview_preparation_repository,
+    get_interview_review_repository,
+    get_memory_candidate_repository,
 )
 from app.apps.api.dependencies.governance import get_audit_event_repository
-from app.apps.api.dependencies.knowledge import get_knowledge_rag_service
+from app.apps.api.dependencies.knowledge import get_artifact_service, get_knowledge_rag_service
 from app.apps.api.dependencies.opportunity import get_job_posting_repository
 from app.apps.api.dependencies.transaction import get_transaction
 from app.domain.followup import (
@@ -37,6 +41,10 @@ from app.domain.followup import (
     InterviewCaseStatus,
     InterviewMode,
     InterviewPreparation,
+    InterviewReview,
+    MemoryCandidate,
+    MemoryCandidateKind,
+    MemoryCandidateStatus,
     PreparationPriority,
 )
 from app.domain.identity import User
@@ -46,9 +54,15 @@ from app.ports.decision import (
     DecisionReportRepository,
     JobFitAnalysisRepository,
 )
-from app.ports.followup import ApplicationRecordRepository, InterviewCaseRepository
+from app.ports.followup import (
+    ApplicationRecordRepository,
+    InterviewCaseRepository,
+    InterviewReviewRepository,
+    MemoryCandidateRepository,
+)
 from app.ports.governance import AuditEventRepository
 from app.ports.interview_preparation import InterviewPreparationRepository
+from app.ports.model import ModelPort
 from app.ports.opportunity import JobPostingRepository
 from app.ports.transaction import Transaction
 
@@ -183,6 +197,98 @@ class InterviewPreparationResponse(BaseModel):
             ],
             created_at=value.created_at,
         )
+
+
+class InterviewReviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    questions: list[str] = Field(min_length=1, max_length=50)
+    answers: list[str] = Field(min_length=1, max_length=50)
+    self_assessment: str = Field(min_length=1, max_length=8_000)
+    blockers: list[str] = Field(default_factory=list, max_length=50)
+    outcome: str = Field(min_length=1, max_length=8_000)
+
+
+class InterviewReviewResponse(BaseModel):
+    id: UUID
+    interview_case_id: UUID
+    interview_case_version: int
+    version: int
+    questions: list[str]
+    answers: list[str]
+    self_assessment: str
+    blockers: list[str]
+    outcome: str
+    created_at: datetime
+    candidates: list["MemoryCandidateResponse"]
+
+
+class MemoryCandidateResponse(BaseModel):
+    id: UUID
+    review_id: UUID
+    review_version: int
+    kind: MemoryCandidateKind
+    text: str
+    reason: str
+    confidence: float | None
+    unknown: bool
+    suggested_action: str
+    status: MemoryCandidateStatus
+    source_id: UUID | None
+    source_version: int | None
+    created_at: datetime
+    confirmed_at: datetime | None
+    rejected_at: datetime | None
+
+    @classmethod
+    def from_domain(cls, value: MemoryCandidate) -> "MemoryCandidateResponse":
+        return cls(
+            id=value.id,
+            review_id=value.review_id,
+            review_version=value.review_version,
+            kind=value.kind,
+            text=value.text,
+            reason=value.reason,
+            confidence=value.confidence,
+            unknown=value.unknown,
+            suggested_action=value.suggested_action,
+            status=value.status,
+            source_id=value.source_id,
+            source_version=value.source_version,
+            created_at=value.created_at,
+            confirmed_at=value.confirmed_at,
+            rejected_at=value.rejected_at,
+        )
+
+
+def _review_response(
+    review: InterviewReview, candidates: list[MemoryCandidate]
+) -> InterviewReviewResponse:
+    return InterviewReviewResponse(
+        id=review.id,
+        interview_case_id=review.interview_case_id,
+        interview_case_version=review.interview_case_version,
+        version=review.version,
+        questions=list(review.questions),
+        answers=list(review.answers),
+        self_assessment=review.self_assessment,
+        blockers=list(review.blockers),
+        outcome=review.outcome,
+        created_at=review.created_at,
+        candidates=[MemoryCandidateResponse.from_domain(item) for item in candidates],
+    )
+
+
+def _review_use_cases(
+    reviews: InterviewReviewRepository,
+    candidates: MemoryCandidateRepository,
+    interviews: InterviewCaseRepository,
+    model: ModelPort,
+    artifacts: ArtifactService,
+    rag: KnowledgeRagService,
+    audits: AuditEventRepository,
+) -> InterviewReviewUseCases:
+    return InterviewReviewUseCases(reviews, candidates, interviews, model, artifacts, rag, audits)
 
 
 def _use_cases(
@@ -482,3 +588,106 @@ async def get_interview_preparation_version(
         rag,
     ).get_version(user.id, interview_id, version)
     return InterviewPreparationResponse.from_domain(value)
+
+
+@router.post(
+    "/{interview_id}/reviews",
+    response_model=InterviewReviewResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_interview_review(
+    interview_id: UUID,
+    payload: InterviewReviewRequest,
+    user: User = Depends(get_current_user),
+    reviews: InterviewReviewRepository = Depends(get_interview_review_repository),
+    candidates: MemoryCandidateRepository = Depends(get_memory_candidate_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    model: ModelPort = Depends(get_model_port),
+    artifacts: ArtifactService = Depends(get_artifact_service),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+    audits: AuditEventRepository = Depends(get_audit_event_repository),
+) -> InterviewReviewResponse:
+    result = await _review_use_cases(
+        reviews, candidates, interviews, model, artifacts, rag, audits
+    ).create(
+        user.id,
+        interview_id,
+        questions=tuple(payload.questions),
+        answers=tuple(payload.answers),
+        self_assessment=payload.self_assessment,
+        blockers=tuple(payload.blockers),
+        outcome=payload.outcome,
+    )
+    return _review_response(result.review, list(result.candidates))
+
+
+@router.get("/{interview_id}/reviews", response_model=list[InterviewReviewResponse])
+async def list_interview_reviews(
+    interview_id: UUID,
+    user: User = Depends(get_current_user),
+    reviews: InterviewReviewRepository = Depends(get_interview_review_repository),
+    candidates: MemoryCandidateRepository = Depends(get_memory_candidate_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    model: ModelPort = Depends(get_model_port),
+    artifacts: ArtifactService = Depends(get_artifact_service),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+    audits: AuditEventRepository = Depends(get_audit_event_repository),
+) -> list[InterviewReviewResponse]:
+    values = await _review_use_cases(
+        reviews, candidates, interviews, model, artifacts, rag, audits
+    ).versions(user.id, interview_id)
+    return [_review_response(review, items) for review, items in values]
+
+
+@router.post("/memory-candidates/{candidate_id}/confirm", response_model=MemoryCandidateResponse)
+async def confirm_memory_candidate(
+    candidate_id: UUID,
+    user: User = Depends(get_current_user),
+    reviews: InterviewReviewRepository = Depends(get_interview_review_repository),
+    candidates: MemoryCandidateRepository = Depends(get_memory_candidate_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    model: ModelPort = Depends(get_model_port),
+    artifacts: ArtifactService = Depends(get_artifact_service),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+    audits: AuditEventRepository = Depends(get_audit_event_repository),
+) -> MemoryCandidateResponse:
+    value = await _review_use_cases(
+        reviews, candidates, interviews, model, artifacts, rag, audits
+    ).confirm(user.id, candidate_id)
+    return MemoryCandidateResponse.from_domain(value)
+
+
+@router.post("/memory-candidates/{candidate_id}/reject", response_model=MemoryCandidateResponse)
+async def reject_memory_candidate(
+    candidate_id: UUID,
+    user: User = Depends(get_current_user),
+    reviews: InterviewReviewRepository = Depends(get_interview_review_repository),
+    candidates: MemoryCandidateRepository = Depends(get_memory_candidate_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    model: ModelPort = Depends(get_model_port),
+    artifacts: ArtifactService = Depends(get_artifact_service),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+    audits: AuditEventRepository = Depends(get_audit_event_repository),
+) -> MemoryCandidateResponse:
+    value = await _review_use_cases(
+        reviews, candidates, interviews, model, artifacts, rag, audits
+    ).reject(user.id, candidate_id)
+    return MemoryCandidateResponse.from_domain(value)
+
+
+@router.post("/memory-candidates/{candidate_id}/revoke", response_model=MemoryCandidateResponse)
+async def revoke_memory_candidate(
+    candidate_id: UUID,
+    user: User = Depends(get_current_user),
+    reviews: InterviewReviewRepository = Depends(get_interview_review_repository),
+    candidates: MemoryCandidateRepository = Depends(get_memory_candidate_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    model: ModelPort = Depends(get_model_port),
+    artifacts: ArtifactService = Depends(get_artifact_service),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+    audits: AuditEventRepository = Depends(get_audit_event_repository),
+) -> MemoryCandidateResponse:
+    value = await _review_use_cases(
+        reviews, candidates, interviews, model, artifacts, rag, audits
+    ).revoke(user.id, candidate_id)
+    return MemoryCandidateResponse.from_domain(value)

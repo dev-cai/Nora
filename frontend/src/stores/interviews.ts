@@ -6,6 +6,9 @@ import type {
   CreateInterviewCaseInput,
   InterviewCase,
   InterviewPreparation,
+  CreateInterviewReviewInput,
+  InterviewReview,
+  MemoryCandidate,
   UpdateInterviewCaseInput,
 } from "@/api/types"
 
@@ -15,6 +18,7 @@ export const useInterviewsStore = defineStore("interviews", () => {
   const versions = ref<InterviewCase[]>([])
   const preparation = ref<InterviewPreparation | null>(null)
   const preparationVersions = ref<InterviewPreparation[]>([])
+  const reviews = ref<InterviewReview[]>([])
   const total = ref(0)
   const loading = ref(false)
   const saving = ref(false)
@@ -36,6 +40,7 @@ export const useInterviewsStore = defineStore("interviews", () => {
     versions.value = []
     preparation.value = null
     preparationVersions.value = []
+    reviews.value = []
     loading.value = true
     try {
       const value = await api.getInterview(id)
@@ -76,6 +81,39 @@ export const useInterviewsStore = defineStore("interviews", () => {
     } finally {
       saving.value = false
     }
+  }
+
+  async function fetchReviews(id: string): Promise<InterviewReview[]> {
+    reviews.value = await api.listInterviewReviews(id)
+    return reviews.value
+  }
+
+  async function createReview(id: string, input: CreateInterviewReviewInput): Promise<InterviewReview> {
+    saving.value = true
+    try {
+      const value = await api.createInterviewReview(id, input)
+      reviews.value = [value, ...reviews.value]
+      return value
+    } finally { saving.value = false }
+  }
+
+  async function updateCandidate(
+    candidate: MemoryCandidate,
+    action: "confirm" | "reject" | "revoke",
+  ): Promise<MemoryCandidate> {
+    saving.value = true
+    try {
+      const value = action === "confirm"
+        ? await api.confirmMemoryCandidate(candidate.id)
+        : action === "reject"
+          ? await api.rejectMemoryCandidate(candidate.id)
+          : await api.revokeMemoryCandidate(candidate.id)
+      reviews.value = reviews.value.map((review) => ({
+        ...review,
+        candidates: review.candidates.map((item) => item.id === value.id ? value : item),
+      }))
+      return value
+    } finally { saving.value = false }
   }
 
   async function create(
@@ -127,6 +165,7 @@ export const useInterviewsStore = defineStore("interviews", () => {
     versions.value = []
     preparation.value = null
     preparationVersions.value = []
+    reviews.value = []
     total.value = 0
     loading.value = false
     saving.value = false
@@ -145,8 +184,12 @@ export const useInterviewsStore = defineStore("interviews", () => {
     fetchVersions,
     preparation,
     preparationVersions,
+    reviews,
     fetchPreparation,
     generatePreparation,
+    fetchReviews,
+    createReview,
+    updateCandidate,
     create,
     update,
     reset,
