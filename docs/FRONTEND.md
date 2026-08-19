@@ -75,6 +75,11 @@ flowchart LR
 - `GET /reports/{id}/job-fit-analysis`
 - `POST /knowledge/sources/{id}/index`
 - `POST /knowledge/ask`
+- `POST /agent-runs`
+- `GET /agent-runs/{id}`
+- `POST /agent-runs/{run_id}/approvals/{approval_id}/approve`
+- `POST /agent-runs/{run_id}/approvals/{approval_id}/reject`
+- `DELETE /agent-runs/{run_id}/checkpoint`
 - `GET /templates`
 - `GET /templates/{id}/versions/{version}`
 - `POST /resume-variants`
@@ -102,6 +107,9 @@ flowchart LR
 简历版本、声明式模板、ResumeVariant、确定性 PDF、MessageDraft 与手工 ApplicationRecord 接口均属于 Current。分析、确定性报告、AI JobFitAnalysis、报告内 citation 展示与投/不投决定的后端 API 及浏览器页面也属于 Current。AI 页面将模型推断、建议和未知与确定性规则分区；Provider 失败时只显示局部错误，报告和决定控件继续可用。招聘平台自动投递仍未交付；前端不得根据路线图伪造响应或绕过未交付 API。
 
 最小 RAG API 已进入后端契约：来源索引和知识问答返回 Source/Chunk 定位、检索分数与 grounded/unknown 状态；当前尚无独立 RAG 前端页面，前端不得虚构该能力的导航入口。
+
+Agent Runtime API 已进入后端契约，但当前没有独立浏览器页面或 Pinia Store。调用方只能通过认证 API 查看 Run、Tool 摘要、Approval
+快照和可清理 Checkpoint；前端不得展示 chain-of-thought、注入任意 Tool 名称或绕过 Approval 触发 WRITE Tool。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
 构建产物，因此只能保存公开配置，禁止写入数据库凭据、签名密钥、Provider Token 或其他秘密。

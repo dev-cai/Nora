@@ -799,6 +799,9 @@ docker compose build api
 
 提交依赖变更时必须同时提交 `backend/pyproject.toml` 和 `backend/uv.lock`。不要提交 `.env`、`.venv`、`dist` 或其他本地产物。
 
+Agent Runtime 的 LangGraph 依赖由 `backend/pyproject.toml` 固定在 `langgraph>=1.0,<2`，通过 `uv lock` 更新锁文件；
+LangGraph 只在 `backend/app/agent_runtime/` 外层 Adapter 使用，不能被 Domain、Ports 或 Application 导入。
+
 ## 路径与挂载规则
 
 - 推荐工作区：`/home/<user>/projects/Nora`。

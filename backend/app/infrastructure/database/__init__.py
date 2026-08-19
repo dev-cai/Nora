@@ -1,5 +1,12 @@
 """异步数据库连接和 ORM 基础设施。"""
 
+from .agent_runtime import (
+    AgentApprovalRecord,
+    AgentCheckpointRecord,
+    AgentRunRecord,
+    AgentToolCallRecord,
+    SqlAlchemyAgentRuntimeRepository,
+)
 from .base import AuditMixin, Base, OwnedByUserMixin
 from .career import (
     CandidateProfileRecord,
@@ -77,6 +84,10 @@ from .transaction import SqlAlchemyTransaction
 
 __all__ = (
     "AuditMixin",
+    "AgentApprovalRecord",
+    "AgentCheckpointRecord",
+    "AgentRunRecord",
+    "AgentToolCallRecord",
     "Base",
     "CandidateProfileRecord",
     "CompanyAssessmentRecord",
@@ -105,6 +116,7 @@ __all__ = (
     "JobRequirementSnapshotRecord",
     "SourceDocumentRecord",
     "SqlAlchemyRepository",
+    "SqlAlchemyAgentRuntimeRepository",
     "SqlAlchemyAuditEventRepository",
     "SqlAlchemyApplicationDecisionRepository",
     "SqlAlchemyApplicationRecordRepository",

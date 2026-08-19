@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#166、#171、#174、#183、#184、#185、#186、#187、#224、#248。
-- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础和公司情报后端切片。
+- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础、公司情报后端切片和 M5 单 Agent/单 Graph Runtime。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -506,6 +506,9 @@ flowchart LR
   事务、幂等和补偿契约，不由 Graph 绕过 Application Policy。
 - 删除 Checkpoint 不删除或回滚业务事实；resume 必须按 owner、对象版本和幂等身份重新加载事实源。只有出现 Agent 负载、资源
   隔离或发布节奏的可复验证据后，才可重新评估队列、独立服务或多 Agent。
+- #238 首个纵向切片已实现固定五个 Tool 的 typed Registry、确定性目标路由、Run/ToolCall/Approval/Checkpoint PostgreSQL
+  事实表和 API 的启动、查询、批准、拒绝、恢复入口。当前 Graph Adapter 使用进程内 Checkpointer，重启恢复以 PostgreSQL
+  Checkpoint 作为状态边界；不把 ORM、Session、SDK、密钥或完整敏感正文放入 Agent State。
 
 ### Browser/Connector Runtime
 
