@@ -54,6 +54,7 @@ LAYER_RULES = (
         relative_path=Path("app/apps"),
         allowed_app_prefixes=frozenset(
             {
+                "app.agent_runtime",
                 "app.application",
                 "app.apps",
                 "app.domain",
@@ -453,6 +454,7 @@ def test_api_composition_is_split_by_bounded_context_without_legacy_exports() ->
             "get_knowledge_rag_service",
             "get_source_document_repository",
         },
+        "agent_runtime.py": {"get_agent_runtime_service"},
         "transaction.py": {"get_transaction"},
     }
 
