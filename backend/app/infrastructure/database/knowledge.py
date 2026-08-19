@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -14,13 +15,23 @@ from sqlalchemy import (
     UniqueConstraint,
     select,
 )
+from sqlalchemy import (
+    delete as sql_delete,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
 from app.domain.base.exceptions import ErrorCode, InfrastructureError
-from app.domain.knowledge import Artifact, ArtifactKind, ArtifactStatus, SourceDocument, SourceKind
+from app.domain.knowledge import (
+    Artifact,
+    ArtifactKind,
+    ArtifactStatus,
+    KnowledgeChunk,
+    SourceDocument,
+    SourceKind,
+)
 from app.infrastructure.database.base import Base
 
 
@@ -98,6 +109,41 @@ class SourceDocumentRecord(Base):
     acquired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class KnowledgeChunkRecord(Base):
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (
+        UniqueConstraint(
+            "owner_id", "source_id", "source_version", "ordinal", name="uq_chunk_source_ordinal"
+        ),
+        CheckConstraint("ordinal >= 0", name="ck_chunk_ordinal"),
+        CheckConstraint("embedding_dimension > 0", name="ck_chunk_embedding_dimension"),
+        ForeignKeyConstraint(
+            ["source_id", "source_version", "owner_id"],
+            ["source_documents.id", "source_documents.version", "source_documents.owner_id"],
+            name="fk_chunk_source_owner",
+            ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    source_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    artifact_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    artifact_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    locator: Mapped[str] = mapped_column(Text, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(JSON, nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(100), nullable=False)
+    embedding_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    embedding_dimension: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -258,8 +304,131 @@ class SqlAlchemySourceDocumentRepository:
             created_at=_utc(record.created_at),
         )
 
+    async def get_by_identity(self, source_id: UUID, version: int) -> SourceDocument | None:
+        record = await self.session.scalar(
+            select(SourceDocumentRecord).where(
+                SourceDocumentRecord.id == source_id,
+                SourceDocumentRecord.version == version,
+                SourceDocumentRecord.owner_id == self.owner_id,
+            )
+        )
+        if not record:
+            return None
+        return await self.get_by_id(record.id)
+
     async def commit(self) -> None:
         await self.session.commit()
+
+
+class SqlAlchemyChunkRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def replace_for_source(
+        self, source: SourceDocument, chunks: list[KnowledgeChunk]
+    ) -> None:
+        await self.session.execute(
+            sql_delete(KnowledgeChunkRecord).where(
+                KnowledgeChunkRecord.owner_id == source.owner_id,
+                KnowledgeChunkRecord.source_id == source.id,
+                KnowledgeChunkRecord.source_version == source.version,
+            )
+        )
+        self.session.add_all([KnowledgeChunkRecord(**_chunk_values(chunk)) for chunk in chunks])
+        await self.session.flush()
+
+    async def search(
+        self,
+        *,
+        owner_id: UUID,
+        query_embedding: tuple[float, ...],
+        source_id: UUID | None = None,
+        source_version: int | None = None,
+        limit: int = 5,
+    ) -> list[tuple[KnowledgeChunk, float]]:
+        from math import sqrt
+
+        rows = (
+            await self.session.scalars(
+                select(KnowledgeChunkRecord).where(KnowledgeChunkRecord.owner_id == owner_id)
+            )
+        ).all()
+        candidates = []
+        for row in rows:
+            if source_id is not None and row.source_id != source_id:
+                continue
+            if source_version is not None and row.source_version != source_version:
+                continue
+            artifact = await self.session.scalar(
+                select(ArtifactRecord).where(
+                    ArtifactRecord.id == row.artifact_id,
+                    ArtifactRecord.version == row.artifact_version,
+                    ArtifactRecord.owner_id == owner_id,
+                )
+            )
+            if artifact is None or artifact.status != ArtifactStatus.AVAILABLE.value:
+                continue
+            vector = tuple(float(value) for value in row.embedding)
+            if len(vector) != len(query_embedding):
+                continue
+            denominator = sqrt(
+                sum(value * value for value in vector)
+                * sum(value * value for value in query_embedding)
+            )
+            score = (
+                sum(a * b for a, b in zip(vector, query_embedding, strict=True)) / denominator
+                if denominator
+                else 0.0
+            )
+            candidates.append((score, row.ordinal, row))
+        candidates.sort(key=lambda item: (-item[0], item[1]))
+        return [(_chunk_domain(row), score) for score, _, row in candidates[:limit]]
+
+    async def commit(self) -> None:
+        await self.session.commit()
+
+
+def _chunk_values(value: KnowledgeChunk) -> dict[str, object]:
+    return {
+        name: getattr(value, name)
+        for name in (
+            "id",
+            "owner_id",
+            "source_id",
+            "source_version",
+            "artifact_id",
+            "artifact_version",
+            "ordinal",
+            "locator",
+            "text",
+            "content_sha256",
+            "embedding",
+            "embedding_model",
+            "embedding_version",
+            "embedding_dimension",
+            "created_at",
+        )
+    }
+
+
+def _chunk_domain(record: KnowledgeChunkRecord) -> KnowledgeChunk:
+    return KnowledgeChunk(
+        id=record.id,
+        owner_id=record.owner_id,
+        source_id=record.source_id,
+        source_version=record.source_version,
+        artifact_id=record.artifact_id,
+        artifact_version=record.artifact_version,
+        ordinal=record.ordinal,
+        locator=record.locator,
+        text=record.text,
+        content_sha256=record.content_sha256,
+        embedding=tuple(float(value) for value in record.embedding),
+        embedding_model=record.embedding_model,
+        embedding_version=record.embedding_version,
+        embedding_dimension=record.embedding_dimension,
+        created_at=_utc(record.created_at),
+    )
 
 
 def _artifact_values(value: Artifact) -> dict[str, object]:

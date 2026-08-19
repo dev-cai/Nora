@@ -47,8 +47,10 @@ from .identity import (
 from .job_fit import JobFitAnalysisRecord, SqlAlchemyJobFitAnalysisRepository
 from .knowledge import (
     ArtifactRecord,
+    KnowledgeChunkRecord,
     SourceDocumentRecord,
     SqlAlchemyArtifactRepository,
+    SqlAlchemyChunkRepository,
     SqlAlchemySourceDocumentRepository,
 )
 from .opportunity import (
@@ -83,6 +85,7 @@ __all__ = (
     "ResumeVariantRecord",
     "TemplateDefinitionRecord",
     "ArtifactRecord",
+    "KnowledgeChunkRecord",
     "JobPostingIdempotencyRecord",
     "JobPostingRecord",
     "JobFitAnalysisRecord",
@@ -107,6 +110,7 @@ __all__ = (
     "SqlAlchemyDecisionReportRepository",
     "SqlAlchemyResumeVersionRepository",
     "SqlAlchemySourceDocumentRepository",
+    "SqlAlchemyChunkRepository",
     "SqlAlchemyJobPostingRepository",
     "SqlAlchemyJobFitAnalysisRepository",
     "SqlAlchemyJobRequirementSnapshotRepository",
