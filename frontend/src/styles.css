@@ -451,6 +451,19 @@ textarea { min-height: 210px; resize: vertical; line-height: 1.55; }
 .interview-mode-field .application-status-control { margin-top: 0; }
 .interview-wide-field { grid-column: 1 / -1; }
 .interview-editor-band, .interview-history-band { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--line); }
+.preparation-band .message-band-heading { display: flex; align-items: center; gap: 10px; }
+.preparation-band .message-band-heading .icon-button { margin-left: auto; }
+.preparation-topics { display: grid; gap: 12px; margin-top: 14px; }
+.preparation-topic { padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.preparation-topic p { margin: 8px 0; }
+.preparation-topic small { color: var(--muted); }
+.topic-heading { display: flex; justify-content: space-between; gap: 16px; }
+.topic-heading span { color: var(--muted); font-size: .82rem; }
+.topic-citations { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.preparation-citation { padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; }
+.preparation-citation summary { cursor: pointer; font-size: .86rem; color: var(--accent); }
+.preparation-citation p { max-width: 72ch; }
+.preparation-history { margin-top: 14px; color: var(--muted); }
 .interview-detail-form { margin-top: 16px; }
 .interview-status-control { margin-top: 18px; }
 .variant-provenance dd .inline-link { display: inline-flex; align-items: center; gap: 5px; }

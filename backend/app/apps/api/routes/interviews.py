@@ -10,25 +10,46 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.application.followup import (
     CreateInterviewCaseCommand,
     InterviewCaseUseCases,
+    InterviewPreparationUseCases,
     ListInterviewCasesQuery,
     UpdateInterviewCaseCommand,
 )
+from app.application.knowledge import KnowledgeRagService
+from app.apps.api.dependencies.career import get_resume_version_repository
 from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.decision import (
+    get_decision_case_repository,
+    get_decision_report_repository,
+    get_job_fit_analysis_repository,
+)
 from app.apps.api.dependencies.followup import (
     get_application_record_repository,
     get_interview_case_repository,
+    get_interview_preparation_repository,
 )
 from app.apps.api.dependencies.governance import get_audit_event_repository
+from app.apps.api.dependencies.knowledge import get_knowledge_rag_service
+from app.apps.api.dependencies.opportunity import get_job_posting_repository
 from app.apps.api.dependencies.transaction import get_transaction
 from app.domain.followup import (
     InterviewCase,
     InterviewCaseSource,
     InterviewCaseStatus,
     InterviewMode,
+    InterviewPreparation,
+    PreparationPriority,
 )
 from app.domain.identity import User
+from app.ports.career import ResumeVersionRepository
+from app.ports.decision import (
+    DecisionCaseRepository,
+    DecisionReportRepository,
+    JobFitAnalysisRepository,
+)
 from app.ports.followup import ApplicationRecordRepository, InterviewCaseRepository
 from app.ports.governance import AuditEventRepository
+from app.ports.interview_preparation import InterviewPreparationRepository
+from app.ports.opportunity import JobPostingRepository
 from app.ports.transaction import Transaction
 
 application_router = APIRouter(prefix="/application-records", tags=["interviews"])
@@ -95,6 +116,73 @@ class InterviewCaseListResponse(BaseModel):
     page: int
     page_size: int
     total: int
+
+
+class PreparationCitationResponse(BaseModel):
+    citation_id: UUID
+    source_id: UUID
+    source_version: int
+    locator: str
+    excerpt: str
+    score: float
+    url: str
+
+
+class PreparationTopicResponse(BaseModel):
+    topic_id: str
+    title: str
+    priority: PreparationPriority
+    reason: str
+    estimated_effort_minutes: int
+    status: str
+    suggestion: str
+    citation_ids: list[UUID]
+
+
+class InterviewPreparationResponse(BaseModel):
+    id: UUID
+    interview_case_id: UUID
+    interview_case_version: int
+    version: int
+    generator_version: str
+    prompt_version: str
+    decision_case_id: UUID
+    decision_report_id: UUID | None
+    decision_report_version: int | None
+    topics: list[PreparationTopicResponse]
+    citations: list[PreparationCitationResponse]
+    created_at: datetime
+
+    @classmethod
+    def from_domain(cls, value: InterviewPreparation) -> "InterviewPreparationResponse":
+        return cls(
+            id=value.id,
+            interview_case_id=value.interview_case_id,
+            interview_case_version=value.interview_case_version,
+            version=value.version,
+            generator_version=value.generator_version,
+            prompt_version=value.prompt_version,
+            decision_case_id=value.decision_case_id,
+            decision_report_id=value.decision_report_id,
+            decision_report_version=value.decision_report_version,
+            topics=[
+                PreparationTopicResponse.model_validate(item, from_attributes=True)
+                for item in value.topics
+            ],
+            citations=[
+                PreparationCitationResponse(
+                    citation_id=item.citation_id,
+                    source_id=item.source_id,
+                    source_version=item.source_version,
+                    locator=item.locator,
+                    excerpt=item.excerpt,
+                    score=item.score,
+                    url=f"/sources/{item.source_id}",
+                )
+                for item in value.citations
+            ],
+            created_at=value.created_at,
+        )
 
 
 def _use_cases(
@@ -246,3 +334,151 @@ async def get_interview_version(
         user.id, interview_id, version
     )
     return InterviewCaseResponse.from_domain(value)
+
+
+def _preparation_use_cases(
+    preparations: InterviewPreparationRepository,
+    interviews: InterviewCaseRepository,
+    applications: ApplicationRecordRepository,
+    decision_cases: DecisionCaseRepository,
+    reports: DecisionReportRepository,
+    resumes: ResumeVersionRepository,
+    jobs: JobPostingRepository,
+    job_fit: JobFitAnalysisRepository,
+    rag: KnowledgeRagService,
+) -> InterviewPreparationUseCases:
+    return InterviewPreparationUseCases(
+        preparations,
+        interviews,
+        applications,
+        decision_cases,
+        reports,
+        resumes,
+        jobs,
+        job_fit,
+        rag,
+    )
+
+
+@router.post(
+    "/{interview_id}/preparation",
+    response_model=InterviewPreparationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def generate_interview_preparation(
+    interview_id: UUID,
+    response: Response,
+    user: User = Depends(get_current_user),
+    preparations: InterviewPreparationRepository = Depends(get_interview_preparation_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    applications: ApplicationRecordRepository = Depends(get_application_record_repository),
+    decision_cases: DecisionCaseRepository = Depends(get_decision_case_repository),
+    reports: DecisionReportRepository = Depends(get_decision_report_repository),
+    resumes: ResumeVersionRepository = Depends(get_resume_version_repository),
+    jobs: JobPostingRepository = Depends(get_job_posting_repository),
+    job_fit: JobFitAnalysisRepository = Depends(get_job_fit_analysis_repository),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+) -> InterviewPreparationResponse:
+    result = await _preparation_use_cases(
+        preparations,
+        interviews,
+        applications,
+        decision_cases,
+        reports,
+        resumes,
+        jobs,
+        job_fit,
+        rag,
+    ).generate(user.id, interview_id)
+    if result.replayed:
+        response.status_code = status.HTTP_200_OK
+    return InterviewPreparationResponse.from_domain(result.preparation)
+
+
+@router.get("/{interview_id}/preparation", response_model=InterviewPreparationResponse)
+async def get_interview_preparation(
+    interview_id: UUID,
+    user: User = Depends(get_current_user),
+    preparations: InterviewPreparationRepository = Depends(get_interview_preparation_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    applications: ApplicationRecordRepository = Depends(get_application_record_repository),
+    decision_cases: DecisionCaseRepository = Depends(get_decision_case_repository),
+    reports: DecisionReportRepository = Depends(get_decision_report_repository),
+    resumes: ResumeVersionRepository = Depends(get_resume_version_repository),
+    jobs: JobPostingRepository = Depends(get_job_posting_repository),
+    job_fit: JobFitAnalysisRepository = Depends(get_job_fit_analysis_repository),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+) -> InterviewPreparationResponse:
+    value = await _preparation_use_cases(
+        preparations,
+        interviews,
+        applications,
+        decision_cases,
+        reports,
+        resumes,
+        jobs,
+        job_fit,
+        rag,
+    ).get_latest(user.id, interview_id)
+    return InterviewPreparationResponse.from_domain(value)
+
+
+@router.get(
+    "/{interview_id}/preparation/versions", response_model=list[InterviewPreparationResponse]
+)
+async def list_interview_preparation_versions(
+    interview_id: UUID,
+    user: User = Depends(get_current_user),
+    preparations: InterviewPreparationRepository = Depends(get_interview_preparation_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    applications: ApplicationRecordRepository = Depends(get_application_record_repository),
+    decision_cases: DecisionCaseRepository = Depends(get_decision_case_repository),
+    reports: DecisionReportRepository = Depends(get_decision_report_repository),
+    resumes: ResumeVersionRepository = Depends(get_resume_version_repository),
+    jobs: JobPostingRepository = Depends(get_job_posting_repository),
+    job_fit: JobFitAnalysisRepository = Depends(get_job_fit_analysis_repository),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+) -> list[InterviewPreparationResponse]:
+    values = await _preparation_use_cases(
+        preparations,
+        interviews,
+        applications,
+        decision_cases,
+        reports,
+        resumes,
+        jobs,
+        job_fit,
+        rag,
+    ).list_versions(user.id, interview_id)
+    return [InterviewPreparationResponse.from_domain(value) for value in values]
+
+
+@router.get(
+    "/{interview_id}/preparation/versions/{version}", response_model=InterviewPreparationResponse
+)
+async def get_interview_preparation_version(
+    interview_id: UUID,
+    version: Annotated[int, Path(ge=1)],
+    user: User = Depends(get_current_user),
+    preparations: InterviewPreparationRepository = Depends(get_interview_preparation_repository),
+    interviews: InterviewCaseRepository = Depends(get_interview_case_repository),
+    applications: ApplicationRecordRepository = Depends(get_application_record_repository),
+    decision_cases: DecisionCaseRepository = Depends(get_decision_case_repository),
+    reports: DecisionReportRepository = Depends(get_decision_report_repository),
+    resumes: ResumeVersionRepository = Depends(get_resume_version_repository),
+    jobs: JobPostingRepository = Depends(get_job_posting_repository),
+    job_fit: JobFitAnalysisRepository = Depends(get_job_fit_analysis_repository),
+    rag: KnowledgeRagService = Depends(get_knowledge_rag_service),
+) -> InterviewPreparationResponse:
+    value = await _preparation_use_cases(
+        preparations,
+        interviews,
+        applications,
+        decision_cases,
+        reports,
+        resumes,
+        jobs,
+        job_fit,
+        rag,
+    ).get_version(user.id, interview_id, version)
+    return InterviewPreparationResponse.from_domain(value)

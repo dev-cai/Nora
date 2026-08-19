@@ -563,6 +563,24 @@ code_paths = [
 evidence = ["https://github.com/dev-cai/Nora/pull/221"]
 
 [[capabilities]]
+id = "rag-interview-preparation"
+name = "基于 RAG 的版本化面试准备"
+milestone = "M5"
+status = "current"
+summary = "支持从 owner 范围 InterviewCase 追溯 ApplicationRecord、DecisionCase 和可用 DecisionReport，调用最小 RAG 检索链路生成项目深挖、技术栈与基础、简历风险与反问三类受控准备主题。每项包含 priority、reason、预计投入、建议、grounded/unknown 状态和 Source/Chunk citation；无证据或模型不可用时明确输出 unknown 与通用建议，不虚构来源事实。每次刷新追加独立版本，最新、历史和精确版本均可恢复且跨用户不可见；InterviewDetail 页面展示主题和可打开 citation。不包含题库编排、模拟面试评分、复盘、出行或外部写。"
+code_paths = [
+  "backend/app/domain/followup/interview_preparation.py",
+  "backend/app/application/followup/interview_preparation.py",
+  "backend/app/infrastructure/database/interview_preparation.py",
+  "backend/app/apps/api/routes/interviews.py",
+  "backend/alembic/versions/0025_interview_preparations.py",
+  "backend/tests/unit/test_interview_preparation.py",
+  "frontend/src/stores/interviews.ts",
+  "frontend/src/views/InterviewDetailView.vue",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/245"]
+
+[[capabilities]]
 id = "beta-deployment-pipeline"
 name = "Beta 摘要发布与兼容性受限回滚管道"
 milestone = "M4"

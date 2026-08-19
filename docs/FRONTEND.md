@@ -326,13 +326,14 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 - 详情页仅展示服务端允许的下一状态。进入 `applied` 必须由用户选择渠道并确认发生时间；其他转换也保存发生时间、可选渠道和备注。失败重试沿用相同载荷的幂等键，版本冲突提示刷新后重试。
 - API：`POST /application-records`、`GET /application-records`、`GET /application-records/{id}`、`GET /application-records/{id}/transitions` 与 `POST /application-records/{id}/transitions`。跨用户对象统一 `404`；前端没有招聘平台请求、发送 API 或外部成功推断。
 
-### 10.12 最小面试通知（Current，M4）与触发式候选
+### 10.12 面试通知与 RAG 准备（Current）
 
 - 列表 `/interviews` 从认证 API 恢复 owner 范围最新安排；ApplicationRecord 进入 `interviewing` 后，详情页提供 `/interviews/new?application=<id>` 创建入口。登出清空 `interviewsStore`。
 - 创建和详情表单保存开始时间、IANA 时区、方式、轮次、备注，以及线上 HTTPS 会议链接或线下地点。电话方式不提交地点或链接；页面不读取邮件、日历或招聘平台。
 - 详情 `/interviews/:id` 对未来安排用当前 `base_version` 追加新版本，并展示完整版本历史；已开始或过去的安排只读。失败重试沿用相同载荷的幂等键，载荷变化后生成新键，冲突提示刷新后重试。
-- API：`POST /application-records/{id}/interviews`、`GET /interviews`、`GET /interviews/{id}`、`POST/GET /interviews/{id}/versions` 与 `GET /interviews/{id}/versions/{version}`。跨用户对象统一 `404`。
-- 深度准备、复盘、出行推荐、通知发送和 Provider 集成不属于本切片，满足触发条件后另行设计路由与契约。
+- 同一详情页加载最新 `InterviewPreparation`，展示项目深挖、技术栈与基础、简历风险与反问主题，以及 priority、预计投入、reason、通用建议和可打开 citation。点击刷新生成只追加准备版本，历史版本列表来自服务端；没有准备计划是正常空态，RAG 无证据显示 `unknown` 而不是伪造结论。
+- API：`POST /application-records/{id}/interviews`、`GET /interviews`、`GET /interviews/{id}`、`POST/GET /interviews/{id}/versions`、`GET /interviews/{id}/versions/{version}`、`POST/GET /interviews/{id}/preparation` 和准备历史读取接口。跨用户对象统一 `404`。
+- 题库编排、模拟面试评分、复盘、出行推荐和通知发送不属于本切片。
 
 ## 11. 状态管理（Pinia）
 
@@ -346,7 +347,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | `variantsStore` | 模板、ResumeVariant 列表/详情、精确模板恢复、幂等创建与 PDF 状态 | templates、variants、current、currentTemplate、currentPdf、generatingPdf |
 | `messagesStore` | MessageDraft 生成、详情恢复、修订历史与幂等编辑 | latestForVariant、current、versions、generating、saving |
 | `applicationsStore` | 手工投递列表/详情、材料确认、转换历史与幂等状态更新 | records、current、transitions、saving |
-| `interviewsStore` | 面试列表/详情、版本历史与幂等创建/追加 | items、current、versions、saving |
+| `interviewsStore` | 面试列表/详情、安排版本与 RAG 准备历史 | items、current、versions、preparation、preparationVersions、saving |
 | `companiesStore` | 来源上传、公司情报创建/追加、精确版本恢复与报告绑定 | latest、current、versions、saving、attaching |
 
 规则：Store 只保存展示状态与缓存快照，不持有业务事实权威；页面刷新后从后端重新加载；跨页共享使用稳定 ID。
@@ -388,7 +389,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | `ResumeCustomizeView` / `ResumeVariantDetailView` | 受控字段编排、不可变变体恢复与 PDF 生成/预览/下载 | Current，M4 |
 | `MessageDraftView` | 纯文本草稿编辑、追加版本、刷新恢复与浏览器复制 | Current，M4 |
 | `ApplicationRecordsView` / `ApplicationRecordCreateView` / `ApplicationRecordDetailView` | 列表恢复、精确材料确认、用户确认状态转换与历史 | Current，M4 |
-| `InterviewsView` / `InterviewCreateView` / `InterviewDetailView` | 面试通知创建、未来安排版本追加、历史与刷新恢复 | Current，M4 |
+| `InterviewsView` / `InterviewCreateView` / `InterviewDetailView` | 面试通知、安排版本、RAG 准备生成与历史恢复 | Current，M4/M5 |
 | `CompanySnapshotForm` / `CompanySnapshotCard` / Company views | 来源录入、字段状态、精确版本、时效与报告固定附件 | Current，M4 |
 | `AppErrorBoundary` | 顶层渲染错误边界 | Current |
 | `ErrorState` / `LoadingState` / `EmptyState` | 可复用通用状态组件 | Planned；当前页面内联处理 |

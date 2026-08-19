@@ -18,6 +18,12 @@ from .interview_case import (
     interview_case_request_fingerprint,
     normalize_interview_idempotency_key,
 )
+from .interview_preparation import (
+    InterviewPreparation,
+    PreparationCitation,
+    PreparationPriority,
+    PreparationTopic,
+)
 from .message_draft import (
     MAX_DRAFT_TEXT_LENGTH,
     MAX_REFERRAL_CONTEXT_LENGTH,
@@ -49,6 +55,10 @@ __all__ = (
     "ApplicationRecordTransition",
     "ApplicationTransitionSource",
     "InterviewCase",
+    "InterviewPreparation",
+    "PreparationCitation",
+    "PreparationPriority",
+    "PreparationTopic",
     "InterviewCaseSource",
     "InterviewCaseStatus",
     "InterviewMode",

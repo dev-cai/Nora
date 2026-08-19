@@ -10,6 +10,7 @@ from app.infrastructure.database import (
     SqlAlchemyApplicationRecordRepository,
     SqlAlchemyApplicationRecordTransitionRepository,
     SqlAlchemyInterviewCaseRepository,
+    SqlAlchemyInterviewPreparationRepository,
     SqlAlchemyMessageDraftRepository,
     SqlAlchemyResumePdfRepository,
     SqlAlchemyResumeVariantRepository,
@@ -21,6 +22,7 @@ from app.ports.followup import (
     ApplicationRecordRepository,
     ApplicationRecordTransitionRepository,
     InterviewCaseRepository,
+    InterviewPreparationRepository,
     MessageDraftRepository,
     ResumePdfRenderer,
     ResumePdfRepository,
@@ -55,6 +57,13 @@ def get_interview_case_repository(
     user: User = Depends(get_current_user),
 ) -> InterviewCaseRepository:
     return SqlAlchemyInterviewCaseRepository(session, user.id)
+
+
+def get_interview_preparation_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> InterviewPreparationRepository:
+    return SqlAlchemyInterviewPreparationRepository(session, user.id)
 
 
 def get_resume_variant_repository(

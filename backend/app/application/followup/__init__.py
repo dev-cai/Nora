@@ -16,6 +16,7 @@ from .interview_cases import (
     ListInterviewCasesQuery,
     UpdateInterviewCaseCommand,
 )
+from .interview_preparation import GenerateInterviewPreparationResult, InterviewPreparationUseCases
 from .message_draft import (
     EditMessageDraftCommand,
     GenerateMessageDraftCommand,
@@ -78,4 +79,6 @@ __all__ = (
     "ResumeVariantUseCases",
     "TransitionApplicationRecordCommand",
     "UpdateInterviewCaseCommand",
+    "InterviewPreparationUseCases",
+    "GenerateInterviewPreparationResult",
 )

@@ -331,6 +331,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/interviews/{interview_id}/preparation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Interview Preparation */
+        get: operations["get_interview_preparation_interviews__interview_id__preparation_get"];
+        put?: never;
+        /** Generate Interview Preparation */
+        post: operations["generate_interview_preparation_interviews__interview_id__preparation_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interviews/{interview_id}/preparation/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Interview Preparation Versions */
+        get: operations["list_interview_preparation_versions_interviews__interview_id__preparation_versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interviews/{interview_id}/preparation/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Interview Preparation Version */
+        get: operations["get_interview_preparation_version_interviews__interview_id__preparation_versions__version__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/interviews/{interview_id}/versions": {
         parameters: {
             query?: never;
@@ -1931,6 +1983,45 @@ export interface components {
          * @enum {string}
          */
         InterviewMode: "onsite" | "online" | "phone";
+        /** InterviewPreparationResponse */
+        InterviewPreparationResponse: {
+            /** Citations */
+            citations: components["schemas"]["PreparationCitationResponse"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Decision Case Id
+             * Format: uuid
+             */
+            decision_case_id: string;
+            /** Decision Report Id */
+            decision_report_id: string | null;
+            /** Decision Report Version */
+            decision_report_version: number | null;
+            /** Generator Version */
+            generator_version: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Interview Case Id
+             * Format: uuid
+             */
+            interview_case_id: string;
+            /** Interview Case Version */
+            interview_case_version: number;
+            /** Prompt Version */
+            prompt_version: string;
+            /** Topics */
+            topics: components["schemas"]["PreparationTopicResponse"][];
+            /** Version */
+            version: number;
+        };
         /**
          * JdInputKind
          * @description 产生 JD 文本的输入方式。
@@ -2300,6 +2391,52 @@ export interface components {
             confirmation_status: components["schemas"]["ConfirmationStatus"];
             /** Value */
             value?: string | null;
+        };
+        /** PreparationCitationResponse */
+        PreparationCitationResponse: {
+            /**
+             * Citation Id
+             * Format: uuid
+             */
+            citation_id: string;
+            /** Excerpt */
+            excerpt: string;
+            /** Locator */
+            locator: string;
+            /** Score */
+            score: number;
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Source Version */
+            source_version: number;
+            /** Url */
+            url: string;
+        };
+        /**
+         * PreparationPriority
+         * @enum {string}
+         */
+        PreparationPriority: "high" | "medium" | "low";
+        /** PreparationTopicResponse */
+        PreparationTopicResponse: {
+            /** Citation Ids */
+            citation_ids: string[];
+            /** Estimated Effort Minutes */
+            estimated_effort_minutes: number;
+            priority: components["schemas"]["PreparationPriority"];
+            /** Reason */
+            reason: string;
+            /** Status */
+            status: string;
+            /** Suggestion */
+            suggestion: string;
+            /** Title */
+            title: string;
+            /** Topic Id */
+            topic_id: string;
         };
         /** ProfileFactResponse */
         ProfileFactResponse: {
@@ -5034,6 +5171,383 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InterviewCaseResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    get_interview_preparation_interviews__interview_id__preparation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                interview_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewPreparationResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    generate_interview_preparation_interviews__interview_id__preparation_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                interview_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewPreparationResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    list_interview_preparation_versions_interviews__interview_id__preparation_versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                interview_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewPreparationResponse"][];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    get_interview_preparation_version_interviews__interview_id__preparation_versions__version__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                interview_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewPreparationResponse"];
                 };
             };
             /** @description Invalid input */

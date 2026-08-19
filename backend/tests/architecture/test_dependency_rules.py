@@ -434,6 +434,7 @@ def test_api_composition_is_split_by_bounded_context_without_legacy_exports() ->
             "get_application_record_repository",
             "get_application_record_transition_repository",
             "get_interview_case_repository",
+            "get_interview_preparation_repository",
             "get_message_draft_repository",
             "get_resume_pdf_renderer",
             "get_resume_pdf_repository",
@@ -444,6 +445,8 @@ def test_api_composition_is_split_by_bounded_context_without_legacy_exports() ->
         "knowledge.py": {
             "get_artifact_repository",
             "get_artifact_storage",
+            "get_chunk_repository",
+            "get_knowledge_rag_service",
             "get_source_document_repository",
         },
         "transaction.py": {"get_transaction"},

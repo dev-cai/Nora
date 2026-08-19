@@ -60,9 +60,10 @@ async function load(): Promise<void> {
   error.value = ""
   saved.value = false
   try {
-    const value = await store.fetchInterview(interviewId.value)
+  const value = await store.fetchInterview(interviewId.value)
     fill(value)
     await store.fetchVersions(value.id)
+    await store.fetchPreparation(value.id)
   } catch (reason) { error.value = userMessage(reason) }
 }
 
@@ -306,6 +307,75 @@ watch(interviewId, () => void load(), { immediate: true })
             </button>
           </div>
         </form>
+      </section>
+
+      <section class="interview-editor-band preparation-band">
+        <div class="message-band-heading">
+          <History :size="19" />
+          <h3>面试准备</h3>
+          <button
+            class="icon-button"
+            type="button"
+            title="刷新生成准备计划"
+            aria-label="刷新生成准备计划"
+            :disabled="store.saving"
+            @click="store.generatePreparation(interviewId)"
+          >
+            <RefreshCw :size="17" />
+          </button>
+        </div>
+        <p
+          v-if="!store.preparation"
+          class="empty-copy"
+        >
+          还没有准备计划，点击刷新生成。
+        </p>
+        <template v-else>
+          <p class="eyebrow">
+            准备计划 v{{ store.preparation.version }} · {{ new Date(store.preparation.created_at).toLocaleString('zh-CN') }}
+          </p>
+          <div class="preparation-topics">
+            <article
+              v-for="topic in store.preparation.topics"
+              :key="topic.topic_id"
+              class="preparation-topic"
+            >
+              <div class="topic-heading">
+                <strong>{{ topic.title }}</strong><span>{{ topic.priority }} · {{ topic.estimated_effort_minutes }} 分钟</span>
+              </div>
+              <p>{{ topic.reason }}</p>
+              <small>{{ topic.suggestion }}</small>
+              <div
+                v-if="topic.citation_ids.length"
+                class="topic-citations"
+              >
+                <details
+                  v-for="citationId in topic.citation_ids"
+                  :key="citationId"
+                  class="preparation-citation"
+                >
+                  <summary>打开证据</summary>
+                  <template v-if="store.preparation.citations.find((item) => item.citation_id === citationId)">
+                    <p>{{ store.preparation.citations.find((item) => item.citation_id === citationId)!.excerpt }}</p>
+                    <small>{{ store.preparation.citations.find((item) => item.citation_id === citationId)!.locator }}</small>
+                  </template>
+                </details>
+              </div>
+            </article>
+          </div>
+          <details
+            v-if="store.preparationVersions.length > 1"
+            class="preparation-history"
+          >
+            <summary>历史版本（{{ store.preparationVersions.length }}）</summary>
+            <p
+              v-for="item in store.preparationVersions"
+              :key="item.id"
+            >
+              v{{ item.version }} · {{ new Date(item.created_at).toLocaleString('zh-CN') }}
+            </p>
+          </details>
+        </template>
       </section>
 
       <section class="interview-history-band">
