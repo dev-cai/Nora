@@ -443,7 +443,7 @@ docker compose logs -f web
 
 ### 浏览器级真实 Compose E2E
 
-当前质量门禁在真实浏览器中验证 M2 输入、M3 决策与 M4 投递闭环。E2E 使用 Playwright（用例位于 `frontend/e2e/`），先在
+当前质量门禁在真实浏览器中验证 M2 输入、M3 决策、M4 投递闭环和 M5 Agentic RAG 求职旅程。E2E 使用 Playwright（用例位于 `frontend/e2e/`），先在
 开发形态的隔离 Compose 栈运行完整用户旅程：
 
 ```bash
@@ -464,6 +464,11 @@ npm run e2e
   MessageDraft 生成/编辑/复制 → planned ApplicationRecord → 用户确认 applied → interviewing/InterviewCase。生成和下载失败必须可见且
   不能伪造可用或已投递；刷新、退出与原用户重新登录后恢复全部版本，第二用户的读取、下载、草稿修改、PDF 生成、投递推进与面试更新
   均固定 404。浏览器请求保持在 Nora 本地 Origin，API 容器不配置模型或外部发送/投递凭据。
+- 用例 `frontend/e2e/agentic-rag-journey.spec.ts` 覆盖 JD → 确定性报告 → AI Provider 降级 → 面试安排 → RAG 准备与 citation →
+  复盘候选确认 → Memory 回流 → Agent Tool 路由与 interrupt/approve/resume → Checkpoint 清理、业务版本不变和双用户隔离。
+  普通 E2E Compose 通过 `E2E_FAKE_MODEL=1` 启用返回固定 AI JobFit、grounded answer 和复盘候选的本地 Fake Adapter；它不访问网络、不记录提示词，生产 Beta 栈不启用。
+  本地默认配置在 `backend/.env.example` 中保持 `E2E_FAKE_MODEL=0`。
+  工作流同时设置 `DEBUG=false`，避免 SQL 参数进入日志；M5 用例关闭失败 trace、截图和视频，并在成功或失败后静默扫描 API/Web 日志，阻止合成密码和私有会议标记进入日志或上传 Artifact。
 - 生产安全回归使用 test-only [`reference-proxy.Caddyfile`](../deploy/reference-proxy.Caddyfile) 模拟
   `Host TLS Proxy -> Web -> API`：reference proxy 只负责 HTTPS、HSTS 和覆盖 forwarded headers，Web 负责静态/SPA、`/api` proxy 与
   应用安全 headers，API 只信任固定 Web IP `/32`。该 fixture 只存在于 `docker-compose.beta-e2e.yml`，不是生产组件或真实公网证据。

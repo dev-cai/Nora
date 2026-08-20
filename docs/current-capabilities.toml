@@ -63,6 +63,7 @@ code_paths = [
   "backend/app/apps/api/dependencies/common.py",
   "backend/app/apps/api/dependencies/identity.py",
   "backend/app/infrastructure/config/settings.py",
+  "backend/.env.example",
   "backend/app/infrastructure/logging/configure.py",
   "backend/app/infrastructure/logging/metrics.py",
   "backend/app/infrastructure/database/engine.py",
@@ -264,9 +265,9 @@ evidence = [
 [[capabilities]]
 id = "quality-gates"
 name = "全量质量与浏览器门禁"
-milestone = "M0-M4"
+milestone = "M0-M5"
 status = "current"
-summary = "PR 和 main push 运行后端质量/测试、OpenAPI 离线重建与漂移检查、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备、M3 固定版本分析/报告/决定，以及 M4 apply 后的 ResumeVariant、PDF、MessageDraft、ApplicationRecord 与 InterviewCase 创建/版本恢复和双用户读写隔离；运行后清理容器、网络与数据卷。"
+summary = "PR 和 main push 运行后端质量/测试、OpenAPI 离线重建与漂移检查、前端 lint/type/test/build、容器构建、集成冒烟、文档检查，以及隔离 Compose 上的 Playwright E2E。浏览器门禁覆盖 M2 输入准备、M3 固定版本分析/报告/决定、M4 apply 后的 ResumeVariant/PDF/MessageDraft/ApplicationRecord/InterviewCase，以及 M5 Agentic RAG 求职旅程、Provider 降级、Memory 回流、interrupt/approve/resume、Checkpoint 清理和双用户隔离；运行后清理容器、网络与数据卷。"
 code_paths = [
   ".github/workflows/pr-conventions.yml",
   ".github/workflows/frontend-ci.yml",
@@ -274,6 +275,7 @@ code_paths = [
   "frontend/e2e/main-flow.spec.ts",
   "frontend/e2e/analysis-ready.spec.ts",
   "frontend/e2e/decision-flow.spec.ts",
+  "frontend/e2e/agentic-rag-journey.spec.ts",
   "scripts/docs/check_links.py",
 ]
 evidence = [
@@ -593,6 +595,23 @@ code_paths = [
   "frontend/e2e/decision-flow.spec.ts",
 ]
 evidence = ["https://github.com/dev-cai/Nora/pull/221"]
+
+[[capabilities]]
+id = "m5-agentic-rag-browser-gate"
+name = "M5 Agentic RAG 求职闭环浏览器门禁"
+milestone = "M5"
+status = "current"
+summary = "在隔离 Compose 和真实浏览器中验证 JD、确定性报告、AI Provider 稳定降级、fact/inference/recommendation/unknown 分类与引用、面试安排、RAG 准备与 citation、面试复盘与用户确认 MemoryCandidate、确认记忆回流到下一版准备计划，以及固定 Tool Registry 的 analyze/retrieve/prepare 路由和 interrupt→approve→resume。测试同时检查审批前准备版本不变、恢复后生成新版本、Checkpoint 删除不改变面试业务版本、Agent State 不暴露 chain-of-thought、第二用户无法读取 Agent Run/Source/Interview，并由 E2E Fake Model 提供合成候选而不访问网络。"
+code_paths = [
+  ".github/workflows/e2e.yml",
+  "docker-compose.yml",
+  "backend/app/infrastructure/config/settings.py",
+  "backend/app/infrastructure/model.py",
+  "backend/app/apps/api/dependencies/decision.py",
+  "frontend/e2e/agentic-rag-journey.spec.ts",
+  "docs/DEVELOPMENT.md",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/251"]
 
 [[capabilities]]
 id = "rag-interview-preparation"
