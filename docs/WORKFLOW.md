@@ -163,6 +163,8 @@ Frontend quality gate 会在 lint、typecheck、test 和 build 前运行 `npm ru
 FastAPI OpenAPI 与 TypeScript 声明，再通过 tracked-file、`git diff --exit-code` 和未追踪文件检查阻止契约漂移。generated 文件必须与
 后端 Schema 同一 PR 提交，禁止人工编辑或从运行中服务下载。
 
+浏览器 E2E 的普通 Compose 项目由工作流显式注入 `E2E_FAKE_MODEL=1` 和 `DEBUG=false`，提供固定结构化 AI/RAG/复盘输出且不访问网络，并避免 SQL 参数进入日志；Beta 生产安全项目不启用 Fake Model。M5 用例关闭失败 trace、截图和视频，工作流在成功或失败后静默扫描合成敏感标记，命中时直接失败且不回显匹配日志。
+
 Milestone 关闭前执行一次收口审计：逐项核对 Current 能力台账、默认分支代码路径、测试和已合并 PR 证据；随后运行完整文档门禁。
 计划进度以 GitHub Milestone/Issue 为准，不为封版结果再创建平行的 Markdown 状态表。
 

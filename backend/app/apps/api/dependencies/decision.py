@@ -12,7 +12,7 @@ from app.infrastructure.database import (
     SqlAlchemyDecisionReportRepository,
     SqlAlchemyJobFitAnalysisRepository,
 )
-from app.infrastructure.model import create_dashscope_chat_adapter
+from app.infrastructure.model import create_model_adapter
 from app.ports.decision import (
     CompanyAssessmentRepository,
     DecisionCaseRepository,
@@ -51,4 +51,4 @@ def get_job_fit_analysis_repository(
 
 
 def get_model_port(settings: Settings = Depends(get_settings)) -> ModelPort:
-    return create_dashscope_chat_adapter(settings)
+    return create_model_adapter(settings)

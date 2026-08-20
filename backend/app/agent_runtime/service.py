@@ -150,7 +150,7 @@ class AgentRuntimeService:
         result = await graph.ainvoke(
             Command(resume=resume) if resume is not None else values, config
         )
-        state = graph.get_state(config)
+        state = await graph.aget_state(config)
         state_values = dict(state.values)
         await self.repository.add_checkpoint(
             AgentCheckpoint.save(

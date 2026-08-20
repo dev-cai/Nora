@@ -267,6 +267,83 @@ class FakeModelAdapter(ModelPort):
             ) from None
 
 
+class E2EFakeModelAdapter(ModelPort):
+    """Stable E2E provider fixture; it never calls a network or stores prompts."""
+
+    async def generate_structured(
+        self,
+        request: ModelRequest,
+        output_type: type[ModelOutputT],
+    ) -> ModelOutputT:
+        if output_type.__name__ == "StructuredJobFitAnalysis":
+            catalog = json.loads(request.user_input).get("evidence_catalog", [])
+            if not catalog:
+                raise ModelError(
+                    "E2E fake model has no evidence fixture", ErrorCode.MODEL_OUTPUT_INVALID
+                )
+            evidence = catalog[0]
+            citation_id = evidence["citation_id"]
+            insight = {
+                "text": "Python 经验可迁移到该岗位的 RAG 开发工作",
+                "citation_ids": [citation_id],
+            }
+            return output_type.model_validate(
+                {
+                    "overall_fit": "moderate",
+                    "overall_fit_reason": insight,
+                    "strong_matches": [insight],
+                    "transferable_evidence": [insight],
+                    "critical_gaps": [],
+                    "non_blocking_gaps": [],
+                    "resume_actions": [insight],
+                    "project_deep_dive_risks": [],
+                    "interview_focus": [insight],
+                    "unknowns": [
+                        {
+                            "text": "当前证据未包含大规模 RAG 生产负载数据",
+                            "citation_ids": [citation_id],
+                        }
+                    ],
+                    "citations": [
+                        {
+                            "citation_id": citation_id,
+                            "source": evidence["source"],
+                            "object_id": evidence["object_id"],
+                            "version": evidence["version"],
+                            "field_path": evidence["field_path"],
+                        }
+                    ],
+                }
+            )
+        if output_type.__name__ == "GroundedAnswer":
+            return output_type.model_validate(
+                {
+                    "answer": "证据显示需要准备 Python、RAG 和系统设计。",
+                    "status": "grounded",
+                    "citation_ordinals": [0],
+                }
+            )
+        if output_type.__name__ == "InterviewReviewAnalysis":
+            return output_type.model_validate(
+                {
+                    "candidates": [
+                        {
+                            "kind": "knowledge_gap",
+                            "text": "需要补充 Python 面试中的系统设计证据",
+                            "reason": "复盘记录明确指出系统设计回答缺少可验证细节",
+                            "confidence": 0.9,
+                            "unknown": False,
+                            "suggested_action": "在下一次面试准备中优先复习系统设计并补充项目证据",
+                        }
+                    ]
+                }
+            )
+        raise ModelError(
+            "E2E fake model has no fixture for this contract",
+            ErrorCode.MODEL_PROVIDER_UNAVAILABLE,
+        )
+
+
 def create_dashscope_chat_adapter(
     settings: Settings,
     *,
@@ -289,6 +366,14 @@ def create_dashscope_chat_adapter(
         transport=transport,
         retry_base_delay_seconds=retry_base_delay_seconds,
     )
+
+
+def create_model_adapter(settings: Settings) -> ModelPort:
+    """Select the explicit E2E fixture or the approved production adapter."""
+
+    if settings.e2e_fake_model:
+        return E2EFakeModelAdapter()
+    return create_dashscope_chat_adapter(settings)
 
 
 def _chat_payload(
@@ -339,6 +424,8 @@ __all__ = (
     "DASHSCOPE_CHAT_MODEL",
     "DASHSCOPE_PROVIDER",
     "DashScopeChatAdapter",
+    "E2EFakeModelAdapter",
     "FakeModelAdapter",
+    "create_model_adapter",
     "create_dashscope_chat_adapter",
 )
