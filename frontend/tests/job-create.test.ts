@@ -178,10 +178,6 @@ describe("JobCreateView", () => {
     vi.mocked(api.confirmJdImport).mockResolvedValueOnce({ job_posting: job(), requirement_snapshot: {} as never })
     const { wrapper, router } = await mountView()
 
-    const textFields = wrapper.findAll('input[maxlength="200"]')
-    await textFields[0]?.setValue("Backend Engineer")
-    await textFields[1]?.setValue("Nora")
-    await textFields[2]?.setValue("Remote")
     await wrapper.get("textarea").setValue("Backend role")
     await wrapper.get("form").trigger("submit")
     await flushPromises()
@@ -193,6 +189,32 @@ describe("JobCreateView", () => {
 
     expect(api.updateJdImportDraft).toHaveBeenCalled()
     expect(api.confirmJdImport).toHaveBeenCalledWith("session-1", 2, "b".repeat(64))
+    expect(router.currentRoute.value.path).toBe("/jobs/job-1")
+  })
+
+  it("keeps the direct save path for complete manual fields", async () => {
+    vi.mocked(api.createJob).mockResolvedValueOnce(job())
+    const { wrapper, router } = await mountView()
+
+    const textFields = wrapper.findAll('input[maxlength="200"]')
+    await textFields[0]?.setValue("Backend Engineer")
+    await textFields[1]?.setValue("Nora")
+    await textFields[2]?.setValue("Remote")
+    await wrapper.get("textarea").setValue("Backend role")
+    await wrapper.get("form").trigger("submit")
+    await flushPromises()
+
+    expect(api.createJob).toHaveBeenCalledWith(
+      {
+        jd_text: "Backend role",
+        job_title: "Backend Engineer",
+        company_name: "Nora",
+        location: "Remote",
+        source_type: "manual",
+      },
+      expect.any(String),
+    )
+    expect(api.createJdImport).not.toHaveBeenCalled()
     expect(router.currentRoute.value.path).toBe("/jobs/job-1")
   })
 })
