@@ -6,15 +6,14 @@
 公开预览 API（`POST /job-postings/image`、`POST /job-postings/fetch`）。两者都只返回正文预览，不直接创建岗位；
 用户确认后经既有 `POST /job-postings` 文本路径进入快照。
 
-上述 Current 路径不会清洗 OCR/抓取正文，也不会自动识别职位、公司、地点或结构化岗位要求。D-021 / #252 的 Target
-在不改变下述图片和 URL 信任边界的前提下，将文本、截图或受控链接统一送入 Import Context：规范化正文，经版本化模型 Schema
-生成可编辑 `ImportDraft`，用户一次整体确认后，才在同一事务中创建 `JobPosting` 和首个 `JobRequirementSnapshot`。JD PDF
-不在该 Target 范围。
+上述预览路径仍保持“只返回正文、不直接写岗位”的契约。D-021 的 JD 切片（#254）在不改变下述图片和 URL 信任边界的前提下，
+将文本、截图或受控链接送入 Import Context：规范化正文，经版本化模型 Schema 生成可编辑 `ImportDraft`，用户一次整体确认后，
+才在同一事务中创建 `JobPosting` 和首个 `JobRequirementSnapshot`。JD PDF 不在该切片范围。
 
-## AI 草稿与整体确认边界（D-021 Target）
+## AI 草稿与整体确认边界（D-021 JD Current）
 
 - OCR、抓取和用户粘贴文本都属于不可信数据；材料中的指令、链接或工具名不能改变 Prompt、选择 Tool 或触发网络/外部写。
-- `normalize_import_text` 只做确定性清洗并保留来源定位；`extract_jd_draft` 通过 D-007 `ModelPort` 输出固定 Schema，至少覆盖
+- `normalize_jd_text` 只做确定性清洗并去除重复空行/重复行；JD Import Service 通过 D-007 `ModelPort` 输出固定 Schema，至少覆盖
   清洗正文、职位、公司、地点及现有岗位要求字段。缺失值保持 unknown，不根据常识猜测。
 - 模型只能读取当前 owner、当前 ImportSession 的必要规范化文本和版本标识；禁止发送 Secret、对象存储键、其他用户材料、
   无关主档/简历、完整 Prompt/Response 或审计正文。
@@ -24,8 +23,8 @@
   跨 owner、Session 状态错误或同键不同内容均不得写入。
 - 确认 Use Case 在共享事务中创建 `JobPosting` 和首个 `JobRequirementSnapshot`。校验、并发、数据库或审计任一步失败必须整体
   回滚；确认前、模型失败或 OCR/抓取失败均不得留下半成品岗位事实。
-- Agent checkpoint 只保存 Session/Draft/Source ID、步骤、版本、hash、结果引用和稳定错误码，不保存正文、Draft JSON、
-  Prompt/Response、Secret 或 Token。
+- Import Session 只保存来源元数据、状态、版本引用和稳定错误码；模型请求只携带规范化 JD 文本。日志和审计不保存完整 JD、
+  Draft JSON、Prompt/Response、Secret 或 Token。
 
 ## 图片边界
 
@@ -85,5 +84,5 @@
 - Model failure tests：未配置、超预算、timeout、Provider 失败和结构化输出无效均返回稳定失败，不创建岗位事实；普通 CI 只用
   Fake/Recorded，真实模型 smoke 仅在显式凭据环境执行。
 
-前五项覆盖已交付的 M2 Adapter 与公开预览路径；新增 Draft、Injection、版本、事务和模型失败项是 D-021 后续实现的强制验收，
-不表示 AI 自动填充已成为 Current。
+前五项覆盖已交付的 M2 Adapter 与公开预览路径；JD Draft、版本、事务、owner 隔离和模型失败证据已由 #254 补齐。
+PDF/DOCX 简历、扫描文档 OCR 与更完整的 Import Graph 仍是后续切片。

@@ -11,6 +11,7 @@
 import socket
 import ssl
 from html.parser import HTMLParser
+from ipaddress import ip_address
 from typing import Any, Awaitable, Callable
 from urllib.parse import urljoin
 
@@ -40,7 +41,8 @@ async def _default_resolver(host: str, port: int) -> list[str]:
     """异步解析主机，返回全部地址字符串（含 IPv6）。"""
 
     infos = await anyio.getaddrinfo(host, port, type=socket.SOCK_STREAM)
-    return list({info[4][0] for info in infos})
+    addresses = {info[4][0] for info in infos}
+    return sorted(addresses, key=_address_sort_key)
 
 
 Resolver = Callable[[str, int], Awaitable[list[str]]]
@@ -79,7 +81,13 @@ async def _resolve_and_verify(
 
     addresses = await resolver(host, port)
     policy.ensure_public_addresses(addresses)
-    return addresses[0]
+    return min(addresses, key=_address_sort_key)
+
+
+def _address_sort_key(value: str) -> tuple[bool, str]:
+    """Prefer IPv4 because CI/container networks may not route IPv6."""
+
+    return (ip_address(value).version != 4, value)
 
 
 class _SafeTransport(httpx.AsyncHTTPTransport):
@@ -132,16 +140,23 @@ class JdFetchAdapter(JdInputPort):
             write=policy.connect_timeout_seconds,
             pool=policy.connect_timeout_seconds,
         )
-        async with httpx.AsyncClient(
-            transport=transport, timeout=timeout, follow_redirects=False, trust_env=False
-        ) as client:
-            final_url, response = await self._follow_redirects(client, request.url, policy)
         try:
-            self._ensure_content_type(response.headers.get("content-type"))
-            content = await self._read_capped(response, policy)
-            text = _decode_content(content, response.encoding)
-        finally:
-            await response.aclose()
+            async with httpx.AsyncClient(
+                transport=transport, timeout=timeout, follow_redirects=False, trust_env=False
+            ) as client:
+                final_url, response = await self._follow_redirects(client, request.url, policy)
+            try:
+                self._ensure_content_type(response.headers.get("content-type"))
+                content = await self._read_capped(response, policy)
+                text = _decode_content(content, response.encoding)
+            finally:
+                await response.aclose()
+        except JdInputError:
+            raise
+        except httpx.TimeoutException as exc:
+            raise JdInputError("JD URL fetch timed out", ErrorCode.FETCH_TIMEOUT) from exc
+        except (httpx.RequestError, OSError) as exc:
+            raise JdInputError("JD URL fetch failed", ErrorCode.FETCH_FAILED) from exc
         return JdInputResult(jd_text=text, kind=JdInputKind.URL, source_url=final_url)
 
     async def _follow_redirects(

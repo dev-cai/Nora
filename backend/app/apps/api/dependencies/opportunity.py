@@ -8,11 +8,13 @@ from app.domain.identity import User
 from app.infrastructure.config import Settings
 from app.infrastructure.database import (
     SqlAlchemyCompanySnapshotRepository,
+    SqlAlchemyImportRepository,
     SqlAlchemyJobPostingRepository,
     SqlAlchemyJobRequirementSnapshotRepository,
 )
 from app.infrastructure.jd_fetch import JdFetchAdapter
 from app.infrastructure.jd_ocr import BaiduOcrEngine, JdOcrAdapter
+from app.ports.imports import ImportRepository
 from app.ports.jd_input import JdInputPort
 from app.ports.opportunity import (
     CompanySnapshotRepository,
@@ -26,6 +28,13 @@ def get_job_posting_repository(
     user: User = Depends(get_current_user),
 ) -> JobPostingRepository:
     return SqlAlchemyJobPostingRepository(session, user.id)
+
+
+def get_import_repository(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> ImportRepository:
+    return SqlAlchemyImportRepository(session, user.id)
 
 
 def get_job_requirement_snapshot_repository(

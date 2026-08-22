@@ -51,6 +51,7 @@ from .identity import (
     SqlAlchemyUserRepository,
     UserRecord,
 )
+from .imports import ImportDraftRecord, ImportSessionRecord, SqlAlchemyImportRepository
 from .interview_preparation import (
     InterviewPreparationRecord,
     SqlAlchemyInterviewPreparationRepository,
@@ -113,6 +114,8 @@ __all__ = (
     "InterviewPreparationRecord",
     "InterviewReviewRecord",
     "MemoryCandidateRecord",
+    "ImportDraftRecord",
+    "ImportSessionRecord",
     "JobRequirementSnapshotRecord",
     "SourceDocumentRecord",
     "SqlAlchemyRepository",
@@ -141,6 +144,7 @@ __all__ = (
     "SqlAlchemyInterviewPreparationRepository",
     "SqlAlchemyInterviewReviewRepository",
     "SqlAlchemyMemoryCandidateRepository",
+    "SqlAlchemyImportRepository",
     "SqlAlchemyJobRequirementSnapshotRepository",
     "SqlAlchemyUserScopedRepository",
     "create_database_engine",

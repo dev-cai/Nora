@@ -37,6 +37,7 @@ from app.apps.api.routes.interviews import (
 from app.apps.api.routes.interviews import (
     router as interviews_router,
 )
+from app.apps.api.routes.jd_imports import router as jd_imports_router
 from app.apps.api.routes.job_inputs import router as job_inputs_router
 from app.apps.api.routes.job_postings import router as job_postings_router
 from app.apps.api.routes.job_requirements import router as job_requirements_router
@@ -164,6 +165,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ErrorCategory.UPSTREAM_TIMEOUT,
         ),
     )
+    app.include_router(jd_imports_router, responses=common_responses)
     app.include_router(job_postings_router, responses=common_responses)
     app.include_router(job_requirements_router, responses=common_responses)
     app.include_router(interviews_router, responses=common_responses)

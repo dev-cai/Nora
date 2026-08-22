@@ -135,6 +135,10 @@ class ErrorCode(StrEnum):
     INVALID_VARIANT_FINGERPRINT = "invalid_variant_fingerprint"
     INVALID_VARIANT_TEXT = "invalid_variant_text"
     INVALID_VERSION = "invalid_version"
+    IMPORT_CONFIRMATION_CONFLICT = "import_confirmation_conflict"
+    IMPORT_DRAFT_VERSION_CONFLICT = "import_draft_version_conflict"
+    IMPORT_NOT_READY = "import_not_ready"
+    IMPORT_PERSISTENCE_FAILED = "import_persistence_failed"
     JD_TEXT_TOO_LONG = "jd_text_too_long"
     JOB_POSTING_PERSISTENCE_FAILED = "job_posting_persistence_failed"
     JOB_REQUIREMENT_VERSION_CONFLICT = "job_requirement_version_conflict"
@@ -319,6 +323,9 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
             ErrorCode.DECISION_REPORT_VERSION_CONFLICT,
             ErrorCode.EMAIL_CONFLICT,
             ErrorCode.IDEMPOTENCY_CONFLICT,
+            ErrorCode.IMPORT_CONFIRMATION_CONFLICT,
+            ErrorCode.IMPORT_DRAFT_VERSION_CONFLICT,
+            ErrorCode.IMPORT_NOT_READY,
             ErrorCode.JOB_REQUIREMENT_VERSION_CONFLICT,
             ErrorCode.MESSAGE_DRAFT_CONFLICT,
             ErrorCode.MESSAGE_DRAFT_VERSION_CONFLICT,
@@ -354,6 +361,7 @@ def _category_map() -> dict[ErrorCode, ErrorCategory]:
             ErrorCode.DECISION_PERSISTENCE_FAILED,
             ErrorCode.IDENTITY_PERSISTENCE_FAILED,
             ErrorCode.JOB_POSTING_PERSISTENCE_FAILED,
+            ErrorCode.IMPORT_PERSISTENCE_FAILED,
             ErrorCode.MESSAGE_DRAFT_INPUT_UNAVAILABLE,
             ErrorCode.MODEL_BUDGET_EXCEEDED,
             ErrorCode.MODEL_NOT_CONFIGURED,
