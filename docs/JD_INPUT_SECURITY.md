@@ -1,10 +1,31 @@
-# JD 截图与链接输入安全契约
+# JD 导入安全契约
 
 ## 范围
 
 默认分支已交付 `app.ports.jd_input.JdInputPort` 的截图 OCR（#136，百度智能云）与受控链接抓取（#137）Adapter、
 公开预览 API（`POST /job-postings/image`、`POST /job-postings/fetch`）。两者都只返回正文预览，不直接创建岗位；
 用户确认后经既有 `POST /job-postings` 文本路径进入快照。
+
+上述 Current 路径不会清洗 OCR/抓取正文，也不会自动识别职位、公司、地点或结构化岗位要求。D-021 / #252 的 Target
+在不改变下述图片和 URL 信任边界的前提下，将文本、截图或受控链接统一送入 Import Context：规范化正文，经版本化模型 Schema
+生成可编辑 `ImportDraft`，用户一次整体确认后，才在同一事务中创建 `JobPosting` 和首个 `JobRequirementSnapshot`。JD PDF
+不在该 Target 范围。
+
+## AI 草稿与整体确认边界（D-021 Target）
+
+- OCR、抓取和用户粘贴文本都属于不可信数据；材料中的指令、链接或工具名不能改变 Prompt、选择 Tool 或触发网络/外部写。
+- `normalize_import_text` 只做确定性清洗并保留来源定位；`extract_jd_draft` 通过 D-007 `ModelPort` 输出固定 Schema，至少覆盖
+  清洗正文、职位、公司、地点及现有岗位要求字段。缺失值保持 unknown，不根据常识猜测。
+- 模型只能读取当前 owner、当前 ImportSession 的必要规范化文本和版本标识；禁止发送 Secret、对象存储键、其他用户材料、
+  无关主档/简历、完整 Prompt/Response 或审计正文。
+- `ImportDraft` 保存 owner、来源引用、字段来源、Prompt/Schema/模型版本、单调递增 `version` 和服务端计算的
+  `content_fingerprint`。用户可修改任意字段；更新携带 `base_version`，过期编辑返回冲突。
+- 页面只有一次“确认导入”。请求必须匹配最新 `base_version + content_fingerprint`，同一载荷可幂等重放；版本或指纹不匹配、
+  跨 owner、Session 状态错误或同键不同内容均不得写入。
+- 确认 Use Case 在共享事务中创建 `JobPosting` 和首个 `JobRequirementSnapshot`。校验、并发、数据库或审计任一步失败必须整体
+  回滚；确认前、模型失败或 OCR/抓取失败均不得留下半成品岗位事实。
+- Agent checkpoint 只保存 Session/Draft/Source ID、步骤、版本、hash、结果引用和稳定错误码，不保存正文、Draft JSON、
+  Prompt/Response、Secret 或 Token。
 
 ## 图片边界
 
@@ -50,12 +71,19 @@
 | `content_too_large` | 提取文本超过岗位正文上限 |
 | `invalid_input_kind` | Adapter 返回了契约以外的输入类型 |
 
-## M2 实现审查与测试要求
+## 实现审查与测试要求
 
 - Fake/contract tests：OCR 与抓取 Adapter 均满足 `JdInputPort`，错误码保持稳定。
 - SSRF tests：IPv4/IPv6 私网、loopback、link-local、组播、保留地址、混合 DNS 结果和 DNS rebinding。
 - Redirect tests：每一跳重新解析与校验，协议切换、私网跳转和第 4 次跳转均失败。
 - Resource tests：声明长度和流式实际长度分别超限，压缩膨胀、连接超时和读取超时可中止。
 - API tests：认证、上传 MIME/大小、URL DTO、稳定错误响应以及成功结果进入既有 JobPosting 创建路径。
+- Draft Schema tests：职位、公司、地点、正文和岗位要求的完整/缺失/冲突输入，unknown 保留，Prompt/Schema/模型版本固定。
+- Prompt Injection tests：JD 中伪造系统指令、工具名、URL 和跨用户 ID 不能改变 Tool、访问网络或越过 owner 边界。
+- Version tests：并发编辑、过期 `base_version`、错误 `content_fingerprint`、同键同载荷重放和同键不同载荷冲突。
+- Transaction tests：确认成功时岗位与首个要求快照同时可见；Schema、数据库或审计失败时两者都不可见。
+- Model failure tests：未配置、超预算、timeout、Provider 失败和结构化输出无效均返回稳定失败，不创建岗位事实；普通 CI 只用
+  Fake/Recorded，真实模型 smoke 仅在显式凭据环境执行。
 
-这些是 M2 Adapter 与公开调用路径的强制验收项，不表示 OCR 或链接抓取当前已经可用。
+前五项覆盖已交付的 M2 Adapter 与公开预览路径；新增 Draft、Injection、版本、事务和模型失败项是 D-021 后续实现的强制验收，
+不表示 AI 自动填充已成为 Current。

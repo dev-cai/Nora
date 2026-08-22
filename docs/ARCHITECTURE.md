@@ -8,7 +8,7 @@
 ## 1. 状态与适用范围
 
 - 状态：Initial Architecture。
-- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#166、#171、#174、#183、#184、#185、#186、#187、#224、#248。
+- 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#166、#171、#174、#183、#184、#185、#186、#187、#224、#248、#252。
 - 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础、公司情报后端切片和 M5 单 Agent/单 Graph Runtime。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
@@ -62,6 +62,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-018 | 类型化错误契约 | 协议无关 `ErrorCode` + `ErrorCategory` 注册表 | #187 / M4 | API 只按 category 映射 HTTP；OpenAPI 枚举是前端类型真源，未知异常固定脱敏 500 |
 | D-019 | Beta 部署与发布 | Host Reverse Proxy/TLS -> localhost Web -> API；GitHub Actions 为唯一 CD 控制面 | #171、#224 / M4 | 只有 Web 发布 localhost 端口；真实 HTTPS public smoke 先于健康指针；不支持容器内生产 ingress |
 | D-020 | Beta 注册与会话安全 | 运维 bootstrap 唯一用户 + 短时 JWT key ring + PostgreSQL 登录限额 | #174、#224 / M4 | 生产关闭公共注册；精确 Origin；API 只信任固定 Web IP `/32` 和单值 forwarded headers |
+| D-021 | 文档导入 Agent | Import Context 专用固定 Graph + 可编辑结构化草稿 + 一次整体确认 | #252 / M5 | PDF/DOCX 简历与文本/截图/链接 JD 只生成候选；确认前不写业务事实，不读取代码仓库，不形成多 Agent |
 
 ### 首个模型 Provider 与最小数据边界（D-007 / #166）
 
@@ -85,6 +86,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | :--- | :--- | :--- |
 | AI 人岗分析 | 岗位正文、已确认岗位要求、用户明确选择的主档/简历字段、确定性报告字段 | 密码、JWT、API Key、内部日志、审计正文、无关联系方式、未选择的简历或主档字段 |
 | RAG | 用户可见的 Source Chunk、查询文本、最小 source/version/locator 引用 | 原始文件字节、对象存储键、跨用户内容、已删除/不可见 Source、无关 Artifact |
+| 导入草稿 | 当前 ImportSession 规范化后的必要简历/JD 文本、草稿类型、Schema/Prompt 版本 | 原始文件字节、对象存储键、其他用户材料、无关主档/岗位、宏或外部资源内容 |
 | 诊断与计量 | 模型 ID、Prompt/Schema 版本、Token 用量、耗时、低基数错误分类 | Prompt/Response 正文、chain-of-thought、Secret、完整异常正文 |
 
 所有用户材料和检索片段都按不可信 data 放入用户消息或结构化字段，不能拼入系统指令。Nora 只调用无托管会话状态的
@@ -510,6 +512,52 @@ flowchart LR
   事实表和 API 的启动、查询、批准、拒绝、恢复入口。当前 Graph Adapter 使用进程内 Checkpointer，重启恢复以 PostgreSQL
   Checkpoint 作为状态边界；不把 ORM、Session、SDK、密钥或完整敏感正文放入 Agent State。
 
+### 文档导入 Agent（D-021 / #252）
+
+文档导入使用 Import Context 专用的单 Agent、固定 Graph，不进入 #248 的求职目标路由，也不拆成简历 Agent、JD Agent 或
+多 Agent 协作。固定步骤为：
+
+```text
+create_session
+  -> inspect_source
+  -> extract_text_or_ocr
+  -> normalize_text
+  -> extract_structured_draft
+  -> validate_draft
+  -> wait_user_confirmation
+  -> apply_confirmed_draft
+```
+
+固定 Tool Registry 只允许以下工具，Graph 不接受模型生成的工具名、任意代码、URL、选择器或运行时动态注册：
+
+- `inspect_import_source`：验证 owner、导入类型、MIME/文件签名、大小、页数和来源边界；
+- `extract_document_text`：从受支持的 PDF/DOCX 提取文本，禁止宏执行和外部资源加载；
+- `ocr_document_pages`：仅为无可用文本层的扫描 PDF 执行受限逐页 OCR；
+- `normalize_import_text`：去除重复页眉页脚、无意义空白和 OCR 噪声，保留可定位来源；
+- `extract_resume_draft` / `extract_jd_draft`：通过 D-007 `ModelPort` 和版本化 Schema 生成候选字段；
+- `validate_import_draft`：执行 owner、Schema、长度、枚举、日期和字段间约束校验；
+- `confirm_import_draft`：验证草稿版本与内容指纹，在 Application 事务中写入确认结果。
+
+`ImportSession` 记录 owner、导入种类、Artifact/Source 引用、步骤、状态、稳定错误码和当前 Draft 引用；`ImportDraft` 记录独立的
+resume/JD Schema、规范化候选、字段来源、Prompt/Schema/模型版本、单调递增 `version` 和 `content_fingerprint`。两者都是
+PostgreSQL 中的候选/编排状态，不拥有 `CandidateProfile`、`JobPosting`、`JobRequirementSnapshot` 或 `ResumeVersion` 事实。
+原始文件继续使用 D-013 私有 Artifact/Source，不复制到 Agent State。
+
+用户可以修改任意草稿字段。更新必须携带 `base_version`，版本过期返回冲突；服务端根据完整规范化草稿生成
+`content_fingerprint`。页面只提供一次“确认导入”，确认请求绑定最新 `base_version + content_fingerprint`，同时构成
+`confirm_import_draft` 的 Approval，不再弹出第二次确认。指纹不匹配、跨 owner、Session 非待确认状态或重复但载荷不同都不得
+写业务事实；同一确认载荷重放返回首次结果。
+
+简历确认时，当前非空候选统一写为新 `CandidateProfile` 版本的 `confirmed` 字段，空值保持 unknown；不会自动发布
+`ResumeVersion`。JD 确认在同一事务中创建 `JobPosting` 和首个 `JobRequirementSnapshot`；任一步失败全部回滚，不留下只有正文
+或只有要求快照的半成品。模型、OCR 或解析失败只保留可重试的 Session/Draft 状态和稳定错误码，不伪造字段，不影响已有
+M2-M4 确定性能力。
+
+首个范围只支持 PDF/DOCX 简历；有文本层时优先本地提取，扫描 PDF 才使用 OCR。JD 只支持文本、PNG/JPEG 截图和受控
+HTTP(S) 链接。老式 DOC、JD PDF、GitHub/GitLab 项目读取、任意代码执行、在线文档转换、自动发布简历和自动投递均不在范围。
+Checkpoint 只保存 Session/Draft/Artifact ID、步骤、版本、hash、结果引用和稳定错误码，不保存简历/JD 正文、Draft JSON、
+Prompt/Response、Secret 或 Token。
+
 ### Browser/Connector Runtime
 
 - 不属于 M1 前置能力。
@@ -522,6 +570,7 @@ flowchart LR
 | :--- | :--- | :--- | :--- |
 | 用户、画像、岗位、投递决定、投递记录、面试、报告 | PostgreSQL | 业务事实 | 聚合和 Repository 负责写入与版本控制 |
 | JobRequirementSnapshot（结构化岗位要求） | PostgreSQL | 用户确认解释，独立版本 | 独立于 `JobPosting` 原文；字段级确认状态与来源定位；修改产生新版本；`DecisionCase` 固定引用快照版本 |
+| ImportSession / ImportDraft | PostgreSQL | 导入候选与编排状态 | owner 隔离、版本化、可编辑；确认前不拥有或修改主档、岗位、要求快照和简历版本事实 |
 | 简历版本、模板配置、简历变体、PDF/消息草稿元数据 | PostgreSQL | 结构化事实与版本 | 记录用户归属、状态、输入版本、模板版本、生成身份、生成器版本和 Artifact 精确引用 |
 | Run、Approval、ToolCall、Audit | PostgreSQL | 治理事实 | 追加式或受状态机约束，不由队列状态替代 |
 | 原始简历、截图、附件、长文档、生成 PDF | Object Storage | 不可变或版本化对象 | 私有访问、摘要校验、短期签名引用；生成产物不得提交 Git |
@@ -740,6 +789,9 @@ stateDiagram-v2
 - 幂等键由服务端根据用户、动作、目标、内容摘要和版本生成。
 - 同键同内容重放首次结果；同键不同内容返回冲突。
 - 外部成功但本地超时属于不确定结果，必须先查询外部状态或转人工，不盲目重复写入。
+- D-021 导入草稿属于内部业务事实写入前的候选：用户可以修改任意字段，最后一次“确认导入”绑定 Draft 的
+  `base_version + content_fingerprint`，同时完成 Approval；不得逐字段弹窗，也不得在确认后再要求第二次批准。
+- 简历与 JD 的确认写入都由顶层 Application Use Case 持有事务；版本/指纹过期返回冲突，未经确认或部分失败不得产生业务事实。
 
 ## 13. 安全与隐私边界
 
@@ -905,6 +957,10 @@ Origin、限额、owner 管理、key ring 与代理配置使用统一的低基�
 - Tool 参数只能来自受控 Schema 和策略，不从网页文本动态生成任意动作。
 - URL Fetch 必须限制协议、域名、DNS/IP、重定向、响应大小和超时，防止 SSRF；JD 输入的具体限制与 Adapter 审查清单见 [`JD_INPUT_SECURITY.md`](JD_INPUT_SECURITY.md)。
 - 截图 OCR 先经 PIL 受限解码（像素与解压膨胀防护），再由百度智能云 OCR 识别；OCR 输出视为不可信输入，凭据经 `BAIDU_OCR_API_KEY` / `BAIDU_OCR_SECRET_KEY` 配置，失败返回稳定错误码。
+- PDF/DOCX 解析器必须禁用宏、脚本、嵌入对象执行和外部资源加载，并限制文件大小、页数、压缩展开量、解析时间及 OCR
+  像素预算；损坏、加密或超限文件稳定失败，不调用在线转换服务。
+- 导入材料中的“忽略系统指令”“调用工具”“访问链接”等文本只作为待抽取内容；模型只返回固定 Draft Schema，不能选择
+  Tool、修改 Session、读取其他 Artifact、发起网络请求或直接写入主档/岗位。
 
 ### 隐私与日志
 
@@ -1556,8 +1612,9 @@ M5 条件: Client → API → Redis/Task Queue → Worker → PostgreSQL / Objec
 6. **确定性决策 MVP。** DecisionCase、规则、版本化报告、apply/skip、真实页面和 Compose E2E。
 7. **可部署投递闭环 Beta。** ResumeVariant、模板、PDF、MessageDraft、手工投递/面试记录、安全恢复和可观测性。
 8. **Evidence 与 AI 增强。** Source、Chunk、Embedding 契约、pgvector、检索、Evidence Pack、Model Gateway 和增强报告。
-9. **条件规模化。** 根据评测和性能指标决定是否引入 Reranker、Redis 或 Worker。
-10. **触发式候选。** Agent Runtime、外部写、深度面试/出行和服务拆分只在准入条件成立后评估。
+9. **可确认的 AI 导入。** 以 D-021 的 ImportSession/ImportDraft、固定 Graph 和一次整体确认为边界，分别交付简历与 JD 纵向切片。
+10. **条件规模化。** 根据评测和性能指标决定是否引入 Reranker、Redis 或 Worker。
+11. **触发式候选。** 外部写、深度面试/出行和服务拆分只在准入条件成立后评估。
 
 该顺序是依赖建议，不是批量创建 Issue 的授权。每一步只在前置 PR 合并后创建下一个真实 Issue。
 
@@ -1569,7 +1626,7 @@ M5 条件: Client → API → Redis/Task Queue → Worker → PostgreSQL / Objec
 - 将飞书 Base、向量数据库、Redis 或 Agent State 作为业务事实源；
 - 保存模型私有 chain-of-thought；
 - 多租户企业权限、计费和生产级高可用；
-- 在核心数据保留与删除规则确认前导入真实敏感简历。
+- 使用在线转换服务处理简历，或在 Artifact/Source、ImportDraft 和最小 checkpoint 边界外复制真实敏感材料。
 
 ## 22. 后续 ADR
 
