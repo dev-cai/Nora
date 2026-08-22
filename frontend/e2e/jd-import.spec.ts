@@ -30,9 +30,21 @@ test("JD 文本进入 AI 草稿并一次确认导入", async ({ page }) => {
   await expect(page).toHaveURL(/\/jobs\/[0-9a-f-]{36}$/)
 })
 
-test("JD 公网链接进入同一 AI 草稿和确认流程", async ({ page }) => {
+test("JD 链接进入同一 AI 草稿和确认流程", async ({ page }) => {
   await registerAndLogin(page, "url")
   await page.goto("/jobs/new")
+  await page.route("**/api/job-postings/fetch", async (route) => {
+    expect(JSON.parse(route.request().postData() ?? "{}")).toMatchObject({ url: "https://example.com/" })
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        jd_text: "Example JD fixture\n需要 Python 服务开发经验。",
+        source_url: "https://example.com/",
+        kind: "url",
+      }),
+    })
+  })
   await page.getByRole("button", { name: "链接" }).click()
   await page.getByLabel("岗位链接").fill("https://example.com/")
   await page.getByRole("button", { name: "提取正文" }).click()
