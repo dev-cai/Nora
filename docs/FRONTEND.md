@@ -160,7 +160,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 - M2 分析就绪状态与输入 E2E（Current）；
 - M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，证据见 `current-capabilities.toml`）；
 - M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、手工投递记录、最小面试通知与完整浏览器关闭门禁（Current）；真实 Beta Environment/Runner 供应和首次公网发布仍为 Planned；
-- M5 Evidence、检索引用和可选模型增强版本；
+- M5 Evidence、检索引用、可选模型增强版本，以及 D-021 可编辑简历/JD AI 导入草稿与一次整体确认；
 - 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
 
 前端不得把构建通过描述为完整用户流程已经通过；跨 API 的真实流程必须有独立集成或 E2E 证据。
@@ -180,6 +180,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | :--- | :--- | :--- |
 | 注册 / 登录 | `/register`、`/login` | Current |
 | 主档建立（基本信息/项目/经历/教育/技能/偏好） | `/profile` | Current |
+| PDF/DOCX 简历生成并确认主档草稿 | `/profile/import` | Planned，M5 / D-021 |
 | 发布简历版本 | `/resumes`、`/resumes/new` | Current |
 | JD 文本输入与岗位要求确认 | `/jobs/new`、`/jobs/:id/requirements` | Current，M2 |
 | JD 截图/链接预览 | `/jobs/new` 目标入口 | API Current；浏览器入口 Planned |
@@ -209,6 +210,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 /jobs/:id                   岗位详情〔Current〕
 /jobs/:id/requirements      岗位要求确认与版本历史〔Current〕
 /profile                    主档编辑〔Current〕
+/profile/import             PDF/DOCX 简历 AI 草稿与整体确认〔Planned，M5 / D-021〕
 /resumes                    简历版本列表〔Current〕
 /resumes/new                发布新版本〔Current〕
 /resumes/:id                简历版本详情〔Current〕
@@ -257,6 +259,17 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 - API：`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`（Current）。
 - 状态：`resumeStore`；发布成功进入详情，显示版本号与发布时间。
 
+### 10.3A 简历导入 `/profile/import`（Planned，M5 / D-021）
+
+- 输入：只接受 PDF/DOCX；展示文件类型、大小、页数、来源和上传/解析/OCR/AI 进度。老式 DOC、加密/损坏/超限文件显示稳定错误，
+  不自动上传在线转换服务。
+- 流程：创建 ImportSession → 提取文本或扫描 PDF OCR → AI 生成结构化 `ImportDraft` → 分区表单展示基本信息、教育、经历、
+  技能和简历项目。GitHub/GitLab 地址作为普通可编辑文本，不触发项目读取。
+- 编辑：任意字段均可修改，保存携带 `base_version`；发生版本冲突时刷新最新草稿并保留明确提示，不静默覆盖。
+- 确认：页面底部只提供一次“确认导入”，请求绑定最新 `base_version + content_fingerprint`；确认成功创建新的
+  CandidateProfile 版本并进入 `/profile`，不逐字段弹出确认开关，不自动发布 ResumeVersion。
+- 恢复与失败：刷新后按 Session ID 恢复步骤和 Draft；解析、OCR、模型或校验失败可在安全边界内重试，失败不改写现有主档。
+
 ### 10.4 岗位输入与要求确认（M2）
 
 - 文本模式：JD 正文 textarea + 标题/公司/地点结构化字段。
@@ -265,6 +278,9 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 - 岗位要求（Current）：原始 `JobPosting` 与 `JobRequirementSnapshot` 分开显示；用户补充、修正和确认后创建新版本。
 - API：`POST /job-postings/image`、`POST /job-postings/fetch` 与岗位要求端点均为 Current；两者只返回正文预览，不直接创建岗位快照，仍需经 `POST /job-postings` 文本路径确认写入。
 - 组件：截图与链接输入未拆出独立组件，直接内嵌在 `JobCreateView` 的可切换 tab 中；两个输入方式的预览状态与创建状态在 `jobsStore` 中分离，预览失败不污染岗位列表/详情状态。
+- D-021 Target：`JobCreateView` 的文本、截图和受控链接进入统一 JD ImportSession；OCR/抓取后继续清洗并自动填充正文、职位、
+  公司、地点和结构化岗位要求。用户可以修改任意字段，最后一次“确认导入”绑定草稿版本与内容指纹，并原子创建岗位和首个要求
+  快照；不再把 OCR 原文直接当作最终字段，也不要求用户逐字段确认或再次进入第二确认弹窗。JD PDF 不在此目标范围。
 
 ### 10.5 岗位列表 / 详情（Current）
 
@@ -353,6 +369,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | `profileStore` | 主档草稿与确认快照 | draft、confirmed snapshot、confirmationStatus |
 | `resumeStore` | 简历版本列表/详情 | versions、current |
 | `jobStore` | 岗位列表/详情/新建 | jobs、current、inputMode（text/ocr/link） |
+| `importStore` | D-021 简历/JD ImportSession 与可编辑草稿 | session、draft、baseVersion、contentFingerprint、step、saving、confirming |
 | `analysisStore` | DecisionCase 创建、同步结果、报告与投不投决定缓存 | currentCase、analysis、report、reports、decision |
 | `variantsStore` | 模板、ResumeVariant 列表/详情、精确模板恢复、幂等创建与 PDF 状态 | templates、variants、current、currentTemplate、currentPdf、generatingPdf |
 | `messagesStore` | MessageDraft 生成、详情恢复、修订历史与幂等编辑 | latestForVariant、current、versions、generating、saving |
@@ -391,6 +408,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | `AuthForm` | 注册/登录表单 | Current |
 | `JobForm` | JD 文本输入 | Current |
 | `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 截图/链接预览 | Planned |
+| `ImportProgress` / `ImportDraftEditor` / `ImportConfirmBar` | D-021 简历/JD 提取进度、任意字段编辑与一次整体确认 | Planned，M5 |
 | `RequirementEditor` / `ConfirmationBadge` | 岗位要求确认与版本历史（`JobRequirementsView`） | Current |
 | `ProfileForm` / `FieldGroup` | 主档分区与字段确认状态 | Current |
 | `ResumeVersionCard` | 简历版本卡片 | Current |
@@ -412,7 +430,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | M2 | 分析就绪状态、输入 E2E；截图 OCR/链接预览经后端接口返回正文预览 |
 | M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
 | M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录、最小面试通知与隔离生产安全浏览器 E2E Current；真实 Beta 供应/首次发布 Planned |
-| M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示 |
+| M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示；D-021 简历/JD AI 草稿、冲突恢复与一次整体确认 |
 
 ## 15. 技术选型（Current 基线）
 
