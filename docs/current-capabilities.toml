@@ -263,6 +263,27 @@ evidence = [
 ]
 
 [[capabilities]]
+id = "jd-ai-import-drafts"
+name = "JD AI 草稿与整体确认导入"
+milestone = "M5"
+status = "current"
+summary = "支持文本、PNG/JPEG 截图和受控 HTTP(S) 链接进入用户隔离的 ImportSession/ImportDraft：正文确定性清洗后由 ModelPort 生成职位、公司、地点和结构化岗位要求候选；用户可编辑任意字段，草稿以单调版本和服务端内容指纹保护，刷新可恢复，确认请求幂等且在同一事务中创建 JobPosting 与首个 JobRequirementSnapshot。确认前不写岗位事实，不读取 GitHub/GitLab 项目，不支持 JD PDF 或 PDF/DOCX 简历导入。"
+code_paths = [
+  "backend/app/application/imports/jd.py",
+  "backend/app/domain/imports.py",
+  "backend/app/ports/imports.py",
+  "backend/app/infrastructure/database/imports.py",
+  "backend/app/apps/api/routes/jd_imports.py",
+  "backend/alembic/versions/0028_jd_import_sessions.py",
+  "frontend/src/views/JobCreateView.vue",
+  "frontend/src/stores/jobs.ts",
+  "frontend/e2e/jd-import.spec.ts",
+  "backend/tests/unit/test_jd_import.py",
+  "backend/tests/integration/test_jd_import_api.py",
+]
+evidence = ["https://github.com/dev-cai/Nora/pull/255"]
+
+[[capabilities]]
 id = "quality-gates"
 name = "全量质量与浏览器门禁"
 milestone = "M0-M5"
