@@ -275,6 +275,55 @@ class E2EFakeModelAdapter(ModelPort):
         request: ModelRequest,
         output_type: type[ModelOutputT],
     ) -> ModelOutputT:
+        if output_type.__name__ == "JdImportDraftContent":
+            source = json.loads(request.user_input).get("jd_text", "")
+            first_line = next(
+                (line.strip() for line in source.splitlines() if line.strip()), "岗位"
+            )
+            return output_type.model_validate(
+                {
+                    "jd_text": source,
+                    "job_title": "后端工程师"
+                    if "后端" in source or "backend" in source.casefold()
+                    else first_line[:80],
+                    "company_name": "Nora" if "nora" in source.casefold() else None,
+                    "location": "未知",
+                    "requirements": {
+                        "required_skills": {
+                            "value": ["Python"] if "python" in source.casefold() else None,
+                            "confirmation_status": "unconfirmed"
+                            if "python" in source.casefold()
+                            else "unknown",
+                            "source_type": "text_range",
+                            "source_range": None,
+                        },
+                        "minimum_experience_years": {
+                            "value": None,
+                            "confirmation_status": "unknown",
+                            "source_type": "text_range",
+                            "source_range": None,
+                        },
+                        "degree_requirement": {
+                            "value": None,
+                            "confirmation_status": "unknown",
+                            "source_type": "text_range",
+                            "source_range": None,
+                        },
+                        "location_requirement": {
+                            "value": None,
+                            "confirmation_status": "unknown",
+                            "source_type": "text_range",
+                            "source_range": None,
+                        },
+                        "work_mode": {
+                            "value": None,
+                            "confirmation_status": "unknown",
+                            "source_type": "text_range",
+                            "source_range": None,
+                        },
+                    },
+                }
+            )
         if output_type.__name__ == "StructuredJobFitAnalysis":
             catalog = json.loads(request.user_input).get("evidence_catalog", [])
             if not catalog:

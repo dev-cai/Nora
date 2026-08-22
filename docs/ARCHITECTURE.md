@@ -9,7 +9,7 @@
 
 - 状态：Initial Architecture。
 - 决策来源：Architecture Issue #3、#49、#59、#98、#135、#163、#166、#171、#174、#183、#184、#185、#186、#187、#224、#248、#252。
-- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础、公司情报后端切片和 M5 单 Agent/单 Graph Runtime。
+- 当前代码：M0/M1、M2/M3 确定性工作流与首批 M4 能力已交付，包括 Identity、不可变 JobPosting、CandidateProfile、ResumeVersion、DecisionReport、ApplicationDecision、声明式模板、ResumeVariant、确定性 PDF、确定性 MessageDraft、手工 ApplicationRecord、最小 InterviewCase、Vue Web、Artifact/Source 基础、公司情报后端切片、M5 单 Agent/单 Graph Runtime，以及 D-021 的 JD AI 草稿确认切片。
 - 适用范围：重新开放的 M2 分析就绪输入、M3 确定性决策、M4 投递闭环 Beta、M5 Evidence/AI 增强，以及触发式候选能力。
 - 变更规则：修改领域边界、数据所有权、依赖方向、进程或安全模型时，必须先创建 Architecture Issue。
 
@@ -62,7 +62,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-018 | 类型化错误契约 | 协议无关 `ErrorCode` + `ErrorCategory` 注册表 | #187 / M4 | API 只按 category 映射 HTTP；OpenAPI 枚举是前端类型真源，未知异常固定脱敏 500 |
 | D-019 | Beta 部署与发布 | Host Reverse Proxy/TLS -> localhost Web -> API；GitHub Actions 为唯一 CD 控制面 | #171、#224 / M4 | 只有 Web 发布 localhost 端口；真实 HTTPS public smoke 先于健康指针；不支持容器内生产 ingress |
 | D-020 | Beta 注册与会话安全 | 运维 bootstrap 唯一用户 + 短时 JWT key ring + PostgreSQL 登录限额 | #174、#224 / M4 | 生产关闭公共注册；精确 Origin；API 只信任固定 Web IP `/32` 和单值 forwarded headers |
-| D-021 | 文档导入 Agent | Import Context 专用固定 Graph + 可编辑结构化草稿 + 一次整体确认 | #252 / M5 | PDF/DOCX 简历与文本/截图/链接 JD 只生成候选；确认前不写业务事实，不读取代码仓库，不形成多 Agent |
+| D-021 | 文档导入 Agent | Import Context 专用固定 Graph + 可编辑结构化草稿 + 一次整体确认 | #252、#254 / M5 | JD 文本/截图/链接切片已交付；PDF/DOCX 简历仍只生成候选目标；确认前不写业务事实，不读取代码仓库，不形成多 Agent |
 
 ### 首个模型 Provider 与最小数据边界（D-007 / #166）
 
@@ -512,7 +512,7 @@ flowchart LR
   事实表和 API 的启动、查询、批准、拒绝、恢复入口。当前 Graph Adapter 使用进程内 Checkpointer，重启恢复以 PostgreSQL
   Checkpoint 作为状态边界；不把 ORM、Session、SDK、密钥或完整敏感正文放入 Agent State。
 
-### 文档导入 Agent（D-021 / #252）
+### 文档导入 Agent（D-021 / #252、#254）
 
 文档导入使用 Import Context 专用的单 Agent、固定 Graph，不进入 #248 的求职目标路由，也不拆成简历 Agent、JD Agent 或
 多 Agent 协作。固定步骤为：
@@ -538,7 +538,8 @@ create_session
 - `validate_import_draft`：执行 owner、Schema、长度、枚举、日期和字段间约束校验；
 - `confirm_import_draft`：验证草稿版本与内容指纹，在 Application 事务中写入确认结果。
 
-`ImportSession` 记录 owner、导入种类、Artifact/Source 引用、步骤、状态、稳定错误码和当前 Draft 引用；`ImportDraft` 记录独立的
+当前 JD 切片通过 `POST /imports/jd`、`GET /imports/jd/{session_id}`、草稿 `PUT` 和确认 `POST` 进入真实调用路径。它的
+`ImportSession` 记录 owner、导入种类、来源类型、状态、稳定错误码和当前 Draft 引用；`ImportDraft` 记录独立的
 resume/JD Schema、规范化候选、字段来源、Prompt/Schema/模型版本、单调递增 `version` 和 `content_fingerprint`。两者都是
 PostgreSQL 中的候选/编排状态，不拥有 `CandidateProfile`、`JobPosting`、`JobRequirementSnapshot` 或 `ResumeVersion` 事实。
 原始文件继续使用 D-013 私有 Artifact/Source，不复制到 Agent State。

@@ -48,6 +48,52 @@ export interface JdInputPreview {
   kind: JdInputKind
 }
 
+export type JdImportSourceType = "text" | "image" | "url"
+export type JdImportConfirmationStatus = "unknown" | "unconfirmed" | "confirmed"
+export type JdImportRequirementSourceType = "manual" | "text_range" | "ocr_preview"
+
+export interface JdImportRequirementFact<T> {
+  value: T | null
+  confirmation_status: JdImportConfirmationStatus
+  source_type: JdImportRequirementSourceType
+  source_range: string | null
+}
+
+export interface JdImportRequirements {
+  required_skills: JdImportRequirementFact<string[]>
+  minimum_experience_years: JdImportRequirementFact<number>
+  degree_requirement: JdImportRequirementFact<string>
+  location_requirement: JdImportRequirementFact<string>
+  work_mode: JdImportRequirementFact<"onsite" | "hybrid" | "remote">
+}
+
+export interface JdImportDraftContent {
+  jd_text: string
+  job_title: string | null
+  company_name: string | null
+  location: string | null
+  requirements: JdImportRequirements
+}
+
+export interface JdImportDraftResponse {
+  session_id: string
+  draft_id: string
+  source_type: JdImportSourceType
+  source_url: string | null
+  status: "created" | "draft_ready" | "failed" | "confirmed"
+  version: number
+  content_fingerprint: string
+  prompt_version: string
+  model_version: string
+  content: JdImportDraftContent
+  failure_code: string | null
+}
+
+export interface ConfirmJdImportResponse {
+  job_posting: JobPosting
+  requirement_snapshot: JobRequirementSnapshot
+}
+
 export type ConfirmationStatus = "unconfirmed" | "confirmed" | "rejected" | "superseded"
 
 export interface ProfileFact<T> {
