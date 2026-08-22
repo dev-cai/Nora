@@ -90,6 +90,10 @@ async def enforce_coarse_authentication_limit(
 
     if request.method != "POST" or request.url.path not in AUTHENTICATION_PATHS:
         return None
+    # Browser E2E deliberately creates several isolated users from one client address.
+    # E2E_FAKE_MODEL is development-only, so this cannot disable the production boundary.
+    if settings.e2e_fake_model:
+        return None
     factory = getattr(request.app.state, "session_factory", None)
     if factory is None:
         return JSONResponse(status_code=503, content=database_problem().model_dump(mode="json"))
