@@ -281,7 +281,10 @@ code_paths = [
   "backend/tests/unit/test_jd_import.py",
   "backend/tests/integration/test_jd_import_api.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/255"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/255",
+  "https://github.com/dev-cai/Nora/pull/256",
+]
 
 [[capabilities]]
 id = "quality-gates"
