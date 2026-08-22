@@ -7,7 +7,7 @@
 
 - 技术选择：Vue 3 + Vite 独立 Web 客户端。
 - 交付阶段：M2 分析就绪输入、M3 确定性决策页面和 M4 声明式模板/ResumeVariant/PDF/MessageDraft/ApplicationRecord/InterviewCase 页面已交付；M4 后续与 M5 继续扩展部署、验收和 Evidence 页面。
-- 实现状态：Current 基线已包含 `frontend/`、Node 依赖、Web 容器、前端 CI 与定制简历工作流；未交付页面继续按 Planned 标注。
+- 实现状态：Current 基线已包含 `frontend/`、Node 依赖、Web 容器、前端 CI、定制简历工作流和 `/jobs/new` 的 JD AI 草稿确认流程；未交付页面继续按 Planned 标注。
 - 替代方案：不采用 Gradio；不维护 Gradio 与 Vue 两套客户端。
 
 选择 Vue 是为了支持长期的多步骤工作流、状态管理、Evidence 展示和可测试交互。代价是增加 Node 工具链、
@@ -64,6 +64,10 @@ flowchart LR
 - `POST /auth/register`
 - `POST /auth/login`
 - `GET /auth/me`
+- `POST /imports/jd`
+- `GET /imports/jd/{session_id}`
+- `PUT /imports/jd/{session_id}/draft`
+- `POST /imports/jd/{session_id}/confirm`
 - `POST /job-postings`
 - `GET /job-postings/{id}`
 - `POST /decisions`
@@ -110,6 +114,10 @@ flowchart LR
 
 Agent Runtime API 已进入后端契约，但当前没有独立浏览器页面或 Pinia Store。调用方只能通过认证 API 查看 Run、Tool 摘要、Approval
 快照和可清理 Checkpoint；前端不得展示 chain-of-thought、注入任意 Tool 名称或绕过 Approval 触发 WRITE Tool。
+
+JD 导入（Current）：`/jobs/new` 的文本、截图和受控链接入口共用 AI 草稿流程。抽取结果先回填正文、职位、公司、地点和五类岗位要求候选；
+用户可修改任意字段，页面只提供一次“确认导入岗位”。草稿 Session ID 保存在当前标签页 `sessionStorage`，刷新时以服务端版本和内容指纹恢复，
+确认成功或取消后清理。确认前不创建岗位；冲突由服务端返回稳定错误码。
 
 前端 API client 使用一个公开基址配置，例如 `VITE_NORA_API_BASE_URL`。所有 `VITE_*` 值都会进入浏览器
 构建产物，因此只能保存公开配置，禁止写入数据库凭据、签名密钥、Provider Token 或其他秘密。
@@ -368,8 +376,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | `authStore` | 登录/注册/登出/当前用户 | token、user、isAuthenticated |
 | `profileStore` | 主档草稿与确认快照 | draft、confirmed snapshot、confirmationStatus |
 | `resumeStore` | 简历版本列表/详情 | versions、current |
-| `jobStore` | 岗位列表/详情/新建 | jobs、current、inputMode（text/ocr/link） |
-| `importStore` | D-021 简历/JD ImportSession 与可编辑草稿 | session、draft、baseVersion、contentFingerprint、step、saving、confirming |
+| `jobStore` | 岗位列表/详情、新建与 JD AI 导入草稿 | jobs、current、inputMode、importDraft、importLoading |
 | `analysisStore` | DecisionCase 创建、同步结果、报告与投不投决定缓存 | currentCase、analysis、report、reports、decision |
 | `variantsStore` | 模板、ResumeVariant 列表/详情、精确模板恢复、幂等创建与 PDF 状态 | templates、variants、current、currentTemplate、currentPdf、generatingPdf |
 | `messagesStore` | MessageDraft 生成、详情恢复、修订历史与幂等编辑 | latestForVariant、current、versions、generating、saving |
@@ -407,8 +414,8 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | `AppShell` | 布局、导航、认证态 | Current |
 | `AuthForm` | 注册/登录表单 | Current |
 | `JobForm` | JD 文本输入 | Current |
-| `FileUpload` / `OCRPreview` / `LinkFetchPreview` | JD 截图/链接预览 | Planned |
-| `ImportProgress` / `ImportDraftEditor` / `ImportConfirmBar` | D-021 简历/JD 提取进度、任意字段编辑与一次整体确认 | Planned，M5 |
+| `JobCreateView` 输入模式与草稿编辑区 | JD 文本、截图、受控链接提取、AI 候选编辑和一次整体确认 | Current，#254 |
+| `ImportProgress` / `ImportDraftEditor` / `ImportConfirmBar` | D-021 PDF/DOCX 简历导入的提取进度、字段编辑与一次整体确认 | Planned，M5 |
 | `RequirementEditor` / `ConfirmationBadge` | 岗位要求确认与版本历史（`JobRequirementsView`） | Current |
 | `ProfileForm` / `FieldGroup` | 主档分区与字段确认状态 | Current |
 | `ResumeVersionCard` | 简历版本卡片 | Current |
@@ -430,7 +437,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | M2 | 分析就绪状态、输入 E2E；截图 OCR/链接预览经后端接口返回正文预览 |
 | M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
 | M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录、最小面试通知与隔离生产安全浏览器 E2E Current；真实 Beta 供应/首次发布 Planned |
-| M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示；D-021 简历/JD AI 草稿、冲突恢复与一次整体确认 |
+| M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示；JD AI 草稿、冲突恢复与一次整体确认已进入 Current；PDF/DOCX 简历导入仍 Planned |
 
 ## 15. 技术选型（Current 基线）
 

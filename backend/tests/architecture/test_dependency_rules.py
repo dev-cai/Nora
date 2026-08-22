@@ -68,6 +68,7 @@ LAYER_RULES = (
 RULES_BY_NAME = {rule.name: rule for rule in LAYER_RULES}
 
 APPROVED_THIRD_PARTY_IMPORTS = {
+    Path("app/application/imports/jd.py"): frozenset({"pydantic"}),
     Path("app/application/model.py"): frozenset({"pydantic"}),
     Path("app/ports/model.py"): frozenset({"pydantic"}),
 }
@@ -419,6 +420,7 @@ def test_api_composition_is_split_by_bounded_context_without_legacy_exports() ->
         "career.py": {"get_candidate_profile_repository", "get_resume_version_repository"},
         "opportunity.py": {
             "get_company_snapshot_repository",
+            "get_import_repository",
             "get_jd_input_adapter",
             "get_jd_ocr_adapter",
             "get_job_posting_repository",

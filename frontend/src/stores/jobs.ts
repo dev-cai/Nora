@@ -2,7 +2,16 @@ import { computed, ref } from "vue"
 import { defineStore } from "pinia"
 
 import { api } from "@/api/client"
-import type { CreateJobPostingInput, JdInputPreview, JobPosting } from "@/api/types"
+import type {
+  CreateJobPostingInput,
+  JdImportDraftContent,
+  JdImportDraftResponse,
+  JdImportSourceType,
+  JdInputPreview,
+  JobPosting,
+} from "@/api/types"
+
+export const JD_IMPORT_SESSION_STORAGE_KEY = "nora.jd-import.session"
 
 export const useJobsStore = defineStore("jobs", () => {
   const jobs = ref<JobPosting[]>([])
@@ -11,6 +20,8 @@ export const useJobsStore = defineStore("jobs", () => {
   const listLoading = ref(false)
   const detailLoading = ref(false)
   const previewLoading = ref(false)
+  const importLoading = ref(false)
+  const importDraft = ref<JdImportDraftResponse | null>(null)
   const isLoading = computed(() => listLoading.value || detailLoading.value)
   let latestListRequest = 0
   let latestDetailRequest = 0
@@ -71,6 +82,81 @@ export const useJobsStore = defineStore("jobs", () => {
     }
   }
 
+  async function createJdImport(
+    sourceType: JdImportSourceType,
+    jdText: string,
+    sourceUrl: string | null = null,
+  ): Promise<JdImportDraftResponse> {
+    importLoading.value = true
+    try {
+      const draft = await api.createJdImport({ source_type: sourceType, jd_text: jdText, source_url: sourceUrl })
+      importDraft.value = draft
+      sessionStorage.setItem(JD_IMPORT_SESSION_STORAGE_KEY, draft.session_id)
+      return draft
+    } finally {
+      importLoading.value = false
+    }
+  }
+
+  async function updateJdImport(content: JdImportDraftContent): Promise<JdImportDraftResponse> {
+    if (!importDraft.value) throw new Error("JD 导入草稿不存在")
+    importLoading.value = true
+    try {
+      const draft = await api.updateJdImportDraft(
+        importDraft.value.session_id,
+        importDraft.value.version,
+        content,
+      )
+      importDraft.value = draft
+      sessionStorage.setItem(JD_IMPORT_SESSION_STORAGE_KEY, draft.session_id)
+      return draft
+    } finally {
+      importLoading.value = false
+    }
+  }
+
+  async function confirmJdImport(): Promise<JobPosting> {
+    if (!importDraft.value) throw new Error("JD 导入草稿不存在")
+    importLoading.value = true
+    try {
+      const result = await api.confirmJdImport(
+        importDraft.value.session_id,
+        importDraft.value.version,
+        importDraft.value.content_fingerprint,
+      )
+      importDraft.value = { ...importDraft.value, status: "confirmed" }
+      sessionStorage.removeItem(JD_IMPORT_SESSION_STORAGE_KEY)
+      const job = result.job_posting
+      const alreadyPresent = jobs.value.some((existing) => existing.id === job.id)
+      jobs.value = [job, ...jobs.value.filter((existing) => existing.id !== job.id)]
+      if (!alreadyPresent) total.value += 1
+      return job
+    } finally {
+      importLoading.value = false
+    }
+  }
+
+  async function restoreJdImport(): Promise<JdImportDraftResponse | null> {
+    const sessionId = sessionStorage.getItem(JD_IMPORT_SESSION_STORAGE_KEY)
+    if (!sessionId) return null
+    importLoading.value = true
+    try {
+      const draft = await api.getJdImport(sessionId)
+      importDraft.value = draft
+      return draft
+    } catch (reason) {
+      sessionStorage.removeItem(JD_IMPORT_SESSION_STORAGE_KEY)
+      throw reason
+    } finally {
+      importLoading.value = false
+    }
+  }
+
+  function discardJdImport(): void {
+    importDraft.value = null
+    sessionStorage.removeItem(JD_IMPORT_SESSION_STORAGE_KEY)
+  }
+
   async function fetchPreviewFromImage(file: File): Promise<JdInputPreview> {
     previewLoading.value = true
     try {
@@ -86,6 +172,9 @@ export const useJobsStore = defineStore("jobs", () => {
     listLoading.value = false
     detailLoading.value = false
     previewLoading.value = false
+    importLoading.value = false
+    importDraft.value = null
+    sessionStorage.removeItem(JD_IMPORT_SESSION_STORAGE_KEY)
     pendingCreate = null
     jobs.value = []
     current.value = null
@@ -103,6 +192,13 @@ export const useJobsStore = defineStore("jobs", () => {
     createJob,
     fetchPreviewFromUrl,
     fetchPreviewFromImage,
+    importDraft,
+    importLoading,
+    createJdImport,
+    updateJdImport,
+    confirmJdImport,
+    restoreJdImport,
+    discardJdImport,
     reset,
   }
 })

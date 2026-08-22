@@ -19,6 +19,10 @@ import type {
   CreateResumeVariantInput,
   CreateSourceInput,
   JdInputPreview,
+  ConfirmJdImportResponse,
+  JdImportDraftContent,
+  JdImportDraftResponse,
+  JdImportSourceType,
   DecisionAnalysis,
   DecisionCase,
   DecisionReport,
@@ -134,6 +138,10 @@ const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
   model_timeout: "AI 分析服务响应超时，请稍后重试",
   model_output_invalid: "AI 返回内容未通过引用校验，请重新生成",
   model_budget_exceeded: "本次 AI 分析超过调用预算，未生成结果",
+  import_confirmation_conflict: "导入草稿已更新，请刷新后确认",
+  import_draft_version_conflict: "导入草稿已更新，请刷新后重试",
+  import_not_ready: "导入草稿当前不可编辑或确认",
+  import_persistence_failed: "导入结果保存失败，请重试",
 }
 
 const categoryMessages: Record<ServerErrorCategory, string> = {
@@ -195,7 +203,7 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 }
 
 export function userMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : "发生未知错误，请重试"
+  return error instanceof ApiError || error instanceof Error ? error.message : "发生未知错误，请重试"
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -291,6 +299,23 @@ export const api = {
     body.set("file", file)
     return request<JdInputPreview>("/job-postings/image", { method: "POST", body })
   },
+  createJdImport: (input: { source_type: JdImportSourceType; jd_text: string; source_url?: string | null }) =>
+    request<JdImportDraftResponse>("/imports/jd", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  getJdImport: (sessionId: string) =>
+    request<JdImportDraftResponse>(`/imports/jd/${encodeURIComponent(sessionId)}`),
+  updateJdImportDraft: (sessionId: string, baseVersion: number, content: JdImportDraftContent) =>
+    request<JdImportDraftResponse>(`/imports/jd/${encodeURIComponent(sessionId)}/draft`, {
+      method: "PUT",
+      body: JSON.stringify({ base_version: baseVersion, content }),
+    }),
+  confirmJdImport: (sessionId: string, baseVersion: number, contentFingerprint: string) =>
+    request<ConfirmJdImportResponse>(`/imports/jd/${encodeURIComponent(sessionId)}/confirm`, {
+      method: "POST",
+      body: JSON.stringify({ base_version: baseVersion, content_fingerprint: contentFingerprint }),
+    }),
   getProfile: (version?: number) =>
     request<CandidateProfile>(`/profile${version ? `?version=${version}` : ""}`),
   saveProfile: (input: CandidateProfileInput) =>

@@ -31,7 +31,9 @@ EXPECTED_ERROR_CODES = frozenset(
     decision_report_version_conflict decision_rule_input_mismatch decode_failed domain_error
     email_conflict empty_content entity_not_found entity_not_persisted fetch_failed fetch_timeout
     idempotency_conflict idempotency_key_taken identity_persistence_failed image_too_large
-    infrastructure_error internal_error invalid_application_decision_fingerprint
+    infrastructure_error internal_error import_confirmation_conflict
+    import_draft_version_conflict import_not_ready import_persistence_failed
+    invalid_application_decision_fingerprint
     invalid_application_decision_status invalid_application_record invalid_application_record_status
     invalid_artifact_content_type invalid_artifact_sha256
     invalid_artifact_size invalid_audit_action invalid_audit_idempotency_key invalid_audit_summary
@@ -72,7 +74,7 @@ EXPECTED_ERROR_CODES = frozenset(
 
 
 def test_error_code_registry_is_exact_complete_and_immutable() -> None:
-    assert len(EXPECTED_ERROR_CODES) == 167
+    assert len(EXPECTED_ERROR_CODES) == 171
     assert {code.value for code in ErrorCode} == EXPECTED_ERROR_CODES
     assert set(ErrorCode) == set(ERROR_CATEGORY_BY_CODE)
     with pytest.raises(TypeError):

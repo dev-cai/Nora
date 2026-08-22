@@ -1441,6 +1441,47 @@
         "title": "CompanySourceTier",
         "type": "string"
       },
+      "ConfirmJdImportRequest": {
+        "properties": {
+          "base_version": {
+            "minimum": 1.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "content_fingerprint": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Content Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "base_version",
+          "content_fingerprint"
+        ],
+        "title": "ConfirmJdImportRequest",
+        "type": "object"
+      },
+      "ConfirmJdImportResponse": {
+        "properties": {
+          "job_posting": {
+            "additionalProperties": true,
+            "title": "Job Posting",
+            "type": "object"
+          },
+          "requirement_snapshot": {
+            "additionalProperties": true,
+            "title": "Requirement Snapshot",
+            "type": "object"
+          }
+        },
+        "required": [
+          "job_posting",
+          "requirement_snapshot"
+        ],
+        "title": "ConfirmJdImportResponse",
+        "type": "object"
+      },
       "ConfirmationStatus": {
         "description": "主档字段的确认状态。",
         "enum": [
@@ -1686,6 +1727,43 @@
           "resume_version"
         ],
         "title": "CreateDecisionCaseRequest",
+        "type": "object"
+      },
+      "CreateJdImportRequest": {
+        "properties": {
+          "jd_text": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Jd Text",
+            "type": "string"
+          },
+          "source_type": {
+            "enum": [
+              "text",
+              "image",
+              "url"
+            ],
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          }
+        },
+        "required": [
+          "source_type",
+          "jd_text"
+        ],
+        "title": "CreateJdImportRequest",
         "type": "object"
       },
       "CreateJobPostingRequest": {
@@ -2178,6 +2256,24 @@
         "title": "DecisionReportResponse",
         "type": "object"
       },
+      "EditJdImportDraftRequest": {
+        "properties": {
+          "base_version": {
+            "minimum": 1.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "content": {
+            "$ref": "#/components/schemas/JdImportDraftContent"
+          }
+        },
+        "required": [
+          "base_version",
+          "content"
+        ],
+        "title": "EditJdImportDraftRequest",
+        "type": "object"
+      },
       "EditMessageDraftRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2418,6 +2514,10 @@
           "invalid_variant_fingerprint",
           "invalid_variant_text",
           "invalid_version",
+          "import_confirmation_conflict",
+          "import_draft_version_conflict",
+          "import_not_ready",
+          "import_persistence_failed",
           "jd_text_too_long",
           "job_posting_persistence_failed",
           "job_requirement_version_conflict",
@@ -2638,6 +2738,15 @@
         },
         "title": "GenerateMessageDraftRequest",
         "type": "object"
+      },
+      "ImportSourceType": {
+        "enum": [
+          "text",
+          "image",
+          "url"
+        ],
+        "title": "ImportSourceType",
+        "type": "string"
       },
       "IndexResponse": {
         "properties": {
@@ -3130,6 +3239,139 @@
         "title": "InterviewReviewResponse",
         "type": "object"
       },
+      "JdImportDraftContent": {
+        "additionalProperties": false,
+        "description": "用户可编辑的 JD 候选字段；不是业务事实。",
+        "properties": {
+          "company_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "jd_text": {
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Jd Text",
+            "type": "string"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/JdRequirementDraft"
+          }
+        },
+        "required": [
+          "jd_text",
+          "requirements"
+        ],
+        "title": "JdImportDraftContent",
+        "type": "object"
+      },
+      "JdImportResponse": {
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/JdImportDraftContent"
+          },
+          "content_fingerprint": {
+            "title": "Content Fingerprint",
+            "type": "string"
+          },
+          "draft_id": {
+            "format": "uuid",
+            "title": "Draft Id",
+            "type": "string"
+          },
+          "failure_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Code"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/components/schemas/ImportSourceType"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id",
+          "draft_id",
+          "source_type",
+          "source_url",
+          "status",
+          "version",
+          "content_fingerprint",
+          "prompt_version",
+          "model_version",
+          "content"
+        ],
+        "title": "JdImportResponse",
+        "type": "object"
+      },
       "JdInputKind": {
         "description": "产生 JD 文本的输入方式。",
         "enum": [
@@ -3167,6 +3409,77 @@
           "kind"
         ],
         "title": "JdInputPreviewResponse",
+        "type": "object"
+      },
+      "JdRequirementDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "degree_requirement": {
+            "$ref": "#/components/schemas/JdRequirementFact"
+          },
+          "location_requirement": {
+            "$ref": "#/components/schemas/JdRequirementFact"
+          },
+          "minimum_experience_years": {
+            "$ref": "#/components/schemas/JdRequirementFact"
+          },
+          "required_skills": {
+            "$ref": "#/components/schemas/JdRequirementFact"
+          },
+          "work_mode": {
+            "$ref": "#/components/schemas/JdRequirementFact"
+          }
+        },
+        "required": [
+          "required_skills",
+          "minimum_experience_years",
+          "degree_requirement",
+          "location_requirement",
+          "work_mode"
+        ],
+        "title": "JdRequirementDraft",
+        "type": "object"
+      },
+      "JdRequirementFact": {
+        "additionalProperties": false,
+        "properties": {
+          "confirmation_status": {
+            "default": "unknown",
+            "enum": [
+              "unknown",
+              "unconfirmed",
+              "confirmed"
+            ],
+            "title": "Confirmation Status",
+            "type": "string"
+          },
+          "source_range": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Range"
+          },
+          "source_type": {
+            "default": "text_range",
+            "enum": [
+              "manual",
+              "text_range",
+              "ocr_preview"
+            ],
+            "title": "Source Type",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "title": "JdRequirementFact",
         "type": "object"
       },
       "JobFitAnalysisResponse": {
@@ -8845,6 +9158,496 @@
         "summary": "Generate Decision Report",
         "tags": [
           "decisions"
+        ]
+      }
+    },
+    "/imports/jd": {
+      "post": {
+        "operationId": "create_jd_import_imports_jd_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJdImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Authentication required or failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request origin is not allowed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Jd Import",
+        "tags": [
+          "jd-imports"
+        ]
+      }
+    },
+    "/imports/jd/{session_id}": {
+      "get": {
+        "operationId": "get_jd_import_imports_jd__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Authentication required or failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request origin is not allowed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Jd Import",
+        "tags": [
+          "jd-imports"
+        ]
+      }
+    },
+    "/imports/jd/{session_id}/confirm": {
+      "post": {
+        "operationId": "confirm_jd_import_imports_jd__session_id__confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmJdImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmJdImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Authentication required or failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request origin is not allowed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Jd Import",
+        "tags": [
+          "jd-imports"
+        ]
+      }
+    },
+    "/imports/jd/{session_id}/draft": {
+      "put": {
+        "operationId": "edit_jd_import_imports_jd__session_id__draft_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditJdImportDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JdImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Authentication required or failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request origin is not allowed"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Resource conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Request validation failed"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Edit Jd Import",
+        "tags": [
+          "jd-imports"
         ]
       }
     },
