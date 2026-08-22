@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue"
+import { computed, onMounted, reactive, ref } from "vue"
 import { FileText, Image, Link2, Save } from "lucide-vue-next"
 import { useRouter } from "vue-router"
 
@@ -26,6 +26,9 @@ const requirements = reactive({
   location_requirement: "",
   work_mode: "",
 })
+const hasCompleteManualFields = computed(() =>
+  [form.job_title, form.company_name, form.location, form.jd_text].every((value) => value.trim().length > 0),
+)
 
 function selectMode(next: InputMode): void {
   mode.value = next
@@ -141,6 +144,14 @@ async function submit(): Promise<void> {
   loading.value = true
   try {
     if (!jobs.importDraft) {
+      if (hasCompleteManualFields.value) {
+        const job = await jobs.createJob({
+          ...form,
+          source_type: "manual",
+        })
+        await router.push({ name: "job-detail", params: { id: job.id } })
+        return
+      }
       await createDraft()
       return
     }
@@ -347,7 +358,7 @@ async function submit(): Promise<void> {
           type="submit"
           :disabled="loading"
         >
-          <Save :size="17" /> {{ loading ? "正在确认…" : jobs.importDraft ? "确认导入岗位" : "AI 自动识别" }}
+          <Save :size="17" /> {{ loading ? "正在确认…" : jobs.importDraft ? "确认导入岗位" : hasCompleteManualFields ? "保存岗位快照" : "AI 自动识别" }}
         </button>
       </div>
     </form>

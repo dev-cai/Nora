@@ -49,6 +49,15 @@ async def test_resolve_and_verify_returns_public_address() -> None:
 
 
 @pytest.mark.asyncio
+async def test_resolve_and_verify_prefers_ipv4_when_both_families_are_public() -> None:
+    policy = JdUrlFetchPolicy()
+    target = await _resolve_and_verify(
+        _resolver("2606:4700:4700::1111", "93.184.216.34"), policy, "jobs.example.com", 443
+    )
+    assert target == "93.184.216.34"
+
+
+@pytest.mark.asyncio
 async def test_resolve_and_verify_empty_resolution_fails() -> None:
     policy = JdUrlFetchPolicy()
     with pytest.raises(JdInputError) as error:
@@ -90,6 +99,26 @@ async def test_fetch_returns_plain_text_as_is() -> None:
     result = await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/x"))
 
     assert result.jd_text == "Senior backend engineer"
+
+
+@pytest.mark.asyncio
+async def test_fetch_maps_timeout_to_stable_error_code() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("upstream timed out", request=request)
+
+    with pytest.raises(JdInputError) as error:
+        await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/x"))
+    assert error.value.error_code == ErrorCode.FETCH_TIMEOUT
+
+
+@pytest.mark.asyncio
+async def test_fetch_maps_request_error_to_stable_error_code() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("upstream unavailable", request=request)
+
+    with pytest.raises(JdInputError) as error:
+        await _adapter(handler).fetch_url(JdUrlInput("https://jobs.example.com/x"))
+    assert error.value.error_code == ErrorCode.FETCH_FAILED
 
 
 @pytest.mark.asyncio
