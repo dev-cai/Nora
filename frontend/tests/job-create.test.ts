@@ -192,7 +192,25 @@ describe("JobCreateView", () => {
     expect(router.currentRoute.value.path).toBe("/jobs/job-1")
   })
 
-  it("keeps the direct save path for complete manual fields", async () => {
+  it("prioritizes the AI draft even when all manual fields are already filled", async () => {
+    vi.mocked(api.createJdImport).mockResolvedValueOnce(jdDraft())
+    const { wrapper, router } = await mountView()
+
+    const textFields = wrapper.findAll('input[maxlength="200"]')
+    await textFields[0]?.setValue("Backend Engineer")
+    await textFields[1]?.setValue("Nora")
+    await textFields[2]?.setValue("Remote")
+    await wrapper.get("textarea").setValue("Backend role")
+    await wrapper.get("form").trigger("submit")
+    await flushPromises()
+
+    expect(api.createJdImport).toHaveBeenCalledWith({ source_type: "text", jd_text: "Backend role", source_url: null })
+    expect(api.createJob).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.path).toBe("/jobs/new")
+  })
+
+  it("only exposes manual save as a fallback after AI import fails", async () => {
+    vi.mocked(api.createJdImport).mockRejectedValueOnce(new Error("AI unavailable"))
     vi.mocked(api.createJob).mockResolvedValueOnce(job())
     const { wrapper, router } = await mountView()
 
@@ -202,6 +220,12 @@ describe("JobCreateView", () => {
     await textFields[2]?.setValue("Remote")
     await wrapper.get("textarea").setValue("Backend role")
     await wrapper.get("form").trigger("submit")
+    await flushPromises()
+
+    expect(api.createJdImport).toHaveBeenCalledOnce()
+    expect(api.createJob).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain("AI unavailable")
+    await wrapper.get("button.button-secondary[type='button']").trigger("click")
     await flushPromises()
 
     expect(api.createJob).toHaveBeenCalledWith(
@@ -214,7 +238,6 @@ describe("JobCreateView", () => {
       },
       expect.any(String),
     )
-    expect(api.createJdImport).not.toHaveBeenCalled()
     expect(router.currentRoute.value.path).toBe("/jobs/job-1")
   })
 })

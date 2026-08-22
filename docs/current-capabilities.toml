@@ -267,7 +267,7 @@ id = "jd-ai-import-drafts"
 name = "JD AI 草稿与整体确认导入"
 milestone = "M5"
 status = "current"
-summary = "支持文本、PNG/JPEG 截图和受控 HTTP(S) 链接进入用户隔离的 ImportSession/ImportDraft：正文确定性清洗后由 ModelPort 生成职位、公司、地点和结构化岗位要求候选；用户可编辑任意字段，草稿以单调版本和服务端内容指纹保护，刷新可恢复，确认请求幂等且在同一事务中创建 JobPosting 与首个 JobRequirementSnapshot。完整手工字段仍保留直接保存岗位快照的兼容路径；AI 草稿确认前不写岗位事实，不读取 GitHub/GitLab 项目，不支持 JD PDF 或 PDF/DOCX 简历导入。"
+summary = "支持文本、PNG/JPEG 截图和受控 HTTP(S) 链接进入用户隔离的 ImportSession/ImportDraft：正文确定性清洗后由 ModelPort 生成职位、公司、地点和结构化岗位要求候选；用户可编辑任意字段，草稿以单调版本和服务端内容指纹保护，刷新可恢复，确认请求幂等且在同一事务中创建 JobPosting 与首个 JobRequirementSnapshot。岗位提交始终优先 AI 自动识别，仅在 AI 明确失败且字段完整时提供手动填写兜底；AI 草稿确认前不写岗位事实，不读取 GitHub/GitLab 项目，不支持 JD PDF 或 PDF/DOCX 简历导入。"
 code_paths = [
   "backend/app/application/imports/jd.py",
   "backend/app/domain/imports.py",
