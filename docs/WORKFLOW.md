@@ -163,7 +163,7 @@ Frontend quality gate 会在 lint、typecheck、test 和 build 前运行 `npm ru
 FastAPI OpenAPI 与 TypeScript 声明，再通过 tracked-file、`git diff --exit-code` 和未追踪文件检查阻止契约漂移。generated 文件必须与
 后端 Schema 同一 PR 提交，禁止人工编辑或从运行中服务下载。
 
-浏览器 E2E 的普通 Compose 项目由工作流显式注入 `E2E_FAKE_MODEL=1` 和 `DEBUG=false`，提供固定结构化 AI/RAG/复盘输出且不访问网络，并避免 SQL 参数进入日志；Beta 生产安全项目不启用 Fake Model。M5 用例关闭失败 trace、截图和视频，工作流在成功或失败后静默扫描合成敏感标记，命中时直接失败且不回显匹配日志。
+浏览器 E2E 已暂停并从仓库移除；当前 CI 不运行 Playwright、E2E Compose 或浏览器门禁。跨 API 行为由后端集成测试、前端组件测试和 API smoke 覆盖。
 
 Milestone 关闭前执行一次收口审计：逐项核对 Current 能力台账、默认分支代码路径、测试和已合并 PR 证据；随后运行完整文档门禁。
 计划进度以 GitHub Milestone/Issue 为准，不为封版结果再创建平行的 Markdown 状态表。
@@ -246,11 +246,7 @@ docker compose --profile test run --rm test
 
 全部通过方可提交。因外部服务不可用跳过部分检查时，必须记录原因。
 
-浏览器门禁由 `.github/workflows/e2e.yml` 在 PR 与 main push 上执行两个隔离项目：开发形态栈覆盖 M2/M3 与 M4 的
-apply → ResumeVariant → PDF → MessageDraft → 用户确认 ApplicationRecord/InterviewCase 完整旅程、失败可见性、重新登录恢复、双用户
-读写/下载隔离和无外部写；随后生产安全形态栈使用 test-only `Host TLS reference proxy -> Web -> API`，覆盖 HSTS、Web 安全 Header、
-受控 owner bootstrap、公共注册关闭、Token 撤销、退出、429、Origin，以及客户端伪造 forwarded headers 不能绕过限流。工作流无论
-成功或失败都删除两套容器、网络、数据卷和临时 Secret env，不复用开发数据库或对象存储；隔离栈通过不等于真实公网 Beta 已部署。
+浏览器 E2E 已暂停并从仓库移除；PR 与 main push 不再执行浏览器门禁，也不再启动专用 E2E Compose、TLS reference proxy 或 Playwright 浏览器。
 
 ### 步骤 7：提交 Commit
 

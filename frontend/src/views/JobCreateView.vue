@@ -14,6 +14,7 @@ const router = useRouter()
 const jobs = useJobsStore()
 const loading = ref(false)
 const error = ref("")
+const aiImportFailed = ref(false)
 const mode = ref<InputMode>("text")
 const previewError = ref("")
 const previewUrl = ref("")
@@ -33,6 +34,7 @@ const hasCompleteManualFields = computed(() =>
 function selectMode(next: InputMode): void {
   mode.value = next
   previewError.value = ""
+  aiImportFailed.value = false
 }
 
 async function restoreDraft(): Promise<void> {
@@ -131,8 +133,35 @@ function draftContent(): JdImportDraftContent {
 onMounted(() => { void restoreDraft() })
 
 async function createDraft(sourceType: JdImportSourceType = importSourceType(), sourceUrl: string | null = null): Promise<void> {
-  const draft = await jobs.createJdImport(sourceType, form.jd_text, sourceUrl)
-  applyDraft(draft.content)
+  aiImportFailed.value = false
+  try {
+    const draft = await jobs.createJdImport(sourceType, form.jd_text, sourceUrl)
+    applyDraft(draft.content)
+  } catch (reason) {
+    aiImportFailed.value = true
+    throw reason
+  }
+}
+
+async function saveManualFallback(): Promise<void> {
+  error.value = ""
+  if (!aiImportFailed.value) {
+    error.value = "请先尝试 AI 自动识别"
+    return
+  }
+  if (!hasCompleteManualFields.value) {
+    error.value = "AI 自动识别不可用时，请完整填写职位、公司、地点和 JD 正文后再使用手动兜底"
+    return
+  }
+  loading.value = true
+  try {
+    const job = await jobs.createJob({ ...form, source_type: "manual" })
+    await router.push({ name: "job-detail", params: { id: job.id } })
+  } catch (reason) {
+    error.value = userMessage(reason)
+  } finally {
+    loading.value = false
+  }
 }
 
 async function submit(): Promise<void> {
@@ -144,14 +173,6 @@ async function submit(): Promise<void> {
   loading.value = true
   try {
     if (!jobs.importDraft) {
-      if (hasCompleteManualFields.value) {
-        const job = await jobs.createJob({
-          ...form,
-          source_type: "manual",
-        })
-        await router.push({ name: "job-detail", params: { id: job.id } })
-        return
-      }
       await createDraft()
       return
     }
@@ -354,11 +375,19 @@ async function submit(): Promise<void> {
         >
           取消
         </RouterLink><button
+          v-if="!jobs.importDraft && aiImportFailed && hasCompleteManualFields"
+          class="button button-secondary"
+          type="button"
+          :disabled="loading"
+          @click="saveManualFallback"
+        >
+          手动填写兜底
+        </button><button
           class="button button-primary"
           type="submit"
           :disabled="loading"
         >
-          <Save :size="17" /> {{ loading ? "正在确认…" : jobs.importDraft ? "确认导入岗位" : hasCompleteManualFields ? "保存岗位快照" : "AI 自动识别" }}
+          <Save :size="17" /> {{ loading ? "正在确认…" : jobs.importDraft ? "确认导入岗位" : "AI 自动识别" }}
         </button>
       </div>
     </form>

@@ -23,7 +23,6 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nora}:${POSTGRES_PASSWORD:-change-me-local}@db:5432/${POSTGRES_DB:-nora}
       AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-development-only-change-this-secret}
       AUTH_ACCESS_TOKEN_MINUTES: ${AUTH_ACCESS_TOKEN_MINUTES:-30}
-      E2E_FAKE_MODEL: ${E2E_FAKE_MODEL:-0}
       BAIDU_OCR_API_KEY: ${BAIDU_OCR_API_KEY:-}
       BAIDU_OCR_SECRET_KEY: ${BAIDU_OCR_SECRET_KEY:-}
       BAIDU_OCR_ENDPOINT: ${BAIDU_OCR_ENDPOINT:-accurate_basic}

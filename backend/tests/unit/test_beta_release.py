@@ -89,7 +89,7 @@ def test_release_manifest_is_exact_and_binds_every_required_check(tmp_path: Path
     assert restored.release_id == manifest.release_id
 
     invalid = asdict(manifest)
-    invalid["ci_check_run_ids"].pop("Browser E2E (decision flow)")
+    invalid["ci_check_run_ids"].pop("Code quality and tests")
     with pytest.raises(ValueError, match="every required"):
         ReleaseManifest.from_dict(invalid)
 

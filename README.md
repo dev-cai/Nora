@@ -77,7 +77,7 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 |--------|----------|
 | **M0** | 工程骨架 · CI 门禁 · Docker Compose |
 | **M1** | 本地认证 · 岗位快照 · 幂等 · 审计 |
-| **M2** | 可确认的岗位要求 · OCR/链接输入 · 分析就绪 E2E |
+| **M2** | 可确认的岗位要求 · OCR/链接输入 · 分析就绪 API |
 | **M3** | 确定性决策报告 · apply/skip（无模型密钥可运行） |
 | **M4** | 定制材料 · 手工投递/面试记录 · 可部署 Beta |
 | **M5** | Evidence · 检索 · 可选 AI 与指标触发的规模化 |
