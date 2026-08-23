@@ -212,6 +212,13 @@ def test_deepseek_secret_file_uses_existing_secret_boundary(tmp_path: Path) -> N
     secret_file.write_text("sk-private-value\n", encoding="utf-8")
     secret_file.chmod(0o440)
 
+    with pytest.raises(ValidationError, match="mutually exclusive"):
+        Settings(
+            deepseek_api_key="sk-direct-value",
+            deepseek_api_key_file=secret_file,
+            _env_file=None,
+        )
+
     settings = Settings(deepseek_api_key_file=secret_file, _env_file=None)
 
     assert settings.deepseek_api_key == "sk-private-value"
