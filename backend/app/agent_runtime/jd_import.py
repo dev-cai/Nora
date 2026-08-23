@@ -73,9 +73,7 @@ def _normalize_candidate(content: JdImportDraftContent) -> JdImportDraftContent:
                 value = None
         elif field == "work_mode":
             value = (
-                _WORK_MODE_ALIASES.get(str(value).strip().lower())
-                if value is not None
-                else None
+                _WORK_MODE_ALIASES.get(str(value).strip().lower()) if value is not None else None
             )
         elif value is not None:
             value = " ".join(str(value).split())
