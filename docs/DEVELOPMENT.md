@@ -528,7 +528,7 @@ DEEPSEEK_API_KEY_FILE=/absolute/path/to/deepseek-api-key \
 ```
 
 未设置 `NORA_RUN_DEEPSEEK_SMOKE=1` 时该测试报告 skipped；设置开关但缺少 Key 时明确失败。Smoke 使用固定
-`deepseek-v4-flash`、JSON Schema 和无敏感探测内容，不写数据库或其他业务事实。不要把真实 Key 放入 `.env`、命令参数、测试输出或
+`deepseek-v4-flash`、JSON mode 和本地 Pydantic Schema 校验及无敏感探测内容，不写数据库或其他业务事实。不要把真实 Key 放入 `.env`、命令参数、测试输出或
 仓库；费用预警/额度必须先在 DeepSeek 控制台配置。
 
 集成测试只连接 `test` profile 中的隔离 PostgreSQL。`test-db` 使用 tmpfs，不复用开发数据库或命名卷：

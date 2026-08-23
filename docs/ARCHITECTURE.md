@@ -67,7 +67,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 ### 首个模型 Provider 与最小数据边界（D-007 / #166）
 
 截至 2026-08-23，Chat 模型调用只允许使用 DeepSeek 官方 OpenAI-compatible API。Chat 固定
-`DEEPSEEK_CHAT_MODEL`（默认 `deepseek-v4-flash`），通过 `/v1/chat/completions` 的 JSON Schema Structured Output 生成受校验结果；Embedding 固定
+`DEEPSEEK_CHAT_MODEL`（默认 `deepseek-v4-flash`），通过 `/v1/chat/completions` 的 JSON mode 返回对象，再由本地 Pydantic Schema 校验；Embedding 固定
 `qwen3.7-text-embedding`、dense 输出和 1024 维。Embedding 不得错误使用 Chat 模型；模型别名、地域、维度或 Provider 的任何变化
 都必须先通过新的 Architecture Review，不能在实现 Issue 中静默替换。
 

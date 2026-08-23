@@ -222,7 +222,7 @@ class DeepSeekChatAdapter(ModelPort):
             content = payload["choices"][0]["message"]["content"]
             if not isinstance(content, str):
                 raise TypeError
-            return output_type.model_validate_json(content)
+            return output_type.model_validate_json(_strip_json_fence(content))
         except (KeyError, IndexError, TypeError, ValidationError, ValueError):
             raise ModelError(
                 "Model provider returned output that failed schema validation",
@@ -328,24 +328,32 @@ def _chat_payload(
             "Structured output schema could not be generated",
             ErrorCode.MODEL_OUTPUT_INVALID,
         ) from None
-    schema_name = output_type.__name__
+    schema_text = json.dumps(schema, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    system_prompt = (
+        f"{request.system_prompt}\nReturn exactly one JSON object matching this JSON Schema; "
+        f"do not wrap it in Markdown fences:\n{schema_text}"
+    )
     return {
         "model": model,
         "messages": [
-            {"role": "system", "content": request.system_prompt},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": request.user_input},
         ],
         "temperature": request.temperature,
         "max_tokens": request.max_output_tokens,
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": schema_name,
-                "strict": True,
-                "schema": schema,
-            },
-        },
+        "response_format": {"type": "json_object"},
     }
+
+
+def _strip_json_fence(content: str) -> str:
+    """Accept a fenced JSON object while keeping local Pydantic validation mandatory."""
+
+    value = content.strip()
+    if value.startswith("```") and value.endswith("```"):
+        value = value[3:-3].strip()
+        if value.lower().startswith("json"):
+            value = value[4:].lstrip()
+    return value
 
 
 def _conservative_token_estimate(value: str) -> int:

@@ -117,8 +117,8 @@ async def test_adapter_sends_openai_compatible_json_schema_request() -> None:
     assert isinstance(payload, dict)
     assert payload["model"] == DEEPSEEK_CHAT_MODEL
     assert "enable_thinking" not in payload
-    assert payload["response_format"]["type"] == "json_schema"  # type: ignore[index]
-    assert payload["response_format"]["json_schema"]["strict"] is True  # type: ignore[index]
+    assert payload["response_format"]["type"] == "json_object"  # type: ignore[index]
+    assert "JSON Schema" in payload["messages"][0]["content"]  # type: ignore[index]
     assert payload["messages"][0]["role"] == "system"  # type: ignore[index]
     assert payload["messages"][1]["role"] == "user"  # type: ignore[index]
 
