@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.agent_runtime import JdImportAgent
 from app.application.imports import (
     ConfirmJdImportCommand,
     CreateJdImportCommand,
@@ -14,7 +15,7 @@ from app.application.imports import (
     JdImportService,
 )
 from app.apps.api.dependencies.common import get_current_user
-from app.apps.api.dependencies.decision import get_model_port
+from app.apps.api.dependencies.decision import get_jd_import_agent
 from app.apps.api.dependencies.governance import get_audit_event_repository
 from app.apps.api.dependencies.opportunity import (
     get_import_repository,
@@ -27,7 +28,6 @@ from app.domain.imports import ImportDraft, ImportSession, ImportSourceType
 from app.domain.opportunity import JobPosting, JobRequirementSnapshot
 from app.ports.governance import AuditEventRepository
 from app.ports.imports import ImportRepository
-from app.ports.model import ModelPort
 from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRepository
 from app.ports.transaction import Transaction
 
@@ -87,7 +87,7 @@ class ConfirmJdImportResponse(BaseModel):
 
 def _service(
     imports: ImportRepository = Depends(get_import_repository),
-    model: ModelPort = Depends(get_model_port),
+    agent: JdImportAgent = Depends(get_jd_import_agent),
     postings: JobPostingRepository = Depends(get_job_posting_repository),
     requirements: JobRequirementSnapshotRepository = Depends(
         get_job_requirement_snapshot_repository
@@ -95,7 +95,7 @@ def _service(
     audit: AuditEventRepository = Depends(get_audit_event_repository),
     transaction: Transaction = Depends(get_transaction),
 ) -> JdImportService:
-    return JdImportService(imports, model, postings, requirements, audit, transaction)
+    return JdImportService(imports, agent, postings, requirements, audit, transaction)
 
 
 @router.post("", response_model=JdImportResponse, status_code=status.HTTP_201_CREATED)

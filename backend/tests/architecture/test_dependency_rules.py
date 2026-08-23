@@ -431,6 +431,7 @@ def test_api_composition_is_split_by_bounded_context_without_legacy_exports() ->
             "get_decision_case_repository",
             "get_decision_report_repository",
             "get_job_fit_analysis_repository",
+            "get_jd_import_agent",
             "get_model_port",
         },
         "followup.py": {
