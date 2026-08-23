@@ -63,9 +63,11 @@ def _decode_pdf_string(value: bytes) -> str:
             value = bytes.fromhex(value[1:-1].decode("ascii"))
         except (ValueError, UnicodeDecodeError):
             return ""
-    encodings = ("utf-16-be", "utf-8", "gb18030", "latin-1") if (
-        value.startswith((b"\xfe\xff", b"\xff\xfe")) or b"\x00" in value
-    ) else ("utf-8", "gb18030", "utf-16-be", "latin-1")
+    encodings = (
+        ("utf-16-be", "utf-8", "gb18030", "latin-1")
+        if (value.startswith((b"\xfe\xff", b"\xff\xfe")) or b"\x00" in value)
+        else ("utf-8", "gb18030", "utf-16-be", "latin-1")
+    )
     for encoding in encodings:
         try:
             decoded = value.decode(encoding)
