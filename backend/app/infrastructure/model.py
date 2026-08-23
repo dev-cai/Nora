@@ -7,6 +7,7 @@ import json
 import random
 from collections.abc import Iterable
 from decimal import Decimal
+from re import fullmatch
 from time import perf_counter
 from typing import Any
 
@@ -36,6 +37,7 @@ class DeepSeekChatAdapter(ModelPort):
         *,
         api_key: str,
         base_url: str,
+        model: str,
         timeout_seconds: float,
         input_price_cny_per_million_tokens: Decimal,
         output_price_cny_per_million_tokens: Decimal,
@@ -46,6 +48,8 @@ class DeepSeekChatAdapter(ModelPort):
         self._api_key = api_key
         if base_url != DEEPSEEK_BASE_URL:
             raise ValueError("base_url must be https://api.deepseek.com")
+        if fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", model) is None:
+            raise ValueError("model must be a stable model identifier")
         if not 0 < timeout_seconds <= 60:
             raise ValueError("timeout_seconds must be between 0 and 60")
         if (
@@ -63,6 +67,7 @@ class DeepSeekChatAdapter(ModelPort):
         if retry_base_delay_seconds < 0:
             raise ValueError("retry delay must not be negative")
         self._base_url = base_url
+        self._model = model
         self._timeout_seconds = timeout_seconds
         self._input_price = input_price_cny_per_million_tokens
         self._output_price = output_price_cny_per_million_tokens
@@ -70,6 +75,14 @@ class DeepSeekChatAdapter(ModelPort):
         self._transport = transport
         self._retry_base_delay_seconds = retry_base_delay_seconds
         self._logger = get_logger(__name__)
+
+    @property
+    def provider(self) -> str:
+        return DEEPSEEK_PROVIDER
+
+    @property
+    def model(self) -> str:
+        return self._model
 
     async def generate_structured(
         self,
@@ -79,7 +92,7 @@ class DeepSeekChatAdapter(ModelPort):
         started_at = perf_counter()
         try:
             self._validate_output_type(output_type)
-            request_payload = _chat_payload(request, output_type)
+            request_payload = _chat_payload(request, output_type, self._model)
             self._validate_preflight(request, request_payload)
             try:
                 async with asyncio.timeout(self._timeout_seconds):
@@ -226,7 +239,7 @@ class DeepSeekChatAdapter(ModelPort):
         self._logger.info(
             "model generation completed",
             provider=DEEPSEEK_PROVIDER,
-            model=DEEPSEEK_CHAT_MODEL,
+            model=self._model,
             duration_ms=round((perf_counter() - started_at) * 1000),
             success=success,
             error_category=error_category,
@@ -239,6 +252,14 @@ class FakeModelAdapter(ModelPort):
     def __init__(self, responses: Iterable[BaseModel | dict[str, Any]]) -> None:
         self._responses = iter(responses)
         self.requests: list[ModelRequest] = []
+
+    @property
+    def provider(self) -> str:
+        return DEEPSEEK_PROVIDER
+
+    @property
+    def model(self) -> str:
+        return DEEPSEEK_CHAT_MODEL
 
     async def generate_structured(
         self,
@@ -275,6 +296,7 @@ def create_deepseek_chat_adapter(
     return DeepSeekChatAdapter(
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
+        model=settings.deepseek_chat_model,
         timeout_seconds=settings.deepseek_chat_timeout_seconds,
         input_price_cny_per_million_tokens=(
             settings.deepseek_chat_input_price_cny_per_million_tokens
@@ -297,6 +319,7 @@ def create_model_adapter(settings: Settings) -> ModelPort:
 def _chat_payload(
     request: ModelRequest,
     output_type: type[ModelOutputT],
+    model: str,
 ) -> dict[str, Any]:
     try:
         schema = output_type.model_json_schema()
@@ -307,7 +330,7 @@ def _chat_payload(
         ) from None
     schema_name = output_type.__name__
     return {
-        "model": DEEPSEEK_CHAT_MODEL,
+        "model": model,
         "messages": [
             {"role": "system", "content": request.system_prompt},
             {"role": "user", "content": request.user_input},

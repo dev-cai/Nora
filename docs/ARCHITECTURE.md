@@ -48,7 +48,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-004 | 初期向量能力 | PostgreSQL exact cosine（pgvector 兼容演进边界） | M5 | #235 先交付可重建 JSON 向量派生索引和确定性 exact 检索；Embedding 契约先于 pgvector Schema，M2-M4 不依赖向量能力 |
 | D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | 规模触发后评估 | 达到规模或检索隔离触发条件后再引入 |
 | D-006 | Agent 编排 | Worker 内的单 Agent/单 Graph LangGraph Adapter | M5 / #248 | API 只负责 Run/Approval 查询与恢复；Tool 通过固定 typed DTO 调用既有 Use Case；不拥有领域事实；不引入多 Agent、MCP 或独立服务 |
-| D-007 | 模型访问 | 最小 ModelPort + DeepSeek OpenAI-compatible 单 Chat Provider | M6 / #258 | Chat 唯一使用 `deepseek-v4-flash`，Embedding 仍使用 `qwen3.7-text-embedding` 1024 维；M2-M4 无模型也可完成 |
+| D-007 | 模型访问 | 最小 ModelPort + DeepSeek OpenAI-compatible 单 Chat Provider | M6 / #258 | Chat 通过 `DEEPSEEK_CHAT_MODEL` 配置（默认 `deepseek-v4-flash`），Embedding 仍使用 `qwen3.7-text-embedding` 1024 维；M2-M4 无模型也可完成 |
 | D-008 | 异步任务 | Task Queue Port；Celery + Redis 仍为候选 | M5 条件评估 | #248 的 Worker 内 Agent 逻辑不等于引入队列；只有长耗时、重试或故障隔离指标成立后才评估 Celery + Redis；最终结果不保存在 Result Backend |
 | D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | Current/M2 延伸 | 既有工作台已交付；新增输入确认由 M2 完成，始终通过公开 HTTP API |
 | D-010 | 对象存储 | Object Storage Port + MinIO/S3 首个真实 Adapter | M4 起 | 开发、集成 CI 与 Beta 统一验证私有 MinIO；Application 不依赖具体 SDK |
@@ -67,7 +67,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 ### 首个模型 Provider 与最小数据边界（D-007 / #166）
 
 截至 2026-08-23，Chat 模型调用只允许使用 DeepSeek 官方 OpenAI-compatible API。Chat 固定
-`deepseek-v4-flash`，通过 `/v1/chat/completions` 的 JSON Schema Structured Output 生成受校验结果；Embedding 固定
+`DEEPSEEK_CHAT_MODEL`（默认 `deepseek-v4-flash`），通过 `/v1/chat/completions` 的 JSON Schema Structured Output 生成受校验结果；Embedding 固定
 `qwen3.7-text-embedding`、dense 输出和 1024 维。Embedding 不得错误使用 Chat 模型；模型别名、地域、维度或 Provider 的任何变化
 都必须先通过新的 Architecture Review，不能在实现 Issue 中静默替换。
 
@@ -108,7 +108,7 @@ Pydantic Schema、引用归属和 Application Policy 校验，校验失败不得
 
 Issue #85 将 Chat 边界实现为 `ModelPort.generate_structured(request, output_type)`：Application 拥有版本化 Prompt、输入 token 上限、
 输出 token 上限、temperature 和 Pydantic 输出 Schema；Infrastructure 固定使用 `https://api.deepseek.com/v1/chat/completions`
-与 `deepseek-v4-flash`，不得从运行时配置换模、换 endpoint 或切换协议。
+与 Settings 提供的 `DEEPSEEK_CHAT_MODEL`，不得从请求内容换模、换 endpoint 或切换协议。
 Adapter 默认 30 秒单次调用总墙钟 timeout，对连接错误、timeout、`429` 和 `5xx` 最多重试
 一次并加入短抖动；认证/权限/其他 `4xx`、预算和输出校验失败不重试。调用固定关闭思考模式，不请求或保存 chain-of-thought。
 调用前以请求声明的最大 token 和配置中经审查、只允许向上调整的单价执行

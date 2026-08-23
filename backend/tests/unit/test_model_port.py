@@ -62,6 +62,7 @@ def _adapter(
     return DeepSeekChatAdapter(
         api_key=api_key,
         base_url=DEEPSEEK_BASE_URL,
+        model=DEEPSEEK_CHAT_MODEL,
         timeout_seconds=timeout_seconds,
         input_price_cny_per_million_tokens=Decimal("12"),
         output_price_cny_per_million_tokens=Decimal("36"),
@@ -236,6 +237,7 @@ async def test_adapter_rejects_missing_api_key_before_network() -> None:
     adapter = DeepSeekChatAdapter(
         api_key="",
         base_url=DEEPSEEK_BASE_URL,
+        model=DEEPSEEK_CHAT_MODEL,
         timeout_seconds=1,
         input_price_cny_per_million_tokens=Decimal("12"),
         output_price_cny_per_million_tokens=Decimal("36"),
@@ -255,6 +257,7 @@ def test_adapter_rejects_base_url_that_could_change_endpoint() -> None:
         DeepSeekChatAdapter(
             api_key=API_KEY,
             base_url="https://attacker.example/path",
+            model=DEEPSEEK_CHAT_MODEL,
             timeout_seconds=1,
             input_price_cny_per_million_tokens=Decimal("12"),
             output_price_cny_per_million_tokens=Decimal("36"),
@@ -267,6 +270,7 @@ def test_adapter_rejects_direct_budget_or_price_bypass() -> None:
         DeepSeekChatAdapter(
             api_key=API_KEY,
             base_url=DEEPSEEK_BASE_URL,
+            model=DEEPSEEK_CHAT_MODEL,
             timeout_seconds=1,
             input_price_cny_per_million_tokens=Decimal("11.99"),
             output_price_cny_per_million_tokens=Decimal("36"),
@@ -276,6 +280,7 @@ def test_adapter_rejects_direct_budget_or_price_bypass() -> None:
         DeepSeekChatAdapter(
             api_key=API_KEY,
             base_url=DEEPSEEK_BASE_URL,
+            model=DEEPSEEK_CHAT_MODEL,
             timeout_seconds=1,
             input_price_cny_per_million_tokens=Decimal("12"),
             output_price_cny_per_million_tokens=Decimal("36"),
@@ -360,6 +365,7 @@ def test_factory_uses_validated_settings_without_requiring_model_configuration()
     adapter = create_deepseek_chat_adapter(settings)
 
     assert isinstance(adapter, DeepSeekChatAdapter)
+    assert adapter.model == settings.deepseek_chat_model
 
 
 def test_model_request_rejects_unversioned_or_unbounded_inputs() -> None:

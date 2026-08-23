@@ -654,7 +654,7 @@ id = "structured-model-port"
 name = "单 Provider 结构化模型调用边界"
 milestone = "M5"
 status = "current"
-summary = "提供 Provider-neutral ModelPort、固定 DeepSeek OpenAI-compatible `deepseek-v4-flash` 的 JSON Schema Adapter、Pydantic 本地输出校验和无业务写入的 Application 连通性探测。调用前执行 0.50 元单次软预算，timeout、连接错误、429 和 5xx 最多重试一次；缺少 Secret、超预算、Provider 拒绝/不可用、timeout 和无效输出均以稳定错误失败。日志只保留 Provider、模型、耗时、成功状态和低基数错误类别；普通 CI 使用 Fake Adapter，真实 smoke 仅在显式开关和受控 Secret 下运行。AI JobFitAnalysis 另由 Decision Application 使用此边界生成，模型 Port 本身不拥有业务事实；Embedding、RAG、Tool Calling、Agent Runtime、Provider registry、fallback 仍未交付。"
+summary = "提供 Provider-neutral ModelPort、读取 `DEEPSEEK_CHAT_MODEL`（默认 `deepseek-v4-flash`）的 DeepSeek OpenAI-compatible JSON Schema Adapter、Pydantic 本地输出校验和无业务写入的 Application 连通性探测。调用前执行 0.50 元单次软预算，timeout、连接错误、429 和 5xx 最多重试一次；缺少 Secret、超预算、Provider 拒绝/不可用、timeout 和无效输出均以稳定错误失败。日志只保留 Provider、模型、耗时、成功状态和低基数错误类别；普通 CI 使用 Fake Adapter，真实 smoke 仅在显式开关和受控 Secret 下运行。AI JobFitAnalysis 另由 Decision Application 使用此边界生成，模型 Port 本身不拥有业务事实；Embedding、RAG、Tool Calling、Agent Runtime、Provider registry、fallback 仍未交付。"
 code_paths = [
   "backend/app/ports/model.py",
   "backend/app/application/model.py",

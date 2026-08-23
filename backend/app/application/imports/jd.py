@@ -119,7 +119,7 @@ class JdImportService:
                 owner_id=command.owner_id,
                 content=content.model_dump(mode="json"),
                 prompt_version=JD_IMPORT_PROMPT_VERSION,
-                model_version=JD_IMPORT_MODEL_VERSION,
+                model_version=getattr(self.agent, "model_version", JD_IMPORT_MODEL_VERSION),
             )
             await self.import_repository.add_draft(draft)
             session = session.with_draft(draft.id)

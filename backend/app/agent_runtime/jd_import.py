@@ -29,6 +29,10 @@ class JdImportAgent:
         self._model = model
         self._graph = self._build_graph()
 
+    @property
+    def model_version(self) -> str:
+        return getattr(self._model, "model", "deepseek-v4-flash")
+
     async def run(self, jd_text: str) -> JdImportDraftContent:
         result = await self._graph.ainvoke({"source_text": jd_text})
         return JdImportDraftContent.model_validate(result["content"])
