@@ -16,7 +16,7 @@ def _content() -> JdImportDraftContent:
     }
     return JdImportDraftContent.model_validate(
         {
-            "jd_text": "模型可能返回的原始文本",
+            "jd_text": "AI 清洗后的岗位正文",
             "job_title": "后端工程师",
             "company_name": "Nora",
             "location": "上海",
@@ -43,10 +43,11 @@ async def test_jd_agent_runs_clean_recognize_validate_graph_in_order() -> None:
 
     result = await agent.run("职位\n职位\n\nPython  后端\r\n")
 
-    assert result.jd_text == "职位\nPython 后端"
+    assert result.jd_text == "AI 清洗后的岗位正文"
     assert result.job_title == "后端工程师"
     assert len(model.requests) == 1
     assert '"jd_text": "职位\\nPython 后端"' in model.requests[0].user_input
+    assert "jd_text 字段必须返回清洗后的完整岗位正文" in model.requests[0].system_prompt
     assert model.requests[0].max_input_tokens == 16_000
     assert model.requests[0].max_output_tokens == 8_192
 
