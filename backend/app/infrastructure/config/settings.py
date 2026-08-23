@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     deepseek_api_key_file: Path | None = Field(default=None, repr=False)
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_chat_model: str = Field(default="deepseek-v4-flash", min_length=1, max_length=128)
-    deepseek_chat_timeout_seconds: float = Field(default=30.0, gt=0, le=60)
+    deepseek_chat_timeout_seconds: float = Field(default=60.0, gt=0, le=60)
     deepseek_chat_input_price_cny_per_million_tokens: Decimal = Field(
         default=Decimal("12"), ge=Decimal("12")
     )

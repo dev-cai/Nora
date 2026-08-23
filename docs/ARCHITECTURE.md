@@ -109,7 +109,7 @@ Pydantic Schema、引用归属和 Application Policy 校验，校验失败不得
 Issue #85 将 Chat 边界实现为 `ModelPort.generate_structured(request, output_type)`：Application 拥有版本化 Prompt、输入 token 上限、
 输出 token 上限、temperature 和 Pydantic 输出 Schema；Infrastructure 固定使用 `https://api.deepseek.com/v1/chat/completions`
 与 Settings 提供的 `DEEPSEEK_CHAT_MODEL`，不得从请求内容换模、换 endpoint 或切换协议。
-Adapter 默认 30 秒单次调用总墙钟 timeout，对连接错误、timeout、`429` 和 `5xx` 最多重试
+Adapter 默认 60 秒单次调用总墙钟 timeout，对连接错误、timeout、`429` 和 `5xx` 最多重试
 一次并加入短抖动；认证/权限/其他 `4xx`、预算和输出校验失败不重试。调用固定关闭思考模式，不请求或保存 chain-of-thought。
 调用前以请求声明的最大 token 和配置中经审查、只允许向上调整的单价执行
 人民币 0.50 元单次软预算，月度人民币 20 元仍由 Provider 控制台执行，不在 Nora 内新增成本仓库。缺少 Secret 时只让模型调用以

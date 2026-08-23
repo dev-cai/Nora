@@ -68,6 +68,7 @@ const apiBaseUrl = (import.meta.env.VITE_NORA_API_BASE_URL || "/api").replace(/\
 let accessToken: string | null = null
 let unauthorizedHandler: (() => void) | null = null
 export const API_REQUEST_TIMEOUT_MS = 10_000
+export const AI_REQUEST_TIMEOUT_MS = 75_000
 
 const fallbackMessages: Record<number, string> = {
   400: "提交内容不符合要求",
@@ -206,8 +207,8 @@ export function userMessage(error: unknown): string {
   return error instanceof ApiError || error instanceof Error ? error.message : "发生未知错误，请重试"
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await requestResponse(path, init)
+async function request<T>(path: string, init: RequestInit = {}, timeoutMs = API_REQUEST_TIMEOUT_MS): Promise<T> {
+  const response = await requestResponse(path, init, timeoutMs)
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }
@@ -216,7 +217,11 @@ async function requestBlob(path: string): Promise<Blob> {
   return (await requestResponse(path)).blob()
 }
 
-async function requestResponse(path: string, init: RequestInit = {}): Promise<Response> {
+async function requestResponse(
+  path: string,
+  init: RequestInit = {},
+  timeoutMs = API_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
   const headers = new Headers(init.headers)
   headers.set("Accept", "application/json")
   const hasFormData = typeof FormData !== "undefined" && init.body instanceof FormData
@@ -224,7 +229,7 @@ async function requestResponse(path: string, init: RequestInit = {}): Promise<Re
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`)
 
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS)
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
   const abortCaller = () => controller.abort()
   init.signal?.addEventListener("abort", abortCaller, { once: true })
   let response: Response
@@ -303,7 +308,7 @@ export const api = {
     request<JdImportDraftResponse>("/imports/jd", {
       method: "POST",
       body: JSON.stringify(input),
-    }),
+    }, AI_REQUEST_TIMEOUT_MS),
   getJdImport: (sessionId: string) =>
     request<JdImportDraftResponse>(`/imports/jd/${encodeURIComponent(sessionId)}`),
   updateJdImportDraft: (sessionId: string, baseVersion: number, content: JdImportDraftContent) =>
@@ -367,7 +372,7 @@ export const api = {
   generateJobFitAnalysis: (reportId: string) =>
     request<JobFitAnalysis>(`/reports/${encodeURIComponent(reportId)}/job-fit-analysis`, {
       method: "POST",
-    }),
+    }, AI_REQUEST_TIMEOUT_MS),
   getApplicationDecision: async (reportId: string) =>
     (await request<ApplicationDecision | undefined>(
       `/reports/${encodeURIComponent(reportId)}/decision`,

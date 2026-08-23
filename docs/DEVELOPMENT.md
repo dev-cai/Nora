@@ -153,7 +153,7 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `DEEPSEEK_API_KEY_FILE` | 空 | Settings 的受控 Secret 文件入口 | 与直接值互斥；必须是绝对路径、非 symlink、1-16384 bytes 且 group 不可写、others 不可访问 |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | DeepSeek Chat Adapter | 固定值，不允许切换 endpoint 或协议；Adapter 请求 `/v1/chat/completions` |
 | `DEEPSEEK_CHAT_MODEL` | `deepseek-v4-flash` | DeepSeek Chat Adapter / JD Import / JobFit 身份 | 进程启动时读取的单一 Chat 模型标识；修改后重新启动，不能按请求动态路由 |
-| `DEEPSEEK_CHAT_TIMEOUT_SECONDS` | `30` | DeepSeek Chat Adapter | 单次调用总墙钟允许 `(0, 60]` 秒；timeout 最多重试一次后返回稳定失败 |
+| `DEEPSEEK_CHAT_TIMEOUT_SECONDS` | `60` | DeepSeek Chat Adapter | 单次调用总墙钟允许 `(0, 60]` 秒；timeout 最多重试一次后返回稳定失败 |
 | `DEEPSEEK_CHAT_INPUT_PRICE_CNY_PER_MILLION_TOKENS` | `12` | 单次预算预检 | 经审查的保守输入价格下限；只允许上调，价格实质变化先停止新增调用并重新审查 |
 | `DEEPSEEK_CHAT_OUTPUT_PRICE_CNY_PER_MILLION_TOKENS` | `36` | 单次预算预检 | 经审查的保守输出价格下限；只允许上调，不得用降低配置规避预算 |
 | `DEEPSEEK_CHAT_REQUEST_BUDGET_CNY` | `0.50` | 单次预算预检 | 只允许 `(0, 0.50]`；月度软预算在 Provider 控制台执行 |

@@ -190,7 +190,7 @@ def test_deepseek_configuration_is_optional_bounded_and_hidden() -> None:
     assert settings.deepseek_api_key == ""
     assert settings.deepseek_base_url == "https://api.deepseek.com"
     assert settings.deepseek_chat_model == "deepseek-v4-flash"
-    assert settings.deepseek_chat_timeout_seconds == 30
+    assert settings.deepseek_chat_timeout_seconds == 60
     assert settings.deepseek_chat_input_price_cny_per_million_tokens == Decimal("12")
     assert settings.deepseek_chat_output_price_cny_per_million_tokens == Decimal("36")
     assert settings.deepseek_chat_request_budget_cny == Decimal("0.50")

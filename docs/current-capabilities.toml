@@ -688,4 +688,4 @@ code_paths = [
   "frontend/tests/analysis-store.test.ts",
   "frontend/tests/job-fit-analysis-panel.test.ts",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/243"]
+evidence = ["https://github.com/dev-cai/Nora/pull/259"]

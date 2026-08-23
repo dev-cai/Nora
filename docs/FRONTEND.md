@@ -158,6 +158,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 
 - 可锁定依赖的 Vue 3 + Vite 工程（`frontend/`，锁文件 `package-lock.json`）；
 - API client、认证状态与岗位 / 主档 / 简历页面；
+- 普通 API 请求使用 10 秒传输超时；JD AI 导入和 JobFit AI 生成使用 75 秒客户端超时，以覆盖后端模型调用的 60 秒总墙钟预算，超时仍映射为 `network_timeout`。
 - 岗位要求确认与版本历史页面（`/jobs/:id/requirements`，M2 交付）；
 - `web` Compose 服务、开发代理、单元 / 组件测试与生产构建验证；
 - production Web runtime 的静态/SPA、`/api` proxy、安全 Header 与链路标记测试；

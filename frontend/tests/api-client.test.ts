@@ -1,4 +1,4 @@
-import { API_REQUEST_TIMEOUT_MS, ApiError, api, setAccessToken, setUnauthorizedHandler } from "@/api/client"
+import { AI_REQUEST_TIMEOUT_MS, API_REQUEST_TIMEOUT_MS, ApiError, api, setAccessToken, setUnauthorizedHandler } from "@/api/client"
 
 function response(body: unknown, status = 200, requestId = "request-123"): Response {
   return new Response(JSON.stringify(body), {
@@ -30,6 +30,19 @@ describe("API client", () => {
     vi.useFakeTimers()
     const pending = api.me().catch((reason: unknown) => reason)
     await vi.advanceTimersByTimeAsync(API_REQUEST_TIMEOUT_MS)
+    await expect(pending).resolves.toMatchObject({ errorCode: "network_timeout" })
+    vi.useRealTimers()
+  })
+
+  it("allows AI generation requests to run longer than ordinary API calls", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true })
+    }))
+    vi.useFakeTimers()
+    const pending = api.generateJobFitAnalysis("report-1").catch((reason: unknown) => reason)
+    await vi.advanceTimersByTimeAsync(API_REQUEST_TIMEOUT_MS)
+    expect(pending).toBeInstanceOf(Promise)
+    await vi.advanceTimersByTimeAsync(AI_REQUEST_TIMEOUT_MS - API_REQUEST_TIMEOUT_MS)
     await expect(pending).resolves.toMatchObject({ errorCode: "network_timeout" })
     vi.useRealTimers()
   })
