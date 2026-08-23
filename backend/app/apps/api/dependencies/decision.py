@@ -3,6 +3,7 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent_runtime import JdImportAgent
 from app.apps.api.dependencies.common import get_current_user, get_session, get_settings
 from app.domain.identity import User
 from app.infrastructure.config import Settings
@@ -52,3 +53,7 @@ def get_job_fit_analysis_repository(
 
 def get_model_port(settings: Settings = Depends(get_settings)) -> ModelPort:
     return create_model_adapter(settings)
+
+
+def get_jd_import_agent(model: ModelPort = Depends(get_model_port)) -> JdImportAgent:
+    return JdImportAgent(model)

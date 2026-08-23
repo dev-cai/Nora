@@ -3,6 +3,7 @@
 from uuid import UUID, uuid4
 
 import pytest
+from app.agent_runtime import JdImportAgent
 from app.application.imports.jd import (
     ConfirmJdImportCommand,
     CreateJdImportCommand,
@@ -137,7 +138,7 @@ class Transaction:
 def _service(model_responses):
     return JdImportService(
         ImportRepository(),
-        FakeModelAdapter(model_responses),
+        JdImportAgent(FakeModelAdapter(model_responses)),
         PostingRepository(),
         RequirementRepository(),
         AuditRepository(),
@@ -224,9 +225,10 @@ async def test_confirm_replay_returns_same_business_objects():
 async def test_model_failure_keeps_a_failed_owner_scoped_session():
     owner_id = uuid4()
     imports = ImportRepository()
+    model = FakeModelAdapter([])
     service = JdImportService(
         imports,
-        FakeModelAdapter([]),
+        JdImportAgent(model),
         PostingRepository(),
         RequirementRepository(),
         AuditRepository(),
@@ -255,7 +257,7 @@ async def test_untrusted_jd_stays_model_data_and_cannot_change_import_policy():
     model = FakeModelAdapter([_content()])
     service = JdImportService(
         ImportRepository(),
-        model,
+        JdImportAgent(model),
         PostingRepository(),
         RequirementRepository(),
         AuditRepository(),

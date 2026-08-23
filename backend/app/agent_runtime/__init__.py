@@ -1,5 +1,6 @@
 """Outer Agent Runtime adapter boundary."""
 
+from .jd_import import JdImportAgent
 from .service import AgentRuntimeService, AgentRunView
 from .tools import (
     AgentToolInput,
@@ -12,6 +13,7 @@ from .tools import (
 __all__ = (
     "AgentRuntimeService",
     "AgentRunView",
+    "JdImportAgent",
     "AgentToolInput",
     "AgentToolOutput",
     "AgentToolSpec",

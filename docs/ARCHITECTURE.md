@@ -62,7 +62,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-018 | 类型化错误契约 | 协议无关 `ErrorCode` + `ErrorCategory` 注册表 | #187 / M4 | API 只按 category 映射 HTTP；OpenAPI 枚举是前端类型真源，未知异常固定脱敏 500 |
 | D-019 | Beta 部署与发布 | Host Reverse Proxy/TLS -> localhost Web -> API；GitHub Actions 为唯一 CD 控制面 | #171、#224 / M4 | 只有 Web 发布 localhost 端口；真实 HTTPS public smoke 先于健康指针；不支持容器内生产 ingress |
 | D-020 | Beta 注册与会话安全 | 运维 bootstrap 唯一用户 + 短时 JWT key ring + PostgreSQL 登录限额 | #174、#224 / M4 | 生产关闭公共注册；精确 Origin；API 只信任固定 Web IP `/32` 和单值 forwarded headers |
-| D-021 | 文档导入 Agent | Import Context 专用固定 Graph + 可编辑结构化草稿 + 一次整体确认 | #252、#254 / M5 | JD 文本/截图/链接切片已交付；PDF/DOCX 简历仍只生成候选目标；确认前不写业务事实，不读取代码仓库，不形成多 Agent |
+| D-021 | 文档导入 Agent | Import Context 专用固定 Graph + 可编辑结构化草稿 + 一次整体确认 | #252、#254 / M5 | JD 文本/截图/链接切片已交付；当前 Graph 固定执行清洗 → 结构化识别 → Schema/业务校验，结果进入 ImportDraft；PDF/DOCX 简历仍只生成候选目标；确认前不写业务事实，不读取代码仓库，不形成多 Agent |
 
 ### 首个模型 Provider 与最小数据边界（D-007 / #166）
 
