@@ -18,8 +18,8 @@ class StructuredModelProbe(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["ready"]
-    provider: Literal["dashscope-cn-beijing"]
-    model: Literal["qwen3.8-max"]
+    provider: Literal["deepseek"]
+    model: Literal["deepseek-v4-flash"]
 
 
 class StructuredJobFitCitation(BaseModel):
@@ -107,9 +107,7 @@ class VerifyStructuredModelUseCase:
                 "You are a connectivity probe. Return the requested schema exactly. "
                 "Do not add commentary."
             ),
-            user_input=(
-                "Return status ready, provider dashscope-cn-beijing, and model qwen3.8-max."
-            ),
+            user_input=("Return status ready, provider deepseek, and model deepseek-v4-flash."),
             prompt_version=MODEL_PROBE_PROMPT_VERSION,
             max_input_tokens=1_024,
             max_output_tokens=64,

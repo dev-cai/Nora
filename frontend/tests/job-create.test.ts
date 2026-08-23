@@ -52,7 +52,7 @@ function jdDraft(): JdImportDraftResponse {
     version: 1,
     content_fingerprint: "a".repeat(64),
     prompt_version: "jd-import-v1",
-    model_version: "qwen3.8-max",
+    model_version: "deepseek-v4-flash",
     failure_code: null,
     content: {
       jd_text: "Backend role",

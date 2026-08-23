@@ -1,4 +1,4 @@
-"""ModelPort, DashScope adapter, budget, retry and redaction tests."""
+"""ModelPort, DeepSeek adapter, budget, retry and redaction tests."""
 
 import asyncio
 import json
@@ -17,16 +17,16 @@ from app.domain.base.exceptions import ErrorCode
 from app.infrastructure.config import LogFormat, Settings
 from app.infrastructure.logging import configure_logging
 from app.infrastructure.model import (
-    DASHSCOPE_CHAT_MODEL,
-    DashScopeChatAdapter,
+    DEEPSEEK_BASE_URL,
+    DEEPSEEK_CHAT_MODEL,
+    DeepSeekChatAdapter,
     FakeModelAdapter,
-    create_dashscope_chat_adapter,
+    create_deepseek_chat_adapter,
 )
 from app.ports.model import ModelError, ModelRequest
 from pydantic import BaseModel, ConfigDict
 
-API_KEY = "dashscope-test-secret"
-WORKSPACE_ID = "ws-test123"
+API_KEY = "deepseek-test-secret"
 
 
 class SkillExtraction(BaseModel):
@@ -58,10 +58,10 @@ def _adapter(
     api_key: str = API_KEY,
     request_budget: Decimal = Decimal("0.50"),
     timeout_seconds: float = 1,
-) -> DashScopeChatAdapter:
-    return DashScopeChatAdapter(
+) -> DeepSeekChatAdapter:
+    return DeepSeekChatAdapter(
         api_key=api_key,
-        workspace_id=WORKSPACE_ID,
+        base_url=DEEPSEEK_BASE_URL,
         timeout_seconds=timeout_seconds,
         input_price_cny_per_million_tokens=Decimal("12"),
         output_price_cny_per_million_tokens=Decimal("36"),
@@ -84,8 +84,8 @@ async def test_fake_adapter_runs_versioned_application_probe() -> None:
         [
             {
                 "status": "ready",
-                "provider": "dashscope-cn-beijing",
-                "model": "qwen3.8-max",
+                "provider": "deepseek",
+                "model": "deepseek-v4-flash",
             }
         ]
     )
@@ -111,13 +111,11 @@ async def test_adapter_sends_openai_compatible_json_schema_request() -> None:
 
     assert result == SkillExtraction(skills=["Python"])
     assert captured["authorization"] == f"Bearer {API_KEY}"
-    assert captured["url"] == (
-        f"https://{WORKSPACE_ID}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions"
-    )
+    assert captured["url"] == ("https://api.deepseek.com/v1/chat/completions")
     payload = captured["payload"]
     assert isinstance(payload, dict)
-    assert payload["model"] == DASHSCOPE_CHAT_MODEL
-    assert payload["enable_thinking"] is False
+    assert payload["model"] == DEEPSEEK_CHAT_MODEL
+    assert "enable_thinking" not in payload
     assert payload["response_format"]["type"] == "json_schema"  # type: ignore[index]
     assert payload["response_format"]["json_schema"]["strict"] is True  # type: ignore[index]
     assert payload["messages"][0]["role"] == "system"  # type: ignore[index]
@@ -227,7 +225,7 @@ async def test_adapter_rejects_missing_credentials_before_network() -> None:
 
 
 @pytest.mark.asyncio
-async def test_adapter_rejects_missing_workspace_before_network() -> None:
+async def test_adapter_rejects_missing_api_key_before_network() -> None:
     called = False
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -235,9 +233,9 @@ async def test_adapter_rejects_missing_workspace_before_network() -> None:
         called = True
         return _success_response()
 
-    adapter = DashScopeChatAdapter(
-        api_key=API_KEY,
-        workspace_id="",
+    adapter = DeepSeekChatAdapter(
+        api_key="",
+        base_url=DEEPSEEK_BASE_URL,
         timeout_seconds=1,
         input_price_cny_per_million_tokens=Decimal("12"),
         output_price_cny_per_million_tokens=Decimal("36"),
@@ -252,11 +250,11 @@ async def test_adapter_rejects_missing_workspace_before_network() -> None:
     assert called is False
 
 
-def test_adapter_rejects_workspace_id_that_could_change_endpoint() -> None:
-    with pytest.raises(ValueError, match="workspace_id"):
-        DashScopeChatAdapter(
+def test_adapter_rejects_base_url_that_could_change_endpoint() -> None:
+    with pytest.raises(ValueError, match="base_url"):
+        DeepSeekChatAdapter(
             api_key=API_KEY,
-            workspace_id="attacker.example/path",
+            base_url="https://attacker.example/path",
             timeout_seconds=1,
             input_price_cny_per_million_tokens=Decimal("12"),
             output_price_cny_per_million_tokens=Decimal("36"),
@@ -266,18 +264,18 @@ def test_adapter_rejects_workspace_id_that_could_change_endpoint() -> None:
 
 def test_adapter_rejects_direct_budget_or_price_bypass() -> None:
     with pytest.raises(ValueError, match="input price"):
-        DashScopeChatAdapter(
+        DeepSeekChatAdapter(
             api_key=API_KEY,
-            workspace_id=WORKSPACE_ID,
+            base_url=DEEPSEEK_BASE_URL,
             timeout_seconds=1,
             input_price_cny_per_million_tokens=Decimal("11.99"),
             output_price_cny_per_million_tokens=Decimal("36"),
             request_budget_cny=Decimal("0.50"),
         )
     with pytest.raises(ValueError, match="request budget"):
-        DashScopeChatAdapter(
+        DeepSeekChatAdapter(
             api_key=API_KEY,
-            workspace_id=WORKSPACE_ID,
+            base_url=DEEPSEEK_BASE_URL,
             timeout_seconds=1,
             input_price_cny_per_million_tokens=Decimal("12"),
             output_price_cny_per_million_tokens=Decimal("36"),
@@ -349,8 +347,8 @@ async def test_model_logs_never_include_secret_or_prompt_content() -> None:
         )
 
     records = [json.loads(line) for line in stream.getvalue().splitlines() if line.startswith("{")]
-    assert records[-1]["provider"] == "dashscope-cn-beijing"
-    assert records[-1]["model"] == DASHSCOPE_CHAT_MODEL
+    assert records[-1]["provider"] == "deepseek"
+    assert records[-1]["model"] == DEEPSEEK_CHAT_MODEL
     assert records[-1]["success"] is False
     assert API_KEY not in stream.getvalue()
     assert sensitive_prompt not in stream.getvalue()
@@ -359,9 +357,9 @@ async def test_model_logs_never_include_secret_or_prompt_content() -> None:
 def test_factory_uses_validated_settings_without_requiring_model_configuration() -> None:
     settings = Settings(_env_file=None)
 
-    adapter = create_dashscope_chat_adapter(settings)
+    adapter = create_deepseek_chat_adapter(settings)
 
-    assert isinstance(adapter, DashScopeChatAdapter)
+    assert isinstance(adapter, DeepSeekChatAdapter)
 
 
 def test_model_request_rejects_unversioned_or_unbounded_inputs() -> None:
@@ -386,8 +384,8 @@ def test_probe_schema_is_strict() -> None:
         StructuredModelProbe.model_validate(
             {
                 "status": "ready",
-                "provider": "dashscope-cn-beijing",
-                "model": "qwen3.8-max",
+                "provider": "deepseek",
+                "model": "deepseek-v4-flash",
                 "unexpected": True,
             }
         )

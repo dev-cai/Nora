@@ -136,8 +136,8 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
 - M5 的初期向量能力候选是 PostgreSQL + pgvector；D-007 已冻结首个 Embedding 为阿里云百炼北京地域的
   `qwen3.7-text-embedding` dense 1024 维，持久化 Schema 仍须在独立实现 Issue 中验证。
 - BGE-M3 是已被 D-007 替代的历史候选；Reranker 只有在固定评测集证明收益后才引入。当前冻结的合成 RAG 评测基线选择受控 Hybrid 输入，暂不引入在线 Reranker。
-- 模型通过最小 Provider-neutral `ModelPort` 访问；首个真实 Provider、Chat 模型、Embedding 模型、地域和预算以
-  [`ARCHITECTURE.md`](ARCHITECTURE.md) 的 D-007 为准，后续替换必须重新经过 Architecture Review。
+- 模型通过最小 Provider-neutral `ModelPort` 访问；当前 Chat 唯一固定为 DeepSeek `deepseek-v4-flash`，Embedding 仍按
+  [`ARCHITECTURE.md`](ARCHITECTURE.md) 的 D-007 使用既定契约，后续 Provider、模型、地域或预算替换必须重新经过 Architecture Review。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应
   Architecture/Task Issue 验收。
 - 当前 Agent Runtime 仅支持 Worker 边界内单 Agent/单 Graph、固定 Tool Registry、Approval 和可清理 Checkpoint；不代表多 Agent、Supervisor、MCP、队列或独立服务已交付。M3 仍使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。

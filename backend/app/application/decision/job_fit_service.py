@@ -27,8 +27,8 @@ from app.domain.opportunity import CompanySnapshot, JobPosting, JobRequirementSn
 from app.ports.decision import JobFitAnalysisRepository
 from app.ports.model import ModelPort, ModelRequest
 
-JOB_FIT_PROVIDER = "dashscope-cn-beijing"
-JOB_FIT_MODEL = "qwen3.8-max"
+JOB_FIT_PROVIDER = "deepseek"
+JOB_FIT_MODEL = "deepseek-v4-flash"
 JOB_FIT_GENERATOR_VERSION = "job-fit-analysis-v1"
 MAX_EVIDENCE_PREVIEW_CHARS = 2_000
 

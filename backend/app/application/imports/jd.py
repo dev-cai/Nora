@@ -26,7 +26,7 @@ from app.ports.opportunity import JobPostingRepository, JobRequirementSnapshotRe
 from app.ports.transaction import Transaction
 
 JD_IMPORT_PROMPT_VERSION = "jd-import-v1"
-JD_IMPORT_MODEL_VERSION = "qwen3.8-max"
+JD_IMPORT_MODEL_VERSION = "deepseek-v4-flash"
 _TEXT_RE = re.compile(r"[ \t]+")
 
 
