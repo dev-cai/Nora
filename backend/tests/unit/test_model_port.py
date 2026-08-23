@@ -10,7 +10,6 @@ import httpx
 import pytest
 from app.application.model import (
     MODEL_PROBE_PROMPT_VERSION,
-    InterviewReviewAnalysis,
     StructuredModelProbe,
     VerifyStructuredModelUseCase,
 )
@@ -20,7 +19,6 @@ from app.infrastructure.logging import configure_logging
 from app.infrastructure.model import (
     DASHSCOPE_CHAT_MODEL,
     DashScopeChatAdapter,
-    E2EFakeModelAdapter,
     FakeModelAdapter,
     create_dashscope_chat_adapter,
     create_model_adapter,
@@ -365,34 +363,6 @@ def test_factory_uses_validated_settings_without_requiring_model_configuration()
     adapter = create_dashscope_chat_adapter(settings)
 
     assert isinstance(adapter, DashScopeChatAdapter)
-
-
-@pytest.mark.asyncio
-async def test_e2e_fake_adapter_returns_review_candidate_without_network() -> None:
-    adapter = E2EFakeModelAdapter()
-
-    result = await adapter.generate_structured(_request(), InterviewReviewAnalysis)
-
-    assert result.candidates[0].kind == "knowledge_gap"
-
-
-def test_factory_selects_e2e_fake_adapter_only_when_explicitly_enabled() -> None:
-    settings = Settings(_env_file=None, e2e_fake_model=True)
-
-    assert isinstance(create_model_adapter(settings), E2EFakeModelAdapter)
-
-    with pytest.raises(ValueError, match="only allowed in development"):
-        Settings(
-            _env_file=None,
-            env="prod",
-            e2e_fake_model=True,
-            auth_secret_key="p" * 32,
-            auth_rate_limit_secret="r" * 32,
-            database_url="postgresql+asyncpg://nora:secret@db/nora",
-            public_origin="https://nora.example.com",
-            trusted_proxy_cidr="10.0.0.1/32",
-            auth_key_ring_directory=None,
-        )
 
 
 def test_model_request_rejects_unversioned_or_unbounded_inputs() -> None:

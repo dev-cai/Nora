@@ -87,7 +87,6 @@ class Settings(BaseSettings):
     dashscope_chat_request_budget_cny: Decimal = Field(
         default=Decimal("0.50"), gt=0, le=Decimal("0.50")
     )
-    e2e_fake_model: bool = False
     artifact_storage_endpoint: str = "storage:9000"
     artifact_storage_access_key: str = Field(default="nora-app", repr=False)
     artifact_storage_access_key_file: Path | None = Field(default=None, repr=False)
@@ -151,8 +150,6 @@ class Settings(BaseSettings):
         if KID_PATTERN.fullmatch(self.auth_active_kid) is None:
             raise ValueError("AUTH_ACTIVE_KID must match [A-Za-z0-9._-]{1,64}")
         if self.env is Environment.PROD:
-            if self.e2e_fake_model:
-                raise ValueError("E2E_FAKE_MODEL is only allowed in development")
             if self.database_url is None:
                 raise ValueError("DATABASE_URL is required in prod")
             if self.auth_rate_limit_secret == DEFAULT_AUTH_RATE_LIMIT_SECRET:

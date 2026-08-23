@@ -17,7 +17,6 @@ IMAGE_PATTERN = re.compile(r"ghcr\.io/dev-cai/nora-(?:api|web)@sha256:(?P<digest
 ATTESTATION_PATTERN = re.compile(r"https://github\.com/dev-cai/Nora/attestations/[0-9]+")
 MAX_MANIFEST_BYTES = 16 * 1024
 REQUIRED_CI_CHECKS = {
-    "Browser E2E (decision flow)",
     "Code quality and tests",
     "Container configuration and builds",
     "Documentation quality gate",

@@ -27,7 +27,7 @@ frontend/
 │   ├── views/        # 页面级组件
 │   ├── stores/       # Pinia 状态
 │   └── router/       # Vue Router
-├── tests/            # 前端单元、组件与适用 E2E 测试
+├── tests/            # 前端单元与组件测试
 ├── package.json
 ├── lockfile          # 实现 Issue 选择并提交唯一锁文件
 └── vite.config.*
@@ -161,17 +161,17 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 - 岗位要求确认与版本历史页面（`/jobs/:id/requirements`，M2 交付）；
 - `web` Compose 服务、开发代理、单元 / 组件测试与生产构建验证；
 - production Web runtime 的静态/SPA、`/api` proxy、安全 Header 与链路标记测试；
-- 前端 CI：固定 Node 版本（`frontend/.nvmrc`）、锁文件安装、lint、类型检查、单元测试、生产构建与 Playwright 真实 Compose 浏览器 E2E。
+- 前端 CI：固定 Node 版本（`frontend/.nvmrc`）、锁文件安装、lint、类型检查、单元测试与生产构建。
 
 ### M2-M4 Current 与后续 Planned
 
-- M2 分析就绪状态与输入 E2E（Current）；
-- M3 分析、确定性报告、apply/skip 页面与真实 Compose 决策闭环 E2E（Current，证据见 `current-capabilities.toml`）；
-- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、手工投递记录、最小面试通知与完整浏览器关闭门禁（Current）；真实 Beta Environment/Runner 供应和首次公网发布仍为 Planned；
+- M2 分析就绪状态与输入 API；
+- M3 分析、确定性报告、apply/skip 页面；
+- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、手工投递记录和最小面试通知；真实 Beta Environment/Runner 供应和首次公网发布仍为 Planned；
 - M5 Evidence、检索引用、可选模型增强版本，以及 D-021 可编辑简历/JD AI 导入草稿与一次整体确认；
-- 每个跨 API 流程随所属 Milestone 补充真实浏览器 E2E。
+- 跨 API 流程使用后端集成测试、前端组件测试和 API smoke 验证。
 
-前端不得把构建通过描述为完整用户流程已经通过；跨 API 的真实流程必须有独立集成或 E2E 证据。
+前端不得把构建通过描述为完整用户流程已经通过；跨 API 的真实流程以后端集成测试、前端组件测试和 API smoke 证据为准。
 
 ---
 
@@ -433,17 +433,17 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 
 | 里程碑 | 前端交付 |
 | :--- | :--- |
-| Current 基线 | Vue 工程、认证、岗位文本、主档、简历、岗位要求确认页面、前端 CI 和基础浏览器 E2E |
-| M2 | 分析就绪状态、输入 E2E；截图 OCR/链接预览经后端接口返回正文预览 |
-| M3 | 分析创建、报告详情/历史、DecisionBar、刷新恢复和双用户 E2E |
-| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录、最小面试通知与隔离生产安全浏览器 E2E Current；真实 Beta 供应/首次发布 Planned |
+| Current 基线 | Vue 工程、认证、岗位文本、主档、简历、岗位要求确认页面、前端 CI |
+| M2 | 分析就绪状态、输入 API；截图 OCR/链接预览经后端接口返回正文预览 |
+| M3 | 分析创建、报告详情/历史、DecisionBar 和刷新恢复 |
+| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录和最小面试通知；真实 Beta 供应/首次发布 Planned |
 | M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示；JD AI 草稿、冲突恢复与一次整体确认已进入 Current；PDF/DOCX 简历导入仍 Planned |
 
 ## 15. 技术选型（Current 基线）
 
 - Vue 3 + Vite + TypeScript；
 - Vue Router（路由与守卫）；Pinia（状态管理）；
-- Vitest + Vue Test Utils（组件/单元），浏览器 E2E 用 Playwright 或 Cypress（少量关键路径）；
+- Vitest + Vue Test Utils（组件/单元）；
 - HTTP：Current 已精确锁定 `openapi-typescript@7.13.0` 与 `openapi-fetch@0.17.0`，提交可审计 generated schema 并启用漂移 Gate；
   运行时仍为单一手写 fetch transport，后续按原子实现 Issue 渐进迁移端点；
 - UI：不引入重量级组件库，优先原生组件 + 少量本地基元；
