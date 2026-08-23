@@ -21,7 +21,6 @@ from app.infrastructure.model import (
     DashScopeChatAdapter,
     FakeModelAdapter,
     create_dashscope_chat_adapter,
-    create_model_adapter,
 )
 from app.ports.model import ModelError, ModelRequest
 from pydantic import BaseModel, ConfigDict
