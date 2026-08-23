@@ -61,9 +61,7 @@ class JdImportAgent:
             return {"content": content}
 
         async def validate(state: JdImportState) -> JdImportState:
-            content = state["content"].model_copy(
-                update={"jd_text": state["normalized_text"]}
-            )
+            content = state["content"].model_copy(update={"jd_text": state["normalized_text"]})
             return {"content": validate_jd_content(content)}
 
         graph.add_node("clean", clean)
