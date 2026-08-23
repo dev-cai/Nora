@@ -921,6 +921,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profile/import-pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Profile Pdf */
+        post: operations["import_profile_pdf_profile_import_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ready": {
         parameters: {
             query?: never;
@@ -1637,6 +1654,11 @@ export interface components {
         BasicInformationResponse: {
             current_location: components["schemas"]["ProfileFactResponse"];
             display_name: components["schemas"]["ProfileFactResponse"];
+        };
+        /** Body_import_profile_pdf_profile_import_pdf_post */
+        Body_import_profile_pdf_profile_import_pdf_post: {
+            /** File */
+            file: string;
         };
         /** Body_ocr_job_posting_image_job_postings_image_post */
         Body_ocr_job_posting_image_job_postings_image_post: {
@@ -3002,6 +3024,16 @@ export interface components {
             updated_at: string;
             /** Value */
             value: string | boolean | number | string[] | null;
+        };
+        /**
+         * ProfileImportDraftResponse
+         * @description AI candidate fields; callers must review before saving the profile.
+         */
+        ProfileImportDraftResponse: {
+            /** Draft */
+            draft: {
+                [key: string]: unknown;
+            };
         };
         /**
          * ProfileSourceType
@@ -9514,6 +9546,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CandidateProfileResponse"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Authentication required or failed */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request origin is not allowed */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Resource conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Request validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiProblem"];
+                };
+            };
+        };
+    };
+    import_profile_pdf_profile_import_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_profile_pdf_profile_import_pdf_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileImportDraftResponse"];
                 };
             };
             /** @description Invalid input */

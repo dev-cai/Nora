@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { onBeforeRouteLeave } from "vue-router"
-import { Plus, Save, Trash2 } from "lucide-vue-next"
+import { FileUp, Plus, Save, Trash2 } from "lucide-vue-next"
 
-import { userMessage } from "@/api/client"
+import { api, userMessage } from "@/api/client"
 import type {
   CandidateProfile,
   CandidateProfileInput,
@@ -23,6 +23,8 @@ const baseline = ref("")
 const error = ref("")
 const success = ref("")
 const saving = ref(false)
+const importing = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
 const dirty = computed(() => baseline.value !== "" && JSON.stringify(draft.value) !== baseline.value)
 
 function fact<T>(value: T, confirmation_status: ConfirmationStatus = "unconfirmed"): ProfileFactInput<T> {
@@ -142,6 +144,30 @@ async function save(): Promise<void> {
   finally { saving.value = false }
 }
 
+function chooseResumePdf(): void {
+  fileInput.value?.click()
+}
+
+async function importResumePdf(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ""
+  if (!file) return
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    error.value = "请选择 PDF 简历文件"
+    return
+  }
+  importing.value = true
+  error.value = ""
+  success.value = ""
+  try {
+    const result = await api.importProfilePdf(file)
+    draft.value = result.draft
+    success.value = "AI 已解析简历，请检查候选字段后保存主档"
+  } catch (reason) { error.value = userMessage(reason) }
+  finally { importing.value = false }
+}
+
 function beforeUnload(event: BeforeUnloadEvent): void {
   if (dirty.value) event.preventDefault()
 }
@@ -158,10 +184,27 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload))
           候选人事实源
         </p><h2>我的主档</h2><p>维护可追溯的事实，并明确每个字段的确认状态。</p>
       </div>
-      <span
-        v-if="store.current"
-        class="version-badge"
-      >主档 v{{ store.current.version }}</span>
+      <div class="toolbar-actions">
+        <input
+          ref="fileInput"
+          class="visually-hidden"
+          type="file"
+          accept="application/pdf,.pdf"
+          @change="importResumePdf"
+        >
+        <button
+          class="button button-secondary"
+          type="button"
+          :disabled="importing"
+          @click="chooseResumePdf"
+        >
+          <FileUp :size="17" />{{ importing ? "正在解析简历…" : "AI 导入 PDF 简历" }}
+        </button>
+        <span
+          v-if="store.current"
+          class="version-badge"
+        >主档 v{{ store.current.version }}</span>
+      </div>
     </section>
     <StatePanel
       v-if="store.isLoading && !baseline"

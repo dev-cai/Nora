@@ -149,6 +149,10 @@ export interface CandidateProfileInput {
   skills: SkillInput[]
 }
 
+export interface ProfileImportDraftResponse {
+  draft: CandidateProfileInput
+}
+
 export type CandidateProfileContent = {
   basic_information: {
     display_name: ProfileFact<string>

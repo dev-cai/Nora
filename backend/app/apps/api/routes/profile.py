@@ -3,10 +3,11 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 from typing_extensions import Annotated, Self
 
+from app.agent_runtime.profile_import import ProfileImportAgent
 from app.application.career import (
     GetCandidateProfileQuery,
     GetCandidateProfileUseCase,
@@ -15,9 +16,12 @@ from app.application.career import (
 )
 from app.apps.api.dependencies.career import get_candidate_profile_repository
 from app.apps.api.dependencies.common import get_current_user
+from app.apps.api.dependencies.decision import get_model_port
+from app.domain.base.exceptions import ApplicationError, ErrorCode
 from app.domain.career import CandidateProfile, ConfirmationStatus, ProfileSourceType
 from app.domain.identity import User
 from app.ports.career import CandidateProfileRepository
+from app.ports.model import ModelPort
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
@@ -202,6 +206,38 @@ class CandidateProfileResponse(BaseModel):
             created_at=profile.created_at,
             updated_at=profile.updated_at,
         )
+
+
+class ProfileImportDraftResponse(BaseModel):
+    """AI candidate fields; callers must review before saving the profile."""
+
+    draft: dict[str, object]
+
+
+@router.post("/import-pdf", response_model=ProfileImportDraftResponse)
+async def import_profile_pdf(
+    request: Request,
+    file: Annotated[UploadFile, File()],
+    model: ModelPort = Depends(get_model_port),
+    user: User = Depends(get_current_user),
+) -> ProfileImportDraftResponse:
+    del user
+    if file.content_type not in {"application/pdf", "application/octet-stream"}:
+        raise ApplicationError(
+            "Resume file must be a PDF", error_code=ErrorCode.UNSUPPORTED_ARTIFACT_TYPE
+        )
+    max_size = request.app.state.settings.artifact_max_size_bytes
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(min(64 * 1024, max_size + 1 - total)):
+        total += len(chunk)
+        if total > max_size:
+            raise ApplicationError(
+                "Resume PDF is too large", error_code=ErrorCode.ARTIFACT_TOO_LARGE
+            )
+        chunks.append(chunk)
+    draft = await ProfileImportAgent(model).run(b"".join(chunks))
+    return ProfileImportDraftResponse(draft=draft)
 
 
 @router.put("", response_model=CandidateProfileResponse)

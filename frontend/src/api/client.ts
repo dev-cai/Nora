@@ -7,6 +7,7 @@ import type {
   Artifact,
   CandidateProfile,
   CandidateProfileInput,
+  ProfileImportDraftResponse,
   CompanyAssessment,
   CompanySnapshot,
   CreateCompanyAssessmentInput,
@@ -325,6 +326,14 @@ export const api = {
     request<CandidateProfile>(`/profile${version ? `?version=${version}` : ""}`),
   saveProfile: (input: CandidateProfileInput) =>
     request<CandidateProfile>("/profile", { method: "PUT", body: JSON.stringify(input) }),
+  importProfilePdf: (file: File) => {
+    const body = new FormData()
+    body.set("file", file)
+    return request<ProfileImportDraftResponse>("/profile/import-pdf", {
+      method: "POST",
+      body,
+    }, AI_REQUEST_TIMEOUT_MS)
+  },
   listResumes: (page = 1, pageSize = 20) =>
     request<ResumeVersionList>(`/resumes?page=${page}&page_size=${pageSize}`),
   getResume: (id: string) => request<ResumeVersion>(`/resumes/${encodeURIComponent(id)}`),
