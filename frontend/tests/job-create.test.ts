@@ -98,7 +98,7 @@ describe("JobCreateView", () => {
     vi.mocked(api.confirmJdImport).mockReset()
   })
 
-  it("fetches a URL preview and fills the JD body for confirmation", async () => {
+  it("passes the URL preview to AI and only fills the cleaned JD body", async () => {
     const preview: JdInputPreview = {
       jd_text: "Fetched JD body",
       source_url: "https://example.com/jobs/1",
@@ -106,7 +106,7 @@ describe("JobCreateView", () => {
     }
     vi.mocked(api.fetchJobPreview).mockResolvedValueOnce(preview)
     const draft = jdDraft()
-    draft.content.jd_text = preview.jd_text
+    draft.content.jd_text = "AI cleaned JD body"
     vi.mocked(api.createJdImport).mockResolvedValueOnce({ ...draft, source_type: "url", source_url: preview.source_url })
     const { wrapper } = await mountView()
 
@@ -116,7 +116,12 @@ describe("JobCreateView", () => {
     await flushPromises()
 
     expect(api.fetchJobPreview).toHaveBeenCalledWith("https://example.com/jobs/1")
-    expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe("Fetched JD body")
+    expect(api.createJdImport).toHaveBeenCalledWith({
+      source_type: "url",
+      jd_text: "Fetched JD body",
+      source_url: "https://example.com/jobs/1",
+    })
+    expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe("AI cleaned JD body")
   })
 
   it("shows a stable error message when a URL preview is rejected as unsafe", async () => {
@@ -135,11 +140,11 @@ describe("JobCreateView", () => {
     expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe("")
   })
 
-  it("extracts OCR text from a selected screenshot and fills the JD body", async () => {
+  it("passes OCR text to AI and only fills the cleaned JD body", async () => {
     const preview: JdInputPreview = { jd_text: "OCR extracted JD", source_url: null, kind: "image" }
     vi.mocked(api.ocrJobPreview).mockResolvedValueOnce(preview)
     const draft = jdDraft()
-    draft.content.jd_text = preview.jd_text
+    draft.content.jd_text = "AI cleaned OCR JD"
     vi.mocked(api.createJdImport).mockResolvedValueOnce({ ...draft, source_type: "image" })
     const { wrapper } = await mountView()
 
@@ -151,7 +156,29 @@ describe("JobCreateView", () => {
     await flushPromises()
 
     expect(api.ocrJobPreview).toHaveBeenCalledWith(file)
-    expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe("OCR extracted JD")
+    expect(api.createJdImport).toHaveBeenCalledWith({
+      source_type: "image",
+      jd_text: "OCR extracted JD",
+      source_url: null,
+    })
+    expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe("AI cleaned OCR JD")
+  })
+
+  it("does not expose OCR text when AI recognition fails", async () => {
+    vi.mocked(api.ocrJobPreview).mockResolvedValueOnce({ jd_text: "OCR raw JD", source_url: null, kind: "image" })
+    vi.mocked(api.createJdImport).mockRejectedValueOnce(new Error("AI unavailable"))
+    const { wrapper } = await mountView()
+
+    await wrapper.findAll(".mode-tab")[1]?.trigger("click")
+    const file = new File(["screenshot"], "jd.png", { type: "image/png" })
+    const input = wrapper.get('input[type="file"]')
+    Object.defineProperty(input.element, "files", { value: [file] })
+    await input.trigger("change")
+    await flushPromises()
+
+    expect(api.createJdImport).toHaveBeenCalledWith({ source_type: "image", jd_text: "OCR raw JD", source_url: null })
+    expect((wrapper.get("textarea").element as HTMLTextAreaElement).value).toBe("")
+    expect(wrapper.text()).toContain("AI unavailable")
   })
 
   it("restores an unfinished draft after refresh and rejects invalid experience input", async () => {
