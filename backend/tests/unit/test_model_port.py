@@ -14,7 +14,7 @@ from app.application.model import (
     VerifyStructuredModelUseCase,
 )
 from app.domain.base.exceptions import ErrorCode
-from app.infrastructure.config import LogFormat, Settings
+from app.infrastructure.config import Environment, LogFormat, Settings
 from app.infrastructure.logging import configure_logging
 from app.infrastructure.model import (
     DEEPSEEK_BASE_URL,
@@ -366,6 +366,28 @@ def test_factory_uses_validated_settings_without_requiring_model_configuration()
 
     assert isinstance(adapter, DeepSeekChatAdapter)
     assert adapter.model == settings.deepseek_chat_model
+
+
+@pytest.mark.asyncio
+async def test_dev_factory_does_not_apply_cost_preflight() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _success_response()
+
+    settings = Settings(
+        env=Environment.DEV,
+        deepseek_api_key=API_KEY,
+        deepseek_chat_request_budget_cny=Decimal("0.000001"),
+        _env_file=None,
+    )
+    adapter = create_deepseek_chat_adapter(
+        settings,
+        transport=httpx.MockTransport(handler),
+        retry_base_delay_seconds=0,
+    )
+
+    result = await adapter.generate_structured(_request(), SkillExtraction)
+
+    assert result == SkillExtraction(skills=["Python"])
 
 
 def test_model_request_rejects_unversioned_or_unbounded_inputs() -> None:

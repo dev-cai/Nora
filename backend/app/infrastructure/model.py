@@ -16,7 +16,7 @@ from pydantic import BaseModel, ValidationError
 from pydantic.errors import PydanticUserError
 
 from app.domain.base.exceptions import ERROR_CATEGORY_BY_CODE, ErrorCode
-from app.infrastructure.config import Settings
+from app.infrastructure.config import Environment, Settings
 from app.infrastructure.logging import get_logger
 from app.ports.model import ModelError, ModelOutputT, ModelPort, ModelRequest
 
@@ -41,7 +41,7 @@ class DeepSeekChatAdapter(ModelPort):
         timeout_seconds: float,
         input_price_cny_per_million_tokens: Decimal,
         output_price_cny_per_million_tokens: Decimal,
-        request_budget_cny: Decimal,
+        request_budget_cny: Decimal | None,
         transport: httpx.AsyncBaseTransport | None = None,
         retry_base_delay_seconds: float = 0.2,
     ) -> None:
@@ -62,7 +62,9 @@ class DeepSeekChatAdapter(ModelPort):
             or output_price_cny_per_million_tokens < _MIN_OUTPUT_PRICE
         ):
             raise ValueError("output price must not be below the reviewed price")
-        if not request_budget_cny.is_finite() or not 0 < request_budget_cny <= _MAX_REQUEST_BUDGET:
+        if request_budget_cny is not None and (
+            not request_budget_cny.is_finite() or not 0 < request_budget_cny <= _MAX_REQUEST_BUDGET
+        ):
             raise ValueError("request budget must be between 0 and 0.50 CNY")
         if retry_base_delay_seconds < 0:
             raise ValueError("retry delay must not be negative")
@@ -142,7 +144,7 @@ class DeepSeekChatAdapter(ModelPort):
             Decimal(request.max_input_tokens) * self._input_price
             + Decimal(request.max_output_tokens) * self._output_price
         ) / Decimal(1_000_000)
-        if estimated_cost > self._request_budget:
+        if self._request_budget is not None and estimated_cost > self._request_budget:
             raise ModelError(
                 "Model request exceeds the configured cost budget",
                 ErrorCode.MODEL_BUDGET_EXCEEDED,
@@ -304,7 +306,11 @@ def create_deepseek_chat_adapter(
         output_price_cny_per_million_tokens=(
             settings.deepseek_chat_output_price_cny_per_million_tokens
         ),
-        request_budget_cny=settings.deepseek_chat_request_budget_cny,
+        request_budget_cny=(
+            None
+            if settings.env is Environment.DEV
+            else settings.deepseek_chat_request_budget_cny
+        ),
         transport=transport,
         retry_base_delay_seconds=retry_base_delay_seconds,
     )
