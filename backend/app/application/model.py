@@ -18,8 +18,8 @@ class StructuredModelProbe(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["ready"]
-    provider: Literal["dashscope-cn-beijing"]
-    model: Literal["qwen3.8-max"]
+    provider: str
+    model: str
 
 
 class StructuredJobFitCitation(BaseModel):
@@ -102,14 +102,14 @@ class VerifyStructuredModelUseCase:
         self._model = model
 
     async def execute(self) -> StructuredModelProbe:
+        provider = getattr(self._model, "provider", "deepseek")
+        model = getattr(self._model, "model", "deepseek-v4-flash")
         request = ModelRequest(
             system_prompt=(
                 "You are a connectivity probe. Return the requested schema exactly. "
                 "Do not add commentary."
             ),
-            user_input=(
-                "Return status ready, provider dashscope-cn-beijing, and model qwen3.8-max."
-            ),
+            user_input=f"Return status ready, provider {provider}, and model {model}.",
             prompt_version=MODEL_PROBE_PROMPT_VERSION,
             max_input_tokens=1_024,
             max_output_tokens=64,

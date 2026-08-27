@@ -27,8 +27,8 @@ from app.domain.opportunity import CompanySnapshot, JobPosting, JobRequirementSn
 from app.ports.decision import JobFitAnalysisRepository
 from app.ports.model import ModelPort, ModelRequest
 
-JOB_FIT_PROVIDER = "dashscope-cn-beijing"
-JOB_FIT_MODEL = "qwen3.8-max"
+JOB_FIT_PROVIDER = "deepseek"
+JOB_FIT_MODEL = "deepseek-v4-flash"
 JOB_FIT_GENERATOR_VERSION = "job-fit-analysis-v1"
 MAX_EVIDENCE_PREVIEW_CHARS = 2_000
 
@@ -83,6 +83,8 @@ class GenerateJobFitAnalysisUseCase:
             requirements,
             company_snapshot,
         )
+        provider = getattr(self.model, "provider", JOB_FIT_PROVIDER)
+        model = getattr(self.model, "model", JOB_FIT_MODEL)
         generation_identity = JobFitAnalysis.generation_key(
             owner_id=command.owner_id,
             report_id=report.id,
@@ -90,8 +92,8 @@ class GenerateJobFitAnalysisUseCase:
             decision_case_id=decision_case.id,
             fixed_inputs=fixed_inputs,
             prompt_version=JOB_FIT_PROMPT_VERSION,
-            provider=JOB_FIT_PROVIDER,
-            model=JOB_FIT_MODEL,
+            provider=provider,
+            model=model,
             generator_version=command.generator_version,
         )
         existing = await self.repository.get_by_generation(generation_identity)
@@ -138,8 +140,8 @@ class GenerateJobFitAnalysisUseCase:
             decision_case_id=decision_case.id,
             version=await self.repository.next_version(report.id),
             prompt_version=JOB_FIT_PROMPT_VERSION,
-            provider=JOB_FIT_PROVIDER,
-            model=JOB_FIT_MODEL,
+            provider=provider,
+            model=model,
             generator_version=command.generator_version,
             generation_identity=generation_identity,
             overall_fit=JobFitLevel(output.overall_fit),

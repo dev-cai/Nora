@@ -184,35 +184,45 @@ def test_secret_file_settings_reject_ambiguous_or_unsafe_sources(tmp_path: Path)
         Settings(auth_rate_limit_secret_file=link, _env_file=None)
 
 
-def test_dashscope_configuration_is_optional_bounded_and_hidden() -> None:
+def test_deepseek_configuration_is_optional_bounded_and_hidden() -> None:
     settings = Settings(_env_file=None)
 
-    assert settings.dashscope_api_key == ""
-    assert settings.dashscope_workspace_id == ""
-    assert settings.dashscope_chat_timeout_seconds == 30
-    assert settings.dashscope_chat_input_price_cny_per_million_tokens == Decimal("12")
-    assert settings.dashscope_chat_output_price_cny_per_million_tokens == Decimal("36")
-    assert settings.dashscope_chat_request_budget_cny == Decimal("0.50")
-    assert "dashscope_api_key" not in repr(settings)
-    with pytest.raises(ValidationError, match="DASHSCOPE_API_KEY"):
-        Settings(dashscope_api_key="secret with whitespace", _env_file=None)
-    with pytest.raises(ValidationError, match="DASHSCOPE_WORKSPACE_ID"):
-        Settings(dashscope_workspace_id="https://cn-beijing.example", _env_file=None)
+    assert settings.deepseek_api_key == ""
+    assert settings.deepseek_base_url == "https://api.deepseek.com"
+    assert settings.deepseek_chat_model == "deepseek-v4-flash"
+    assert settings.deepseek_chat_timeout_seconds == 60
+    assert settings.deepseek_chat_input_price_cny_per_million_tokens == Decimal("12")
+    assert settings.deepseek_chat_output_price_cny_per_million_tokens == Decimal("36")
+    assert settings.deepseek_chat_request_budget_cny == Decimal("0.50")
+    assert "deepseek_api_key" not in repr(settings)
+    with pytest.raises(ValidationError, match="DEEPSEEK_API_KEY"):
+        Settings(deepseek_api_key="secret with whitespace", _env_file=None)
+    with pytest.raises(ValidationError, match="DEEPSEEK_BASE_URL"):
+        Settings(deepseek_base_url="https://attacker.example", _env_file=None)
+    with pytest.raises(ValidationError, match="DEEPSEEK_CHAT_MODEL"):
+        Settings(deepseek_chat_model="model/with/path", _env_file=None)
     with pytest.raises(ValidationError):
-        Settings(dashscope_chat_request_budget_cny=Decimal("0.51"), _env_file=None)
+        Settings(deepseek_chat_request_budget_cny=Decimal("0.51"), _env_file=None)
     with pytest.raises(ValidationError):
         Settings(
-            dashscope_chat_input_price_cny_per_million_tokens=Decimal("11.99"),
+            deepseek_chat_input_price_cny_per_million_tokens=Decimal("11.99"),
             _env_file=None,
         )
 
 
-def test_dashscope_secret_file_uses_existing_secret_boundary(tmp_path: Path) -> None:
-    secret_file = tmp_path / "dashscope-api-key"
+def test_deepseek_secret_file_uses_existing_secret_boundary(tmp_path: Path) -> None:
+    secret_file = tmp_path / "deepseek-api-key"
     secret_file.write_text("sk-private-value\n", encoding="utf-8")
     secret_file.chmod(0o440)
 
-    settings = Settings(dashscope_api_key_file=secret_file, _env_file=None)
+    with pytest.raises(ValidationError, match="mutually exclusive"):
+        Settings(
+            deepseek_api_key="sk-direct-value",
+            deepseek_api_key_file=secret_file,
+            _env_file=None,
+        )
 
-    assert settings.dashscope_api_key == "sk-private-value"
+    settings = Settings(deepseek_api_key_file=secret_file, _env_file=None)
+
+    assert settings.deepseek_api_key == "sk-private-value"
     assert "sk-private-value" not in repr(settings)
