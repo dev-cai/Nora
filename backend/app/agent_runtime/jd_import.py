@@ -131,8 +131,8 @@ class JdImportAgent:
                     ),
                     prompt_version=JD_IMPORT_PROMPT_VERSION,
                     # DeepSeek Flash may spend most of its output budget on reasoning
-                    # before emitting the JSON object. Keep the reviewed per-request
-                    # cost ceiling (0.50 CNY) while reserving the full provider limit.
+                    # before emitting the JSON object. Reserve the full provider input
+                    # limit while keeping the JD cleaning prompt compact.
                     max_input_tokens=16_000,
                     max_output_tokens=JD_IMPORT_MAX_OUTPUT_TOKENS,
                     temperature=0,

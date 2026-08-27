@@ -12,6 +12,13 @@ from app.ports.model import ModelPort, ModelRequest
 
 PROFILE_IMPORT_PROMPT_VERSION = "profile-import-v1"
 
+# Bounded ingestion for the full text-layer of a real resume. 32_768 is the
+# ModelRequest input ceiling; 26_000 text characters keep the adapter's
+# conservative token estimate below that ceiling (≈32.1k) even for dense
+# line-oriented extraction, so the preflight never trips for a human resume.
+PROFILE_IMPORT_MAX_INPUT_TOKENS = 32_768
+PROFILE_IMPORT_MAX_TEXT_CHARS = 26_000
+
 
 class _Fact(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -101,7 +108,7 @@ class ProfileImportAgent:
         self._model = model
 
     async def run(self, pdf: bytes) -> dict[str, object]:
-        text = extract_pdf_text(pdf)
+        text = extract_pdf_text(pdf, max_chars=PROFILE_IMPORT_MAX_TEXT_CHARS)
         request = ModelRequest(
             system_prompt=(
                 "你是 Nora 的简历解析助手。只从简历原文提取事实，不得猜测或补全；"
@@ -110,7 +117,7 @@ class ProfileImportAgent:
             ),
             user_input=f"以下是 PDF 简历提取文本，请解析为主档候选字段：\n\n{text}",
             prompt_version=PROFILE_IMPORT_PROMPT_VERSION,
-            max_input_tokens=16_000,
+            max_input_tokens=PROFILE_IMPORT_MAX_INPUT_TOKENS,
             max_output_tokens=8_192,
             temperature=0.0,
         )

@@ -136,9 +136,6 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | DeepSeek Chat Adapter | 固定值，不允许切换 endpoint 或协议；Adapter 请求 `/v1/chat/completions` |
 | `DEEPSEEK_CHAT_MODEL` | `deepseek-v4-flash` | DeepSeek Chat Adapter / JD Import / JobFit 身份 | 进程启动时读取的单一 Chat 模型标识；修改后重新启动，不能按请求动态路由 |
 | `DEEPSEEK_CHAT_TIMEOUT_SECONDS` | `60` | DeepSeek Chat Adapter | 单次调用总墙钟允许 `(0, 60]` 秒；timeout 最多重试一次后返回稳定失败 |
-| `DEEPSEEK_CHAT_INPUT_PRICE_CNY_PER_MILLION_TOKENS` | `12` | 单次预算预检 | 经审查的保守输入价格下限；只允许上调，价格实质变化先停止新增调用并重新审查 |
-| `DEEPSEEK_CHAT_OUTPUT_PRICE_CNY_PER_MILLION_TOKENS` | `36` | 单次预算预检 | 经审查的保守输出价格下限；只允许上调，不得用降低配置规避预算 |
-| `DEEPSEEK_CHAT_REQUEST_BUDGET_CNY` | `0.50` | 单次预算预检 | `staging`/`prod` 只允许 `(0, 0.50]` 并在调用前拦截超预算请求；`dev` 不执行应用层成本拦截，Provider 实际费用仍由供应商计费与控制台管理 |
 | `POSTGRES_USER` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 生产环境不得沿用公开示例凭据 |
 | `POSTGRES_PASSWORD` | `change-me-local` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 仅限本地示例；真实值不得提交或输出到日志 |
 | `POSTGRES_DB` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 数据库名称，不是宿主地址 |

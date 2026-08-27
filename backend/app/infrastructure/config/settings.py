@@ -1,7 +1,6 @@
 """从环境变量或 .env 文件加载应用配置。"""
 
 import re
-from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache
 from ipaddress import IPv4Network, IPv6Network, ip_network
@@ -79,15 +78,6 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_chat_model: str = Field(default="deepseek-v4-flash", min_length=1, max_length=128)
     deepseek_chat_timeout_seconds: float = Field(default=60.0, gt=0, le=60)
-    deepseek_chat_input_price_cny_per_million_tokens: Decimal = Field(
-        default=Decimal("12"), ge=Decimal("12")
-    )
-    deepseek_chat_output_price_cny_per_million_tokens: Decimal = Field(
-        default=Decimal("36"), ge=Decimal("36")
-    )
-    deepseek_chat_request_budget_cny: Decimal = Field(
-        default=Decimal("0.50"), gt=0, le=Decimal("0.50")
-    )
     artifact_storage_endpoint: str = "storage:9000"
     artifact_storage_access_key: str = Field(default="nora-app", repr=False)
     artifact_storage_access_key_file: Path | None = Field(default=None, repr=False)

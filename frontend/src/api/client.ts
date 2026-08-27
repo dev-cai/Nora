@@ -139,7 +139,7 @@ const errorCodeMessages: Partial<Record<ServerErrorCode, string>> = {
   model_provider_unavailable: "AI 分析服务暂时不可用，请稍后重试",
   model_timeout: "AI 分析服务响应超时，请稍后重试",
   model_output_invalid: "AI 返回内容格式无效，请重新生成",
-  model_budget_exceeded: "本次 AI 分析超过调用预算，未生成结果",
+  model_budget_exceeded: "内容超过模型单次可处理长度，请精简后重试",
   import_confirmation_conflict: "导入草稿已更新，请刷新后确认",
   import_draft_version_conflict: "导入草稿已更新，请刷新后重试",
   import_not_ready: "导入草稿当前不可编辑或确认",
