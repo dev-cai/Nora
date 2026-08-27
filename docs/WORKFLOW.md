@@ -133,9 +133,9 @@ hook 失败时修复问题后重试，不使用 `--no-verify` 绕过检查。完
 
 ### 安全供应链门禁
 
-PR 与 main push 的 `PR conventions / Secret, dependency, SBOM, and vulnerability gates` 使用固定 Commit SHA 的 Action：完整历史
-Secret scan、PR dependency review、API/Web runtime 镜像 SPDX JSON SBOM，以及容器 OS/应用依赖漏洞扫描。SBOM 作为 workflow
-artifact 保留 30 天。存在已修复的 High/Critical 漏洞、High 以上新增依赖风险或 Secret 命中时门禁失败，不能以 `exit-code: 0`、
+PR 与 main push 的 `PR conventions / Secret, dependency, and SBOM gates` 使用固定 Commit SHA 的 Action：完整历史
+Secret scan、PR dependency review、API/Web runtime 镜像 SPDX JSON SBOM。SBOM 作为 workflow
+artifact 保留 30 天。存在 High 以上新增依赖风险或 Secret 命中时门禁失败，不能以 `exit-code: 0`、
 删除扫描步骤或 mutable Action tag 绕过。
 
 确属误报或当前无修复版本的发现项必须逐项记录：标识符、受影响镜像/包、可利用性判断、补偿控制、owner、关联 Issue 或私密安全

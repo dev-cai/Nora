@@ -58,8 +58,7 @@ async function previewFromUrl(): Promise<void> {
   }
   try {
     const preview = await jobs.fetchPreviewFromUrl(url)
-    form.jd_text = preview.jd_text
-    await createDraft("url", url)
+    await createDraft("url", url, preview.jd_text)
   } catch (reason) {
     previewError.value = userMessage(reason)
   }
@@ -75,8 +74,7 @@ async function previewFromImage(event: Event): Promise<void> {
   if (!file) return
   try {
     const preview = await jobs.fetchPreviewFromImage(file)
-    form.jd_text = preview.jd_text
-    await createDraft("image")
+    await createDraft("image", null, preview.jd_text)
   } catch (reason) {
     previewError.value = userMessage(reason)
   } finally {
@@ -132,10 +130,14 @@ function draftContent(): JdImportDraftContent {
 
 onMounted(() => { void restoreDraft() })
 
-async function createDraft(sourceType: JdImportSourceType = importSourceType(), sourceUrl: string | null = null): Promise<void> {
+async function createDraft(
+  sourceType: JdImportSourceType = importSourceType(),
+  sourceUrl: string | null = null,
+  jdText = form.jd_text,
+): Promise<void> {
   aiImportFailed.value = false
   try {
-    const draft = await jobs.createJdImport(sourceType, form.jd_text, sourceUrl)
+    const draft = await jobs.createJdImport(sourceType, jdText, sourceUrl)
     applyDraft(draft.content)
   } catch (reason) {
     aiImportFailed.value = true
@@ -243,10 +245,10 @@ async function submit(): Promise<void> {
       <button
         class="button button-secondary"
         type="button"
-        :disabled="jobs.previewLoading"
+        :disabled="jobs.previewLoading || jobs.importLoading"
         @click="pickImage"
       >
-        <Image :size="17" /> {{ jobs.previewLoading ? "正在识别…" : "选择截图" }}
+        <Image :size="17" /> {{ jobs.previewLoading ? "正在提取…" : jobs.importLoading ? "正在 AI 识别…" : "选择截图" }}
       </button>
       <p
         v-if="previewError"
@@ -274,10 +276,10 @@ async function submit(): Promise<void> {
       <button
         class="button button-secondary"
         type="button"
-        :disabled="jobs.previewLoading"
+        :disabled="jobs.previewLoading || jobs.importLoading"
         @click="previewFromUrl"
       >
-        <Link2 :size="17" /> {{ jobs.previewLoading ? "正在抓取…" : "提取正文" }}
+        <Link2 :size="17" /> {{ jobs.previewLoading ? "正在提取…" : jobs.importLoading ? "正在 AI 识别…" : "提取并识别" }}
       </button>
       <p
         v-if="previewError"

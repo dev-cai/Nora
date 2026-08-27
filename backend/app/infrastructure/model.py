@@ -1,4 +1,4 @@
-"""Alibaba Cloud Model Studio adapter for structured Chat Completions."""
+"""DeepSeek OpenAI-compatible adapter for structured Chat Completions."""
 
 from __future__ import annotations
 
@@ -20,22 +20,24 @@ from app.infrastructure.config import Settings
 from app.infrastructure.logging import get_logger
 from app.ports.model import ModelError, ModelOutputT, ModelPort, ModelRequest
 
-DASHSCOPE_CHAT_MODEL = "qwen3.8-max"
-DASHSCOPE_PROVIDER = "dashscope-cn-beijing"
+DEEPSEEK_CHAT_MODEL = "deepseek-v4-flash"
+DEEPSEEK_PROVIDER = "deepseek"
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 _MAX_ATTEMPTS = 2
 _MIN_INPUT_PRICE = Decimal("12")
 _MIN_OUTPUT_PRICE = Decimal("36")
 _MAX_REQUEST_BUDGET = Decimal("0.50")
 
 
-class DashScopeChatAdapter(ModelPort):
+class DeepSeekChatAdapter(ModelPort):
     """Call the architecture-approved model and validate its JSON response locally."""
 
     def __init__(
         self,
         *,
         api_key: str,
-        workspace_id: str,
+        base_url: str,
+        model: str,
         timeout_seconds: float,
         input_price_cny_per_million_tokens: Decimal,
         output_price_cny_per_million_tokens: Decimal,
@@ -44,11 +46,10 @@ class DashScopeChatAdapter(ModelPort):
         retry_base_delay_seconds: float = 0.2,
     ) -> None:
         self._api_key = api_key
-        if (
-            workspace_id
-            and fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", workspace_id) is None
-        ):
-            raise ValueError("workspace_id must be a lowercase DNS label")
+        if base_url != DEEPSEEK_BASE_URL:
+            raise ValueError("base_url must be https://api.deepseek.com")
+        if fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", model) is None:
+            raise ValueError("model must be a stable model identifier")
         if not 0 < timeout_seconds <= 60:
             raise ValueError("timeout_seconds must be between 0 and 60")
         if (
@@ -65,7 +66,8 @@ class DashScopeChatAdapter(ModelPort):
             raise ValueError("request budget must be between 0 and 0.50 CNY")
         if retry_base_delay_seconds < 0:
             raise ValueError("retry delay must not be negative")
-        self._workspace_id = workspace_id
+        self._base_url = base_url
+        self._model = model
         self._timeout_seconds = timeout_seconds
         self._input_price = input_price_cny_per_million_tokens
         self._output_price = output_price_cny_per_million_tokens
@@ -73,6 +75,14 @@ class DashScopeChatAdapter(ModelPort):
         self._transport = transport
         self._retry_base_delay_seconds = retry_base_delay_seconds
         self._logger = get_logger(__name__)
+
+    @property
+    def provider(self) -> str:
+        return DEEPSEEK_PROVIDER
+
+    @property
+    def model(self) -> str:
+        return self._model
 
     async def generate_structured(
         self,
@@ -82,7 +92,7 @@ class DashScopeChatAdapter(ModelPort):
         started_at = perf_counter()
         try:
             self._validate_output_type(output_type)
-            request_payload = _chat_payload(request, output_type)
+            request_payload = _chat_payload(request, output_type, self._model)
             self._validate_preflight(request, request_payload)
             try:
                 async with asyncio.timeout(self._timeout_seconds):
@@ -115,7 +125,7 @@ class DashScopeChatAdapter(ModelPort):
         request: ModelRequest,
         request_payload: dict[str, Any],
     ) -> None:
-        if not self._api_key or not self._workspace_id:
+        if not self._api_key:
             raise ModelError(
                 "Model provider is not configured",
                 ErrorCode.MODEL_NOT_CONFIGURED,
@@ -148,7 +158,7 @@ class DashScopeChatAdapter(ModelPort):
             for attempt in range(_MAX_ATTEMPTS):
                 try:
                     response = await client.post(
-                        _chat_completions_url(self._workspace_id),
+                        _chat_completions_url(self._base_url),
                         headers=headers,
                         json=request_payload,
                     )
@@ -212,7 +222,7 @@ class DashScopeChatAdapter(ModelPort):
             content = payload["choices"][0]["message"]["content"]
             if not isinstance(content, str):
                 raise TypeError
-            return output_type.model_validate_json(content)
+            return output_type.model_validate_json(_strip_json_fence(content))
         except (KeyError, IndexError, TypeError, ValidationError, ValueError):
             raise ModelError(
                 "Model provider returned output that failed schema validation",
@@ -228,8 +238,8 @@ class DashScopeChatAdapter(ModelPort):
     ) -> None:
         self._logger.info(
             "model generation completed",
-            provider=DASHSCOPE_PROVIDER,
-            model=DASHSCOPE_CHAT_MODEL,
+            provider=DEEPSEEK_PROVIDER,
+            model=self._model,
             duration_ms=round((perf_counter() - started_at) * 1000),
             success=success,
             error_category=error_category,
@@ -242,6 +252,14 @@ class FakeModelAdapter(ModelPort):
     def __init__(self, responses: Iterable[BaseModel | dict[str, Any]]) -> None:
         self._responses = iter(responses)
         self.requests: list[ModelRequest] = []
+
+    @property
+    def provider(self) -> str:
+        return DEEPSEEK_PROVIDER
+
+    @property
+    def model(self) -> str:
+        return DEEPSEEK_CHAT_MODEL
 
     async def generate_structured(
         self,
@@ -267,25 +285,26 @@ class FakeModelAdapter(ModelPort):
             ) from None
 
 
-def create_dashscope_chat_adapter(
+def create_deepseek_chat_adapter(
     settings: Settings,
     *,
     transport: httpx.AsyncBaseTransport | None = None,
     retry_base_delay_seconds: float = 0.2,
-) -> DashScopeChatAdapter:
+) -> DeepSeekChatAdapter:
     """Compose the real adapter exclusively from validated runtime settings."""
 
-    return DashScopeChatAdapter(
-        api_key=settings.dashscope_api_key,
-        workspace_id=settings.dashscope_workspace_id,
-        timeout_seconds=settings.dashscope_chat_timeout_seconds,
+    return DeepSeekChatAdapter(
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        model=settings.deepseek_chat_model,
+        timeout_seconds=settings.deepseek_chat_timeout_seconds,
         input_price_cny_per_million_tokens=(
-            settings.dashscope_chat_input_price_cny_per_million_tokens
+            settings.deepseek_chat_input_price_cny_per_million_tokens
         ),
         output_price_cny_per_million_tokens=(
-            settings.dashscope_chat_output_price_cny_per_million_tokens
+            settings.deepseek_chat_output_price_cny_per_million_tokens
         ),
-        request_budget_cny=settings.dashscope_chat_request_budget_cny,
+        request_budget_cny=settings.deepseek_chat_request_budget_cny,
         transport=transport,
         retry_base_delay_seconds=retry_base_delay_seconds,
     )
@@ -294,12 +313,13 @@ def create_dashscope_chat_adapter(
 def create_model_adapter(settings: Settings) -> ModelPort:
     """Create the approved production adapter from validated settings."""
 
-    return create_dashscope_chat_adapter(settings)
+    return create_deepseek_chat_adapter(settings)
 
 
 def _chat_payload(
     request: ModelRequest,
     output_type: type[ModelOutputT],
+    model: str,
 ) -> dict[str, Any]:
     try:
         schema = output_type.model_json_schema()
@@ -308,25 +328,32 @@ def _chat_payload(
             "Structured output schema could not be generated",
             ErrorCode.MODEL_OUTPUT_INVALID,
         ) from None
-    schema_name = output_type.__name__
+    schema_text = json.dumps(schema, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    system_prompt = (
+        f"{request.system_prompt}\nReturn exactly one JSON object matching this JSON Schema; "
+        f"do not wrap it in Markdown fences:\n{schema_text}"
+    )
     return {
-        "model": DASHSCOPE_CHAT_MODEL,
+        "model": model,
         "messages": [
-            {"role": "system", "content": request.system_prompt},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": request.user_input},
         ],
         "temperature": request.temperature,
         "max_tokens": request.max_output_tokens,
-        "enable_thinking": False,
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": schema_name,
-                "strict": True,
-                "schema": schema,
-            },
-        },
+        "response_format": {"type": "json_object"},
     }
+
+
+def _strip_json_fence(content: str) -> str:
+    """Accept a fenced JSON object while keeping local Pydantic validation mandatory."""
+
+    value = content.strip()
+    if value.startswith("```") and value.endswith("```"):
+        value = value[3:-3].strip()
+        if value.lower().startswith("json"):
+            value = value[4:].lstrip()
+    return value
 
 
 def _conservative_token_estimate(value: str) -> int:
@@ -335,17 +362,16 @@ def _conservative_token_estimate(value: str) -> int:
     return max(len(value), (len(value.encode("utf-8")) + 3) // 4)
 
 
-def _chat_completions_url(workspace_id: str) -> str:
-    return (
-        f"https://{workspace_id}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions"
-    )
+def _chat_completions_url(base_url: str) -> str:
+    return f"{base_url}/v1/chat/completions"
 
 
 __all__ = (
-    "DASHSCOPE_CHAT_MODEL",
-    "DASHSCOPE_PROVIDER",
-    "DashScopeChatAdapter",
+    "DEEPSEEK_BASE_URL",
+    "DEEPSEEK_CHAT_MODEL",
+    "DEEPSEEK_PROVIDER",
+    "DeepSeekChatAdapter",
     "FakeModelAdapter",
     "create_model_adapter",
-    "create_dashscope_chat_adapter",
+    "create_deepseek_chat_adapter",
 )

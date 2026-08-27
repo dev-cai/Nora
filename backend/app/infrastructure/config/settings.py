@@ -74,17 +74,18 @@ class Settings(BaseSettings):
     baidu_ocr_api_key: str = ""
     baidu_ocr_secret_key: str = ""
     baidu_ocr_endpoint: str = "accurate_basic"
-    dashscope_api_key: str = Field(default="", repr=False)
-    dashscope_api_key_file: Path | None = Field(default=None, repr=False)
-    dashscope_workspace_id: str = Field(default="", repr=False)
-    dashscope_chat_timeout_seconds: float = Field(default=30.0, gt=0, le=60)
-    dashscope_chat_input_price_cny_per_million_tokens: Decimal = Field(
+    deepseek_api_key: str = Field(default="", repr=False)
+    deepseek_api_key_file: Path | None = Field(default=None, repr=False)
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_chat_model: str = Field(default="deepseek-v4-flash", min_length=1, max_length=128)
+    deepseek_chat_timeout_seconds: float = Field(default=60.0, gt=0, le=60)
+    deepseek_chat_input_price_cny_per_million_tokens: Decimal = Field(
         default=Decimal("12"), ge=Decimal("12")
     )
-    dashscope_chat_output_price_cny_per_million_tokens: Decimal = Field(
+    deepseek_chat_output_price_cny_per_million_tokens: Decimal = Field(
         default=Decimal("36"), ge=Decimal("36")
     )
-    dashscope_chat_request_budget_cny: Decimal = Field(
+    deepseek_chat_request_budget_cny: Decimal = Field(
         default=Decimal("0.50"), gt=0, le=Decimal("0.50")
     )
     artifact_storage_endpoint: str = "storage:9000"
@@ -121,7 +122,7 @@ class Settings(BaseSettings):
             "auth_rate_limit_secret",
             "artifact_storage_access_key",
             "artifact_storage_secret_key",
-            "dashscope_api_key",
+            "deepseek_api_key",
         ):
             file_name = f"{value_name}_file"
             path_value = resolved.get(file_name)
@@ -172,17 +173,16 @@ class Settings(BaseSettings):
             )
         if not self.allowed_artifact_content_types:
             raise ValueError("ARTIFACT_ALLOWED_CONTENT_TYPES must not be empty")
-        if self.dashscope_api_key and (
-            self.dashscope_api_key != self.dashscope_api_key.strip()
-            or any(character.isspace() for character in self.dashscope_api_key)
-            or len(self.dashscope_api_key) > 4096
+        if self.deepseek_api_key and (
+            self.deepseek_api_key != self.deepseek_api_key.strip()
+            or any(character.isspace() for character in self.deepseek_api_key)
+            or len(self.deepseek_api_key) > 4096
         ):
-            raise ValueError("DASHSCOPE_API_KEY must be a bounded value without whitespace")
-        if self.dashscope_workspace_id and (
-            re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", self.dashscope_workspace_id)
-            is None
-        ):
-            raise ValueError("DASHSCOPE_WORKSPACE_ID must be a lowercase DNS label")
+            raise ValueError("DEEPSEEK_API_KEY must be a bounded value without whitespace")
+        if self.deepseek_base_url != "https://api.deepseek.com":
+            raise ValueError("DEEPSEEK_BASE_URL is fixed to https://api.deepseek.com")
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", self.deepseek_chat_model) is None:
+            raise ValueError("DEEPSEEK_CHAT_MODEL must be a stable model identifier")
         return self
 
     def _validate_public_origin(self) -> None:
