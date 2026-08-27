@@ -114,7 +114,8 @@ jobs:
 
       - name: Validate Compose configuration
         run: |
-          docker compose --profile test config --quiet
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.dev.yml --profile test config --quiet
           docker compose --env-file deploy/production.env.example \
             -f deploy/compose.production.yml \
             --profile initialize --profile ops config --quiet
@@ -122,11 +123,6 @@ jobs:
             -f deploy/compose.production.yml \
             --profile initialize --profile ops config --format json \
             | python deploy/check_compose_security.py
-
-      - name: Build API development target
-        run: >-
-          docker build --file docker/Dockerfile.api --target development
-          --tag nora-api-development:ci .
 
       - name: Build API runtime target
         run: >-
@@ -138,8 +134,6 @@ jobs:
           docker build --file docker/Dockerfile.web --target runtime
           --tag nora-web-runtime:ci .
 
-      - name: Build isolated test image
-        run: docker compose --profile test build test
 
   supply-chain:
     name: Secret, dependency, and SBOM gates

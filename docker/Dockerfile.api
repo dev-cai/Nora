@@ -1,4 +1,4 @@
-FROM python:3.11-slim@sha256:9c900dea9e8fb7e16277c179b555cc72d29a352dbc33cff48ad5a0412fd5bfc7 AS base
+FROM python:3.11-slim@sha256:be1575ed968de893bd54f4c56315ff7c4736ce522c1bca08fd521731aafc0d76 AS base
 
 ENV PYTHONUNBUFFERED=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
@@ -30,16 +30,6 @@ RUN apt-get update \
 COPY backend/pyproject.toml backend/uv.lock backend/README.md backend/LICENSE ./
 COPY backend/app ./app
 COPY backend/scripts ./scripts
-
-FROM base AS development
-RUN uv sync --frozen --extra dev
-
-COPY backend/alembic.ini ./
-COPY backend/alembic ./alembic
-COPY backend/tests ./tests
-
-EXPOSE 8000
-CMD ["uvicorn", "app.apps.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM base AS runtime
 RUN uv sync --frozen --no-dev \

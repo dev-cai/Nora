@@ -1,114 +1,93 @@
 # Nora 开发指南
 
-> 本指南以 Windows 11/10 + Docker Desktop（WSL2 backend）+ WSL2 Ubuntu 为推荐的本地开发环境。
-> 日常 Git、Docker 和 Docker Compose 命令在 WSL 终端中执行；Python、uv、Alembic 和质量工具只在容器内执行。
-> Windows PowerShell 只用于一次性安装或管理 WSL 与 Docker Desktop，不用于项目开发命令。
+> 本指南以 macOS 15.7.9 + zsh + OrbStack 为推荐的本地开发环境。
+> Git、Docker 和 Docker Compose 命令在 macOS Terminal 中执行；API、Web、Python、uv、Alembic 和质量工具在宿主机运行，IDE 可直接附加断点。
 
 ## 环境边界
 
 本地开发使用以下边界：
 
 ```text
-Windows
-  ├─ Docker Desktop：WSL2 backend、Docker Engine、Docker Compose
-  └─ WSL2 Ubuntu
-      ├─ 项目代码：~/projects/Nora
-      ├─ Git + Docker CLI
-      └─ Compose 容器：Node.js、Web、Python/uv、API、PostgreSQL、MinIO
+macOS 15.7.9
+  ├─ OrbStack：Docker Engine + Docker Compose
+  ├─ zsh + Git + Docker CLI
+  ├─ Python 3.11 + uv + Node.js 24 + npm
+  └─ 项目代码：~/Projects/Nora
 ```
 
-宿主不安装项目 Python、uv、pytest、ruff、mypy 或 Alembic。Docker Desktop 必须启用目标 WSL 发行版集成；
-不要同时在 WSL 中另起一套 Docker Engine。
+OrbStack 必须处于运行状态；不要同时启动另一套 Docker Engine 或切换到其他 Docker context。
 
 ## 前置条件
 
-### Windows 一次性准备
+### macOS 一次性准备
 
-在管理员 PowerShell 中安装 WSL2、Ubuntu 和 Docker Desktop：
-
-```powershell
-wsl --install -d Ubuntu
-winget install --exact --id Docker.DockerDesktop
-```
-
-安装完成后重启 Windows，并从开始菜单打开 Ubuntu，创建 Linux 用户。检查 WSL 版本：
-
-```powershell
-wsl --list --verbose
-```
-
-目标发行版的 `VERSION` 应为 `2`。
-
-启动 Docker Desktop，在 Settings → Resources → WSL Integration 中启用 Ubuntu。
-
-### WSL 内安装工具
-
-以下命令全部在 Ubuntu/WSL 终端执行：
+使用 Homebrew 安装宿主开发工具和 OrbStack：
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl git
+brew install python@3.11 uv node@24 git
+brew install --cask orbstack
 ```
 
-Docker CLI 与 Compose 由 Docker Desktop 注入 WSL。验证宿主边界：
+打开 OrbStack 后，Docker CLI 与 Compose 会自动使用 OrbStack context。验证宿主工具：
 
 ```bash
 docker version
 docker compose version
 git --version
+python3.11 --version
+uv --version
+node --version
+npm --version
 ```
-
-不在 WSL 中安装 Python 或 uv；后续命令由 Compose development 镜像提供。
 
 ## 获取代码
 
-建议把仓库放在 WSL 的 Linux 文件系统中，而不是 `/mnt/c` 或 `/mnt/d` 下。这样可以避免 bind mount、文件监听和 I/O 性能问题。
+建议把仓库放在 macOS 本地磁盘（例如 `~/Projects`）中，避免网络盘或外置慢速卷导致文件监听和 I/O 性能问题。
 
 ```bash
-mkdir -p "$HOME/projects"
-cd "$HOME/projects"
+mkdir -p "$HOME/Projects"
+cd "$HOME/Projects"
 git clone https://github.com/dev-cai/Nora.git
 cd Nora
 ```
 
-Windows 访问该目录时使用资源管理器地址：
-
-```text
-\\wsl$\Ubuntu\home\<linux-user>\projects\Nora
-```
-
-从 WSL 访问 Windows 文件时使用 `/mnt/<drive-letter>/...`，但不建议将 Nora 工作区放在那里。
-
 ## 快速开始
 
-以下命令均在 WSL 的仓库根目录执行：
+以下命令均在 macOS zsh 的仓库根目录执行：
 
 ```bash
-cd "$HOME/projects/Nora"
-cp backend/.env.example .env
-docker compose up -d --build
-docker compose exec api alembic upgrade head
+cd "$HOME/Projects/Nora"
+cp backend/.env.example backend/.env
+docker compose -f docker-compose.dev.yml up -d db storage
+docker compose -f docker-compose.dev.yml run --rm storage-init
+
+cd backend
+uv sync --frozen --extra dev
+uv run alembic upgrade head
+uv run uvicorn app.apps.api:create_app --factory --host 0.0.0.0 --port 8000 --reload
 ```
 
-Compose 会启动：
+另开终端启动前端：
 
-- `web`：Vue 3 工作台，监听 `localhost:5173`，浏览器内的 `/api` 请求代理到 API
-- `api`：FastAPI API，监听 `localhost:8000`
-- `db`：PostgreSQL 16
-- `storage`：私有 MinIO，对象字节只通过认证后的 Artifact API 访问
-- `storage-init`：一次性创建私有 Bucket、最小权限 Policy 和应用账户，成功后 API 才启动
+```bash
+cd "$HOME/projects/Nora/frontend"
+npm ci
+npm run dev
+```
 
-另开一个 WSL 终端验证：
+开发 Compose 只启动 PostgreSQL、MinIO 和一次性 `storage-init`；API/Web 由宿主进程运行，因此 IDE 可直接设置断点和单步调试。
+
+另开一个 macOS Terminal 验证：
 
 ```bash
 cd "$HOME/projects/Nora"
 curl http://localhost:8000/live
 curl --fail http://localhost:8000/ready
 curl http://localhost:5173
-docker compose ps
+docker compose -f docker-compose.dev.yml ps
 ```
 
-首次启动和拉取到新迁移后都要执行 `alembic upgrade head`。API 不会在启动时自动修改数据库结构。
+首次启动和拉取到新迁移后都要在 `backend/` 执行 `uv run alembic upgrade head`。API 不会在启动时自动修改数据库结构。
 
 API 进程存活时 `/live` 返回：
 
@@ -123,9 +102,12 @@ API 进程存活时 `/live` 返回：
 
 ## 环境变量与 Compose 对照
 
-`backend/.env.example` 是可公开提交的本地开发模板。快速开始命令把它复制为仓库根目录 `.env`，供 Compose
-执行 `${VARIABLE:-default}` 插值；根 `.env` 不会被整体注入容器，只有 Compose `environment` 中明确列出的值才会进入
-对应进程。不要在 `backend/.env.example` 中填写真实值，也不要提交根 `.env`。
+`backend/.env.example` 是可公开提交的本地开发模板。宿主 API 从 `backend/.env` 读取它；开发 Compose 的变量通过仓库根目录
+`.env`（如需覆盖默认值可从模板复制）执行 `${VARIABLE:-default}` 插值。根 `.env` 不会被整体注入容器，只有 Compose
+`environment` 中明确列出的值才会进入对应进程。不要在模板中填写真实值，也不要提交任何 `.env` 文件。
+
+宿主 API 必须使用 `localhost` 地址，例如 `DATABASE_URL=postgresql+asyncpg://nora:change-me-local@localhost:5432/nora`
+和 `ARTIFACT_STORAGE_ENDPOINT=localhost:9000`；容器间连接才使用 `db`、`storage` 服务名。
 
 本地开发的覆盖顺序为：当前 shell 已导出的变量优先于根 `.env`，两者都没有提供时才使用 Compose 中的 `:-` 默认值。
 API 容器启动后，Settings 从进程环境读取同名变量；进程环境优先于 Settings 的 `backend/.env` 文件和代码默认值。
@@ -175,15 +157,15 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 
 ### 内部派生值
 
-这些变量不属于根 `.env` 的用户配置面，因此不写入 `backend/.env.example`：
+以下是容器内部派生值，不属于根 `.env` 的用户配置面；宿主 API 使用的 `DATABASE_URL` 已在 `backend/.env.example` 中单独提供：
 
 | 变量 | 来源和有效值 | 作用域 |
 |------|--------------|--------|
-| `DATABASE_URL` | Compose 使用 `POSTGRES_USER`、`POSTGRES_PASSWORD` 和 `POSTGRES_DB` 生成 `postgresql+asyncpg://<user>:<password>@db:5432/<database>` | API 容器 / Settings；必须使用 `postgresql+asyncpg` |
-| `DATABASE_URL`、`TEST_DATABASE_URL` | test profile 固定为隔离测试库 `postgresql+asyncpg://nora_test:nora_test@test-db:5432/nora_test` | 仅 `test` 容器；不连接开发数据卷 |
-| `PYTHONPYCACHEPREFIX` | Compose 固定为 `/workspace/backend/.cache/pycache` | API development、tools 和 test 容器的缓存路径 |
+| `DATABASE_URL` | Compose 使用 `POSTGRES_USER`、`POSTGRES_PASSWORD` 和 `POSTGRES_DB` 生成 `postgresql+asyncpg://<user>:<password>@db:5432/<database>` | API runtime 容器 / Settings；必须使用 `postgresql+asyncpg` |
+| `TEST_DATABASE_URL` | test profile 使用隔离测试库 `postgresql+asyncpg://nora_test:nora_test@test-db:5432/nora_test` | 宿主集成测试通过 `localhost:5433` 覆盖；不连接开发数据卷 |
+| `PYTHONPYCACHEPREFIX` | 容器 runtime 可按需设置 | Python 字节码缓存路径，不属于 Compose 配置面 |
 
-容器内服务发现使用 Compose 服务名：API 连接 PostgreSQL 时主机是 `db`，测试容器连接 `test-db`。从 WSL 宿主
+容器内服务发现使用 Compose 服务名：API 连接 PostgreSQL 时主机是 `db`，测试容器连接 `test-db`。从 macOS 宿主
 直接连接开发 PostgreSQL 时才使用 `localhost:${POSTGRES_PORT}`。`localhost` 在 API 容器内指向 API 容器自身，不能替代
 `db`。同理，宿主访问 API 和 MinIO 时使用对应宿主端口，容器间访问使用服务名和固定容器端口。
 
@@ -205,7 +187,7 @@ Settings 还提供以下应用级默认值，但当前 Compose 没有把它们�
 history、日志或 Compose 配置：
 
 ```bash
-docker compose exec api nora-identity bootstrap-owner \
+docker compose -f deploy/compose.production.yml exec api nora-identity bootstrap-owner \
   --request-id bootstrap-2026-08-15 \
   --username-file /run/secrets/nora-owner-username \
   --email-file /run/secrets/nora-owner-email \
@@ -229,11 +211,13 @@ key count 只用于定位，不作为指标标签，也不得加入用户名、�
 对象键或凭据，下载经认证 API 代理并设置安全响应头。运行真实 Adapter 合约测试：
 
 ```bash
-docker compose up -d db storage storage-init
-docker compose run --rm -e TEST_ARTIFACT_STORAGE_ENDPOINT=storage:9000 \
-  -e TEST_ARTIFACT_STORAGE_ACCESS_KEY=nora-app \
-  -e TEST_ARTIFACT_STORAGE_SECRET_KEY=development-artifact-secret \
-  -e TEST_ARTIFACT_STORAGE_BUCKET=nora-artifacts test \
+docker compose -f docker-compose.dev.yml up -d db storage
+docker compose -f docker-compose.dev.yml run --rm storage-init
+cd backend
+TEST_ARTIFACT_STORAGE_ENDPOINT=localhost:9000 \
+TEST_ARTIFACT_STORAGE_ACCESS_KEY=nora-app \
+TEST_ARTIFACT_STORAGE_SECRET_KEY=development-artifact-secret \
+TEST_ARTIFACT_STORAGE_BUCKET=nora-artifacts \
   uv run pytest tests/integration/test_minio_artifact_storage.py -q
 ```
 
@@ -246,24 +230,15 @@ docker compose run --rm -e TEST_ARTIFACT_STORAGE_ENDPOINT=storage:9000 \
 
 ### 对照验证
 
-在 WSL 仓库根目录运行以下检查。它会双向比较模板变量与两份 Compose 文件的插值变量；任一侧多出变量都会显示差异并
-让命令失败。内部派生值和固定值由上表单独维护，不参与插值集合比较。
+在 macOS zsh 仓库根目录运行以下检查，确认开发依赖和 runtime/release Compose 均可解析。`backend/.env.example` 还包含宿主 API
+专用的 `DATABASE_URL`、Provider 配置，以及仅用于本地端口/项目名的变量；这些变量不要求出现在两份 Compose 文件中。
 
 ```bash
-example_vars="$(mktemp)"
-compose_vars="$(mktemp)"
-trap 'rm -f "$example_vars" "$compose_vars"' EXIT
-
-sed -n 's/^\([A-Z][A-Z0-9_]*\)=.*/\1/p' backend/.env.example | sort -u >"$example_vars"
-grep -hoE '\$\{[A-Z][A-Z0-9_]*' docker-compose.yml docker-compose.override.yml \
-  | cut -c3- | sort -u >"$compose_vars"
-
-comm -3 "$example_vars" "$compose_vars"
-test -z "$(comm -3 "$example_vars" "$compose_vars")"
-docker compose --profile test config --quiet
+docker compose -f docker-compose.yml config --quiet
+docker compose -f docker-compose.dev.yml --profile test config --quiet
 ```
 
-检查成功时 `comm` 没有输出，后续命令退出码为 `0`。`docker compose config` 的完整渲染结果可能包含本地密码，排障时只在
+检查成功时命令退出码为 `0`。`docker compose config` 的完整渲染结果可能包含本地密码，排障时只在
 本机查看，不要粘贴到 Issue、PR、日志或聊天记录。
 
 ### 验证 Identity API
@@ -284,7 +259,7 @@ curl http://localhost:8000/auth/me \
 ```
 
 访问令牌默认有效期为 30 分钟。`AUTH_SECRET_KEY` 的开发默认值只适用于本机；`ENV=staging` 或
-`ENV=prod` 时必须提供至少 32 字节的随机值，否则应用拒绝启动。例如可在 WSL 中生成：
+`ENV=prod` 时必须提供至少 32 字节的随机值，否则应用拒绝启动。例如可在 macOS 中生成：
 
 ```bash
 openssl rand -hex 32
@@ -382,17 +357,17 @@ curl http://localhost:8000/resumes/<resume_version_id> \
 可发布的 confirmed 简历事实时返回 `400 profile_has_no_confirmed_data`。ResumeVersion 发布本身不导入简历文件；模板、岗位定制和
 PDF 生成由后续独立接口处理。
 
-停止服务但保留数据卷：
+停止开发依赖但保留数据卷：
 
 ```bash
-docker compose stop
-docker compose down
+docker compose -f docker-compose.dev.yml stop
+docker compose -f docker-compose.dev.yml down
 ```
 
 删除容器和本地数据库/MinIO 数据：
 
 ```bash
-docker compose down -v
+docker compose -f docker-compose.dev.yml down -v
 ```
 
 ## 日常操作
@@ -401,16 +376,24 @@ docker compose down -v
 
 前端使用 Node.js 24、npm、Vue 3、Vite、TypeScript、Vue Router 和 Pinia。Node 版本单一真源为
 `frontend/.nvmrc`（当前 24.18.1），配合 `frontend/.npmrc` 的 `engine-strict=true` 作为硬门禁；CI 通过
-`node-version-file: frontend/.nvmrc` 读取同一版本。使用 Compose 启动时，Vite 将
-`/api` 代理到 `http://api:8000`；直接在宿主运行时默认代理到 `http://localhost:8000`。可在
+`node-version-file: frontend/.nvmrc` 读取同一版本。宿主运行时 Vite 默认将 `/api` 代理到 `http://localhost:8000`。可在
 `frontend/.env` 中通过 `VITE_NORA_API_BASE_URL` 覆盖浏览器 API 基础路径，或通过
 `VITE_NORA_PROXY_TARGET` 覆盖 Vite 开发代理目标。不要在这些变量中写入 Token 或其他秘密。
 
-在 WSL 仓库根目录使用 Compose 开发：
+宿主机开发（API/Web 可由 IDE 直接调试）：
 
 ```bash
-docker compose up -d --build db api web
-docker compose exec api alembic upgrade head
+docker compose -f docker-compose.dev.yml up -d db storage
+docker compose -f docker-compose.dev.yml run --rm storage-init
+cd backend
+uv sync --frozen --extra dev
+uv run alembic upgrade head
+uv run uvicorn app.apps.api:create_app --factory --host 0.0.0.0 --port 8000 --reload
+
+# 另一个终端
+cd frontend
+npm ci
+npm run dev
 ```
 
 如需直接运行前端工具，进入 `frontend/` 后执行：
@@ -434,12 +417,10 @@ Nora 运行时环境变量。该命令需要仓库锁定的 Python 3.11、uv 0.1
 登录 Token 与当前用户只在标签页级 `sessionStorage` 中受控保存；刷新后通过 `/auth/me` 校验恢复，登出、`401` 或校验失败会彻底清除。前端只通过公开 HTTP API 访问 Nora，
 不得连接数据库、导入后端模块或读取后端内部文件。
 
-查看服务日志：
+查看依赖容器日志（API 日志直接显示在 uvicorn 终端）：
 
 ```bash
-docker compose logs -f
-docker compose logs -f api
-docker compose logs -f web
+docker compose -f docker-compose.dev.yml logs -f
 ```
 
 ### 浏览器级真实 Compose E2E
@@ -474,45 +455,47 @@ API 为每个完成或被拒绝的请求输出两条 JSON 指标记录：
 本地可从 API JSON 日志中过滤全部日志派生指标：
 
 ```bash
-docker compose logs api | jq 'select(.metric_name | startswith("nora_"))'
+# API 日志在运行 uvicorn 的终端；依赖容器日志可用：
+docker compose -f docker-compose.dev.yml logs db storage
 ```
 
 当前仓库只定义可采集信号；部署日志管道、聚合规则和告警由 #138 接入。
 
-查看容器状态和资源：
+查看依赖容器状态和资源：
 
 ```bash
-docker compose ps
+docker compose -f docker-compose.dev.yml ps
 docker stats
 ```
 
-修改 `backend/app/` 后，开发覆写文件会挂载 WSL 工作区，Uvicorn 会自动重载 API。
+修改 `backend/app/` 后，宿主机 Uvicorn `--reload` 会自动重载 API；IDE 调试时可改用调试器启动同一应用工厂。
 
-执行数据库迁移：
+执行数据库迁移（宿主 `backend/`）：
 
 ```bash
-docker compose exec api alembic upgrade head
-docker compose exec api alembic downgrade -1
-docker compose exec api alembic history
+cd backend
+uv run alembic upgrade head
+uv run alembic downgrade -1
+uv run alembic history
 ```
 
 连接 PostgreSQL：
 
 ```bash
-docker compose exec db psql -U nora -d nora
+docker compose -f docker-compose.dev.yml exec db psql -U nora -d nora
 ```
 
 ## 本地测试与质量检查
 
-Compose 开发覆写使用 Dockerfile 的 `development` target，开发依赖安装在容器 `/opt/venv`，不会被仓库
-bind mount 覆盖。静态检查、单元测试和架构测试不需要启动依赖服务：
+开发依赖安装在宿主机 `backend/.venv`。静态检查、单元测试和架构测试不需要启动依赖服务：
 
 ```bash
-docker compose build api tools
-docker compose run --rm --no-deps tools ruff check .
-docker compose run --rm --no-deps tools ruff format --check .
-docker compose run --rm --no-deps tools mypy app/
-docker compose run --rm --no-deps tools pytest tests/unit tests/architecture -q
+cd backend
+uv sync --frozen --extra dev
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy app/
+uv run pytest tests/unit tests/architecture -q
 ```
 
 ### DeepSeek 结构化输出动态 smoke
@@ -531,11 +514,14 @@ DEEPSEEK_API_KEY_FILE=/absolute/path/to/deepseek-api-key \
 `deepseek-v4-flash`、JSON mode 和本地 Pydantic Schema 校验及无敏感探测内容，不写数据库或其他业务事实。不要把真实 Key 放入 `.env`、命令参数、测试输出或
 仓库；费用预警/额度必须先在 DeepSeek 控制台配置。
 
-集成测试只连接 `test` profile 中的隔离 PostgreSQL。`test-db` 使用 tmpfs，不复用开发数据库或命名卷：
+集成测试只连接 `docker-compose.dev.yml` 的 `test` profile 中的隔离 PostgreSQL。`test-db` 使用 tmpfs，不复用开发数据库或命名卷：
 
 ```bash
-docker compose --profile test run --rm test
-docker compose --profile test stop test-db
+docker compose -f docker-compose.dev.yml --profile test up -d test-db
+cd backend
+TEST_DATABASE_URL=postgresql+asyncpg://nora_test:nora_test@localhost:5433/nora_test \
+  uv run pytest tests/unit tests/integration tests/architecture -q
+docker compose -f docker-compose.dev.yml --profile test stop test-db
 ```
 
 集成测试要求 `TEST_DATABASE_URL` 或 `DATABASE_URL` 使用 `postgresql+asyncpg`。缺少连接或使用其他驱动时，
@@ -548,14 +534,13 @@ Pango 1.56.3 与 Noto CJK 20240730，镜像和 Adapter 固定 `SOURCE_DATE_EPOCH
 WeasyPrint、Pango、Adapter 和 SOURCE_DATE_EPOCH，字体集另有独立版本；升级任一输入都必须形成新的生成身份并重新执行
 确定性测试。宿主缺少 Pango 时可以运行不导入 Adapter 的单元和静态检查，但不能把宿主渲染结果作为验收证据。
 
-使用锁文件和镜像验证相同生成身份的字节稳定性、URL 拒绝与迁移：
+使用锁文件和 runtime 镜像验证相同生成身份的字节稳定性、URL 拒绝与迁移（需要在镜像中执行时，使用 CI 或临时 `docker run`）：
 
 ```bash
-docker compose --profile test build test
-docker compose --profile test run --rm test \
-  pytest tests/integration/test_resume_pdf_renderer.py \
-    tests/integration/test_resume_pdf_migration.py \
-    tests/integration/test_decision_report_api.py -q
+cd backend
+uv run pytest tests/integration/test_resume_pdf_renderer.py \
+  tests/integration/test_resume_pdf_migration.py \
+  tests/integration/test_decision_report_api.py -q
 ```
 
 渲染器不读取用户 HTML、脚本、本地文件或网络资源；不要在容器外安装替代字体后更新基线哈希。生成的 PDF 属于运行时
@@ -565,9 +550,8 @@ docker compose --profile test run --rm test \
 
 Dockerfile 和 Compose 中的 Python、uv、PostgreSQL 与 MinIO 镜像均固定到 manifest digest；Python、uv 和
 PostgreSQL 同时保留可读版本标签。API Dockerfile 还固定 Debian 安全补丁包版本，避免基础镜像更新窗口中的已修复
-HIGH/Critical 漏洞重新进入运行时。容器构建门禁（CI `containers` job）只依赖 Docker 构建上下文，不要求
-Runner 或开发宿主预装 Python、uv；后端 `quality` job 则通过 `actions/setup-python` 与 `astral-sh/setup-uv`
-在运行时按需安装，同样不依赖预装环境。
+HIGH/Critical 漏洞重新进入运行时。容器构建门禁（CI `containers` job）只依赖 Docker 构建上下文；后端 `quality` job
+在 CI 中通过 `actions/setup-python` 与 `astral-sh/setup-uv` 安装并锁定工具。
 
 升级镜像时，先选择上游明确版本标签并查询多架构 manifest digest：
 
@@ -575,17 +559,18 @@ Runner 或开发宿主预装 Python、uv；后端 `quality` job 则通过 `actio
 docker buildx imagetools inspect <image>:<version> --format '{{json .Manifest.Digest}}'
 ```
 
-在同一个 PR 中更新全部重复引用，尤其是 PostgreSQL 在 `docker-compose.yml`、`docker-compose.override.yml` 和
+在同一个 PR 中更新全部重复引用，尤其是 PostgreSQL 在 `docker-compose.yml`、`docker-compose.dev.yml` 和
 `.github/workflows/pr-conventions.yml` 中的 digest，以及 uv 在 `docker/Dockerfile.api` 和
 `.github/workflows/pr-conventions.yml` 中的版本标签与 digest。然后从仓库根目录执行完整解析和重建：
 
 ```bash
-docker compose --profile test config --quiet
-docker compose --profile test build --no-cache api tools test
+docker compose -f docker-compose.yml config --quiet
+docker compose -f docker-compose.dev.yml --profile test config --quiet
 docker build --no-cache --file docker/Dockerfile.api --target runtime --tag nora-api-runtime:verify .
-docker compose --profile test run --rm test
-docker compose up -d db api
-docker compose exec api alembic upgrade head
+docker build --no-cache --file docker/Dockerfile.web --target runtime --tag nora-web-runtime:verify .
+docker compose -f docker-compose.dev.yml up -d db storage
+docker compose -f docker-compose.dev.yml run --rm storage-init
+cd backend && uv run alembic upgrade head
 curl --fail http://localhost:8000/ready
 ```
 
@@ -731,8 +716,7 @@ RPO/RTO 承诺。只有真实 Beta provider/region、跨故障域目的地、成
 git config core.hooksPath .githooks
 ```
 
-此 hook 通过一个 Compose `tools` 容器依次执行 ruff 格式检查、ruff lint、mypy，以及单元和架构测试；
-宿主仍只需要 Git、Docker 与 Docker Compose，不需要 Python 或 pre-commit 包。手动验证 hook：
+此 hook 通过宿主机 `uv run` 依次执行 ruff 格式检查、ruff lint、mypy，以及单元和架构测试。手动验证 hook：
 
 ```bash
 .githooks/pre-commit
@@ -760,14 +744,15 @@ python .codex/skills/nora-pr-review/scripts/nora_review.py --submit --pr <PR 编
 
 ## 依赖管理
 
-运行时依赖和开发依赖均通过 development 容器内的 uv 管理：
+运行时依赖和开发依赖均通过宿主机 `backend/` 中的 uv 管理：
 
 ```bash
-docker compose run --rm --no-deps tools uv add package-name
-docker compose run --rm --no-deps tools uv add --dev package-name
-docker compose run --rm --no-deps tools uv remove package-name
-docker compose run --rm --no-deps tools uv lock
-docker compose build api
+cd backend
+uv add package-name
+uv add --dev package-name
+uv remove package-name
+uv lock
+uv sync --frozen --extra dev
 ```
 
 提交依赖变更时必须同时提交 `backend/pyproject.toml` 和 `backend/uv.lock`。不要提交 `.env`、`.venv`、`dist` 或其他本地产物。
@@ -777,17 +762,17 @@ LangGraph 只在 `backend/app/agent_runtime/` 外层 Adapter 使用，不能被 
 
 ## 路径与挂载规则
 
-- 推荐工作区：`/home/<user>/projects/Nora`。
-- Compose bind mount 的源路径来自 WSL 当前目录，不使用 `C:\...` 或 `D:\...`。
-- 不要在 PowerShell 中进入 WSL 工作区后调用另一套 Docker context。
-- `.env` 只在 WSL 工作区根目录创建；模板是 `backend/.env.example`。
+- 推荐工作区：`/Users/<user>/Projects/Nora`（即 `$HOME/Projects/Nora`）。
+- Compose 开发文件只挂载 Docker 数据卷，不挂载源码；API/Web 直接使用宿主机工作区。
+- 不要在 macOS 中切换到另一套 Docker context 或同时启动另一套 Docker Engine。
+- 宿主 API 使用 `backend/.env`；发布 smoke Compose 使用根目录 `.env`，模板均为 `backend/.env.example`。
 - Docker 命名卷保存数据库和 MinIO 数据，不写入仓库目录。
 
 ## 故障排查
 
 ### Docker daemon 未运行
 
-确认 Windows 中 Docker Desktop 已启动，并且目标 Ubuntu 发行版的 WSL Integration 已启用。然后在 WSL 验证：
+确认 OrbStack 已启动且当前 Docker context 指向 OrbStack，然后在 macOS Terminal 验证：
 
 ```bash
 docker context show
@@ -799,14 +784,14 @@ docker info
 检查端口：
 
 ```bash
-ss -ltnp | grep -E ':8000|:5432|:9000|:9001'
+lsof -nP -iTCP -sTCP:LISTEN | grep -E ':8000|:5432|:9000|:9001'
 ```
 
 修改 `.env` 中的 `API_PORT`、`POSTGRES_PORT`、`STORAGE_PORT` 或 `STORAGE_CONSOLE_PORT` 后重建服务：
 
 ```bash
-docker compose down
-docker compose up --build
+docker compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml up -d db storage
 ```
 
 ### API 无法连接数据库
@@ -814,32 +799,32 @@ docker compose up --build
 先检查数据库健康状态和 API 环境变量：
 
 ```bash
-docker compose ps db api
-docker compose logs db
-docker compose exec api printenv DATABASE_URL
+docker compose -f docker-compose.dev.yml ps db
+docker compose -f docker-compose.dev.yml logs db
+cd backend && grep '^DATABASE_URL=' .env
 ```
 
 容器内数据库主机必须是 `db`，不能写 `localhost`。等待 `db` 通过 healthcheck 后再启动 API。
 
 ### 修改代码后没有重载
 
-确认仓库位于 WSL Linux 文件系统，并检查挂载：
+确认宿主 API 以 `--reload` 启动，并检查监听端口：
 
 ```bash
-docker compose config
-docker compose exec api pwd
-docker compose logs api
+curl --fail http://localhost:8000/live
+ps aux | grep '[u]vicorn'
 ```
 
-如果仓库位于 `/mnt/c` 或 `/mnt/d`，迁移到 `$HOME/projects/Nora` 后重新执行 `docker compose up --build`。
+如果仓库位于网络盘或外置慢速卷，迁移到 `$HOME/Projects/Nora` 后重新启动宿主 API/Web。
 
 ### 清理后重新初始化
 
 以下操作会删除本地数据库和 MinIO 数据，不可恢复：
 
 ```bash
-docker compose down -v
-docker compose up --build
+docker compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml up -d db storage
+docker compose -f docker-compose.dev.yml run --rm storage-init
 ```
 
 ## 当前边界
