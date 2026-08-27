@@ -307,9 +307,7 @@ def create_deepseek_chat_adapter(
             settings.deepseek_chat_output_price_cny_per_million_tokens
         ),
         request_budget_cny=(
-            None
-            if settings.env is Environment.DEV
-            else settings.deepseek_chat_request_budget_cny
+            None if settings.env is Environment.DEV else settings.deepseek_chat_request_budget_cny
         ),
         transport=transport,
         retry_base_delay_seconds=retry_base_delay_seconds,
