@@ -27,8 +27,8 @@
 
 ### 环境要求
 
-- Docker Desktop（WSL2 backend，包含 Docker Engine + Docker Compose）
-- Git
+- macOS 15.7.9 + zsh + OrbStack（包含 Docker Engine + Docker Compose）
+- Git、Python 3.11、uv、Node.js 24、npm
 - GitHub CLI（`gh`）
 
 ### 首次运行
@@ -36,8 +36,13 @@
 ```bash
 git clone git@github.com:dev-cai/Nora.git
 cd Nora
-cp backend/.env.example .env
-docker compose up
+cp backend/.env.example backend/.env
+docker compose -f docker-compose.dev.yml up -d db storage
+docker compose -f docker-compose.dev.yml run --rm storage-init
+cd backend && uv sync --frozen --extra dev
+uv run alembic upgrade head
+uv run uvicorn app.apps.api:create_app --factory --host 0.0.0.0 --port 8000 --reload
+# 另一个终端：cd frontend && npm ci && npm run dev
 curl --fail http://localhost:8000/ready
 ```
 
@@ -123,8 +128,8 @@ Commit 正文按需解释原因，如有关联 Issue 用 `Refs #<编号>` 引用
 git config core.hooksPath .githooks
 ```
 
-`.githooks/pre-commit` 使用 Compose `tools` 容器执行格式、lint、类型检查、单元测试和架构测试，
-不依赖宿主 Python。hook 失败时修复问题后重试，不使用 `--no-verify` 绕过检查。完整集成测试仍在下方本地门禁中执行。
+`.githooks/pre-commit` 使用宿主 `backend/.venv` 中的 uv 执行格式、lint、类型检查、单元测试和架构测试。
+hook 失败时修复问题后重试，不使用 `--no-verify` 绕过检查。完整集成测试仍在下方本地门禁中执行。
 
 ### 安全供应链门禁
 
@@ -207,8 +212,10 @@ git checkout -b nora/<type>-<subject>
 ### 步骤 3：启动开发环境
 
 ```bash
-docker compose up -d
-curl --fail http://localhost:8000/ready    # 验证 PostgreSQL 与 API 已就绪
+docker compose -f docker-compose.dev.yml up -d db storage
+docker compose -f docker-compose.dev.yml run --rm storage-init
+cd backend && uv run alembic upgrade head
+uv run uvicorn app.apps.api:create_app --factory --host 0.0.0.0 --port 8000 --reload
 ```
 
 新克隆仓库还需要启用本地 hook：
@@ -228,8 +235,9 @@ git config core.hooksPath .githooks
 ### 步骤 5：数据库迁移（如需修改 Schema）
 
 ```bash
-docker compose exec api alembic revision --autogenerate -m "描述"
-docker compose exec api alembic upgrade head
+cd backend
+uv run alembic revision --autogenerate -m "描述"
+uv run alembic upgrade head
 ```
 
 ### 步骤 6：运行本地门禁
@@ -237,11 +245,14 @@ docker compose exec api alembic upgrade head
 提交前必须执行以下全部检查：
 
 ```bash
-docker compose run --rm --no-deps tools ruff check .
-docker compose run --rm --no-deps tools ruff format --check .
-docker compose run --rm --no-deps tools mypy app/
-docker compose run --rm --no-deps tools pytest tests/unit tests/architecture -q
-docker compose --profile test run --rm test
+cd backend
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy app/
+uv run pytest tests/unit tests/architecture -q
+docker compose -f ../docker-compose.dev.yml --profile test up -d test-db
+TEST_DATABASE_URL=postgresql+asyncpg://nora_test:nora_test@localhost:5433/nora_test \
+  uv run pytest tests/unit tests/integration tests/architecture -q
 ```
 
 全部通过方可提交。因外部服务不可用跳过部分检查时，必须记录原因。
@@ -316,41 +327,44 @@ git branch -d nora/<type>-<subject>
 ### Docker
 
 ```bash
-docker compose up -d               # 后台启动
-docker compose down                # 停止
-docker compose logs -f api         # 查看 API 日志
-docker compose exec api bash       # 进入容器
-docker compose exec api python     # Python REPL
-docker compose build api           # 重建 API 镜像
-docker compose down -v             # 完全清理（含数据卷）
+docker compose -f docker-compose.dev.yml up -d db storage  # 开发依赖
+docker compose -f docker-compose.dev.yml down             # 停止开发依赖
+docker compose -f docker-compose.dev.yml logs -f db       # 查看数据库日志
+docker compose -f docker-compose.dev.yml exec db psql -U nora -d nora
+docker compose -f docker-compose.yml up -d --build        # runtime 发布烟测栈
+docker compose -f docker-compose.yml down
+docker compose -f docker-compose.dev.yml down -v           # 清理开发数据卷
 ```
 
 ### 测试
 
 ```bash
-docker compose run --rm --no-deps tools pytest tests/unit/           # 单元
-docker compose run --rm --no-deps tools pytest tests/architecture/   # 架构
-docker compose --profile test run --rm test                           # 全部，集成测试使用隔离 PostgreSQL
-docker compose --profile test run --rm test pytest -k "job_posting" # 筛选
-docker compose --profile test stop test-db                            # 停止临时测试数据库
+cd backend
+uv run pytest tests/unit/                                            # 单元
+uv run pytest tests/architecture/                                    # 架构
+docker compose -f ../docker-compose.dev.yml --profile test up -d test-db
+TEST_DATABASE_URL=postgresql+asyncpg://nora_test:nora_test@localhost:5433/nora_test uv run pytest tests/integration -q
+docker compose -f ../docker-compose.dev.yml --profile test stop test-db
 ```
 
 ### 代码检查
 
 ```bash
-docker compose run --rm --no-deps tools ruff check .          # Lint
-docker compose run --rm --no-deps tools ruff format --check . # 格式检查
-docker compose run --rm --no-deps tools ruff format .         # 自动格式化
-docker compose run --rm --no-deps tools mypy app/             # 类型检查
+cd backend
+uv run ruff check .          # Lint
+uv run ruff format --check . # 格式检查
+uv run ruff format .         # 自动格式化
+uv run mypy app/             # 类型检查
 ```
 
 ### 依赖管理
 
 ```bash
-docker compose run --rm --no-deps tools uv add <package>       # 添加依赖
-docker compose run --rm --no-deps tools uv add --dev <package> # 添加开发依赖
-docker compose run --rm --no-deps tools uv remove <package>    # 移除
-docker compose run --rm --no-deps tools uv lock                # 更新锁文件
+cd backend
+uv add <package>       # 添加依赖
+uv add --dev <package> # 添加开发依赖
+uv remove <package>    # 移除
+uv lock                # 更新锁文件
 ```
 
 修改依赖后提交 `backend/pyproject.toml` 和 `backend/uv.lock`。
@@ -358,10 +372,11 @@ docker compose run --rm --no-deps tools uv lock                # 更新锁文件
 ### 数据库
 
 ```bash
-docker compose exec api alembic upgrade head               # 执行迁移
-docker compose exec api alembic revision --autogenerate -m "描述"  # 创建迁移
-docker compose exec api alembic downgrade -1               # 回滚
-docker compose exec db psql -U nora -d nora               # 连接 PostgreSQL
+cd backend
+uv run alembic upgrade head                                      # 执行迁移
+uv run alembic revision --autogenerate -m "描述"                 # 创建迁移
+uv run alembic downgrade -1                                      # 回滚
+docker compose -f ../docker-compose.dev.yml exec db psql -U nora -d nora
 ```
 
 ---

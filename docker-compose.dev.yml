@@ -1,0 +1,75 @@
+name: ${NORA_COMPOSE_PROJECT:-nora-dev}
+
+services:
+  db:
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nora}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local}
+      POSTGRES_DB: ${POSTGRES_DB:-nora}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  storage:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-local}
+    ports:
+      - "${STORAGE_PORT:-9000}:9000"
+      - "${STORAGE_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_dev_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  storage-init:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+      target: runtime
+    command: ["python", "scripts/init_artifact_storage.py"]
+    environment:
+      ARTIFACT_STORAGE_ENDPOINT: storage:9000
+      ARTIFACT_STORAGE_ACCESS_KEY: ${ARTIFACT_STORAGE_ACCESS_KEY:-nora-app}
+      ARTIFACT_STORAGE_SECRET_KEY: ${ARTIFACT_STORAGE_SECRET_KEY:-development-artifact-secret}
+      ARTIFACT_BACKUP_ACCESS_KEY: ${ARTIFACT_BACKUP_ACCESS_KEY:-nora-backup}
+      ARTIFACT_BACKUP_SECRET_KEY: ${ARTIFACT_BACKUP_SECRET_KEY:-development-backup-secret}
+      ARTIFACT_STORAGE_BUCKET: ${ARTIFACT_STORAGE_BUCKET:-nora-artifacts}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-local}
+    depends_on:
+      storage:
+        condition: service_healthy
+
+  test-db:
+    profiles: ["test"]
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    environment:
+      POSTGRES_USER: nora_test
+      POSTGRES_PASSWORD: nora_test
+      POSTGRES_DB: nora_test
+    ports:
+      - "${TEST_POSTGRES_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  postgres_dev_data:
+  minio_dev_data:

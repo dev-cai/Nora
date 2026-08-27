@@ -88,13 +88,20 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 
 ## 快速开始
 
-前置：Windows + WSL2 Ubuntu + Docker Desktop（WSL2 backend），宿主无需安装 Python 或 uv。
+前置：macOS 15.7.9 + zsh + OrbStack，并在宿主安装 Python 3.11、uv、Node.js 24 和 npm。
 
 ```bash
-cp backend/.env.example .env
-docker compose up -d --build
-docker compose exec api alembic upgrade head
+cp backend/.env.example backend/.env
+docker compose -f docker-compose.dev.yml up -d db storage
+docker compose -f docker-compose.dev.yml run --rm storage-init
+cd backend && uv sync --frozen --extra dev
+uv run alembic upgrade head
+uv run uvicorn app.apps.api:create_app --factory --host 0.0.0.0 --port 8000 --reload
+# 另一个终端：cd frontend && npm ci && npm run dev
 ```
+
+开发时 API/Web 在宿主机运行，IDE 可直接断点调试；Docker 仅启动 PostgreSQL、MinIO 等依赖。根目录
+`docker-compose.yml` 保留 runtime 镜像发布与本地烟测，真实生产使用 [`deploy/compose.production.yml`](deploy/compose.production.yml)。
 
 验证：
 
@@ -104,7 +111,7 @@ curl --fail http://localhost:8000/ready  # {"status":"ready"}
 # 前端工作台：http://localhost:5173
 ```
 
-数据保存在 Docker 命名卷中；`docker compose down -v` 会清空。完整的环境、测试、迁移与排障指南见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
+数据保存在开发 Compose 的 Docker 命名卷中；`docker compose -f docker-compose.dev.yml down -v` 会清空。完整的环境、测试、迁移与排障指南见 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)。
 
 ## 协作流程
 

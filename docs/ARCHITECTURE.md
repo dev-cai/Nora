@@ -1172,7 +1172,8 @@ Nora/
 │   │   └── router/
 │   └── tests/
 ├── docs/
-└── docker-compose.yml
+├── docker-compose.dev.yml               # 宿主机开发依赖（PostgreSQL、MinIO）
+└── docker-compose.yml                   # runtime/release 镜像烟测栈
 ```
 
 ### 模块职责
