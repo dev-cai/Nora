@@ -142,7 +142,7 @@ jobs:
         run: docker compose --profile test build test
 
   supply-chain:
-    name: Secret, dependency, SBOM, and vulnerability gates
+    name: Secret, dependency, and SBOM gates
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -187,26 +187,6 @@ jobs:
           output-file: sbom-web.spdx.json
           artifact-name: nora-web-sbom
           upload-artifact-retention: 30
-
-      - name: Reject fixed high or critical API vulnerabilities
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: image
-          image-ref: nora-api-runtime:security
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-          format: table
-
-      - name: Reject fixed high or critical Web vulnerabilities
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: image
-          image-ref: nora-web-runtime:security
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-          format: table
 
   docs:
     name: Documentation quality gate

@@ -87,7 +87,7 @@ id = "production-runtime-recovery-baseline"
 name = "生产运行、安全供应链与恢复基线"
 milestone = "M4"
 status = "current"
-summary = "提供 D-019 单主机 digest-pinned Compose：只有 Web 发布并固定绑定 127.0.0.1，API 只信任固定 Web IP /32，PostgreSQL/MinIO 私网且不发布端口；Host Proxy/TLS 在容器外负责 HTTPS、HSTS 和 forwarded header 覆盖，Web 负责静态/SPA、/api proxy 与应用安全 Header。API/Web 以非 root 和只读 rootfs 运行，应用 Secret 通过受权限校验的 root-owned 文件消费；生产 /ready 同时约束唯一 owner、PostgreSQL 和 Artifact Bucket。八阶段发布在真实 HTTPS public smoke 验证 Web、API、HSTS 和代理链后才写健康指针，恢复版本也必须重新通过 internal/public smoke。CI 执行 Secret、依赖、SBOM 与 High/Critical 漏洞门禁。停写屏障下可生成 PostgreSQL、Artifact manifest、删除台账和对象联合恢复点，经 age 加密后在无公网/外部写的隔离项目恢复，并以 size/SHA-256、缺失、损坏、孤儿和删除状态核验阻止错误晋升。preflight 会在真实 provider/region、预算、HTTPS Origin、Web 端口或备份目的地缺失时阻止目标 Beta 晋升；本地演练不冒充目标环境 RPO/RTO、成本或公网发布证据。"
+summary = "提供 D-019 单主机 digest-pinned Compose：只有 Web 发布并固定绑定 127.0.0.1，API 只信任固定 Web IP /32，PostgreSQL/MinIO 私网且不发布端口；Host Proxy/TLS 在容器外负责 HTTPS、HSTS 和 forwarded header 覆盖，Web 负责静态/SPA、/api proxy 与应用安全 Header。API/Web 以非 root 和只读 rootfs 运行，应用 Secret 通过受权限校验的 root-owned 文件消费；生产 /ready 同时约束唯一 owner、PostgreSQL 和 Artifact Bucket。八阶段发布在真实 HTTPS public smoke 验证 Web、API、HSTS 和代理链后才写健康指针，恢复版本也必须重新通过 internal/public smoke。CI 执行 Secret、依赖与 SBOM 供应链门禁。停写屏障下可生成 PostgreSQL、Artifact manifest、删除台账和对象联合恢复点，经 age 加密后在无公网/外部写的隔离项目恢复，并以 size/SHA-256、缺失、损坏、孤儿和删除状态核验阻止错误晋升。preflight 会在真实 provider/region、预算、HTTPS Origin、Web 端口或备份目的地缺失时阻止目标 Beta 晋升；本地演练不冒充目标环境 RPO/RTO、成本或公网发布证据。"
 code_paths = [
   "deploy/compose.production.yml",
   "deploy/preflight.py",
