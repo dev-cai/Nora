@@ -304,6 +304,7 @@ def _chat_payload(
         "temperature": request.temperature,
         "max_tokens": request.max_output_tokens,
         "response_format": {"type": "json_object"},
+        "thinking": {"type": "disabled"},
     }
 
 
