@@ -3,7 +3,7 @@ import { reactive } from "vue"
 
 import { api } from "@/api/client"
 import type { CandidateProfile, ResumeVersion } from "@/api/types"
-import { cloneProfileInput } from "@/features/profile-input"
+import { cloneProfileInput, confirmImportedProfile } from "@/features/profile-input"
 import { confirmedSnapshot, hasSnapshotFacts } from "@/features/profile-snapshot"
 import { useProfileStore } from "@/stores/profile"
 import { useResumesStore } from "@/stores/resumes"
@@ -74,5 +74,26 @@ describe("career stores and snapshot", () => {
 
     expect(payload).toEqual(draft)
     expect(payload).not.toBe(draft)
+  })
+
+  it("confirms all non-empty imported profile facts in one action", () => {
+    const payload = confirmImportedProfile({
+      basic_information: {
+        display_name: { value: "Alice", confirmation_status: "unconfirmed" },
+        current_location: { value: "", confirmation_status: "unconfirmed" },
+      },
+      preferences: {
+        target_locations: { value: ["Shanghai"], confirmation_status: "unconfirmed" },
+        accepts_remote: { value: false, confirmation_status: "unconfirmed" },
+        target_roles: { value: [], confirmation_status: "unconfirmed" },
+      },
+      education: [], experiences: [], skills: [],
+    })
+
+    expect(payload.basic_information.display_name.confirmation_status).toBe("confirmed")
+    expect(payload.basic_information.current_location.confirmation_status).toBe("unconfirmed")
+    expect(payload.preferences.target_locations.confirmation_status).toBe("confirmed")
+    expect(payload.preferences.accepts_remote.confirmation_status).toBe("unconfirmed")
+    expect(payload.preferences.target_roles.confirmation_status).toBe("unconfirmed")
   })
 })

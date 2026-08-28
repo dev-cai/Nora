@@ -207,7 +207,7 @@ flowchart TB
 
 ### Career Profile 契约
 
-`CandidateProfile` 是用户确认事实的主档，采用字段级确认而不是整份档案一次性确认：
+`CandidateProfile` 是用户确认事实的主档，手工维护仍采用字段级确认；PDF 简历导入则在导入草稿保存时提供一次整体确认：
 
 | 区块 | 最小字段 | 规则 |
 | :--- | :--- | :--- |
@@ -543,7 +543,7 @@ PostgreSQL 中的候选/编排状态，不拥有 `CandidateProfile`、`JobPostin
 `confirm_import_draft` 的 Approval，不再弹出第二次确认。指纹不匹配、跨 owner、Session 非待确认状态或重复但载荷不同都不得
 写业务事实；同一确认载荷重放返回首次结果。
 
-简历确认时，当前非空候选统一写为新 `CandidateProfile` 版本的 `confirmed` 字段，空值保持 unknown；不会自动发布
+简历确认时，当前非空候选统一写为新 `CandidateProfile` 版本的 `confirmed` 字段，空值保持 unknown；页面只需一次“确认导入主档”，不会逐字段要求再次确认；不会自动发布
 `ResumeVersion`。JD 确认在同一事务中创建 `JobPosting` 和首个 `JobRequirementSnapshot`；任一步失败全部回滚，不留下只有正文
 或只有要求快照的半成品。模型、OCR 或解析失败只保留可重试的 Session/Draft 状态和稳定错误码，不伪造字段，不影响已有
 M2-M4 确定性能力。
