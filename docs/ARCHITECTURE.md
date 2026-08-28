@@ -97,11 +97,11 @@ Pydantic Schema、引用归属和 Application Policy 校验，校验失败不得
 - `DEEPSEEK_API_KEY` 由 operator 在 DeepSeek 控制台创建、轮换和撤销：先创建新 Key、更新受权限保护的 Secret 文件并验证一次受控
   连接，再撤销旧 Key；每次操作只记录 Secret 类别、版本、操作者、时间、消费者和验证结果，不记录 Key 值。轮换或撤销失败时
   保留旧 Key 直到新 Key 验证成功，Secret 缺失或已撤销统一进入稳定失败，不影响 M3/M4；
-- Chat 单次应用层软预算为人民币 0.50 元，单次 Embedding ingestion 软预算为人民币 0.20 元，月度总软预算为人民币
-  20 元；请求前按当前公开单价和最大 Token 估算，预计超限时不调用，Provider 控制台另设置不高于该月度值的费用预警/额度；
-- 默认 timeout 由 #85 固定；只对连接错误、`429` 和明确 `5xx` 做至多一次带抖动重试，不重试认证、权限、输入、Schema
-  或预算错误；
-- Secret 缺失、超预算、Provider/区域不可用、限流或输出无效时，AI/RAG Use Case 返回稳定失败且允许显式重试，M3/M4
+- Chat 调用不执行应用层单次预算拦截（实际费用由供应商计费与管理），单次 Embedding ingestion 应用层软预算为人民币
+  0.20 元，月度总软预算为人民币 20 元；Provider 控制台另设置不高于该月度值的费用预警/额度；
+- 默认 timeout 由 #85 固定；只对连接错误、`429` 和明确 `5xx` 做至多一次带抖动重试，不重试认证、权限、输入或
+  Schema 错误；
+- Secret 缺失、Provider/区域不可用、限流或输出无效时，AI/RAG Use Case 返回稳定失败且允许显式重试，M3/M4
   确定性报告、投递材料和面试记录继续可用；失败不能伪造成 `unknown` 分析或成功版本；
 - 普通 CI 只使用 Fake/Recorded 契约证据；真实 Chat/Embedding smoke 只在显式 Secret 环境运行。没有真实凭据时必须记录
   `not run`，不能把 Fake 结果写成 Provider 动态通过。
@@ -110,10 +110,9 @@ Issue #85 将 Chat 边界实现为 `ModelPort.generate_structured(request, outpu
 输出 token 上限、temperature 和 Pydantic 输出 Schema；Infrastructure 固定使用 `https://api.deepseek.com/v1/chat/completions`
 与 Settings 提供的 `DEEPSEEK_CHAT_MODEL`，不得从请求内容换模、换 endpoint 或切换协议。
 Adapter 默认 60 秒单次调用总墙钟 timeout，对连接错误、timeout、`429` 和 `5xx` 最多重试
-一次并加入短抖动；认证/权限/其他 `4xx`、预算和输出校验失败不重试。调用固定关闭思考模式，不请求或保存 chain-of-thought。
-调用前以请求声明的最大 token 和配置中经审查、只允许向上调整的单价执行
-人民币 0.50 元单次软预算，月度人民币 20 元仍由 Provider 控制台执行，不在 Nora 内新增成本仓库。缺少 Secret 时只让模型调用以
-稳定错误失败，不影响 M3/M4 组合与启动。
+一次并加入短抖动；认证/权限/其他 `4xx` 和输出校验失败不重试。调用固定关闭思考模式，不请求或保存 chain-of-thought。
+调用前只校验输入不超过请求声明的 token 上限；月度人民币 20 元软预算仍由 Provider 控制台执行，不在 Nora 内新增成本仓库。
+缺少 Secret 时只让模型调用以稳定错误失败，不影响 M3/M4 组合与启动。
 
 当前只交付固定无敏感正文的 Application 连通性探测、Fake Adapter 和显式凭据动态 smoke，证明 Port 到真实 Provider 的
 结构化调用链；探测结果不写入业务事实，也不表示 AI 人岗分析、Embedding、RAG、Tool Calling 或 Agent Runtime 已交付。
@@ -316,7 +315,7 @@ M3 首个规则集版本为 `m3-rules-v1`，只消费 `DecisionCase` 固定引�
 
 模型请求使用固定 `job-fit-v1` Prompt、Provider/模型/生成器身份和受限证据目录。证据目录对超长字段使用固定长度预览、原文长度和 SHA-256 摘要，确保请求不会越过 ModelPort 的字符上限且仍可追溯。输出必须通过严格 Pydantic Schema 与 Domain citation policy：每一条推断、建议和 unknown 至少引用一项固定输入；Citation 的 source、object、version、field path 必须属于本次目录；重复、未解析、未使用或越界引用均拒绝发布。
 
-`JobFitAnalysis.generation_identity` 由 owner、报告/案例精确版本、全部固定输入、Prompt、Provider、模型和生成器版本计算。PostgreSQL 以 owner 范围的生成身份和报告内版本唯一约束并发重试，`POST /reports/{id}/job-fit-analysis` 重放返回同一版本，`GET /reports/{id}/job-fit-analysis` 未生成时返回 `204`。Provider 失败、预算/超时或结构化输出无效不写入分析表，确定性报告和 apply/skip 决定继续可用；本切片不包含 RAG、Embedding、Agent Runtime、自动投递或外部写。
+`JobFitAnalysis.generation_identity` 由 owner、报告/案例精确版本、全部固定输入、Prompt、Provider、模型和生成器版本计算。PostgreSQL 以 owner 范围的生成身份和报告内版本唯一约束并发重试，`POST /reports/{id}/job-fit-analysis` 重放返回同一版本，`GET /reports/{id}/job-fit-analysis` 未生成时返回 `204`。Provider 失败、超时或结构化输出无效不写入分析表，确定性报告和 apply/skip 决定继续可用；本切片不包含 RAG、Embedding、Agent Runtime、自动投递或外部写。
 
 ### 主档、简历与岗位输出关系
 
@@ -1635,5 +1634,5 @@ M5 条件: Client → API → Redis/Task Queue → Worker → PostgreSQL / Objec
 - Artifact 之外其他用户数据的导出、保留与删除策略；
 - Reranker 和检索 Benchmark；
 - Milvus 引入阈值与迁移方案；
-- #85 的最小 ModelPort、Prompt/Schema 版本和 D-007 预算执行；
+- #85 的最小 ModelPort、Prompt/Schema 版本和 D-007 模型调用边界；
 - 浏览器与飞书集成的授权和安全模型。

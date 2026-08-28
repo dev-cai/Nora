@@ -1,9 +1,8 @@
-"""ModelPort, DeepSeek adapter, budget, retry and redaction tests."""
+"""ModelPort, DeepSeek adapter, token limit, retry and redaction tests."""
 
 import asyncio
 import json
 from collections.abc import Callable
-from decimal import Decimal
 from io import StringIO
 
 import httpx
@@ -14,7 +13,7 @@ from app.application.model import (
     VerifyStructuredModelUseCase,
 )
 from app.domain.base.exceptions import ErrorCode
-from app.infrastructure.config import Environment, LogFormat, Settings
+from app.infrastructure.config import LogFormat, Settings
 from app.infrastructure.logging import configure_logging
 from app.infrastructure.model import (
     DEEPSEEK_BASE_URL,
@@ -56,7 +55,6 @@ def _adapter(
     handler,
     *,
     api_key: str = API_KEY,
-    request_budget: Decimal = Decimal("0.50"),
     timeout_seconds: float = 1,
 ) -> DeepSeekChatAdapter:
     return DeepSeekChatAdapter(
@@ -64,9 +62,6 @@ def _adapter(
         base_url=DEEPSEEK_BASE_URL,
         model=DEEPSEEK_CHAT_MODEL,
         timeout_seconds=timeout_seconds,
-        input_price_cny_per_million_tokens=Decimal("12"),
-        output_price_cny_per_million_tokens=Decimal("36"),
-        request_budget_cny=request_budget,
         transport=httpx.MockTransport(handler),
         retry_base_delay_seconds=0,
     )
@@ -239,9 +234,6 @@ async def test_adapter_rejects_missing_api_key_before_network() -> None:
         base_url=DEEPSEEK_BASE_URL,
         model=DEEPSEEK_CHAT_MODEL,
         timeout_seconds=1,
-        input_price_cny_per_million_tokens=Decimal("12"),
-        output_price_cny_per_million_tokens=Decimal("36"),
-        request_budget_cny=Decimal("0.50"),
         transport=httpx.MockTransport(handler),
         retry_base_delay_seconds=0,
     )
@@ -259,32 +251,6 @@ def test_adapter_rejects_base_url_that_could_change_endpoint() -> None:
             base_url="https://attacker.example/path",
             model=DEEPSEEK_CHAT_MODEL,
             timeout_seconds=1,
-            input_price_cny_per_million_tokens=Decimal("12"),
-            output_price_cny_per_million_tokens=Decimal("36"),
-            request_budget_cny=Decimal("0.50"),
-        )
-
-
-def test_adapter_rejects_direct_budget_or_price_bypass() -> None:
-    with pytest.raises(ValueError, match="input price"):
-        DeepSeekChatAdapter(
-            api_key=API_KEY,
-            base_url=DEEPSEEK_BASE_URL,
-            model=DEEPSEEK_CHAT_MODEL,
-            timeout_seconds=1,
-            input_price_cny_per_million_tokens=Decimal("11.99"),
-            output_price_cny_per_million_tokens=Decimal("36"),
-            request_budget_cny=Decimal("0.50"),
-        )
-    with pytest.raises(ValueError, match="request budget"):
-        DeepSeekChatAdapter(
-            api_key=API_KEY,
-            base_url=DEEPSEEK_BASE_URL,
-            model=DEEPSEEK_CHAT_MODEL,
-            timeout_seconds=1,
-            input_price_cny_per_million_tokens=Decimal("12"),
-            output_price_cny_per_million_tokens=Decimal("36"),
-            request_budget_cny=Decimal("0.51"),
         )
 
 
@@ -301,24 +267,6 @@ async def test_adapter_maps_unrepresentable_schema_without_network() -> None:
         await _adapter(handler).generate_structured(_request(), InvalidSchemaOutput)
 
     assert error.value.error_code is ErrorCode.MODEL_OUTPUT_INVALID
-    assert called is False
-
-
-@pytest.mark.asyncio
-async def test_adapter_rejects_cost_over_budget_before_network() -> None:
-    called = False
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        nonlocal called
-        called = True
-        return _success_response()
-
-    with pytest.raises(ModelError) as error:
-        await _adapter(handler, request_budget=Decimal("0.000001")).generate_structured(
-            _request(), SkillExtraction
-        )
-
-    assert error.value.error_code is ErrorCode.MODEL_BUDGET_EXCEEDED
     assert called is False
 
 
@@ -369,25 +317,23 @@ def test_factory_uses_validated_settings_without_requiring_model_configuration()
 
 
 @pytest.mark.asyncio
-async def test_dev_factory_does_not_apply_cost_preflight() -> None:
+async def test_adapter_no_longer_applies_cost_preflight() -> None:
+    called = False
+
     def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal called
+        called = True
         return _success_response()
 
-    settings = Settings(
-        env=Environment.DEV,
-        deepseek_api_key=API_KEY,
-        deepseek_chat_request_budget_cny=Decimal("0.000001"),
-        _env_file=None,
+    # A request at the model input/output ceiling would previously have exceeded
+    # the reviewed 0.50 CNY per-request cost precheck; the cost check is removed.
+    result = await _adapter(handler).generate_structured(
+        _request(max_input_tokens=32_768, max_output_tokens=8_192),
+        SkillExtraction,
     )
-    adapter = create_deepseek_chat_adapter(
-        settings,
-        transport=httpx.MockTransport(handler),
-        retry_base_delay_seconds=0,
-    )
-
-    result = await adapter.generate_structured(_request(), SkillExtraction)
 
     assert result == SkillExtraction(skills=["Python"])
+    assert called is True
 
 
 def test_model_request_rejects_unversioned_or_unbounded_inputs() -> None:

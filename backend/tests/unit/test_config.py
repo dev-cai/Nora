@@ -1,4 +1,3 @@
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -191,9 +190,6 @@ def test_deepseek_configuration_is_optional_bounded_and_hidden() -> None:
     assert settings.deepseek_base_url == "https://api.deepseek.com"
     assert settings.deepseek_chat_model == "deepseek-v4-flash"
     assert settings.deepseek_chat_timeout_seconds == 60
-    assert settings.deepseek_chat_input_price_cny_per_million_tokens == Decimal("12")
-    assert settings.deepseek_chat_output_price_cny_per_million_tokens == Decimal("36")
-    assert settings.deepseek_chat_request_budget_cny == Decimal("0.50")
     assert "deepseek_api_key" not in repr(settings)
     with pytest.raises(ValidationError, match="DEEPSEEK_API_KEY"):
         Settings(deepseek_api_key="secret with whitespace", _env_file=None)
@@ -201,13 +197,6 @@ def test_deepseek_configuration_is_optional_bounded_and_hidden() -> None:
         Settings(deepseek_base_url="https://attacker.example", _env_file=None)
     with pytest.raises(ValidationError, match="DEEPSEEK_CHAT_MODEL"):
         Settings(deepseek_chat_model="model/with/path", _env_file=None)
-    with pytest.raises(ValidationError):
-        Settings(deepseek_chat_request_budget_cny=Decimal("0.51"), _env_file=None)
-    with pytest.raises(ValidationError):
-        Settings(
-            deepseek_chat_input_price_cny_per_million_tokens=Decimal("11.99"),
-            _env_file=None,
-        )
 
 
 def test_deepseek_secret_file_uses_existing_secret_boundary(tmp_path: Path) -> None:
