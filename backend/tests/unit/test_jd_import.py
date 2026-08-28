@@ -192,6 +192,7 @@ async def test_create_edit_and_confirm_jd_import():
     )
     assert posting.location == "北京"
     assert requirement.job_posting_id == posting.id
+    assert requirement.confirmed_requirements() == {"required_skills": ["Python"]}
 
 
 @pytest.mark.asyncio

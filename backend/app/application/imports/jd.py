@@ -216,7 +216,7 @@ class JdImportService:
             else JobSourceType.MANUAL,
             source_url=session.source_url,
         )
-        requirements_content = content.requirements.model_dump(mode="json")
+        requirements_content = confirm_jd_requirements(content.requirements)
         requirement = JobRequirementSnapshot.create(
             owner_id=command.owner_id,
             job_posting_id=posting.id,
@@ -319,6 +319,16 @@ def validate_jd_content(content: JdImportDraftContent) -> JdImportDraftContent:
     return content
 
 
+def confirm_jd_requirements(requirements: JdRequirementDraft) -> dict[str, Any]:
+    """Apply the single top-level import confirmation to non-empty candidates."""
+
+    content = requirements.model_dump(mode="json")
+    for fact in content.values():
+        if fact["confirmation_status"] == "unconfirmed":
+            fact["confirmation_status"] = "confirmed"
+    return content
+
+
 __all__ = (
     "ConfirmJdImportCommand",
     "CreateJdImportCommand",
@@ -327,6 +337,7 @@ __all__ = (
     "JD_IMPORT_PROMPT_VERSION",
     "JdImportDraftContent",
     "JdImportService",
+    "confirm_jd_requirements",
     "normalize_jd_text",
     "validate_jd_content",
 )

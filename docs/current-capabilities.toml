@@ -161,7 +161,7 @@ id = "candidate-profile"
 name = "用户确认主档"
 milestone = "M2"
 status = "current"
-summary = "支持 CandidateProfile 的读取、版本化更新和用户确认状态；可上传文本型 PDF 简历，由 DeepSeek 解析为全部未确认的可编辑候选字段，用户检查后仍通过原有主档保存校验写入新版本；扫描型 PDF 无文本时稳定提示用户转换为可搜索 PDF。"
+summary = "支持 CandidateProfile 的读取、版本化更新和用户确认状态；可上传文本型 PDF 简历，由 DeepSeek 解析为可编辑候选字段，用户检查后通过一次整体确认将非空候选写入新版本；扫描型 PDF 无文本时稳定提示用户转换为可搜索 PDF。"
 code_paths = [
   "backend/app/apps/api/routes/profile.py",
   "backend/app/agent_runtime/profile_import.py",
@@ -170,6 +170,7 @@ code_paths = [
   "backend/app/domain/career/candidate_profile.py",
   "backend/tests/unit/test_profile_import.py",
   "frontend/src/views/ProfileView.vue",
+  "frontend/src/features/profile-input.ts",
   "frontend/src/api/client.ts",
 ]
 evidence = [
