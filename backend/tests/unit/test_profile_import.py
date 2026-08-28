@@ -1,3 +1,5 @@
+import zlib
+
 import httpx
 import pytest
 from app.agent_runtime.profile_import import (
@@ -21,6 +23,44 @@ def _pdf(text: str) -> bytes:
     return b"%PDF-1.4\n1 0 obj\nstream\n" + encoded + b"\nendstream\n%%EOF"
 
 
+def _cid_pdf() -> bytes:
+    cmap = b"""/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+2 beginbfchar
+<0001> <4F60>
+<0002> <597D>
+endbfchar
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end
+"""
+    compressed_cmap = zlib.compress(cmap)
+    content = b"BT\n/F1 12 Tf\n<0001>Tj<0002>Tj\nET\n"
+    return (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n<</Resources <</Font <</F1 2 0 R>>>>>>\nendobj\n"
+        b"2 0 obj\n<</Subtype /Type0 /ToUnicode 4 0 R>>\nendobj\n"
+        b"3 0 obj\n<</Length "
+        + str(len(content)).encode()
+        + b">>\nstream\n"
+        + content
+        + b"endstream\nendobj\n"
+        b"4 0 obj\n<</Filter /FlateDecode /Length "
+        + str(len(compressed_cmap)).encode()
+        + b">>\nstream\n"
+        + compressed_cmap
+        + b"\nendstream\nendobj\n"
+        b"5 0 obj\n<</Subtype /Image /Length 30>>\nstream\n"
+        b"BT /F1 12 Tf <0001>Tj ET\n"
+        b"endstream\nendobj\n%%EOF"
+    )
+
+
 def _success_response() -> httpx.Response:
     content = (
         '{"basic_information":{"display_name":{"value":"Bob"},'
@@ -37,6 +77,13 @@ def _success_response() -> httpx.Response:
 
 def test_pdf_text_extractor_keeps_ascii_text() -> None:
     assert extract_pdf_text(_pdf("Bob Resume")) == "Bob Resume"
+
+
+def test_pdf_text_extractor_decodes_cid_font_using_tounicode() -> None:
+    extracted = extract_pdf_text(_cid_pdf())
+
+    assert extracted == "你好"
+    assert "Tj" not in extracted
 
 
 @pytest.mark.asyncio
