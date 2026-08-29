@@ -1,7 +1,6 @@
 # Nora 用户体验目标
 
-本文描述个人定制求职助手的目标交互，不代表所有功能均已实现。当前代码包含 M0/M1、岗位、用户主档、简历版本、
-Vue Web 和 JD 输入契约等基线；逐项已交付状态只以 [`current-capabilities.toml`](current-capabilities.toml) 为准。
+本文描述个人定制求职助手的目标交互；逐项已交付状态只以 [`current-capabilities.toml`](current-capabilities.toml) 为准。
 
 ## 1. 主线流程
 
@@ -12,9 +11,9 @@ Vue Web 和 JD 输入契约等基线；逐项已交付状态只以 [`current-cap
 
 用户录入并确认基本信息、项目、教育、工作经历、技能和求职偏好。Nora 为每项内容保留来源、版本和确认状态。向量索引只保存这些事实的可重建检索表示，不能替代主档。
 
-在 M5 的 D-021 目标流程中，已有 PDF/DOCX 简历可以作为主档入口：Nora 优先提取文本，仅对扫描 PDF 使用 OCR，再由 AI
-生成基本信息、教育、经历、技能和简历项目草稿。用户可以修改任意字段，页面最后只提供一次整体“确认导入”；确认后创建新的
-主档版本，不自动发布简历版本。简历中的 GitHub/GitLab 链接仅作为文本保存，首个范围不访问项目。
+当前 `/profile` 支持有文本层 PDF 主档导入：本地提取文本后由 DeepSeek 生成可编辑候选，用户检查后一次整体确认，非空候选写入新的
+CandidateProfile 版本，不自动发布简历版本。当前不支持 DOCX、扫描 PDF OCR 或持久化 Profile ImportSession/ImportDraft；完整 D-021
+Resume Import 仍是目标架构。
 
 ### 1.2 录入机会
 
@@ -55,17 +54,18 @@ Nora 不自动提交招聘网站表单、不自动发送消息，也不把模型
 | --- | --- | --- |
 | 本地账号注册、登录、Token | Current，M1 | 不含 OAuth、邮箱验证、密码重置和角色权限 |
 | 岗位文本快照 | Current，M1 | 支持认证后的创建/读取、幂等和创建审计；不含评分、公司研究和报告 |
-| 主档与简历事实 | Current，既有 M2 基线 | 支持手工确认主档与发布不可变简历版本；不承诺 PDF/Word 自动解析 |
+| 主档与简历事实 | Current，既有 M2 基线 | 支持手工确认主档与发布不可变简历版本；`/profile` 另支持 text-PDF AI 导入 |
 | 结构化岗位要求确认 | Current，M2 | 原文与解释分离，修正后创建新版本 |
 | OCR 与受控链接输入 | Current，M2 / #254 | `/jobs/new` 三模式入口提取正文并进入 JD AI 草稿；图片仍只支持 PNG/JPEG |
-| PDF/DOCX 简历 AI 导入 | Planned，M5 / D-021 | 文本提取或扫描 PDF OCR 后生成可编辑主档草稿；一次整体确认，不读取项目链接，不自动发布简历版本 |
+| `/profile` text-PDF 主档 AI 导入 | Current | 有文本层 PDF 生成可编辑候选并一次整体确认；DOCX、扫描 PDF OCR、持久化 ImportSession 未实现 |
 | JD AI 自动填充 | Current，M5 / #254 | 文本/截图/受控链接统一生成职位、公司、地点和要求草稿；一次整体确认后原子创建岗位及首个要求快照 |
-| 确定性决策报告 | Current，M3 | 浏览器可同步发起分析，分区呈现事实、规则、建议、未知和字段级引用；AI 增强未启用 |
+| 确定性决策报告与 JobFit AI | Current，M3/M5 | 报告页分区呈现确定性结果与 JobFitAnalysis；失败时确定性报告继续可用 |
 | 投递/不投递决定 | Current，M3 | 报告页可记录 apply/skip；决定固定引用报告和简历版本，skip 原因必填，apply 不生成材料或执行外部写 |
-| 定制简历、模板、PDF 与手工投递记录 | Planned，M4 | 模板受限 Schema，产物版本化，外部写保持关闭 |
-| 最小面试通知 | Planned，M4 | 只含时间、地点、轮次、备注和用户隔离 |
-| Evidence 检索与可选 AI | Planned，M5 | 依赖 Source、Chunk、Embedding、评测和降级契约 |
-| 深度复盘、实时出行、Agent、Milvus | Evolution，触发式候选 | 先有真实需求、评测和 Architecture Issue |
+| 定制简历、模板、PDF 与手工投递记录 | Current，M4 | 模板受限 Schema，产物版本化，外部写保持关闭 |
+| 面试通知、准备、复盘与 MemoryCandidate | Current，M4/M5 | InterviewDetail 同时提供 Preparation/Review/Memory UI；确认记忆进入 Artifact→Source→Chunk→Embedding/RAG，不自动修改 CandidateProfile |
+| Minimal RAG 与离线 Hybrid 评测 | Current，M5 | 线上仍 vector-only；Hybrid Hit@5 0.5833、unknown FPR 0.25，DO NOT SHIP |
+| Agent Runtime | Current，M5 | API 进程内单 Agent/单 Graph；无独立页面/Store |
+| Evidence Pack、实时出行 | Planned / Evolution | Evidence Pack 尚未交付；实时出行仍为触发式候选 |
 
 ## 3. 数据和安全提示
 

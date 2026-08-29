@@ -176,13 +176,14 @@ Milestone 关闭前执行一次收口审计：逐项核对 Current 能力台账�
 ### Beta 发布工作流
 
 `.github/workflows/beta-deploy.yml` 不属于 PR 门禁，也不在分支上自动部署。它只允许在 PR 已合并、目标完整 SHA 位于受保护
-`main` 且该 SHA 的后端、前端、浏览器、容器、安全和文档 check run 全部成功后手工触发。API/Web 镜像、SBOM、attestation 与
+`main` 且该 SHA 通过 `deploy/release_manifest.py::REQUIRED_CI_CHECKS` 定义的全部 required checks 后手工触发。API/Web 镜像、SBOM、attestation 与
 release manifest 由同一 run 产生；部署 Job 必须经过 `beta` Environment 审批并落到带 `nora-beta-deploy` 标签的专用 Runner。
 
-Environment 的并发锁不能替代主机文件锁；Runner 也不能直接调用 Docker Compose、读取运行时 Secret 或修改 root-owned 发布
+Environment 的并发锁不能替代主机文件锁；当前 beta Environment 与专用 Runner 已被真实 workflow 使用，但控制面存在不等于完整上线。
+Runner 也不能直接调用 Docker Compose、读取运行时 Secret 或修改 root-owned 发布
 文件，只能通过 stdin 交付短期 GHCR Token，并以最小 sudo 权限调用 `/usr/local/sbin/nora-release`。正常部署和人工回滚使用同一
-入口；失败后不得临时 SSH 执行未审查 Compose、可变 tag 或 Alembic downgrade。真实 Environment/Runner 尚未供应时，合并发布
-代码只表示控制面已交付，不表示 Beta 已上线。
+入口；失败后不得临时 SSH 执行未审查 Compose、可变 tag 或 Alembic downgrade。Environment/Runner 已供应并被 workflow 使用，
+但合并发布代码只表示控制面已交付；只有具体 run 完成 internal/public smoke 与 promote 才能证明 Beta 发布成功。
 
 主机入口执行固定八阶段 `preflight -> backup -> pull -> migrate -> start -> internal-smoke -> public-smoke -> promote`。Nora 只发布
 localhost Web 端口，真实 Host TLS Proxy 必须覆盖 forwarded headers 后转发到 Web；public smoke 使用正常证书校验验证真实 HTTPS

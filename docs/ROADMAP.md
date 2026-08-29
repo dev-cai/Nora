@@ -151,8 +151,6 @@ M5 之后的能力进入触发式候选池；只有满足真实业务、数据�
 ### 结果
 
 在确定性决策和投递闭环可独立运行的基础上，增加版本化来源、检索、Evidence Pack、可选模型增强和可确认的 AI 文档导入。
-JD 文本/截图/受控链接的可编辑草稿与一次整体确认已进入 Current；PDF/DOCX 简历导入仍待后续切片，并根据真实指标决定是否引入
-Reranker、缓存或 Worker。
 
 ### 边界
 
@@ -160,10 +158,11 @@ Reranker、缓存或 Worker。
 - Source、Chunk、Embedding 和索引均可版本化、可重建；
 - 检索先定义固定评测集和指标，不以 Provider 接通作为完成；
 - Evidence Pack 在无 Reranker、无 LLM 时仍成立；
-- 模型只读取版本化事实、规则结果和 Evidence，输出经 Schema 校验且不升级为用户事实；
-- 导入模型输出只形成 owner 隔离、版本化的 ImportDraft；用户整体确认前不写 CandidateProfile、JobPosting 或
-  JobRequirementSnapshot 事实；
-- Provider 不可用时返回确定性结果，增强版本不覆盖历史；
+- 决策/增强模型消费版本化事实、规则结果和受控 Evidence，输出经 Schema 校验且不升级为用户事实；
+- 导入模型可读取当前 Import Context 中有界、不可信、最小必要的来源正文（如 JD / 简历规范化文本），只形成 owner 隔离、版本化的
+  ImportDraft 或候选，用户整体确认前不写 CandidateProfile、JobPosting 或 JobRequirementSnapshot 事实；
+- 可选模型增强失败或 Provider 不可用时返回确定性结果，增强版本不覆盖历史；Import Provider 不可用时必须 fail safely、不产生部分
+  业务事实，只允许显式定义的手动兜底；
 - 不自动更新主档、执行外部写、并行维护多个向量数据库或强行为叙事引入 Agent Runtime。
 
 ### 退出目标
@@ -183,10 +182,10 @@ Reranker、缓存或 Worker。
 | 能力 | 重新立项的最低条件 |
 | :--- | :--- |
 | 外部平台写入 | 明确具体平台和动作、许可、账号安全、Approval、幂等、审计和人工接管 |
-| 深度面试准备与复盘 | 已有面试记录和真实用户数据，候选内容必须经用户确认 |
+| 更大规模面试智能化 | 已有面试记录和真实用户数据，候选内容必须经用户确认 |
 | 实时出行 | 地图或天气 Provider、许可、时效、成本和失败降级已审查 |
-| 长期记忆 | 已有足够 outcome 数据，确认、拒绝、删除和过期规则明确 |
-| Agent Runtime | 稳定 Application Use Case、多个真实 Tool、暂停恢复需求和量化收益 |
+| 长期记忆扩展 | 已有足够 outcome 数据，确认、拒绝、删除和过期规则明确 |
+| Multi-Agent/Worker 扩展 | 稳定 Application Use Case、多个真实 Tool、暂停恢复需求和量化收益 |
 | 服务拆分或编排平台 | 模块化单体存在可复验容量、部署或隔离瓶颈 |
 
 外部写始终遵循 ProposedAction -> Approval -> Execution，并具备幂等、审计和不确定结果人工处理。

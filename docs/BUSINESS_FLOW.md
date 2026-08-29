@@ -23,7 +23,7 @@
 第三步  创建固定输入版本的 DecisionCase，生成确定性报告，用户选择 apply / skip
 第四步  apply 后生成定制简历、PDF 和消息草稿；用户手工投递并记录结果与面试通知
 第五步  在确定性闭环可独立运行后，以 Evidence、检索和可选模型增强报告
-候选    外部平台写入、深度面试复盘、实时出行、长期记忆和 Agent Runtime 按触发条件立项
+候选    外部平台写入、实时出行及更大规模执行边界按触发条件立项
 ```
 
 ### 各阶段要点
@@ -34,7 +34,7 @@
 | 确定性分析 | 固定输入版本，运行规则并记录投/不投 | `DecisionCase`、`DecisionReport`、`ApplicationDecision` | M3 |
 | 投递闭环 | 生成材料，用户手工投递并记录最小面试通知 | `ResumeVariant`、`MessageDraft`、PDF、`ApplicationRecord`、`InterviewCase` | M4 |
 | Evidence/AI 增强 | 版本化来源、检索、Evidence Pack 和可选模型增强 | `Source`、`Chunk`、`Embedding`、`EvidencePack`、增强报告版本 | M5 |
-| 触发式候选 | 外部写、深度面试/出行、长期记忆和 Agent 编排 | 独立 Architecture/Task Issue 决定 | 非默认 Milestone |
+| 触发式候选 | 外部写、实时出行及 Worker/Queue/Multi-Agent 等扩展 | 独立 Architecture/Task Issue 决定 | 非默认 Milestone |
 
 ## 3. 已确认的技术决策
 
@@ -57,11 +57,11 @@
 
 | 缺口 | 目标边界 |
 | :--- | :--- |
-| 投递闭环 | 版本化投递材料、手工投递记录和最小面试通知 |
-| Beta 运行 | 部署、认证、安全、恢复、持续交付与真实浏览器验收 |
-| Evidence 基础 | 版本化来源、确定性 Chunk、检索评测和 Evidence Pack |
-| 可选模型增强 | Provider 隔离、Schema 校验、版本化增强与确定性降级 |
-| 条件规模化 | Reranker、缓存和 Worker 只在指标证明必要时引入 |
+| Evidence Pack | 不可变证据封装及跨能力引用契约仍未交付 |
+| RAG 质量 | Hybrid 离线 Hit@5 0.5833、unknown FPR 0.25，未达到上线门槛；线上保持 vector-only |
+| 完整 Resume Import | DOCX、扫描 PDF OCR、持久化 ImportSession/ImportDraft 仍未实现；当前仅有 `/profile` text-PDF 切片 |
+| Beta 动态证据 | Environment/Runner 与控制面已真实使用，但尚无完整 internal/public smoke → promote 成功 run |
+| 实时出行与外部写 | Provider 接入、许可和人工确认边界仍未交付 |
 
 ### 4.3 越界与收敛
 
@@ -70,7 +70,7 @@
 | 向量库作为业务事实主存储 | 禁止；PostgreSQL 结构化表保存事实，向量只作可重建索引 |
 | 多 Agent 编排 | 不作为里程碑叙事；只有稳定 Use Case、多 Tool 和暂停/恢复需求成立后评估 |
 | 外部平台自动投递/发送 | 不属于 M2-M5；重新立项需许可、Approval、幂等、审计和人工接管 |
-| 深度面试复盘、实时出行和长期记忆 | 保留在触发式候选池，不阻塞 M4 最小 `InterviewCase` |
+| 实时出行和外部平台写入 | 保留在触发式候选池，不阻塞现有面试与投递闭环 |
 | 复杂公司情报 | M4 先交付来源、摘要、时效和 unknown；不得把匿名评价升级为事实 |
 
 ## 5. 已采用的 M2-M5 调整
