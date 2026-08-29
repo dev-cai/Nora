@@ -5,6 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent_runtime import AgentRuntimeService
 from app.agent_runtime.tools import AgentToolInput, AgentToolOutput, build_tool_registry
+from app.application.decision import (
+    GenerateStoredJobFitAnalysisCommand,
+    GenerateStoredJobFitAnalysisUseCase,
+)
 from app.application.followup import InterviewPreparationUseCases
 from app.application.knowledge import KnowledgeRagService
 from app.apps.api.dependencies.career import get_resume_version_repository
@@ -12,6 +16,7 @@ from app.apps.api.dependencies.common import get_current_user, get_session, get_
 from app.apps.api.dependencies.decision import (
     get_decision_case_repository,
     get_decision_report_repository,
+    get_generate_stored_job_fit_analysis_use_case,
     get_job_fit_analysis_repository,
 )
 from app.apps.api.dependencies.followup import (
@@ -51,6 +56,9 @@ def get_agent_runtime_service(
     resumes: ResumeVersionRepository = Depends(get_resume_version_repository),
     jobs: JobPostingRepository = Depends(get_job_posting_repository),
     job_fit: JobFitAnalysisRepository = Depends(get_job_fit_analysis_repository),
+    stored_job_fit: GenerateStoredJobFitAnalysisUseCase = Depends(
+        get_generate_stored_job_fit_analysis_use_case
+    ),
 ) -> AgentRuntimeService:
     preparation_use_cases = InterviewPreparationUseCases(
         preparations,
@@ -99,14 +107,23 @@ def get_agent_runtime_service(
             },
         )
 
-    async def compute_job_fit_placeholder(value: AgentToolInput) -> AgentToolOutput:
+    async def compute_job_fit(value: AgentToolInput) -> AgentToolOutput:
+        if value.report_id is None:
+            from app.domain.base.exceptions import ApplicationError, ErrorCode
+
+            raise ApplicationError(
+                "Decision report is required", error_code=ErrorCode.VALIDATION_ERROR
+            )
+        result = await stored_job_fit.execute(
+            GenerateStoredJobFitAnalysisCommand(owner_id=user.id, report_id=value.report_id)
+        )
+        analysis = result.analysis
         return AgentToolOutput(
-            result_ref=f"tool-input:{user.id}",
-            summary=("已校验 typed 输入；当前 COMPUTE 占位只返回结果引用，不写入业务事实。"),
-            target_type="compute_result",
-            target_id=value.job_posting_id,
-            target_version=None,
-            payload={"job_posting_id": str(value.job_posting_id) if value.job_posting_id else None},
+            result_ref=f"job-fit-analysis:{analysis.id}:v{analysis.version}",
+            summary=("已重放既有人岗分析" if result.replayed else "已生成新的人岗分析"),
+            target_type="job_fit_analysis",
+            target_id=analysis.id,
+            target_version=analysis.version,
         )
 
     async def prepare(value: AgentToolInput) -> AgentToolOutput:
@@ -152,7 +169,7 @@ def get_agent_runtime_service(
 
     handlers = {
         "get_opportunity_context": context,
-        "analyze_job_fit": compute_job_fit_placeholder,
+        "analyze_job_fit": compute_job_fit,
         "retrieve_knowledge": retrieve,
         "prepare_interview": prepare,
         "get_application_status": application_status,

@@ -24,6 +24,7 @@ class AgentToolInput(BaseModel):
     source_id: UUID | None = None
     application_record_id: UUID | None = None
     job_posting_id: UUID | None = None
+    report_id: UUID | None = None
 
 
 class AgentToolOutput(BaseModel):

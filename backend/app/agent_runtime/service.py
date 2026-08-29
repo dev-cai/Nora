@@ -20,7 +20,7 @@ from app.domain.agent_runtime import (
     AgentToolCall,
     AgentToolKind,
 )
-from app.domain.base.exceptions import ApplicationError, ErrorCode
+from app.domain.base.exceptions import ApplicationError, ErrorCode, NoraError
 from app.ports.agent_runtime import AgentRuntimeRepository
 
 from .tools import AgentToolInput, AgentToolOutput, AgentToolSpec, select_tools, validate_tool_name
@@ -69,6 +69,16 @@ class AgentRuntimeService:
         await self.repository.add_run(run)
         await self.repository.commit()
         graph = await self._build_graph(run, tool_input)
+        self._graphs[run.id] = graph
+        await self._invoke(run, graph, {"user_goal": run.user_goal}, resume=None)
+        return await self.view(owner_id=owner_id, run_id=run.id)
+
+    async def start_decision_analysis(self, *, owner_id: UUID, report_id: UUID) -> AgentRunView:
+        run = AgentRun.create(owner_id=owner_id, user_goal="decision_analysis")
+        await self.repository.add_run(run)
+        await self.repository.commit()
+        tool_input = AgentToolInput(user_goal="decision_analysis", report_id=report_id)
+        graph = await self._build_graph(run, tool_input, selected_tools=("analyze_job_fit",))
         self._graphs[run.id] = graph
         await self._invoke(run, graph, {"user_goal": run.user_goal}, resume=None)
         return await self.view(owner_id=owner_id, run_id=run.id)
@@ -147,9 +157,13 @@ class AgentRuntimeService:
         resume: dict[str, object] | None,
     ) -> None:
         config = {"configurable": {"thread_id": run.thread_id}}
-        result = await graph.ainvoke(
-            Command(resume=resume) if resume is not None else values, config
-        )
+        try:
+            result = await graph.ainvoke(
+                Command(resume=resume) if resume is not None else values, config
+            )
+        except Exception as exc:
+            await self._record_failure(run, exc)
+            raise
         state = await graph.aget_state(config)
         state_values = dict(state.values)
         await self.repository.add_checkpoint(
@@ -178,11 +192,17 @@ class AgentRuntimeService:
         )
         await self.repository.commit()
 
-    async def _build_graph(self, run: AgentRun, tool_input: AgentToolInput) -> Any:
+    async def _build_graph(
+        self,
+        run: AgentRun,
+        tool_input: AgentToolInput,
+        *,
+        selected_tools: tuple[str, ...] | None = None,
+    ) -> Any:
         service = self
 
         async def route(state: RuntimeState) -> RuntimeState:
-            selected = list(select_tools(state["user_goal"]))
+            selected = list(selected_tools or select_tools(state["user_goal"]))
             for name in selected:
                 validate_tool_name(service.registry, name)
             return {"selected_tools": selected, "current_index": 0, "next_action": selected[0]}
@@ -278,7 +298,6 @@ class AgentRuntimeService:
                     await service.repository.update_approval(existing_approval.consume())
                 result = await spec.handler(payload)
             else:
-                result = await spec.handler(payload)
                 call = AgentToolCall.start(
                     run_id=run.id,
                     owner_id=run.owner_id,
@@ -287,6 +306,7 @@ class AgentRuntimeService:
                     input_payload=payload.model_dump(mode="json"),
                 )
                 await service.repository.add_tool_call(call)
+                result = await spec.handler(payload)
             call_result = call.succeed(result_ref=result.result_ref, result_summary=result.summary)
             await service.repository.update_tool_call(call_result)
             next_index = index + 1
@@ -319,6 +339,22 @@ class AgentRuntimeService:
         else:
             saver = InMemorySaver()
         return graph.compile(checkpointer=saver)
+
+    async def _record_failure(self, run: AgentRun, error: Exception) -> None:
+        error_code = (
+            error.error_code.value
+            if isinstance(error, NoraError)
+            else ErrorCode.INTERNAL_ERROR.value
+        )
+        calls = await self.repository.list_tool_calls(run.id)
+        started = next((call for call in reversed(calls) if call.status.value == "started"), None)
+        if started is not None:
+            await self.repository.update_tool_call(started.fail(error_code=error_code))
+        current = await self._require_run(run.owner_id, run.id)
+        await self.repository.update_run(
+            current.transition(AgentRunStatus.FAILED, next_action=None, stop_reason=error_code)
+        )
+        await self.repository.commit()
 
     async def _require_run(self, owner_id: UUID, run_id: UUID) -> AgentRun:
         run = await self.repository.get_run(run_id)
