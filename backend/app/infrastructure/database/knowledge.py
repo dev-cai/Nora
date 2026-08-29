@@ -342,6 +342,9 @@ class SqlAlchemyChunkRepository:
         *,
         owner_id: UUID,
         query_embedding: tuple[float, ...],
+        embedding_model: str,
+        embedding_version: str,
+        embedding_dimension: int,
         source_id: UUID | None = None,
         source_version: int | None = None,
         limit: int = 5,
@@ -359,6 +362,12 @@ class SqlAlchemyChunkRepository:
                 continue
             if source_version is not None and row.source_version != source_version:
                 continue
+            if (
+                row.embedding_model != embedding_model
+                or row.embedding_version != embedding_version
+                or row.embedding_dimension != embedding_dimension
+            ):
+                continue
             artifact = await self.session.scalar(
                 select(ArtifactRecord).where(
                     ArtifactRecord.id == row.artifact_id,
@@ -369,7 +378,7 @@ class SqlAlchemyChunkRepository:
             if artifact is None or artifact.status != ArtifactStatus.AVAILABLE.value:
                 continue
             vector = tuple(float(value) for value in row.embedding)
-            if len(vector) != len(query_embedding):
+            if len(vector) != embedding_dimension or len(vector) != len(query_embedding):
                 continue
             denominator = sqrt(
                 sum(value * value for value in vector)

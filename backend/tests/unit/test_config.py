@@ -161,6 +161,20 @@ def test_secret_file_settings_load_without_exposing_values(
     assert "private" not in repr(settings)
 
 
+def test_embedding_secret_file_is_independent_and_loaded(tmp_path: Path) -> None:
+    secret_file = tmp_path / "embedding-key"
+    secret_file.write_text("embedding-private\n", encoding="utf-8")
+    secret_file.chmod(0o440)
+    settings = Settings(
+        embedding_api_key_file=secret_file,
+        embedding_workspace_id="workspace",
+        _env_file=None,
+    )
+    assert settings.embedding_api_key == "embedding-private"
+    assert settings.deepseek_api_key == ""
+    assert "embedding-private" not in repr(settings)
+
+
 def test_secret_file_settings_reject_ambiguous_or_unsafe_sources(tmp_path: Path) -> None:
     secret_file = tmp_path / "rate-secret"
     secret_file.write_text("s" * 32, encoding="utf-8")

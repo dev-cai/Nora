@@ -134,7 +134,7 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
 ## 8. 技术与 Provider 边界
 
 - M5 的初期向量能力候选是 PostgreSQL + pgvector；D-007 已冻结首个 Embedding 为阿里云百炼北京地域的
-  `qwen3.7-text-embedding` dense 1024 维，持久化 Schema 仍须在独立实现 Issue 中验证。
+  `qwen3.7-text-embedding` dense 1024 维，当前 HTTP Adapter 与 identity 隔离已就绪，但真实质量评测未准入前不切换线上。
 - BGE-M3 是已被 D-007 替代的历史候选；Reranker 只有在固定评测集证明收益后才引入。当前冻结的合成 RAG 评测已完成 Hybrid 指标计算，但未达到上线门槛，暂不引入在线 Hybrid 或 Reranker。
 - 模型通过最小 Provider-neutral `ModelPort` 访问；当前 Chat 唯一固定为 DeepSeek `deepseek-v4-flash`，Embedding 仍按
   [`ARCHITECTURE.md`](ARCHITECTURE.md) 的 D-007 使用既定契约，后续 Provider、模型或地域替换必须重新经过 Architecture Review。

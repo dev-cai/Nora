@@ -66,11 +66,31 @@ def _rrf(
     return sorted(fused, key=lambda pair: (-pair[1], pair[0]["ordinal"], pair[0]["id"]))
 
 
-async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
-    from app.infrastructure.embedding import DeterministicEmbeddingAdapter
+async def evaluate(fixture: dict[str, Any], *, provider: str = "deterministic") -> dict[str, Any]:
+    if provider == "deterministic":
+        from app.infrastructure.embedding import DeterministicEmbeddingAdapter
 
-    adapter = DeterministicEmbeddingAdapter()
+        adapter = DeterministicEmbeddingAdapter()
+    elif provider == "real":
+        from app.infrastructure.config import Settings
+        from app.infrastructure.embedding import create_qwen_embedding_adapter
+
+        settings = Settings()
+        adapter = create_qwen_embedding_adapter(settings)
+        if not settings.embedding_api_key or not settings.embedding_workspace_id:
+            return {
+                "status": "not run",
+                "reason": "EMBEDDING_API_KEY and EMBEDDING_WORKSPACE_ID are required",
+            }
+    else:
+        raise ValueError("provider must be deterministic or real")
     chunks = fixture["chunks"]
+    estimated_embedding_tokens = sum(
+        max(len(item["text"]), (len(item["text"].encode("utf-8")) + 3) // 4) for item in chunks
+    ) + sum(
+        max(len(item["query"]), (len(item["query"].encode("utf-8")) + 3) // 4)
+        for item in fixture["queries"]
+    )
     chunk_embeddings = {item["id"]: await adapter.embed(item["text"]) for item in chunks}
     chunk_tokens = {item["id"]: _tokens(item["text"]) for item in chunks}
     ks = tuple(fixture["parameters"]["ks"])
@@ -228,7 +248,17 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": fixture["schema_version"],
         "dataset_version": fixture["dataset_version"],
-        "embedding": fixture["embedding"],
+        "embedding": fixture["embedding"]
+        if provider == "deterministic"
+        else {
+            "provider": getattr(adapter, "provider", "remote"),
+            "model": adapter.model,
+            "version": adapter.version,
+            "dimension": adapter.dimension,
+            "estimated_input_tokens": estimated_embedding_tokens,
+            "estimated_cost_cny": round(estimated_embedding_tokens / 1000 * 0.0005, 6),
+            "cost_assumption": "qwen3.7-text-embedding Beijing price 0.0005 CNY/1K input tokens",
+        },
         "parameters": fixture["parameters"],
         "query_count": len(rows),
         "positive_query_count": sum(bool(row["relevant_chunk_ids"]) for row in rows),
@@ -239,6 +269,7 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
             "vector_passes_threshold": vector_passes,
             "hybrid_passes_threshold": hybrid_passes,
             "hybrid_admission": "PASS" if hybrid_passes else "FAIL",
+            "real_vector_admission": "PASS" if vector_passes else "FAIL",
             "online": "not shipped" if not hybrid_passes else "eligible for controlled review",
             "lexical_complementary_positive_queries": lexical_complement,
             "reranker": "not evaluated; out of scope for A-04",
@@ -262,14 +293,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fixture", type=Path, default=FIXTURE)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--embedding-provider", choices=("deterministic", "real"), default="deterministic"
+    )
     args = parser.parse_args()
     import asyncio
 
-    result = asyncio.run(evaluate(load_fixture(args.fixture)))
+    result = asyncio.run(evaluate(load_fixture(args.fixture), provider=args.embedding_provider))
     args.output.write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print(json.dumps(result["decision"], ensure_ascii=False))
+    print(json.dumps(result.get("decision", result), ensure_ascii=False))
     return 0
 
 

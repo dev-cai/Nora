@@ -27,12 +27,13 @@ id = "minimal-rag-vertical-slice"
 name = "最小 RAG 纵向链路"
 milestone = "M5"
 status = "current"
-summary = "已交付受用户范围和精确 Source/Artifact 版本约束的 Source → 确定性 Chunk → 可重建 Embedding → exact cosine 检索 → grounded/unknown 回答链路；派生 Chunk 在源重建时替换，Artifact 删除后立即不可检索，Provider 未配置或输出引用越界时稳定降级为 unknown。"
+summary = "已交付受用户范围和精确 Source/Artifact 版本约束的 Source → 可重建 Embedding → exact cosine 检索 → grounded/unknown 回答链路；确定性 SHA-256 向量仅保留为测试/基线 fixture，真实 Qwen Embedding Adapter 与 model/version/dimension identity 过滤已就绪但尚未完成质量准入，故线上不切换。派生 Chunk 在源重建时替换，Artifact 删除后立即不可检索，Provider 未配置或输出引用越界时稳定降级为 unknown。"
 code_paths = [
   "backend/app/domain/knowledge/artifact.py",
   "backend/app/application/knowledge/rag_service.py",
   "backend/app/ports/knowledge.py",
   "backend/app/infrastructure/embedding.py",
+  "backend/tests/unit/test_embedding_adapter.py",
   "backend/app/infrastructure/database/knowledge.py",
   "backend/app/apps/api/routes/knowledge.py",
   "backend/alembic/versions/0024_knowledge_chunks.py",
