@@ -42,6 +42,7 @@ code_paths = [
 evidence = [
   "https://github.com/dev-cai/Nora/pull/244",
   "https://github.com/dev-cai/Nora/pull/269",
+  "https://github.com/dev-cai/Nora/pull/270",
 ]
 
 [[capabilities]]
@@ -172,7 +173,7 @@ id = "candidate-profile"
 name = "用户确认主档"
 milestone = "M2"
 status = "current"
-summary = "支持 CandidateProfile 的读取、版本化更新和用户确认状态；可上传文本型 PDF 简历，由 DeepSeek 解析为可编辑候选字段，用户检查后通过一次整体确认将非空候选写入新版本；扫描型 PDF 无文本时稳定提示用户转换为可搜索 PDF。"
+summary = "支持 CandidateProfile 的读取、版本化更新和用户确认状态；在 /profile 页面上传有文本层的 PDF 简历，由 DeepSeek 解析为可编辑候选字段，用户检查后通过一次整体确认将非空候选写入新版本；扫描型 PDF 无文本时稳定提示用户转换为可搜索 PDF。不包含 DOCX、OCR、持久化 Profile ImportSession/ImportDraft 或自动发布 ResumeVersion。"
 code_paths = [
   "backend/app/apps/api/routes/profile.py",
   "backend/app/agent_runtime/profile_import.py",
@@ -187,6 +188,10 @@ code_paths = [
 evidence = [
   "https://github.com/dev-cai/Nora/pull/101",
   "https://github.com/dev-cai/Nora/pull/259",
+  "https://github.com/dev-cai/Nora/pull/262",
+  "https://github.com/dev-cai/Nora/pull/263",
+  "https://github.com/dev-cai/Nora/pull/264",
+  "https://github.com/dev-cai/Nora/pull/265",
 ]
 
 [[capabilities]]
@@ -251,7 +256,7 @@ id = "typed-error-contract"
 name = "类型化错误注册表与 HTTP/OpenAPI 映射"
 milestone = "M4"
 status = "current"
-summary = "协议无关 Shared Kernel 以 167 个 ErrorCode、13 个 ErrorCategory 和不可变完整注册表固定公开失败词汇；API Adapter 只按 category 映射 HTTP，并以唯一 ApiProblem 统一 Nora、请求校验、SQLAlchemy 与未知异常响应。内部哨兵和未知异常固定脱敏 500，认证保留 Bearer challenge；OpenAPI 枚举 code/category，前端消费 generated union 并按 code、category、status 与 transport/unknown 顺序本地化回退。"
+summary = "协议无关 Shared Kernel 以完整稳定的 ErrorCode 注册表与 ErrorCategory 固定公开失败词汇；API Adapter 只按 category 映射 HTTP，并以唯一 ApiProblem 统一 Nora、请求校验、SQLAlchemy 与未知异常响应。内部哨兵和未知异常固定脱敏 500，认证保留 Bearer challenge；OpenAPI 枚举 code/category，前端消费 generated union 并按 code、category、status 与 transport/unknown 顺序本地化回退。"
 code_paths = [
   "backend/app/domain/base/exceptions.py",
   "backend/app/apps/api/errors.py",
@@ -287,7 +292,7 @@ id = "jd-ai-import-drafts"
 name = "JD AI 草稿与整体确认导入"
 milestone = "M5"
 status = "current"
-summary = "支持文本、PNG/JPEG 截图和受控 HTTP(S) 链接进入用户隔离的 ImportSession/ImportDraft：JD 专用固定 LangGraph Agent 依次执行正文清洗、模型结构化识别和 Schema/业务校验，生成职位、公司、地点和结构化岗位要求候选；清洗后的正文不会被模型输出覆盖。用户可编辑任意字段，草稿以单调版本和服务端内容指纹保护，刷新可恢复，确认请求幂等且在同一事务中创建 JobPosting 与首个 JobRequirementSnapshot。岗位提交始终优先 AI 自动识别，仅在 AI 明确失败且字段完整时提供手动填写兜底；AI 草稿确认前不写岗位事实，不读取 GitHub/GitLab 项目，不支持 JD PDF 或 PDF/DOCX 简历导入。"
+summary = "支持文本、PNG/JPEG 截图和受控 HTTP(S) 链接进入用户隔离的 ImportSession/ImportDraft：JD 专用固定 LangGraph Agent 依次执行正文清洗、模型结构化识别和 Schema/业务校验，生成职位、公司、地点和结构化岗位要求候选；清洗后的正文不会被模型输出覆盖。用户可编辑任意字段，草稿以单调版本和服务端内容指纹保护，刷新可恢复，确认请求幂等且在同一事务中创建 JobPosting 与首个 JobRequirementSnapshot。岗位提交始终优先 AI 自动识别，仅在 AI 明确失败且字段完整时提供手动填写兜底；AI 草稿确认前不写岗位事实，不读取 GitHub/GitLab 项目。JD ImportSession 路径本身不处理 PDF/DOCX 简历，独立的 /profile text-PDF 导入见 candidate-profile。"
 code_paths = [
   "backend/app/agent_runtime/jd_import.py",
   "backend/app/application/imports/jd.py",
@@ -437,7 +442,7 @@ id = "analysis-report-web"
 name = "分析与报告浏览器工作流"
 milestone = "M3"
 status = "current"
-summary = "Vue 工作台支持选择固定岗位要求、主档和简历版本创建 DecisionCase，同步展示四类确定性规则结果，生成并刷新恢复版本化报告；报告分区呈现 Fact、Rule Result、Unknown、Recommendation 与字段级 Citation，并明确 AI 增强未启用。"
+summary = "Vue 工作台支持选择固定岗位要求、主档和简历版本创建 DecisionCase，同步展示四类确定性规则结果，生成并刷新恢复版本化报告；报告分区呈现 Fact、Rule Result、Unknown、Recommendation 与字段级 Citation，并在同一报告页提供 JobFitAnalysis AI 增强分区。确定性报告与 AI 分析职责、失败降级彼此独立。"
 code_paths = [
   "frontend/src/views/AnalysisNewView.vue",
   "frontend/src/views/AnalysisDetailView.vue",
@@ -652,7 +657,7 @@ id = "beta-deployment-pipeline"
 name = "Beta 摘要发布与兼容性受限回滚管道"
 milestone = "M4"
 status = "current"
-summary = "提供唯一 GitHub Actions `beta-deploy` 控制面：手工 deploy 必须固定受保护 main Commit 并重新核对后端、前端、浏览器、容器、安全和文档 check run，随后由同一次 run 构建 GHCR digest、SPDX SBOM、provenance/SBOM attestation 和迁移绑定 manifest；受保护 beta Environment、单并发锁与专用 self-hosted Runner 只允许通过 stdin 把短期 GHCR Token 交给 root-owned 固定入口。主机入口再次核对 CI、attestation、SBOM/Schema 策略哈希，执行 preflight、条件联合备份、pull、前向 migrate、Compose readiness、认证/API/Web/Artifact smoke 和原子 promote，文件锁保护并发且失败不覆盖 last healthy。回滚不执行数据库 downgrade；同 revision 可回退，跨 revision 只有受审查策略声明兼容时才自动回退，否则保持维护并转隔离恢复。当前仓库尚无真实 beta Environment、专用 Runner、provider/region 或主机 Secret，因此能力 fail closed，不能作为已完成线上部署证据。"
+summary = "提供唯一 GitHub Actions `beta-deploy` 控制面：手工 deploy 固定受保护 main Commit，并重新核对 `release_manifest.py::REQUIRED_CI_CHECKS` 定义的代码质量、容器构建、文档、前端及供应链门禁；由同一次 run 构建 GHCR digest、SBOM、attestation 和迁移绑定 manifest。受保护 beta Environment、单并发锁与专用 self-hosted Runner 已被真实 workflow 使用，主机入口执行 preflight、条件备份、pull、migrate、start、internal/public smoke 和 promote；回滚不执行数据库 downgrade。最近运行已证明控制面、构建和目标 Runner 路径，但主机入口失败，尚无完整 promote 成功证据，不能宣称 Beta 已上线。"
 code_paths = [
   ".github/actionlint.yaml",
   ".github/workflows/beta-deploy.yml",
@@ -667,14 +672,21 @@ code_paths = [
   "backend/scripts/artifact_storage_smoke.py",
   "backend/tests/unit/test_beta_release.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/222"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/222",
+  "https://github.com/dev-cai/Nora/pull/227",
+  "https://github.com/dev-cai/Nora/pull/229",
+  "https://github.com/dev-cai/Nora/pull/230",
+  "https://github.com/dev-cai/Nora/pull/231",
+  "https://github.com/dev-cai/Nora/pull/232",
+]
 
 [[capabilities]]
 id = "structured-model-port"
 name = "单 Provider 结构化模型调用边界"
 milestone = "M5"
 status = "current"
-summary = "提供 Provider-neutral ModelPort、读取 `DEEPSEEK_CHAT_MODEL`（默认 `deepseek-v4-flash`）的 DeepSeek OpenAI-compatible JSON mode Adapter、Pydantic 本地 Schema 校验和无业务写入的 Application 连通性探测。调用前只校验输入不超过请求声明的 token 上限，不执行应用层预算拦截；timeout、连接错误、429 和 5xx 最多重试一次；缺少 Secret、Provider 拒绝/不可用、timeout 和无效输出均以稳定错误失败。日志只保留 Provider、模型、耗时、成功状态和低基数错误类别；普通 CI 使用 Fake Adapter，真实 smoke 仅在显式开关和受控 Secret 下运行。AI JobFitAnalysis 另由 Decision Application 使用此边界生成，模型 Port 本身不拥有业务事实；Embedding、RAG、Tool Calling、Agent Runtime、Provider registry、fallback 仍未交付。"
+summary = "提供 Provider-neutral ModelPort、读取 `DEEPSEEK_CHAT_MODEL`（默认 `deepseek-v4-flash`）的 DeepSeek OpenAI-compatible JSON mode Adapter、Pydantic 本地 Schema 校验和无业务写入的 Application 连通性探测。调用前只校验输入不超过请求声明的 token 上限，不执行应用层预算拦截；timeout、连接错误、429 和 5xx 最多重试一次；缺少 Secret、Provider 拒绝/不可用、timeout 和无效输出均以稳定错误失败。日志只保留 Provider、模型、耗时、成功状态和低基数错误类别；普通 CI 使用 Fake Adapter，真实 smoke 仅在显式开关和受控 Secret 下运行。ModelPort 只负责结构化模型调用，不拥有 RAG 或 Agent；AI JobFitAnalysis、最小 RAG 和单 Agent Runtime 均由独立 Current capability 记录。Provider registry/fallback 仍未交付。"
 code_paths = [
   "backend/app/ports/model.py",
   "backend/app/application/model.py",
@@ -690,7 +702,7 @@ id = "ai-job-fit-analysis"
 name = "AI 人岗语义分析"
 milestone = "M5"
 status = "current"
-summary = "在固定 DecisionCase 与 DecisionReport 输入上生成不可变 JobFitAnalysis，展示强匹配、可迁移证据、关键缺口、简历行动、项目深挖风险、面试重点和 unknown。每条模型推断/建议都必须引用固定对象、版本和字段路径；生成身份支持同一版本幂等重放与刷新恢复，Provider 失败或非法引用不写入并保留确定性报告和 apply/skip。该能力不包含 RAG、Embedding、Agent Runtime、自动投递或外部写。"
+summary = "在固定 DecisionCase 与 DecisionReport 输入上生成不可变 JobFitAnalysis，展示强匹配、可迁移证据、关键缺口、简历行动、项目深挖风险、面试重点和 unknown。每条模型推断/建议都必须引用固定对象、版本和字段路径；生成身份支持同一版本幂等重放与刷新恢复，Provider 失败或非法引用不写入并保留确定性报告和 apply/skip。显式 Agent Runtime Decision Analysis 入口可委托同一 Stored JobFit orchestration；本能力不包含自动投递或外部写。"
 code_paths = [
   "backend/app/domain/decision/job_fit.py",
   "backend/app/application/decision/job_fit_service.py",
@@ -708,4 +720,9 @@ code_paths = [
   "frontend/tests/analysis-store.test.ts",
   "frontend/tests/job-fit-analysis-panel.test.ts",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/259"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/243",
+  "https://github.com/dev-cai/Nora/pull/259",
+  "https://github.com/dev-cai/Nora/pull/267",
+  "https://github.com/dev-cai/Nora/pull/268",
+]

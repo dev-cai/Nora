@@ -7,7 +7,7 @@
 
 - 技术选择：Vue 3 + Vite 独立 Web 客户端。
 - 交付阶段：M2 分析就绪输入、M3 确定性决策页面和 M4 声明式模板/ResumeVariant/PDF/MessageDraft/ApplicationRecord/InterviewCase 页面已交付；M4 后续与 M5 继续扩展部署、验收和 Evidence 页面。
-- 实现状态：Current 基线已包含 `frontend/`、Node 依赖、Web 容器、前端 CI、定制简历工作流和 `/jobs/new` 的 JD AI 草稿确认流程；未交付页面继续按 Planned 标注。
+- 实现状态：Current 基线已包含 `frontend/`、Node 依赖、Web 容器、前端 CI、定制简历工作流、`/jobs/new` 的 JD AI 草稿确认流程，以及 `/profile` 内的 text-PDF 主档导入；未交付页面继续按 Planned 标注。
 - 替代方案：不采用 Gradio；不维护 Gradio 与 Vue 两套客户端。
 
 选择 Vue 是为了支持长期的多步骤工作流、状态管理、Evidence 展示和可测试交互。代价是增加 Node 工具链、
@@ -59,55 +59,10 @@ flowchart LR
 当前可用接口由默认分支的 FastAPI 路由与 Pydantic 模型确定，并通过 OpenAPI 暴露。D-017 选择该 OpenAPI 作为唯一 HTTP Contract
 源；Current 生成链路离线导出并提交 `openapi.json` 与 `schema.d.ts`，由 `api:check` 和 CI 阻止漂移。现有端点尚未迁移到
 `openapi-fetch`，手写 DTO 和 transport 仍承载运行时调用，不得被误报为 generated client。
-接口包括：
+接口完整定义只维护在生成的 OpenAPI 契约：`frontend/src/api/generated/openapi.json` 与
+`frontend/src/api/generated/schema.d.ts`；运行时请求策略由 `frontend/src/api/client.ts` 实现。本文只说明前端拥有的
+超时、Blob、sessionStorage、错误映射和特殊交互语义，不再复制易漏项的 endpoint 清单。
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `GET /auth/me`
-- `POST /imports/jd`
-- `GET /imports/jd/{session_id}`
-- `PUT /imports/jd/{session_id}/draft`
-- `POST /imports/jd/{session_id}/confirm`
-- `POST /job-postings`
-- `GET /job-postings/{id}`
-- `POST /decisions`
-- `GET /decisions/{id}`
-- `POST /decisions/{id}/reports`
-- `GET /reports/{id}`
-- `GET /reports`
-- `POST /reports/{id}/job-fit-analysis`
-- `GET /reports/{id}/job-fit-analysis`
-- `POST /knowledge/sources/{id}/index`
-- `POST /knowledge/ask`
-- `POST /agent-runs`
-- `POST /agent-runs/decision-analysis`
-- `GET /agent-runs/{id}`
-- `POST /agent-runs/{run_id}/approvals/{approval_id}/approve`
-- `POST /agent-runs/{run_id}/approvals/{approval_id}/reject`
-- `DELETE /agent-runs/{run_id}/checkpoint`
-- `GET /templates`
-- `GET /templates/{id}/versions/{version}`
-- `POST /resume-variants`
-- `GET /resume-variants`
-- `GET /resume-variants/{id}`
-- `POST /resume-variants/{id}/pdf`
-- `GET /resume-variants/{id}/pdf`
-- `GET /resume-pdfs/{id}`
-- `GET /resume-pdfs/{id}/content`
-- `POST /resume-variants/{id}/message-drafts`
-- `GET /resume-variants/{id}/message-draft`
-- `GET /message-drafts`
-- `GET /message-drafts/{id}`
-- `GET /message-drafts/{id}/versions`
-- `GET /message-drafts/{id}/versions/{version}`
-- `POST /message-drafts/{id}/revisions`
-- `POST /application-records`
-- `GET /application-records`
-- `GET /application-records/{id}`
-- `GET /application-records/{id}/transitions`
-- `POST /application-records/{id}/transitions`
-- `GET /live`
-- `GET /ready`
 
 简历版本、声明式模板、ResumeVariant、确定性 PDF、MessageDraft 与手工 ApplicationRecord 接口均属于 Current。分析、确定性报告、AI JobFitAnalysis、报告内 citation 展示与投/不投决定的后端 API 及浏览器页面也属于 Current。AI 页面将模型推断、建议和未知与确定性规则分区；Provider 失败时只显示局部错误，报告和决定控件继续可用。招聘平台自动投递仍未交付；前端不得根据路线图伪造响应或绕过未交付 API。
 
@@ -170,7 +125,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 
 - M2 分析就绪状态与输入 API；
 - M3 分析、确定性报告、apply/skip 页面；
-- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、手工投递记录和最小面试通知；真实 Beta Environment/Runner 供应和首次公网发布仍为 Planned；
+- M4 公司情报录入/版本/报告固定展示、声明式模板选择、ResumeVariant 内容编排、不可变详情、确定性 PDF 生成/预览/下载、MessageDraft 生成/编辑/复制、手工投递记录和最小面试通知；Beta Environment/Runner 已被真实 workflow 使用，但完整 promote 仍需动态证据；
 - M5 Evidence、检索引用、可选模型增强版本，以及 D-021 可编辑简历/JD AI 导入草稿与一次整体确认；
 - 跨 API 流程使用后端集成测试、前端组件测试和 API smoke 验证。
 
@@ -191,10 +146,10 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | :--- | :--- | :--- |
 | 注册 / 登录 | `/register`、`/login` | Current |
 | 主档建立（基本信息/项目/经历/教育/技能/偏好） | `/profile` | Current |
-| PDF/DOCX 简历生成并确认主档草稿 | `/profile/import` | Planned，M5 / D-021 |
+| `/profile` 内 text-PDF 主档导入 | `/profile` | Current；DOCX、扫描 PDF OCR 和完整 D-021 ImportSession 未实现 |
 | 发布简历版本 | `/resumes`、`/resumes/new` | Current |
 | JD 文本输入与岗位要求确认 | `/jobs/new`、`/jobs/:id/requirements` | Current，M2 |
-| JD 截图/链接预览 | `/jobs/new` 目标入口 | API Current；浏览器入口 Planned |
+| JD 截图/链接预览 | `/jobs/new` | Current |
 | 岗位列表与详情 | `/jobs`、`/jobs/:id` | Current |
 | 手工投递记录与状态确认 | `/applications`、`/applications/new`、`/applications/:id` | Current，M4 |
 | 发起适配分析 | `/analysis/new` | Current，M3 |
@@ -205,8 +160,8 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | 定制简历（选模板与 PDF） | `/templates`、`/resumes/:id/customize`、`/resume-variants/:id` | Current，M4 |
 | 打招呼语草稿 | `/messages/:id` | Current，M4 |
 | 投递与最小面试通知 | `/applications`、`/interviews`、`/interviews/new`、`/interviews/:id` | Current，M4 |
-| Evidence 与 AI 增强版本 | 报告详情内版本视图 | M5 |
-| 深度面试准备、复盘与出行 | 待独立设计 | 触发式候选 |
+| Evidence 与 AI 增强版本 | 报告详情内版本视图 | RAG/JobFit Current；Evidence Pack 仍未交付 |
+| 面试准备与复盘 | `/interviews/:id` | Current；实时出行仍未交付 |
 
 ## 9. 路由表
 
@@ -216,12 +171,11 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 /login                      登录〔Current〕
 /register                   注册〔Current〕
 /                           工作台概览〔Current〕
-/jobs/new                   文本岗位输入〔Current〕；截图/链接预览入口〔Planned〕
+/jobs/new                   文本、截图和受控链接岗位输入〔Current〕
 /jobs                       岗位列表〔Current〕
 /jobs/:id                   岗位详情〔Current〕
 /jobs/:id/requirements      岗位要求确认与版本历史〔Current〕
 /profile                    主档编辑〔Current〕
-/profile/import             PDF/DOCX 简历 AI 草稿与整体确认〔Planned，M5 / D-021〕
 /resumes                    简历版本列表〔Current〕
 /resumes/new                发布新版本〔Current〕
 /resumes/:id                简历版本详情〔Current〕
@@ -270,16 +224,12 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 - API：`POST /resumes`、`GET /resumes`、`GET /resumes/{id}`（Current）。
 - 状态：`resumeStore`；发布成功进入详情，显示版本号与发布时间。
 
-### 10.3A 简历导入 `/profile/import`（Planned，M5 / D-021）
+### 10.3A `/profile` 内的 text-PDF 主档导入（Current）
 
-- 输入：只接受 PDF/DOCX；展示文件类型、大小、页数、来源和上传/解析/OCR/AI 进度。老式 DOC、加密/损坏/超限文件显示稳定错误，
-  不自动上传在线转换服务。
-- 流程：创建 ImportSession → 提取文本或扫描 PDF OCR → AI 生成结构化 `ImportDraft` → 分区表单展示基本信息、教育、经历、
-  技能和简历项目。GitHub/GitLab 地址作为普通可编辑文本，不触发项目读取。
-- 编辑：任意字段均可修改，保存携带 `base_version`；发生版本冲突时刷新最新草稿并保留明确提示，不静默覆盖。
-- 确认：页面底部只提供一次“确认导入”，请求绑定最新 `base_version + content_fingerprint`；确认成功创建新的
-  CandidateProfile 版本并进入 `/profile`，不逐字段弹出确认开关，不自动发布 ResumeVersion。
-- 恢复与失败：刷新后按 Session ID 恢复步骤和 Draft；解析、OCR、模型或校验失败可在安全边界内重试，失败不改写现有主档。
+- 输入：`ProfileView` 接受有文本层 PDF；无文本层时提示用户转换为可搜索 PDF。当前不支持 DOCX 或扫描 PDF OCR。
+- 流程：`api.importProfilePdf` 调用 `POST /profile/import-pdf`，本地提取文本后由 `ProfileImportAgent` 和 `ModelPort` 生成可编辑候选。
+- 确认：用户在同一 `/profile` 页面检查字段并一次整体确认；非空候选写入新的 `CandidateProfile` 版本，不自动发布 `ResumeVersion`。
+- 边界：当前不是持久化 `Profile ImportSession/ImportDraft` 状态机，也没有独立 `/profile/import` 页面；完整 D-021 的 DOCX、OCR、持久化导入图仍是目标架构。
 
 ### 10.4 岗位输入与要求确认（M2）
 
@@ -314,7 +264,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
   - **公司情报**（Current，M4）：固定 CompanyAssessment/CompanySnapshot 精确版本，展示来源摘要、规模、行业、字段状态、来源层级、许可、哈希与时效；缺失保持 unknown，匿名来源明确为非事实；
   - **未知项（Unknown）**：规则缺输入项；
   - **建议（Recommendation）**：确定性下一步；
-  - 明确"确定性规则"标识；M5 前显示"AI 增强未启用"。
+  - 明确"确定性规则"与 JobFitAnalysis AI 分区；Provider 失败时保留确定性报告与决定控件。
 - 幂等：重复"生成报告"返回既有报告，版本不变。
 - API：`POST /decisions/{id}/reports`、`GET /reports/{id}`、`GET /reports`（Current）。列表从第 1 页开始，默认每页 20 条、最多 100 条，按生成时间倒序，空集合返回空 `items` 与 `total = 0`。
 - 组件：`ReportContent`、`RuleStatusBadge`，统一呈现报告分区、规则状态与字段级引用。
@@ -418,7 +368,7 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | `AuthForm` | 注册/登录表单 | Current |
 | `JobForm` | JD 文本输入 | Current |
 | `JobCreateView` 输入模式与草稿编辑区 | JD 文本、截图、受控链接提取、AI 候选编辑和一次整体确认 | Current，#254 |
-| `ImportProgress` / `ImportDraftEditor` / `ImportConfirmBar` | D-021 PDF/DOCX 简历导入的提取进度、字段编辑与一次整体确认 | Planned，M5 |
+| （无独立简历导入组件） | text-PDF 导入内嵌 `ProfileView`；完整 D-021 ImportSession 组件尚未实现 | — |
 | `RequirementEditor` / `ConfirmationBadge` | 岗位要求确认与版本历史（`JobRequirementsView`） | Current |
 | `ProfileForm` / `FieldGroup` | 主档分区与字段确认状态 | Current |
 | `ResumeVersionCard` | 简历版本卡片 | Current |
@@ -439,8 +389,8 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | Current 基线 | Vue 工程、认证、岗位文本、主档、简历、岗位要求确认页面、前端 CI |
 | M2 | 分析就绪状态、输入 API；截图 OCR/链接预览经后端接口返回正文预览 |
 | M3 | 分析创建、报告详情/历史、DecisionBar 和刷新恢复 |
-| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录和最小面试通知；真实 Beta 供应/首次发布 Planned |
-| M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示；JD AI 草稿、冲突恢复与一次整体确认已进入 Current；PDF/DOCX 简历导入仍 Planned |
+| M4 | 公司情报页面、模板、ResumeVariant、确定性 PDF、MessageDraft、手工投递记录和最小面试通知；Beta Environment/Runner 已被真实 workflow 使用，但完整 promote 仍需动态证据 |
+| M5 | Evidence 引用、检索状态、确定性/增强报告版本和降级展示；JD AI 草稿、冲突恢复与一次整体确认已进入 Current；`/profile` text-PDF 导入已 Current，DOCX/OCR/完整 D-021 ImportSession 仍未实现 |
 
 ## 15. 技术选型（Current 基线）
 

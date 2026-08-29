@@ -48,8 +48,8 @@ Nora 将这些输入组织为版本化的 **Decision Report**。报告必须说�
 2. Nora 建立岗位、公司、简历和来源 Evidence 的版本化快照，并把 JD 技能项映射到简历技术栈。
 3. 规则先形成可重复的分析基础；在 Evidence Pack 尚未交付前，AI JobFitAnalysis 只基于 DecisionCase 固定输入和字段级引用增强语义判断。
 4. 用户查看包含“事实、规则结果、模型推断、建议、未知项”的 Decision Report，决定是否投递以及如何准备技术面试。
-5. 收到面试邀请后，Nora 针对算法题、系统设计题和项目深挖生成准备清单、练习和出行方案。
-6. 面试结束后，用户确认复盘内容；系统更新能力证据和长期记忆候选，供后续决策检索。
+5. 收到面试邀请后，Nora 针对算法题、系统设计题和项目深挖生成版本化准备清单；实时出行仍为后续能力。
+6. 面试结束后，用户确认复盘内容；系统生成可确认的长期记忆候选，供后续决策检索。
 
 自动投递、自动发送招聘消息和无人值守浏览器写操作不属于初版目标。未来任何外部写都必须经过审批、幂等和审计。
 
@@ -59,10 +59,10 @@ Nora 的核心不是把简历全文塞进向量库，而是维护一份由用户
 
 ```text
 CandidateProfile
-  -> OpportunityCase
+  -> DecisionCase
   -> DecisionReport
   -> ApplicationDecision
-      -> skip -> OutcomeRecord -> MemoryCandidate
+      -> skip -> ApplicationDecision history -> MemoryCandidate
       -> apply -> ResumeVariant + MessageDraft
                -> ApplicationRecord
                -> InterviewCase -> InterviewReview
@@ -76,8 +76,8 @@ CandidateProfile
 
 ## 4. 产品能力目录
 
-以下五类角色是稳定的产品能力分类，不承诺“一类角色等于一个 LangGraph 节点、进程或服务”。只有出现真实的分支、
-暂停/恢复和多 Tool 编排需求时，才通过独立 Architecture Issue 评估 Agent Runtime。
+以下五类角色是稳定的产品能力分类，不承诺“一类角色等于一个 LangGraph 节点、进程或服务”。当前已交付的是 API 进程内
+单 Agent/单 Graph Runtime；Multi-Agent、Worker、Queue 等更大执行边界仍按指标通过独立 Architecture Issue 评估。
 
 | 能力角色 | 用户触发 | 目标输出 | 关键输入 |
 | :--- | :--- | :--- | :--- |
@@ -95,7 +95,7 @@ CandidateProfile
 | 面试准备 | 算法题、系统设计题、CS 基础问答、模拟反馈与薄弱点诊断 | 围绕岗位与个人技术栈定向准备 | 技术题库按岗位、公司类型和技术栈检索；诊断必须关联具体题目、用户回答和可解释评分依据 |
 | 面试出行 | 公交/地铁/打车对比、出门时间、天气建议、物品清单 | 降低迟到和遗漏材料风险 | 实时交通天气与历史偏好分开标注来源和时效；过期或不可用时明确降级，不伪造实时结果 |
 | 面试复盘 | 问题记录、回答分析、改进范例、能力证据候选 | 将单次面试转化为后续准备材料 | 保留用户原始记录的版本引用；模型总结先作为候选，经确认后再影响长期画像 |
-| 报告与记忆 | 报告汇总、投递状态、历史复盘检索、简历版本演进和风险提醒 | 获得跨岗位、跨面试的连续决策支持 | 报告引用不可变 Evidence Pack；记忆检索按用户、权限、版本和保留策略过滤 |
+| 报告与记忆 | 报告汇总、投递状态、历史复盘检索、简历版本演进和风险提醒 | 获得跨岗位、跨面试的连续决策支持 | 涉及检索的报告引用不可变 Evidence Pack；记忆检索按用户、权限、版本和保留策略过滤 |
 
 ## 5. Decision Report 契约方向
 
@@ -103,7 +103,7 @@ CandidateProfile
 
 - **事实（Fact）**：来自用户确认数据或可定位来源快照；
 - **规则结果（Rule Result）**：由版本化确定性规则计算；
-- **模型推断（Inference）**：由模型基于 Evidence Pack 生成，不能升级为事实；
+- **模型推断（Inference）**：由模型基于明确、受控的最小输入生成，不能升级为事实；涉及检索的结论必须引用 Retrieval Evidence；
 - **建议（Recommendation）**：说明理由、风险和可选动作；
 - **未知（Unknown）**：证据缺失、冲突、过期或当前不可验证；
 - **引用（Citation）**：定位到来源版本、片段或字段路径。
@@ -124,23 +124,22 @@ CandidateProfile
 
 | 状态 | 含义 | 当前范围 |
 | :--- | :--- | :--- |
-| **Current** | 已实现并有验证证据 | 仓库治理、M0/M1、岗位/主档/简历、结构化岗位要求（JobRequirementSnapshot）、受控链接抓取与截图 OCR 输入、Vue 工作台、JD 输入契约，以及 M2 输入、M3 确定性决策、M5.3 固定输入 AI 人岗语义分析、M5 最小 Source→Chunk→Embedding→exact retrieval→grounded/unknown RAG 链路、合成评测集驱动的 RAG Vector/lexical 基线与受控 Hybrid 离线评测（当前未达到上线门槛）、版本化面试准备、面试复盘与可确认 MemoryCandidate、单 Agent/单 Graph LangGraph 工具编排（含显式 Decision Analysis 入口与真实 JobFit COMPUTE）、M4 投递闭环；公司情报、材料生成、手工投递/面试记录、恢复与隔离已有完整浏览器门禁，M5 Agentic RAG 闭环已由隔离 Compose 浏览器门禁验证，并已交付 localhost-only Host Proxy 接入契约、fail-closed 八阶段 Beta 发布/回滚控制面和结构化 ModelPort 调用边界；JD 与 PDF 主档导入均支持一次整体确认，逐项范围、代码路径和证据只见能力台账 |
-| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | 真实 Beta Environment/Runner 供应与首次公网发布、M5 Evidence/RAG 和其他 AI 增强 |
-| **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | 外部平台写入、深度面试复盘、实时出行、Milvus 和服务拆分 |
+| **Current** | 已实现并有验证证据 | 当前范围、代码路径和证据只见 [`current-capabilities.toml`](current-capabilities.toml)，包括 M4 投递闭环、最小 RAG、离线 Hybrid 评测、JobFit AI、面试准备/复盘记忆和 API 进程内单 Agent/单 Graph Runtime；PDF 主档导入仅为 `/profile` text-PDF 最小切片 |
+| **Planned** | 已进入 Milestone/Issue，但必须经过独立实现与验收 | Evidence Pack、达到准入门槛的 online Hybrid、完整 D-021 Resume Import（DOCX、扫描 OCR、持久化 ImportSession）以及尚无完整动态证据的 Beta promote |
+| **Evolution** | 只有满足触发条件并通过 Architecture Issue 后才可引入 | 外部平台写入、实时出行、Worker/Queue、Multi-Agent/Supervisor、MCP、Milvus 和服务拆分 |
 
 Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 状态以 GitHub Milestone/Issue 为准。逐项交付证据与限制
 只维护在 [`current-capabilities.toml`](current-capabilities.toml)。本文中的产品示例不能替代实现、测试或发布证明。
 
 ## 8. 技术与 Provider 边界
 
-- M5 的初期向量能力候选是 PostgreSQL + pgvector；D-007 已冻结首个 Embedding 为阿里云百炼北京地域的
-  `qwen3.7-text-embedding` dense 1024 维，当前 HTTP Adapter 与 identity 隔离已就绪，但真实质量评测未准入前不切换线上。
+- 当前 Minimal RAG 使用本地 `nora-deterministic` / `sha256-v1` 64 维 Adapter，派生向量存储为 JSONB + exact cosine；D-007 审查的
+  `qwen3.7-text-embedding` dense 1024 维是已实现但未启用的远程目标契约。
 - BGE-M3 是已被 D-007 替代的历史候选；Reranker 只有在固定评测集证明收益后才引入。当前冻结的合成 RAG 评测已完成 Hybrid 指标计算，但未达到上线门槛，暂不引入在线 Hybrid 或 Reranker。
-- 模型通过最小 Provider-neutral `ModelPort` 访问；当前 Chat 唯一固定为 DeepSeek `deepseek-v4-flash`，Embedding 仍按
-  [`ARCHITECTURE.md`](ARCHITECTURE.md) 的 D-007 使用既定契约，后续 Provider、模型或地域替换必须重新经过 Architecture Review。
+- 模型通过最小 Provider-neutral `ModelPort` 访问；当前 Chat 唯一固定为 DeepSeek `deepseek-v4-flash`；Embedding runtime 与远程目标的区分见上文和 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应
   Architecture/Task Issue 验收。
-- 当前 Agent Runtime 仅支持 API 进程内受控 async orchestration adapter 的单 Agent/单 Graph、固定 Tool Registry、Approval 和可清理 Checkpoint；不代表 Worker、队列、多 Agent、Supervisor、MCP 或独立服务已交付。M3 仍使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。
+- 当前 Agent Runtime 支持 API 进程内受控 async orchestration adapter 的单 Agent/单 Graph、固定 Tool Registry、Approval 和可清理 Checkpoint；不代表 Worker、队列、多 Agent、Supervisor、MCP 或独立服务已交付。M3 仍使用确定性规则和版本化报告。
 - Redis/Celery 在 M5 仅按性能和故障隔离指标评估，不拥有业务事实，评估结论可以是不引入。
 
 ## 9. 文档真源

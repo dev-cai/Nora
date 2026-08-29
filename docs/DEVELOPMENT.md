@@ -632,7 +632,7 @@ root operator 脚本不 source env 文件，只通过 preflight 的字段白名�
 #### Beta 自动发布与回滚
 
 `.github/workflows/beta-deploy.yml` 是 D-019 的唯一正常发布控制面，只接受手工 `workflow_dispatch`。`deploy` 操作要求完整
-`main` Commit SHA，重新核对该 Commit 的后端、前端、浏览器、容器、安全与文档 check run 均成功，然后构建并推送
+`main` Commit SHA，重新核对该 Commit 通过 `deploy/release_manifest.py::REQUIRED_CI_CHECKS` 定义的全部 required checks 后构建并推送
 API/Web GHCR digest、生成 SPDX SBOM、发布 GitHub provenance/SBOM attestation，并生成不可变 release manifest。`rollback`
 只接受已记录的健康 release ID 和非空原因。工作流使用 `beta-deployment` 单并发锁；实际部署与回滚 Job 还必须经过受保护
 `beta` Environment，并只运行在 `[self-hosted, linux, x64, nora-beta-deploy]` 专用 Runner 上。
@@ -677,9 +677,9 @@ gh workflow run beta-deploy.yml \
   -f rollback_reason='operator-approved reason'
 ```
 
-截至 2026-08-16，仓库尚未配置真实 `beta` Environment、专用 Runner、provider/region 或主机 Secret，因此上述 workflow 会在
-部署 Job 前保持不可运行/等待，不构成已完成的 Beta 发布证据。不得把单元测试、GitHub-hosted build 或本地 Compose 结果写成真实
-目标环境部署；供应完成后的首次 workflow run、release manifest、主机八阶段记录和真实 HTTPS public smoke 结果才是部署证据。
+beta Environment、专用 Runner 与目标部署配置已被真实 workflow 使用；最近运行通过控制面校验和镜像构建并进入专用 Runner，
+但在主机入口阶段失败，尚无完整 `internal-smoke → public-smoke → promote` 成功证据。不得把单元测试、GitHub-hosted build 或本地
+Compose 结果写成真实目标环境部署；具体 workflow run、release manifest、主机八阶段记录和真实 HTTPS public smoke 结果才是部署证据。
 
 #### 联合备份与隔离恢复
 

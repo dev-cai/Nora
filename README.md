@@ -32,7 +32,7 @@ Nora 将求职中高度分散的信息——岗位 JD、公司公开资料、个
 区别于把简历全文塞进向量库的检索式工具，Nora 的核心是一条由用户确认的证据链：
 
 ```text
-CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
+CandidateProfile → DecisionCase → DecisionReport → ApplicationDecision
 ```
 
 每个结论都可定位到**来源**、**规则**或**模型推断**，而非不可解释的黑盒输出。产品愿景与能力边界见 [`docs/PRODUCT_VISION.md`](docs/PRODUCT_VISION.md)。
@@ -40,7 +40,7 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
 ## 核心设计
 
 - **Evidence First** —— 关键结论必须引用可定位的证据；无证据内容只能保持候选、推断或未知状态。
-- **确定性优先，模型后置增强** —— 规则引擎先行；RAG / LLM 仅在受控 Evidence Pack 上增强表达与推理。
+- **确定性优先，模型后置增强** —— 规则引擎先行；模型消费明确、有界的最小输入，涉及检索的结论必须引用 Retrieval Evidence。
 - **模型输出不可信** —— 所有 LLM / Embedding / Reranker 输出必经 Schema 与策略校验。
 - **业务事实只在 PostgreSQL** —— 缓存、向量索引与 Agent State 均为可重建的派生状态，不能成为第二事实源。
 - **外部写默认关闭** —— 任何外部副作用需审批、幂等与审计。
@@ -53,11 +53,12 @@ CandidateProfile → OpportunityCase → DecisionReport → ApplicationDecision
    [ Vue 3 工作台 :5173 ]
         │  /api 代理
         ▼
-   [ FastAPI API :8000 ]
+   [ FastAPI API :8000 · in-process Agent orchestration ]
         │
         ├──────────────►  PostgreSQL 16   ← 业务事实唯一
         │
         ├──────────────►  私有 MinIO      ← Artifact/Source 原始字节
+        ├──────────────►  DeepSeek       ← optional external ModelPort
         └─ ─ ─ ─ ─ ─ ─►  Redis           ← 条件组件 · 未接入业务路径
 ```
 

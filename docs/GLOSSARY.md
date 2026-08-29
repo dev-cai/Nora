@@ -9,7 +9,7 @@
 ## 项目与角色
 
 ### Nora
-**Navigate · Observe · Review · Agent** 的缩写。一个面向求职决策的可审计多智能体平台。
+**Navigate · Observe · Review · Agent** 的缩写。一个面向求职决策的可审计 Agentic RAG 系统。
 
 ### Agent（智能体）
 由 LangGraph 编排的专业任务执行单元，如投递决策 Agent、面试准备 Agent。Agent **只做编排**，不直接访问 ORM、数据库或外部 SDK，也不拥有业务事实。
@@ -40,7 +40,7 @@ Apps/Adapters → Application → Domain
 Application 层定义的接口抽象，如 `Repository[T]`、`ModelGateway`、`ObjectStorage`。Infrastructure 层通过实现 Port 来接入具体技术。
 
 ### Infrastructure Adapter（基础设施适配器）
-Port 的具体实现，如 `SqlAlchemyRepository`、`S3ObjectStorage`、`CeleryTaskQueue`。可以被替换而不影响内层。
+Port 的具体实现，如 Current 的 `SqlAlchemyRepository`、`S3ObjectStorage`，以及按指标才评估的任务队列 Adapter。可以被替换而不影响内层。
 
 ### Application Core（应用核心）
 Domain + Application + Port 的统称。不依赖任何外部框架、数据库驱动或 SDK。
@@ -68,15 +68,15 @@ Nora 包含 8 个 Context：
 ## 进程与运行时
 
 ### API Process
-Nora 的 HTTP 服务进程。负责认证、输入校验、Use Case 编排和稳定错误映射。不执行长时间模型调用或浏览器动作。
+Nora 的 HTTP 服务进程。负责认证、输入校验、Use Case 编排和稳定错误映射；当前也在受控请求边界内执行 Model 调用和单 Agent/单 Graph orchestration，不执行浏览器动作。
 
 ### Worker Process
 按指标选择性引入的异步任务执行进程。负责确有长耗时、重试或故障隔离需求的任务；候选实现通过 Celery 接收任务消息，
 不拥有业务事实。
 
 ### Agent Runtime
-满足稳定 Use Case、多 Tool、条件分支和暂停/恢复需求后才评估的编排环境。候选实现可用 LangGraph 管理运行图和
-Checkpoint，但不拥有业务事实，也不是 M2-M5 的默认组件。
+当前由 LangGraph 在 API 进程内实现的单 Agent/单 Graph 编排环境，使用固定 typed Tool Registry、Run/ToolCall/Approval/Checkpoint，
+但不拥有业务事实。Worker、Queue、Multi-Agent、Supervisor、MCP 和独立 Agent Service 仍未实现。
 
 ### Browser/Connector Runtime（延后引入）
 独立受限进程，负责浏览器自动化或外部连接器。只读采集与外部写动作分离；遇到验证码或不确定状态立即转人工。
@@ -96,8 +96,8 @@ Provider 无关的模型访问概念。在 Nora 中由最小 `ModelPort` 与受�
 对 Source Snapshot 进行解析和分片后得到的版本化文本片段。每个 Chunk 引用其来源的 Artifact 版本。
 
 ### Embedding
-将 Chunk 转化为向量表示的过程。D-007 已冻结首个模型为阿里云百炼北京地域的 `qwen3.7-text-embedding` dense 1024 维；
-持久化 Schema 和索引仍须由独立实现 Issue 验证。
+将 Chunk 转化为向量表示的过程。当前 Minimal RAG 使用 `nora-deterministic` / `sha256-v1` 64 维 Adapter 与 JSONB exact cosine；
+D-007 审查的 `qwen3.7-text-embedding` dense 1024 维是已实现但未启用的远程目标契约。
 
 ### pgvector
 PostgreSQL 的向量检索扩展。M5 计划在 Embedding 契约确定后评估并启用，是可重建的派生索引存储。
@@ -109,7 +109,7 @@ PostgreSQL 的向量检索扩展。M5 计划在 Embedding 契约确定后评估�
 对检索结果进行精排的模型。接收 Hybrid Retrieve 的候选列表，重新计算相关性分数，提升顶部结果质量。
 
 ### Evidence Pack（证据包）
-不可变的检索结果包。包含检索到的 Chunk、来源版本、生成器版本、检索参数。模型只能基于 Evidence Pack 中的内容作答，不得包装外部知识作为来源事实。
+按需构造的不可变检索结果包，包含检索到的 Chunk、来源版本、生成器版本和检索参数。固定业务分析可使用版本化、有界输入；涉及检索的结论必须引用 Retrieval Evidence，模型不得包装外部知识作为来源事实。
 
 ### Evidence（证据）
 Evidence Pack 中的最小单元，包含：
@@ -126,7 +126,7 @@ Evidence Pack 中的最小单元，包含：
 Opportunity Intelligence Context 按用户归属保存的不可变公司情报版本。包含规模、行业、来源、获取/发布时间、许可或录入方式、内容哈希和字段级确认/冲突/时效状态；新版本追加，不覆盖历史。
 
 ### CompanyAssessment（公司评估附件）
-Decision & Reporting Context 的可选版本化报告附件，精确引用一个 `DecisionCase` 版本和一个 `CompanySnapshot` 版本。它不改变 M3 `DecisionCase` 输入指纹或既有 `DecisionReport` 内容；历史报告不读取最新公司快照。
+Decision & Reporting Context 的可选版本化报告附件，精确引用一个不可变 `DecisionCase` ID 和一个 `CompanySnapshot` 版本。它不改变 M3 `DecisionCase` 输入指纹或既有 `DecisionReport` 内容；历史报告不读取最新公司快照。
 
 ---
 
@@ -199,7 +199,7 @@ GitHub 的代码所有者机制。Nora 的 CODEOWNERS 指向 `@dev-cai`，所有
 | **MinIO / S3** | 对象存储，用于保存原始简历、附件等不可变文件（开发可用文件系统替代） |
 | **pgvector** | PostgreSQL 向量检索扩展，M5 在 Embedding 契约确定后计划启用的派生索引方案 |
 | **Milvus / Zilliz** | 专用向量数据库，作为 pgvector 的演进选项（达到触发条件后评估） |
-| **LangGraph** | LLM Agent 编排框架；仅在 Agent Runtime 触发条件成立后评估 |
+| **LangGraph** | 当前用于 API 进程内单 Agent/单 Graph Runtime 和 JD 导入固定 Graph 的编排框架 |
 | **BGE-M3** | 已被 D-007 替代的历史嵌入候选；不属于当前首个 Provider 选择 |
 | **pytest** | Python 测试框架 |
 | **ruff** | Python 代码检查和格式化工具 |
