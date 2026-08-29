@@ -69,7 +69,7 @@ class StructuredJobFitAnalysis(BaseModel):
 
 
 class GroundedAnswer(BaseModel):
-    """Strict answer contract whose citations can only point to retrieved ordinals."""
+    """Strict answer contract whose citations point to request-local evidence indexes."""
 
     model_config = ConfigDict(extra="forbid")
 

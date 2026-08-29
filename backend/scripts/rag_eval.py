@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import re
 import sys
 import time
 from collections import Counter
@@ -17,9 +16,17 @@ ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = ROOT / "backend"
 sys.path.insert(0, str(BACKEND_ROOT))
 
+from app.application.knowledge.retrieval import (  # noqa: E402
+    RRF_CONSTANT,
+    UNKNOWN_SCORE_THRESHOLD,
+    eligible,
+    lexical_score,
+    reciprocal_rank_fusion,
+    tokenize,
+)
+
 FIXTURE = ROOT / "backend" / "tests" / "fixtures" / "rag_eval_v1.json"
 DEFAULT_OUTPUT = ROOT / "backend" / "tests" / "fixtures" / "rag_eval_v1.results.json"
-TOKEN = re.compile(r"[A-Za-z0-9_]+|[\u3400-\u9fff]+")
 
 
 def load_fixture(path: Path = FIXTURE) -> dict[str, Any]:
@@ -28,7 +35,7 @@ def load_fixture(path: Path = FIXTURE) -> dict[str, Any]:
 
 
 def _tokens(value: str) -> Counter[str]:
-    return Counter(token.lower() for token in TOKEN.findall(value))
+    return tokenize(value)
 
 
 def _cosine(left: tuple[float, ...], right: tuple[float, ...]) -> float:
@@ -41,29 +48,22 @@ def _cosine(left: tuple[float, ...], right: tuple[float, ...]) -> float:
 
 
 def _lexical(query: Counter[str], text: Counter[str]) -> float:
-    if not query or not text:
-        return 0.0
-    overlap = sum(min(query[token], text[token]) for token in query.keys() & text.keys())
-    return overlap / sum(query.values())
+    return lexical_score(query, text)
 
 
 def _rrf(
     vector_ranked: list[tuple[dict[str, Any], float]],
     lexical_ranked: list[tuple[dict[str, Any], float]],
     *,
-    constant: int = 60,
+    constant: int = RRF_CONSTANT,
 ) -> list[tuple[dict[str, Any], float]]:
-    """Fuse two deterministic rankings for the offline Hybrid decision only."""
-    scores: dict[str, float] = {}
-    items: dict[str, dict[str, Any]] = {}
-    for ranked in (vector_ranked, lexical_ranked):
-        for rank, (item, _score) in enumerate(ranked, start=1):
-            items[item["id"]] = item
-            scores[item["id"]] = scores.get(item["id"], 0.0) + 1 / (constant + rank)
-    return sorted(
-        ((items[item_id], score) for item_id, score in scores.items()),
-        key=lambda pair: (-pair[1], pair[0]["ordinal"], pair[0]["id"]),
+    """Fuse two deterministic eligible rankings for offline evaluation."""
+    vector_ranked = eligible(vector_ranked)
+    lexical_ranked = eligible(lexical_ranked)
+    fused = reciprocal_rank_fusion(
+        (vector_ranked, lexical_ranked), item_key=lambda item: item["id"], constant=constant
     )
+    return sorted(fused, key=lambda pair: (-pair[1], pair[0]["ordinal"], pair[0]["id"]))
 
 
 async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
@@ -75,6 +75,8 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
     chunk_tokens = {item["id"]: _tokens(item["text"]) for item in chunks}
     ks = tuple(fixture["parameters"]["ks"])
     threshold = float(fixture["parameters"]["unknown_score_threshold"])
+    if threshold != UNKNOWN_SCORE_THRESHOLD:
+        raise ValueError("fixture threshold must match the controlled retrieval policy")
     rows: list[dict[str, Any]] = []
     for query in fixture["queries"]:
         candidates = [
@@ -105,7 +107,12 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
             key=lambda pair: (-pair[1], pair[0]["ordinal"], pair[0]["id"]),
         )
         lexical_elapsed_us = (time.perf_counter_ns() - started) / 1000
-        hybrid_ranked = _rrf(vector_ranked, lexical_ranked)
+        vector_eligible = eligible(vector_ranked, threshold=threshold)
+        lexical_eligible = eligible(lexical_ranked, threshold=threshold)
+        started = time.perf_counter_ns()
+        hybrid_ranked = _rrf(vector_eligible, lexical_eligible, constant=RRF_CONSTANT)
+        fusion_elapsed_us = (time.perf_counter_ns() - started) / 1000
+        hybrid_elapsed_us = vector_elapsed_us + lexical_elapsed_us + fusion_elapsed_us
         relevant = set(query["relevant_chunk_ids"])
         row: dict[str, Any] = {
             "id": query["id"],
@@ -131,6 +138,7 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
                 ],
             },
             "hybrid": {
+                "latency_us": round(hybrid_elapsed_us, 2),
                 "top": [
                     {"chunk_id": item["id"], "score": round(score, 6)}
                     for item, score in hybrid_ranked[: max(ks)]
@@ -140,7 +148,7 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
         rows.append(row)
 
     metrics: dict[str, Any] = {}
-    for name in ("vector", "lexical"):
+    for name in ("vector", "lexical", "hybrid"):
         method_metrics: dict[str, Any] = {}
         for k in ks:
             hits = []
@@ -149,7 +157,9 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
             for row in rows:
                 relevant = set(row["relevant_chunk_ids"])
                 top = [
-                    item["chunk_id"] for item in row[name]["top"][:k] if item["score"] >= threshold
+                    item["chunk_id"]
+                    for item in row[name]["top"][:k]
+                    if name == "hybrid" or item["score"] >= threshold
                 ]
                 if not relevant:
                     continue
@@ -166,7 +176,13 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
             )
         unknown_rows = [row for row in rows if row["expected_unknown"]]
         false_positives = sum(
-            bool([item for item in row[name]["top"] if item["score"] >= threshold])
+            bool(
+                [
+                    item
+                    for item in row[name]["top"]
+                    if name == "hybrid" or item["score"] >= threshold
+                ]
+            )
             for row in unknown_rows
         )
         method_metrics["unknown_false_positive_rate"] = round(
@@ -176,21 +192,37 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
             sum(row[name]["latency_us"] for row in rows) / len(rows), 2
         )
         method_metrics["cost_usd"] = 0.0
+        method_metrics["cost_assumption"] = (
+            "deterministic local computation; no external provider cost"
+        )
+        method_metrics["failure_cases"] = [
+            row["id"]
+            for row in rows
+            if row["relevant_chunk_ids"]
+            and not set(row["relevant_chunk_ids"])
+            & {
+                item["chunk_id"]
+                for item in row[name]["top"][:5]
+                if name == "hybrid" or item["score"] >= threshold
+            }
+        ]
         metrics[name] = method_metrics
 
     vector = metrics["vector"]
+    hybrid = metrics["hybrid"]
     vector_passes = vector["hit@5"] >= 0.8 and vector["unknown_false_positive_rate"] <= 0.1
+    hybrid_passes = hybrid["hit@5"] >= 0.8 and hybrid["unknown_false_positive_rate"] <= 0.1
     lexical_complement = sum(
         1
         for row in rows
-        if set(item["chunk_id"] for item in row["lexical"]["top"][:5])
+        if set(item["chunk_id"] for item in row["lexical"]["top"][:5] if item["score"] >= threshold)
         & set(row["relevant_chunk_ids"])
-        and not set(item["chunk_id"] for item in row["vector"]["top"][:5])
+        and not set(
+            item["chunk_id"] for item in row["vector"]["top"][:5] if item["score"] >= threshold
+        )
         & set(row["relevant_chunk_ids"])
     )
-    decision = (
-        "Vector-only" if vector_passes else ("Hybrid" if lexical_complement else "Vector-only")
-    )
+    decision = "Vector-only" if vector_passes else "Hybrid"
     return {
         "schema_version": fixture["schema_version"],
         "dataset_version": fixture["dataset_version"],
@@ -203,8 +235,11 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
         "decision": {
             "selected": decision,
             "vector_passes_threshold": vector_passes,
+            "hybrid_passes_threshold": hybrid_passes,
+            "hybrid_admission": "PASS" if hybrid_passes else "FAIL",
+            "online": "not shipped" if not hybrid_passes else "eligible for controlled review",
             "lexical_complementary_positive_queries": lexical_complement,
-            "reranker": "not evaluated; out of scope for #236",
+            "reranker": "not evaluated; out of scope for A-04",
         },
         "failures": [
             {

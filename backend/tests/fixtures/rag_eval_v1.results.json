@@ -31,8 +31,35 @@
       "recall@5": 0.0,
       "citation_precision@5": 0.0,
       "unknown_false_positive_rate": 0.25,
-      "mean_latency_us": 164.01,
-      "cost_usd": 0.0
+      "mean_latency_us": 165.62,
+      "cost_usd": 0.0,
+      "cost_assumption": "deterministic local computation; no external provider cost",
+      "failure_cases": [
+        "q-python",
+        "q-postgres",
+        "q-vue",
+        "q-rag-chain",
+        "q-rag-unknown",
+        "q-owner-filter",
+        "q-artifact-delete",
+        "q-embedding",
+        "q-interview-topics",
+        "q-decision",
+        "q-jobfit",
+        "q-model-failure",
+        "q-security",
+        "q-ci",
+        "q-architecture",
+        "q-version",
+        "q-unknown-suggestion",
+        "q-lifecycle",
+        "q-python-english",
+        "q-rag-english",
+        "q-cost",
+        "q-groundtruth",
+        "q-current-vector",
+        "q-source-version"
+      ]
     },
     "lexical": {
       "hit@1": 0.5417,
@@ -45,15 +72,58 @@
       "recall@5": 0.5625,
       "citation_precision@5": 0.5417,
       "unknown_false_positive_rate": 0.0,
-      "mean_latency_us": 20.46,
-      "cost_usd": 0.0
+      "mean_latency_us": 21.03,
+      "cost_usd": 0.0,
+      "cost_assumption": "deterministic local computation; no external provider cost",
+      "failure_cases": [
+        "q-postgres",
+        "q-rag-unknown",
+        "q-owner-filter",
+        "q-interview-topics",
+        "q-security",
+        "q-version",
+        "q-unknown-suggestion",
+        "q-python-english",
+        "q-rag-english",
+        "q-cost"
+      ]
+    },
+    "hybrid": {
+      "hit@1": 0.5,
+      "recall@1": 0.5,
+      "citation_precision@1": 0.5,
+      "hit@3": 0.5833,
+      "recall@3": 0.5625,
+      "citation_precision@3": 0.5208,
+      "hit@5": 0.5833,
+      "recall@5": 0.5625,
+      "citation_precision@5": 0.5208,
+      "unknown_false_positive_rate": 0.25,
+      "mean_latency_us": 188.8,
+      "cost_usd": 0.0,
+      "cost_assumption": "deterministic local computation; no external provider cost",
+      "failure_cases": [
+        "q-postgres",
+        "q-rag-unknown",
+        "q-owner-filter",
+        "q-interview-topics",
+        "q-security",
+        "q-version",
+        "q-unknown-suggestion",
+        "q-python-english",
+        "q-rag-english",
+        "q-cost"
+      ]
     }
   },
   "decision": {
     "selected": "Hybrid",
     "vector_passes_threshold": false,
+    "hybrid_passes_threshold": false,
+    "hybrid_admission": "FAIL",
+    "online": "not shipped",
     "lexical_complementary_positive_queries": 14,
-    "reranker": "not evaluated; out of scope for #236"
+    "reranker": "not evaluated; out of scope for A-04"
   },
   "failures": [
     {

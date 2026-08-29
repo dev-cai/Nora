@@ -726,11 +726,12 @@ flowchart LR
 - 来源类型、可信级别和许可说明；
 - 生成器、Embedding、Reranker 和检索参数版本。
 
+RAG 回答 Prompt v2 使用本次请求中检索结果的零基局部索引作为 citation key；Source 内的 chunk ordinal 仅用于 Source 自身定位，不能作为跨 Source 的全局引用 ID。重复或越界的局部索引一律降级为 `unknown`。
+
 模型不得把检索结果之外的陈述包装为来源事实。无法定位或证据冲突时，输出必须保持 `unknown`、`inferred`、
 `conflicting` 或 `needs_confirmation` 等显式状态。
 
-M5 评测基线已冻结为合成 `nora-rag-eval-v1`（24 个正向问题、4 个负向问题、24 个 Source/Chunk，含跨用户、删除源和错误版本过滤）。
-在 `nora-deterministic/sha256-v1`、`K=1/3/5` 和 `unknown_score_threshold=0.35` 下，Vector-only 的 Hit@5 为 0，且未知问题误召回率为 0.25；lexical baseline 的 Hit@5 为 0.5833、未知问题误召回率为 0。两者在 14 个正向问题上具有互补命中，因此本基线结论为保留离线/受控的简单 Hybrid 评估输入；不引入在线 Reranker、容量平台或长期结果数据库。失败样例与机器可读结果固定在 `backend/tests/fixtures/rag_eval_v1.results.json`，不得修改 Ground Truth 迎合实现。
+M5 评测基线已冻结为合成 `nora-rag-eval-v1`（24 个正向问题、4 个负向问题、24 个 Source/Chunk，含跨用户、删除源和错误版本过滤）。在 `nora-deterministic/sha256-v1`、`K=1/3/5` 和 `unknown_score_threshold=0.35` 下，Vector-only 的 Hit@5 为 0、未知问题误召回率为 0.25；lexical 的 Hit@5 为 0.5833、未知问题误召回率为 0；按各自 evidence eligibility 后的 Hybrid Hit@5 为 0.5833、未知问题误召回率为 0.25，citation precision@5 为 0.5208。Hybrid 未达到冻结的 Hit@5 ≥ 0.80 且未知问题误召回率 ≤ 0.10 门槛，因此当前不接入线上 KnowledgeRagService；结论为 `DO NOT SHIP`。失败样例、完整三路指标和机器可读结果固定在 `backend/tests/fixtures/rag_eval_v1.results.json`，不得修改 Ground Truth 迎合实现；不引入在线 Reranker、容量平台或长期结果数据库。
 
 ## 11. 多智能体边界
 
