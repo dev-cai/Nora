@@ -38,21 +38,28 @@ code_paths = [
   "backend/alembic/versions/0024_knowledge_chunks.py",
   "backend/tests/unit/test_rag_vertical_slice.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/244"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/244",
+  "https://github.com/dev-cai/Nora/pull/269",
+]
 
 [[capabilities]]
 id = "rag-evaluation-baseline"
 name = "RAG 评测基线与增强决策"
 milestone = "M5"
 status = "current"
-summary = "冻结合成 nora-rag-eval-v1 评测集与 Ground Truth，覆盖 24 个正向问题、4 个跨用户/删除源/错误版本/无依据负向问题；离线比较 deterministic vector exact 与 lexical baseline，记录 Hit@K、Recall@K、引用正确率、未知误召回率、延迟和成本假设。基于 Vector-only 未达阈值且 lexical 在 14 个正向问题互补命中的结果，选择受控 Hybrid 作为后续检索输入，不引入在线 Reranker、容量平台或长期结果数据库。"
+summary = "冻结合成 nora-rag-eval-v1 评测集与 Ground Truth，覆盖 24 个正向问题、4 个跨用户/删除源/错误版本/无依据负向问题；离线统一计算 deterministic vector、lexical 与 evidence eligibility 后 Hybrid 的 Hit@K、Recall@K、引用正确率、未知误召回率、延迟和成本假设。Hybrid Hit@5 为 0.5833、未知问题误召回率为 0.25，未达到 Hit@5 ≥ 0.80 且未知问题误召回率 ≤ 0.10 的冻结门槛，当前 DO NOT SHIP、线上 KnowledgeRagService 保持 vector-only；不引入在线 Reranker、容量平台或长期结果数据库。"
 code_paths = [
+  "backend/app/application/knowledge/retrieval.py",
   "backend/tests/fixtures/rag_eval_v1.json",
   "backend/tests/fixtures/rag_eval_v1.results.json",
   "backend/scripts/rag_eval.py",
   "backend/tests/unit/test_rag_evaluation.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/246"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/246",
+  "https://github.com/dev-cai/Nora/pull/269",
+]
 
 [[capabilities]]
 id = "engineering-baseline"

@@ -11,7 +11,7 @@ from app.domain.knowledge import KnowledgeChunk
 from app.ports.knowledge import ChunkRepository, EmbeddingPort, SourceDocumentRepository
 from app.ports.model import ModelError, ModelPort, ModelRequest
 
-RAG_PROMPT_VERSION = "rag-answer-v1"
+RAG_PROMPT_VERSION = "rag-answer-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,13 +98,15 @@ class KnowledgeRagService:
         evidence = tuple(_evidence(item, score=score) for item, score in ranked)
         if not found or self.model is None:
             return KnowledgeAnswer(normalized, "unknown", "unknown", evidence)
-        context = "\n\n".join(f"[{item.ordinal}] {item.text}" for item in found)
+        context = "\n\n".join(f"[{index}] {item.text}" for index, item in enumerate(found))
         try:
             result = await self.model.generate_structured(
                 ModelRequest(
                     system_prompt=(
                         "Answer only from the supplied evidence. "
-                        "Return unknown when it is insufficient."
+                        "Return unknown when it is insufficient. "
+                        "Cite the zero-based local evidence indexes shown in this request; "
+                        "do not duplicate or invent indexes."
                     ),
                     user_input=f"Question: {normalized}\nEvidence:\n{context}",
                     prompt_version=RAG_PROMPT_VERSION,
@@ -116,17 +118,17 @@ class KnowledgeRagService:
             )
         except ModelError:
             return KnowledgeAnswer(normalized, "unknown", "unknown", evidence)
-        by_ordinal = {item.ordinal: (item, score) for item, score in ranked}
+        by_context_index = {index: (item, score) for index, (item, score) in enumerate(ranked)}
         if (
             result.status != "grounded"
-            or not result.citation_ordinals
-            or len(set(result.citation_ordinals)) != len(result.citation_ordinals)
-            or any(item not in by_ordinal for item in result.citation_ordinals)
+            or not result.citation_indexes
+            or len(set(result.citation_indexes)) != len(result.citation_indexes)
+            or any(item not in by_context_index for item in result.citation_indexes)
         ):
             return KnowledgeAnswer(normalized, "unknown", "unknown", evidence)
         citations = tuple(
-            _evidence(by_ordinal[item][0], score=by_ordinal[item][1])
-            for item in result.citation_ordinals
+            _evidence(by_context_index[item][0], score=by_context_index[item][1])
+            for item in result.citation_indexes
         )
         return KnowledgeAnswer(normalized, result.answer, "grounded", citations)
 

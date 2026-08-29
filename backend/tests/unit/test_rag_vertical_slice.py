@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
+from app.application.knowledge import KnowledgeRagService
 from app.domain.knowledge import (
     Artifact,
     ArtifactKind,
@@ -28,9 +29,32 @@ class _Chunks:
         raise AssertionError("not used")
 
 
-def _source() -> SourceDocument:
+class _RetrievedChunks:
+    def __init__(self, ranked):
+        self.ranked = ranked
+
+    async def search(self, **kwargs):
+        return self.ranked
+
+
+class _GroundedModel:
+    def __init__(self, citation_indexes):
+        self.citation_indexes = citation_indexes
+        self.request = None
+
+    async def generate_structured(self, request, output_type):
+        self.request = request
+        return output_type(
+            answer="来自证据的回答",
+            status="grounded",
+            citation_indexes=self.citation_indexes,
+        )
+
+
+def _source(owner_id=None) -> SourceDocument:
+    owner_id = owner_id or uuid4()
     artifact = Artifact.pending(
-        owner_id=uuid4(),
+        owner_id=owner_id,
         kind=ArtifactKind.SOURCE,
         content_type="text/plain",
         size_bytes=10,
@@ -89,3 +113,70 @@ async def test_empty_retrieval_is_explicit_unknown() -> None:
     assert result.status == "unknown"
     assert result.answer == "unknown"
     assert result.citations == ()
+
+
+@pytest.mark.asyncio
+async def test_citations_use_request_local_indexes_across_sources() -> None:
+    owner_id = uuid4()
+    first_source = _source(owner_id)
+    second_source = _source(owner_id)
+    first = KnowledgeChunk.create(
+        source=first_source,
+        ordinal=0,
+        text="第一来源证据",
+        embedding=(1.0, 0.0),
+        embedding_model="model",
+        embedding_version="v1",
+    )
+    second = KnowledgeChunk.create(
+        source=second_source,
+        ordinal=0,
+        text="第二来源证据",
+        embedding=(0.0, 1.0),
+        embedding_model="model",
+        embedding_version="v1",
+    )
+    model = _GroundedModel([0, 1])
+    service = KnowledgeRagService(
+        artifacts=_ArtifactService(),
+        sources=object(),
+        chunks=_RetrievedChunks([(first, 0.9), (second, 0.8)]),
+        embedding=DeterministicEmbeddingAdapter(),
+        model=model,
+    )
+
+    result = await service.ask(owner_id, "查询证据")
+
+    assert result.status == "grounded"
+    assert [item.chunk_id for item in result.citations] == [first.id, second.id]
+    assert model.request is not None
+    assert "[0] 第一来源证据" in model.request.user_input
+    assert "[1] 第二来源证据" in model.request.user_input
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("citation_indexes", ([0, 0], [2]))
+async def test_invalid_local_citation_indexes_return_unknown(citation_indexes) -> None:
+    owner_id = uuid4()
+    source = _source(owner_id)
+    chunk = KnowledgeChunk.create(
+        source=source,
+        ordinal=0,
+        text="唯一来源证据",
+        embedding=(1.0, 0.0),
+        embedding_model="model",
+        embedding_version="v1",
+    )
+    service = KnowledgeRagService(
+        artifacts=_ArtifactService(),
+        sources=object(),
+        chunks=_RetrievedChunks([(chunk, 0.9)]),
+        embedding=DeterministicEmbeddingAdapter(),
+        model=_GroundedModel(citation_indexes),
+    )
+
+    result = await service.ask(owner_id, "查询证据")
+
+    assert result.status == "unknown"
+    assert result.answer == "unknown"
+    assert [item.chunk_id for item in result.citations] == [chunk.id]
