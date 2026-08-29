@@ -33,7 +33,7 @@ class RuntimeState(TypedDict, total=False):
     pending_tool: str | None
     pending_tool_call_id: str | None
     pending_approval_id: str | None
-    results: list[dict[str, object]]
+    results: list[str]
     next_action: str | None
     stop_reason: str | None
 
@@ -294,7 +294,9 @@ class AgentRuntimeService:
                 "current_index": next_index,
                 "pending_tool_call_id": None,
                 "pending_approval_id": None,
-                "results": [*state.get("results", []), result.model_dump(mode="json")],
+                # Checkpoint state carries references only; the typed output and
+                # human-readable summary remain in the ToolCall audit record.
+                "results": [*state.get("results", []), result.result_ref],
                 "next_action": selected[next_index] if next_index < len(selected) else None,
             }
 

@@ -1,4 +1,4 @@
-"""Run/Approval API; graph nodes execute only in the Agent Runtime adapter."""
+"""Run/Approval API for the API-process Agent Runtime orchestration adapter."""
 
 from datetime import datetime
 from uuid import UUID

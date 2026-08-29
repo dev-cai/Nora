@@ -4,9 +4,9 @@ status = "current-only"
 [[capabilities]]
 id = "agent-runtime-single-graph"
 name = "单 Agent/单 Graph 求职工具编排"
-milestone = "M6"
+milestone = "M5"
 status = "current"
-summary = "已交付 Worker 边界内的单 Agent/单 Graph LangGraph Adapter：固定五个 typed Tool Registry 与确定性目标路由，Run、ToolCall、Approval、Checkpoint 以用户范围 PostgreSQL 记录；WRITE Tool 在业务写入前 interrupt，批准后才进入既有受控 handler，拒绝可终止，Checkpoint 清理不改变 Run 或业务事实。API 只提供 Run/Approval 查询、启动、批准、拒绝、恢复和 Checkpoint 清理入口，不保存 chain-of-thought 或敏感运行时对象。"
+summary = "已交付 API 进程内受控 async orchestration adapter 的单 Agent/单 Graph LangGraph Runtime：固定五个 typed Tool Registry 与仅服务 generic runtime 的确定性目标路由，Run、ToolCall、Approval、Checkpoint 以用户范围 PostgreSQL 记录；READ/COMPUTE 不写业务事实，WRITE Tool 在业务写入前 interrupt，批准后才进入既有受控 handler，拒绝可终止，Checkpoint 清理不改变 Run 或业务事实。当前没有 detached Worker 或队列执行边界；目标路由不是未来 Core Decision Agent 的 Intent/Planning 真源。Agent State 不保存 chain-of-thought、ORM、Session、SDK、密钥、Cookie、完整敏感正文或未版本化外部响应。"
 code_paths = [
   "backend/app/agent_runtime/tools.py",
   "backend/app/agent_runtime/service.py",

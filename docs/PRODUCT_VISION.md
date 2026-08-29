@@ -140,7 +140,7 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
   [`ARCHITECTURE.md`](ARCHITECTURE.md) 的 D-007 使用既定契约，后续 Provider、模型或地域替换必须重新经过 Architecture Review。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应
   Architecture/Task Issue 验收。
-- 当前 Agent Runtime 仅支持 Worker 边界内单 Agent/单 Graph、固定 Tool Registry、Approval 和可清理 Checkpoint；不代表多 Agent、Supervisor、MCP、队列或独立服务已交付。M3 仍使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。
+- 当前 Agent Runtime 仅支持 API 进程内受控 async orchestration adapter 的单 Agent/单 Graph、固定 Tool Registry、Approval 和可清理 Checkpoint；不代表 Worker、队列、多 Agent、Supervisor、MCP 或独立服务已交付。M3 仍使用确定性规则和版本化报告，不依赖 RAG、LLM 或多 Agent。
 - Redis/Celery 在 M5 仅按性能和故障隔离指标评估，不拥有业务事实，评估结论可以是不引入。
 
 ## 9. 文档真源

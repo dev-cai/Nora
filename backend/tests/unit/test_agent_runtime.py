@@ -17,7 +17,9 @@ from app.domain.agent_runtime import (
     AgentRun,
     AgentRunStatus,
     AgentToolCall,
+    AgentToolKind,
 )
+from app.domain.base.exceptions import ApplicationError, ErrorCode
 
 
 class FakeRuntimeRepository:
@@ -108,16 +110,24 @@ def _handlers(repository: FakeRuntimeRepository):
             target_version=1,
         )
 
+    async def compute(value: AgentToolInput) -> AgentToolOutput:
+        return AgentToolOutput(
+            result_ref="compute:1",
+            summary="计算完成",
+            target_type="compute_result",
+            payload={"goal": value.user_goal},
+        )
+
     return {
         "get_opportunity_context": read,
-        "analyze_job_fit": write,
+        "analyze_job_fit": compute,
         "retrieve_knowledge": read,
         "prepare_interview": write,
         "get_application_status": read,
     }
 
 
-def test_goal_router_covers_three_user_journeys() -> None:
+def test_goal_router_is_temporary_generic_runtime_routing() -> None:
     assert select_tools("帮我准备面试") == (
         "get_opportunity_context",
         "retrieve_knowledge",
@@ -137,8 +147,15 @@ def test_registry_rejects_unknown_tool() -> None:
         validate_tool_name(registry, "arbitrary_python")
 
 
+def test_registry_classifies_compute_without_approval() -> None:
+    repository = FakeRuntimeRepository()
+    registry = build_tool_registry(_handlers(repository))
+    assert registry["analyze_job_fit"].kind is AgentToolKind.COMPUTE
+    assert registry["prepare_interview"].kind is AgentToolKind.WRITE
+
+
 @pytest.mark.asyncio
-async def test_write_interrupts_before_business_write_then_resumes_after_approval() -> None:
+async def test_compute_completes_without_business_write_or_approval() -> None:
     repository = FakeRuntimeRepository()
     service = AgentRuntimeService(repository, dict(build_tool_registry(_handlers(repository))))
     owner_id = uuid4()
@@ -148,10 +165,26 @@ async def test_write_interrupts_before_business_write_then_resumes_after_approva
         tool_input=AgentToolInput(user_goal="分析这个岗位是否适合我", interview_case_id=uuid4()),
     )
 
+    assert value.run.status is AgentRunStatus.COMPLETED
+    assert value.approval is None
+    assert repository.business_writes == 0
+
+
+@pytest.mark.asyncio
+async def test_write_interrupts_before_business_write_then_resumes_after_approval() -> None:
+    repository = FakeRuntimeRepository()
+    service = AgentRuntimeService(repository, dict(build_tool_registry(_handlers(repository))))
+    owner_id = uuid4()
+    value = await service.start(
+        owner_id=owner_id,
+        user_goal="帮我准备面试",
+        tool_input=AgentToolInput(user_goal="帮我准备面试", interview_case_id=uuid4()),
+    )
+
     assert value.run.status is AgentRunStatus.WAITING_APPROVAL
     assert value.approval is not None
     assert repository.business_writes == 0
-    assert len(value.tool_calls) == 2
+    assert len(value.tool_calls) == 3
 
     resumed = await service.approve(owner_id=owner_id, approval_id=value.approval.id)
 
@@ -162,14 +195,51 @@ async def test_write_interrupts_before_business_write_then_resumes_after_approva
 
 
 @pytest.mark.asyncio
+async def test_checkpoint_state_keeps_result_references_only() -> None:
+    repository = FakeRuntimeRepository()
+    service = AgentRuntimeService(repository, dict(build_tool_registry(_handlers(repository))))
+    value = await service.start(
+        owner_id=uuid4(),
+        user_goal="查找相关知识",
+        tool_input=AgentToolInput(user_goal="查找相关知识"),
+    )
+
+    checkpoint = await repository.get_latest_checkpoint(value.run.id)
+    assert checkpoint is not None
+    assert all(isinstance(item, str) for item in checkpoint.state["results"])
+    assert all("summary" not in item for item in checkpoint.state["results"])
+
+
+@pytest.mark.asyncio
+async def test_run_and_approval_are_owner_isolated() -> None:
+    repository = FakeRuntimeRepository()
+    service = AgentRuntimeService(repository, dict(build_tool_registry(_handlers(repository))))
+    owner_id = uuid4()
+    other_owner_id = uuid4()
+    value = await service.start(
+        owner_id=owner_id,
+        user_goal="帮我准备面试",
+        tool_input=AgentToolInput(user_goal="帮我准备面试", interview_case_id=uuid4()),
+    )
+
+    with pytest.raises(ApplicationError) as view_error:
+        await service.view(owner_id=other_owner_id, run_id=value.run.id)
+    assert view_error.value.error_code is ErrorCode.ENTITY_NOT_FOUND
+    assert value.approval is not None
+    with pytest.raises(ApplicationError) as approve_error:
+        await service.approve(owner_id=other_owner_id, approval_id=value.approval.id)
+    assert approve_error.value.error_code is ErrorCode.ENTITY_NOT_FOUND
+
+
+@pytest.mark.asyncio
 async def test_reject_ends_run_and_checkpoint_cleanup_keeps_run() -> None:
     repository = FakeRuntimeRepository()
     service = AgentRuntimeService(repository, dict(build_tool_registry(_handlers(repository))))
     owner_id = uuid4()
     value = await service.start(
         owner_id=owner_id,
-        user_goal="分析这个岗位是否适合我",
-        tool_input=AgentToolInput(user_goal="分析这个岗位是否适合我"),
+        user_goal="帮我准备面试",
+        tool_input=AgentToolInput(user_goal="帮我准备面试", interview_case_id=uuid4()),
     )
     assert value.approval is not None
 
