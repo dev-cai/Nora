@@ -1,4 +1,4 @@
-"""Agent Runtime composition root: API only starts/observes/resumes a Worker graph."""
+"""Agent Runtime composition root for the API-process orchestration adapter."""
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -102,8 +102,8 @@ def get_agent_runtime_service(
     async def write_preview(value: AgentToolInput) -> AgentToolOutput:
         return AgentToolOutput(
             result_ref=f"tool-input:{user.id}",
-            summary=("工具已校验 typed 输入；业务写入将在批准后由既有 Application Use Case 执行。"),
-            target_type="application_use_case",
+            summary=("已校验 typed 输入；当前 COMPUTE 占位只返回结果引用，不写入业务事实。"),
+            target_type="compute_result",
             target_id=value.interview_case_id,
             target_version=None,
             payload={

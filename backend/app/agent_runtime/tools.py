@@ -71,7 +71,11 @@ def build_tool_registry(handlers: Mapping[str, AgentToolHandler]) -> Mapping[str
             AgentToolKind.READ,
             "读取用户确认的岗位、决策案例和投递上下文",
         ),
-        ("analyze_job_fit", AgentToolKind.WRITE, "生成版本化人岗匹配分析"),
+        (
+            "analyze_job_fit",
+            AgentToolKind.COMPUTE,
+            "计算人岗匹配分析（当前仅验证 Runtime contract，不接入 JobFit Use Case）",
+        ),
         ("retrieve_knowledge", AgentToolKind.READ, "检索用户范围内的版本化知识证据"),
         ("prepare_interview", AgentToolKind.WRITE, "生成版本化面试准备计划"),
         ("get_application_status", AgentToolKind.READ, "读取投递记录及当前状态"),

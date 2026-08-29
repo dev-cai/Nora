@@ -47,9 +47,9 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-003 | 业务事实源 | PostgreSQL | M0 起 | 领域状态、版本、审批、运行和审计均以 PostgreSQL 为准 |
 | D-004 | 初期向量能力 | PostgreSQL exact cosine（pgvector 兼容演进边界） | M5 | #235 先交付可重建 JSON 向量派生索引和确定性 exact 检索；Embedding 契约先于 pgvector Schema，M2-M4 不依赖向量能力 |
 | D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | 规模触发后评估 | 达到规模或检索隔离触发条件后再引入 |
-| D-006 | Agent 编排 | Worker 内的单 Agent/单 Graph LangGraph Adapter | M5 / #248 | API 只负责 Run/Approval 查询与恢复；Tool 通过固定 typed DTO 调用既有 Use Case；不拥有领域事实；不引入多 Agent、MCP 或独立服务 |
-| D-007 | 模型访问 | 最小 ModelPort + DeepSeek OpenAI-compatible 单 Chat Provider | M6 / #258 | Chat 通过 `DEEPSEEK_CHAT_MODEL` 配置（默认 `deepseek-v4-flash`），Embedding 仍使用 `qwen3.7-text-embedding` 1024 维；M2-M4 无模型也可完成 |
-| D-008 | 异步任务 | Task Queue Port；Celery + Redis 仍为候选 | M5 条件评估 | #248 的 Worker 内 Agent 逻辑不等于引入队列；只有长耗时、重试或故障隔离指标成立后才评估 Celery + Redis；最终结果不保存在 Result Backend |
+| D-006 | Agent 编排 | API 进程内受控 async orchestration adapter，单 Agent/单 Graph LangGraph | M5 / #248 | 当前 Graph 在 API 请求进程内执行；Tool 通过固定 typed DTO 调用既有 Use Case；不拥有领域事实。只有满足明确负载、资源隔离或发布节奏指标后，才重新评估 Worker、队列或独立服务 |
+| D-007 | 模型访问 | 最小 ModelPort + DeepSeek OpenAI-compatible 单 Chat Provider | M5 / #258 | Chat 通过 `DEEPSEEK_CHAT_MODEL` 配置（默认 `deepseek-v4-flash`），Embedding 仍使用 `qwen3.7-text-embedding` 1024 维；M2-M4 无模型也可完成 |
+| D-008 | 异步任务 | Task Queue Port；Celery + Redis 仍为候选 | M5 条件评估 | 当前 API 进程内 Agent Runtime 不等于引入队列；只有长耗时、重试或故障隔离指标成立后才评估 Celery + Redis；最终结果不保存在 Result Backend |
 | D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | Current/M2 延伸 | 既有工作台已交付；新增输入确认由 M2 完成，始终通过公开 HTTP API |
 | D-010 | 对象存储 | Object Storage Port + MinIO/S3 首个真实 Adapter | M4 起 | 开发、集成 CI 与 Beta 统一验证私有 MinIO；Application 不依赖具体 SDK |
 | D-011 | 工程组织 | 前后端分离；后端业务模块优先、模块内分层 | #59 / 后续 Task | `backend/app` 边界 Current；业务模块内聚渐进迁移 |
@@ -491,8 +491,9 @@ flowchart LR
 
 ### Agent Runtime
 
-- #248 固化的第一阶段是 Worker 内的单 Agent、单 Graph LangGraph Adapter；API 不执行 Graph 节点，只提供 Run/Approval
-  查询、批准、拒绝和恢复入口。Worker 是进程边界，不代表本阶段引入 Redis、Celery 或独立部署。
+- 当前 #238 首个纵向切片是 API 进程内受控的 async orchestration adapter。`POST /agent-runs` 通过
+  `AgentRuntimeService.start()` 在请求协程中执行 Graph；同一 Adapter 负责 Run/Approval 查询、批准、拒绝、恢复和
+  Checkpoint 清理。当前没有 detached Worker 或队列执行边界。
 - Graph 只能依赖固定 Tool 注册表和 typed DTO。Tool 分为 `READ`、`COMPUTE`、`WRITE`：前两类只能读取已确认的版本化
   DTO/Evidence 或调用确定性 Use Case，`WRITE` 必须先生成 Approval 快照，再调用既有 Application Use Case。
 - Agent State 只保存 `user_goal`、业务 ID/版本、步骤状态、结果引用、`next_action` 和 `stop_reason`；Run、ToolCall、Approval
@@ -502,9 +503,10 @@ flowchart LR
   事务、幂等和补偿契约，不由 Graph 绕过 Application Policy。
 - 删除 Checkpoint 不删除或回滚业务事实；resume 必须按 owner、对象版本和幂等身份重新加载事实源。只有出现 Agent 负载、资源
   隔离或发布节奏的可复验证据后，才可重新评估队列、独立服务或多 Agent。
-- #238 首个纵向切片已实现固定五个 Tool 的 typed Registry、确定性目标路由、Run/ToolCall/Approval/Checkpoint PostgreSQL
-  事实表和 API 的启动、查询、批准、拒绝、恢复入口。当前 Graph Adapter 使用进程内 Checkpointer，重启恢复以 PostgreSQL
-  Checkpoint 作为状态边界；不把 ORM、Session、SDK、密钥或完整敏感正文放入 Agent State。
+- 当前切片已实现固定五个 Tool 的 typed Registry、仅服务 generic runtime 的确定性目标路由、Run/ToolCall/Approval/Checkpoint
+  PostgreSQL 事实表和 API 的启动、查询、批准、拒绝、恢复入口。目标路由不是未来 Core Decision Agent 的 Intent 或
+  Planning 真源；后者必须由明确的业务入口和 typed intent 驱动。Graph Adapter 使用进程内 Checkpointer，重启恢复以
+  PostgreSQL Checkpoint 作为状态边界；Agent State 只保存 ID、版本、步骤、结果引用、next action 和 stop reason。
 
 ### 文档导入 Agent（D-021 / #252、#254）
 
@@ -761,8 +763,8 @@ flowchart TB
 - Agent 输出是候选 DTO，必须经过 Application Policy 才能持久化或发布。
 - Tool Registry 使用固定注册表和 Pydantic Schema，不接受运行时任意 Python、JavaScript、URL 或选择器。
 - READ、COMPUTE、WRITE Tool 显式分类；WRITE 必须匹配 Approval 中冻结的用户、目标、内容摘要和版本。
-- Graph 只在 Worker 内运行；API 只读取或改变 Run/Approval 状态，不直接执行节点。没有队列、独立 Agent 服务、Supervisor
-  或 MCP Registry 的实现授权。
+- Graph 当前在 API 进程内运行；没有队列、独立 Agent 服务、Supervisor 或 MCP Registry 的实现授权。只有出现可复验证据
+  后，才可通过独立 Architecture Issue 重新评估执行进程边界。
 - 不保存或暴露模型私有 chain-of-thought；只保存可审查的结构化步骤、引用、规则结果和停止原因。
 
 ## 12. 外部写、审批与幂等
