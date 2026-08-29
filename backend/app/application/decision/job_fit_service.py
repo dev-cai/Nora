@@ -24,8 +24,19 @@ from app.domain.decision import (
     JobFitLevel,
 )
 from app.domain.opportunity import CompanySnapshot, JobPosting, JobRequirementSnapshot
-from app.ports.decision import JobFitAnalysisRepository
+from app.ports.career import CandidateProfileRepository, ResumeVersionRepository
+from app.ports.decision import (
+    CompanyAssessmentRepository,
+    DecisionCaseRepository,
+    DecisionReportRepository,
+    JobFitAnalysisRepository,
+)
 from app.ports.model import ModelPort, ModelRequest
+from app.ports.opportunity import (
+    CompanySnapshotRepository,
+    JobPostingRepository,
+    JobRequirementSnapshotRepository,
+)
 
 JOB_FIT_PROVIDER = "deepseek"
 JOB_FIT_MODEL = "deepseek-v4-flash"
@@ -43,6 +54,132 @@ class GenerateJobFitAnalysisCommand:
 class GenerateJobFitAnalysisResult:
     analysis: JobFitAnalysis
     replayed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class GenerateStoredJobFitAnalysisCommand:
+    """Resolve a report's frozen inputs without exposing their individual identities."""
+
+    owner_id: UUID
+    report_id: UUID
+
+
+class GenerateStoredJobFitAnalysisUseCase:
+    """Resolve stored fixed inputs and delegate generation to the focused use case."""
+
+    def __init__(
+        self,
+        reports: DecisionReportRepository,
+        cases: DecisionCaseRepository,
+        profiles: CandidateProfileRepository,
+        resumes: ResumeVersionRepository,
+        postings: JobPostingRepository,
+        requirements: JobRequirementSnapshotRepository,
+        assessments: CompanyAssessmentRepository,
+        snapshots: CompanySnapshotRepository,
+        generator: GenerateJobFitAnalysisUseCase,
+    ) -> None:
+        self.reports = reports
+        self.cases = cases
+        self.profiles = profiles
+        self.resumes = resumes
+        self.postings = postings
+        self.requirements = requirements
+        self.assessments = assessments
+        self.snapshots = snapshots
+        self.generator = generator
+
+    async def execute(
+        self, command: GenerateStoredJobFitAnalysisCommand
+    ) -> GenerateJobFitAnalysisResult:
+        report = await self.reports.get_by_id(command.report_id)
+        if report is None or report.owner_id != command.owner_id:
+            raise ApplicationError(
+                "Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND
+            )
+
+        decision_case = await self.cases.get_by_id(report.decision_case_id)
+        if decision_case is None or decision_case.owner_id != command.owner_id:
+            raise ApplicationError(
+                "Fixed job-fit inputs are unavailable",
+                error_code=ErrorCode.DECISION_INPUT_UNAVAILABLE,
+            )
+
+        profile = await self.profiles.get_version(decision_case.candidate_profile_version)
+        resume = await self.resumes.get_by_identity(
+            decision_case.resume_version_id, decision_case.resume_version
+        )
+        posting = await self.postings.get_by_id(decision_case.job_posting_id)
+        requirements = await self.requirements.get_by_identity(
+            decision_case.job_requirement_snapshot_id,
+            decision_case.job_requirement_snapshot_version,
+        )
+        if profile is None or resume is None or posting is None or requirements is None:
+            raise ApplicationError(
+                "Fixed job-fit inputs are unavailable",
+                error_code=ErrorCode.DECISION_INPUT_UNAVAILABLE,
+            )
+        if (
+            profile.owner_id != command.owner_id
+            or resume.owner_id != command.owner_id
+            or posting.owner_id != command.owner_id
+            or requirements.owner_id != command.owner_id
+            or profile.id != decision_case.candidate_profile_id
+            or profile.version != decision_case.candidate_profile_version
+            or resume.id != decision_case.resume_version_id
+            or resume.version != decision_case.resume_version
+            or posting.id != decision_case.job_posting_id
+            or posting.version != decision_case.job_posting_version
+            or requirements.id != decision_case.job_requirement_snapshot_id
+            or requirements.version != decision_case.job_requirement_snapshot_version
+        ):
+            raise ApplicationError(
+                "Job-fit input versions do not match",
+                error_code=ErrorCode.DECISION_INPUT_CONFLICT,
+            )
+
+        company_snapshot = None
+        company_assessment = await self.assessments.get_for_report(report.id)
+        if company_assessment is not None:
+            if (
+                company_assessment.owner_id != command.owner_id
+                or company_assessment.report_id != report.id
+                or company_assessment.report_version != report.version
+                or company_assessment.decision_case_id != decision_case.id
+            ):
+                raise ApplicationError(
+                    "Fixed company input is unavailable",
+                    error_code=ErrorCode.COMPANY_ASSESSMENT_UNAVAILABLE,
+                )
+            company_snapshot = await self.snapshots.get_by_identity(
+                company_assessment.company_snapshot_id,
+                company_assessment.company_snapshot_version,
+            )
+            if company_snapshot is None:
+                raise ApplicationError(
+                    "Fixed company input is unavailable",
+                    error_code=ErrorCode.COMPANY_ASSESSMENT_UNAVAILABLE,
+                )
+            if (
+                company_snapshot.owner_id != command.owner_id
+                or company_snapshot.id != company_assessment.company_snapshot_id
+                or company_snapshot.version != company_assessment.company_snapshot_version
+            ):
+                raise ApplicationError(
+                    "Fixed company input is unavailable",
+                    error_code=ErrorCode.COMPANY_ASSESSMENT_UNAVAILABLE,
+                )
+
+        return await self.generator.execute(
+            GenerateJobFitAnalysisCommand(owner_id=command.owner_id),
+            decision_case=decision_case,
+            report=report,
+            profile=profile,
+            resume=resume,
+            posting=posting,
+            requirements=requirements,
+            company_snapshot=company_snapshot,
+        )
 
 
 class GenerateJobFitAnalysisUseCase:

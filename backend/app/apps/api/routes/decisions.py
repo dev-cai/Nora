@@ -14,10 +14,10 @@ from app.application.decision import (
     CreateCompanyAssessmentCommand,
     CreateDecisionCaseCommand,
     CreateDecisionCaseUseCase,
-    GenerateJobFitAnalysisCommand,
-    GenerateJobFitAnalysisUseCase,
     GenerateStoredDecisionReportCommand,
     GenerateStoredDecisionReportUseCase,
+    GenerateStoredJobFitAnalysisCommand,
+    GenerateStoredJobFitAnalysisUseCase,
     GetDecisionReportQuery,
     GetDecisionReportUseCase,
     ListDecisionReportsQuery,
@@ -39,8 +39,8 @@ from app.apps.api.dependencies.decision import (
     get_company_assessment_repository,
     get_decision_case_repository,
     get_decision_report_repository,
+    get_generate_stored_job_fit_analysis_use_case,
     get_job_fit_analysis_repository,
-    get_model_port,
 )
 from app.apps.api.dependencies.followup import get_application_decision_repository
 from app.apps.api.dependencies.governance import get_audit_event_repository
@@ -89,7 +89,6 @@ from app.ports.decision import (
 from app.ports.followup import ApplicationDecisionRepository
 from app.ports.governance import AuditEventRepository
 from app.ports.knowledge import ArtifactRepository, SourceDocumentRepository
-from app.ports.model import ModelPort
 from app.ports.opportunity import (
     CompanySnapshotRepository,
     JobPostingRepository,
@@ -639,63 +638,12 @@ async def generate_job_fit_analysis(
     report_id: UUID,
     response: Response,
     user: User = Depends(get_current_user),
-    analysis_repository: JobFitAnalysisRepository = Depends(get_job_fit_analysis_repository),
-    model: ModelPort = Depends(get_model_port),
-    report_repository: DecisionReportRepository = Depends(get_decision_report_repository),
-    case_repository: DecisionCaseRepository = Depends(get_decision_case_repository),
-    profile_repository: CandidateProfileRepository = Depends(get_candidate_profile_repository),
-    resume_repository: ResumeVersionRepository = Depends(get_resume_version_repository),
-    posting_repository: JobPostingRepository = Depends(get_job_posting_repository),
-    requirement_repository: JobRequirementSnapshotRepository = Depends(
-        get_job_requirement_snapshot_repository
+    use_case: GenerateStoredJobFitAnalysisUseCase = Depends(
+        get_generate_stored_job_fit_analysis_use_case
     ),
-    assessment_repository: CompanyAssessmentRepository = Depends(get_company_assessment_repository),
-    snapshot_repository: CompanySnapshotRepository = Depends(get_company_snapshot_repository),
 ) -> JobFitAnalysisResponse:
-    report = await report_repository.get_by_id(report_id)
-    if report is None:
-        raise ApplicationError("Decision report not found", error_code=ErrorCode.ENTITY_NOT_FOUND)
-    decision_case = await case_repository.get_by_id(report.decision_case_id)
-    if decision_case is None:
-        raise ApplicationError(
-            "Fixed job-fit inputs are unavailable",
-            error_code=ErrorCode.DECISION_INPUT_UNAVAILABLE,
-        )
-    profile = await profile_repository.get_version(decision_case.candidate_profile_version)
-    resume = await resume_repository.get_by_identity(
-        decision_case.resume_version_id, decision_case.resume_version
-    )
-    posting = await posting_repository.get_by_id(decision_case.job_posting_id)
-    requirements = await requirement_repository.get_by_identity(
-        decision_case.job_requirement_snapshot_id,
-        decision_case.job_requirement_snapshot_version,
-    )
-    if profile is None or resume is None or posting is None or requirements is None:
-        raise ApplicationError(
-            "Fixed job-fit inputs are unavailable",
-            error_code=ErrorCode.DECISION_INPUT_UNAVAILABLE,
-        )
-    company_snapshot = None
-    company_assessment = await assessment_repository.get_for_report(report.id)
-    if company_assessment is not None:
-        company_snapshot = await snapshot_repository.get_by_identity(
-            company_assessment.company_snapshot_id,
-            company_assessment.company_snapshot_version,
-        )
-        if company_snapshot is None:
-            raise ApplicationError(
-                "Fixed company input is unavailable",
-                error_code=ErrorCode.COMPANY_ASSESSMENT_UNAVAILABLE,
-            )
-    result = await GenerateJobFitAnalysisUseCase(analysis_repository, model).execute(
-        GenerateJobFitAnalysisCommand(owner_id=user.id),
-        decision_case=decision_case,
-        report=report,
-        profile=profile,
-        resume=resume,
-        posting=posting,
-        requirements=requirements,
-        company_snapshot=company_snapshot,
+    result = await use_case.execute(
+        GenerateStoredJobFitAnalysisCommand(owner_id=user.id, report_id=report_id)
     )
     if result.replayed:
         response.status_code = status.HTTP_200_OK
