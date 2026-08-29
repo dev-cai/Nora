@@ -311,7 +311,7 @@ M3 首个规则集版本为 `m3-rules-v1`，只消费 `DecisionCase` 固定引�
 
 ### AI JobFitAnalysis 纵向切片（M5.3）
 
-`JobFitAnalysis` 是 Decision & Reporting 上下文拥有的独立、不可变 AI 增强事实。它只接收 `DecisionCase`、`DecisionReport` 及其精确版本对应的 CandidateProfile、ResumeVersion、JobPosting、JobRequirementSnapshot 和可选 CompanySnapshot；Application 用例在调用模型前验证 owner、对象 ID 和每个版本，模型不得读取“最新”对象或修改任何既有业务事实。
+`JobFitAnalysis` 是 Decision & Reporting 上下文拥有的独立、不可变 AI 增强事实。HTTP 路由只提交 `owner_id` 与 `report_id`，由 `GenerateStoredJobFitAnalysisUseCase` 从报告绑定的 `DecisionCase` 解析并校验 CandidateProfile、ResumeVersion、JobPosting、JobRequirementSnapshot 和可选 CompanyAssessment/CompanySnapshot 的精确 ID/版本，再委托 `GenerateJobFitAnalysisUseCase` 生成；模型不得读取“最新”对象或修改任何既有业务事实。
 
 模型请求使用固定 `job-fit-v1` Prompt、Provider/模型/生成器身份和受限证据目录。证据目录对超长字段使用固定长度预览、原文长度和 SHA-256 摘要，确保请求不会越过 ModelPort 的字符上限且仍可追溯。输出必须通过严格 Pydantic Schema 与 Domain citation policy：每一条推断、建议和 unknown 至少引用一项固定输入；Citation 的 source、object、version、field path 必须属于本次目录；重复、未解析、未使用或越界引用均拒绝发布。
 

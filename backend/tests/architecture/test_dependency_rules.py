@@ -430,6 +430,7 @@ def test_api_composition_is_split_by_bounded_context_without_legacy_exports() ->
             "get_company_assessment_repository",
             "get_decision_case_repository",
             "get_decision_report_repository",
+            "get_generate_stored_job_fit_analysis_use_case",
             "get_job_fit_analysis_repository",
             "get_jd_import_agent",
             "get_model_port",

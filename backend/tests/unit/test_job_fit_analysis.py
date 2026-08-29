@@ -11,6 +11,8 @@ import pytest
 from app.application.decision import (
     GenerateJobFitAnalysisCommand,
     GenerateJobFitAnalysisUseCase,
+    GenerateStoredJobFitAnalysisCommand,
+    GenerateStoredJobFitAnalysisUseCase,
 )
 from app.domain.base.exceptions import ApplicationError, DomainError, ErrorCode
 from app.domain.career import CandidateProfile, ResumeVersion
@@ -193,6 +195,198 @@ class _Repository:
 
     async def commit(self) -> None:
         self.commits += 1
+
+
+class _StoredRepositories:
+    def __init__(
+        self,
+        case: DecisionCase,
+        report: DecisionReport,
+        profile: CandidateProfile,
+        resume: ResumeVersion,
+        posting: JobPosting,
+        requirements: JobRequirementSnapshot,
+        assessment: object | None = None,
+        snapshot: object | None = None,
+    ) -> None:
+        self.case = case
+        self.report = report
+        self.profile = profile
+        self.resume = resume
+        self.posting = posting
+        self.requirements = requirements
+        self.assessment = assessment
+        self.snapshot = snapshot
+        self.resume_identity: tuple[UUID, int] | None = None
+        self.requirements_identity: tuple[UUID, int] | None = None
+        self.snapshot_identity: tuple[UUID, int] | None = None
+
+    async def get_report(self, report_id: UUID) -> DecisionReport | None:
+        return self.report if report_id == self.report.id else None
+
+    async def get_case(self, case_id: UUID) -> DecisionCase | None:
+        return self.case if case_id == self.case.id else None
+
+    async def get_profile(self, version: int) -> CandidateProfile | None:
+        return self.profile if version == self.profile.version else None
+
+    async def get_resume(self, resume_id: UUID, version: int) -> ResumeVersion | None:
+        self.resume_identity = (resume_id, version)
+        return (
+            self.resume if (resume_id, version) == (self.resume.id, self.resume.version) else None
+        )
+
+    async def get_posting(self, posting_id: UUID) -> JobPosting | None:
+        return self.posting if posting_id == self.posting.id else None
+
+    async def get_requirements(
+        self, snapshot_id: UUID, version: int
+    ) -> JobRequirementSnapshot | None:
+        self.requirements_identity = (snapshot_id, version)
+        return (
+            self.requirements
+            if (snapshot_id, version)
+            == (
+                self.requirements.id,
+                self.requirements.version,
+            )
+            else None
+        )
+
+    async def get_assessment(self, report_id: UUID) -> object | None:
+        return self.assessment if report_id == self.report.id else None
+
+    async def get_snapshot(self, snapshot_id: UUID, version: int) -> object | None:
+        self.snapshot_identity = (snapshot_id, version)
+        if self.snapshot is None:
+            return None
+        return (
+            self.snapshot
+            if (snapshot_id, version)
+            == (
+                self.snapshot.id,
+                self.snapshot.version,
+            )
+            else None
+        )
+
+
+class _StoredGenerator:
+    def __init__(self) -> None:
+        self.arguments: dict[str, object] | None = None
+
+    async def execute(self, command: GenerateJobFitAnalysisCommand, **kwargs: object) -> object:
+        self.arguments = {"command": command, **kwargs}
+        return "generated"
+
+
+def _stored_use_case(
+    repositories: _StoredRepositories, generator: _StoredGenerator
+) -> GenerateStoredJobFitAnalysisUseCase:
+    return GenerateStoredJobFitAnalysisUseCase(
+        reports=SimpleNamespace(get_by_id=repositories.get_report),
+        cases=SimpleNamespace(get_by_id=repositories.get_case),
+        profiles=SimpleNamespace(get_version=repositories.get_profile),
+        resumes=SimpleNamespace(get_by_identity=repositories.get_resume),
+        postings=SimpleNamespace(get_by_id=repositories.get_posting),
+        requirements=SimpleNamespace(get_by_identity=repositories.get_requirements),
+        assessments=SimpleNamespace(get_for_report=repositories.get_assessment),
+        snapshots=SimpleNamespace(get_by_identity=repositories.get_snapshot),
+        generator=generator,
+    )
+
+
+@pytest.mark.asyncio
+async def test_stored_job_fit_resolves_frozen_inputs_and_delegates() -> None:
+    case, report, profile, resume, posting, requirements = _fixture()
+    repositories = _StoredRepositories(case, report, profile, resume, posting, requirements)
+    generator = _StoredGenerator()
+
+    result = await _stored_use_case(repositories, generator).execute(
+        GenerateStoredJobFitAnalysisCommand(owner_id=case.owner_id, report_id=report.id)
+    )
+
+    assert result == "generated"
+    assert repositories.resume_identity == (resume.id, resume.version)
+    assert repositories.requirements_identity == (requirements.id, requirements.version)
+    assert generator.arguments is not None
+    assert generator.arguments["decision_case"] is case
+    assert generator.arguments["profile"] is profile
+    assert generator.arguments["resume"] is resume
+    assert generator.arguments["posting"] is posting
+    assert generator.arguments["requirements"] is requirements
+
+
+@pytest.mark.asyncio
+async def test_stored_job_fit_uses_fixed_company_snapshot_identity() -> None:
+    case, report, profile, resume, posting, requirements = _fixture()
+    snapshot = SimpleNamespace(id=uuid4(), version=3, owner_id=case.owner_id)
+    assessment = SimpleNamespace(
+        owner_id=case.owner_id,
+        report_id=report.id,
+        report_version=report.version,
+        decision_case_id=case.id,
+        company_snapshot_id=snapshot.id,
+        company_snapshot_version=snapshot.version,
+    )
+    repositories = _StoredRepositories(
+        case, report, profile, resume, posting, requirements, assessment, snapshot
+    )
+    generator = _StoredGenerator()
+
+    await _stored_use_case(repositories, generator).execute(
+        GenerateStoredJobFitAnalysisCommand(owner_id=case.owner_id, report_id=report.id)
+    )
+
+    assert repositories.snapshot_identity == (snapshot.id, snapshot.version)
+    assert generator.arguments is not None
+    assert generator.arguments["company_snapshot"] is snapshot
+
+
+@pytest.mark.asyncio
+async def test_stored_job_fit_rejects_missing_fixed_input_without_latest_lookup() -> None:
+    case, report, profile, resume, posting, requirements = _fixture()
+    repositories = _StoredRepositories(case, report, profile, resume, posting, requirements)
+
+    async def missing_requirements(_snapshot_id: UUID, _version: int) -> None:
+        return None
+
+    repositories.get_requirements = missing_requirements  # type: ignore[method-assign]
+    generator = _StoredGenerator()
+    use_case = GenerateStoredJobFitAnalysisUseCase(
+        reports=SimpleNamespace(get_by_id=repositories.get_report),
+        cases=SimpleNamespace(get_by_id=repositories.get_case),
+        profiles=SimpleNamespace(get_version=repositories.get_profile),
+        resumes=SimpleNamespace(get_by_identity=repositories.get_resume),
+        postings=SimpleNamespace(get_by_id=repositories.get_posting),
+        requirements=SimpleNamespace(get_by_identity=repositories.get_requirements),
+        assessments=SimpleNamespace(get_for_report=repositories.get_assessment),
+        snapshots=SimpleNamespace(get_by_identity=repositories.get_snapshot),
+        generator=generator,
+    )
+
+    with pytest.raises(ApplicationError) as exc_info:
+        await use_case.execute(
+            GenerateStoredJobFitAnalysisCommand(owner_id=case.owner_id, report_id=report.id)
+        )
+
+    assert exc_info.value.error_code is ErrorCode.DECISION_INPUT_UNAVAILABLE
+    assert generator.arguments is None
+
+
+@pytest.mark.asyncio
+async def test_stored_job_fit_keeps_report_owner_isolation() -> None:
+    case, report, profile, resume, posting, requirements = _fixture()
+    repositories = _StoredRepositories(case, report, profile, resume, posting, requirements)
+    generator = _StoredGenerator()
+
+    with pytest.raises(ApplicationError) as exc_info:
+        await _stored_use_case(repositories, generator).execute(
+            GenerateStoredJobFitAnalysisCommand(owner_id=uuid4(), report_id=report.id)
+        )
+
+    assert exc_info.value.error_code is ErrorCode.ENTITY_NOT_FOUND
+    assert generator.arguments is None
 
 
 @pytest.mark.asyncio

@@ -21,6 +21,8 @@ from .job_fit_service import (
     GenerateJobFitAnalysisCommand,
     GenerateJobFitAnalysisResult,
     GenerateJobFitAnalysisUseCase,
+    GenerateStoredJobFitAnalysisCommand,
+    GenerateStoredJobFitAnalysisUseCase,
 )
 from .report_service import (
     GenerateDecisionReportCommand,
@@ -52,6 +54,8 @@ __all__ = (
     "GenerateJobFitAnalysisCommand",
     "GenerateJobFitAnalysisResult",
     "GenerateJobFitAnalysisUseCase",
+    "GenerateStoredJobFitAnalysisCommand",
+    "GenerateStoredJobFitAnalysisUseCase",
     "GetDecisionCaseQuery",
     "GetDecisionCaseUseCase",
     "GetDecisionReportQuery",
