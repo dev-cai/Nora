@@ -144,6 +144,7 @@ class AgentToolCall:
     def succeed(
         self, *, result_ref: str, result_summary: str, now: datetime | None = None
     ) -> "AgentToolCall":
+        completion_timestamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         return AgentToolCall(
             self.id,
             self.run_id,
@@ -156,11 +157,12 @@ class AgentToolCall:
             result_ref,
             result_summary,
             None,
-            (now or datetime.now(timezone.utc)).astimezone(timezone.utc),
-            (now or datetime.now(timezone.utc)).astimezone(timezone.utc),
+            self.created_at,
+            completion_timestamp,
         )
 
     def fail(self, *, error_code: str, now: datetime | None = None) -> "AgentToolCall":
+        completion_timestamp = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
         return AgentToolCall(
             self.id,
             self.run_id,
@@ -173,8 +175,8 @@ class AgentToolCall:
             None,
             None,
             error_code,
-            (now or datetime.now(timezone.utc)).astimezone(timezone.utc),
-            (now or datetime.now(timezone.utc)).astimezone(timezone.utc),
+            self.created_at,
+            completion_timestamp,
         )
 
 

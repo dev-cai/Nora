@@ -1,5 +1,6 @@
 """Single-agent graph, fixed Tool Registry and approval boundary tests."""
 
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
@@ -152,6 +153,46 @@ def test_registry_classifies_compute_without_approval() -> None:
     registry = build_tool_registry(_handlers(repository))
     assert registry["analyze_job_fit"].kind is AgentToolKind.COMPUTE
     assert registry["prepare_interview"].kind is AgentToolKind.WRITE
+
+
+def test_tool_call_succeed_preserves_start_timestamp() -> None:
+    created_at = datetime(2026, 8, 30, 9, 0, tzinfo=timezone.utc)
+    completed_at = datetime(2026, 8, 30, 9, 1, tzinfo=timezone.utc)
+    call = AgentToolCall.start(
+        run_id=uuid4(),
+        owner_id=uuid4(),
+        tool_name="analyze_job_fit",
+        kind=AgentToolKind.COMPUTE,
+        input_payload={"report_id": str(uuid4())},
+        now=created_at,
+    )
+
+    succeeded = call.succeed(
+        result_ref="job-fit-analysis:1:v1",
+        result_summary="已生成人岗分析",
+        now=completed_at,
+    )
+
+    assert succeeded.created_at == created_at
+    assert succeeded.completed_at == completed_at
+
+
+def test_tool_call_fail_preserves_start_timestamp() -> None:
+    created_at = datetime(2026, 8, 30, 9, 0, tzinfo=timezone.utc)
+    completed_at = datetime(2026, 8, 30, 9, 2, tzinfo=timezone.utc)
+    call = AgentToolCall.start(
+        run_id=uuid4(),
+        owner_id=uuid4(),
+        tool_name="analyze_job_fit",
+        kind=AgentToolKind.COMPUTE,
+        input_payload={"report_id": str(uuid4())},
+        now=created_at,
+    )
+
+    failed = call.fail(error_code="model_provider_unavailable", now=completed_at)
+
+    assert failed.created_at == created_at
+    assert failed.completed_at == completed_at
 
 
 @pytest.mark.asyncio
