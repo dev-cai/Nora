@@ -160,8 +160,10 @@ Application 连通性探测与显式凭据 smoke，没有新增浏览器 API、�
 | 定制简历（选模板与 PDF） | `/templates`、`/resumes/:id/customize`、`/resume-variants/:id` | Current，M4 |
 | 打招呼语草稿 | `/messages/:id` | Current，M4 |
 | 投递与最小面试通知 | `/applications`、`/interviews`、`/interviews/new`、`/interviews/:id` | Current，M4 |
-| Evidence 与 AI 增强版本 | 报告详情内版本视图 | RAG/JobFit Current；Evidence Pack 仍未交付 |
-| 面试准备与复盘 | `/interviews/:id` | Current；实时出行仍未交付 |
+| JobFitAnalysis 报告内 AI 增强 | `/reports/:id` | Current，M5 |
+| 面试准备与复盘及 RAG citations | `/interviews/:id` | Current，M5；实时出行仍未交付 |
+| 通用知识问答 `/knowledge/ask` | 无独立前端页面 | 后端 API Current；前端无专用路由/页面 |
+| Evidence Pack | — | 未实现 |
 
 ## 9. 路由表
 

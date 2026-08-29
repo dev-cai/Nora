@@ -48,7 +48,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 | D-004 | 初期向量能力 | PostgreSQL exact cosine（pgvector 兼容演进边界） | M5 | #235 先交付可重建 JSON 向量派生索引和确定性 exact 检索；Embedding 契约先于 pgvector Schema，M2-M4 不依赖向量能力 |
 | D-005 | 专用向量能力 | Milvus/Zilliz 演进选项 | 规模触发后评估 | 达到规模或检索隔离触发条件后再引入 |
 | D-006 | Agent 编排 | API 进程内受控 async orchestration adapter，单 Agent/单 Graph LangGraph | M5 / #248 | 当前 Graph 在 API 请求进程内执行；Tool 通过固定 typed DTO 调用既有 Use Case；不拥有领域事实。只有满足明确负载、资源隔离或发布节奏指标后，才重新评估 Worker、队列或独立服务 |
-| D-007 | 模型访问 | 最小 ModelPort + DeepSeek OpenAI-compatible 单 Chat Provider | M5 / #258 | Chat 通过 `DEEPSEEK_CHAT_MODEL` 配置（默认 `deepseek-v4-flash`）；当前 Minimal RAG 使用本地 deterministic 64 维 Adapter，Qwen 1024 维为已审查但未启用的远程目标契约；M2-M4 无模型也可完成 |
+| D-007 | 模型访问 | 最小 ModelPort + DeepSeek OpenAI-compatible 单 Chat Provider | M5 / #258 | Chat 通过 `DEEPSEEK_CHAT_MODEL` 配置（默认 `deepseek-v4-flash`）；当前 Minimal RAG 使用本地 deterministic 64 维 Adapter，Qwen 1024 维远程 Adapter 与真实评测入口已实现但未接入 online KnowledgeRagService，且尚无质量准入；M2-M4 无模型也可完成 |
 | D-008 | 异步任务 | Task Queue Port；Celery + Redis 仍为候选 | M5 条件评估 | 当前 API 进程内 Agent Runtime 不等于引入队列；只有长耗时、重试或故障隔离指标成立后才评估 Celery + Redis；最终结果不保存在 Result Backend |
 | D-009 | Web 客户端 | Vue 3 + Vite 独立前端 | Current/M2 延伸 | 既有工作台已交付；新增输入确认由 M2 完成，始终通过公开 HTTP API |
 | D-010 | 对象存储 | Object Storage Port + MinIO/S3 首个真实 Adapter | M4 起 | 开发、集成 CI 与 Beta 统一验证私有 MinIO；Application 不依赖具体 SDK |
@@ -68,7 +68,7 @@ Nora 是面向求职决策的可审计系统。系统将公司背景、岗位匹
 
 截至 2026-08-30，Chat 模型调用只允许使用 DeepSeek 官方 OpenAI-compatible API。Chat 固定
 `DEEPSEEK_CHAT_MODEL`（默认 `deepseek-v4-flash`），通过 `/v1/chat/completions` 的 JSON mode 返回对象，再由本地 Pydantic Schema 校验；Embedding 固定
-远程目标 `qwen3.7-text-embedding`、dense 输出和 1024 维通过阿里云百炼北京地域 OpenAI-compatible `/embeddings` 端点调用；当前线上 Minimal RAG 不使用该远程 Adapter，而使用本地 deterministic 64 维；Embedding 不得错误使用 Chat 模型；模型别名、地域、维度或 Provider 的任何变化
+已实现的 `qwen3.7-text-embedding` 远程 Adapter、dense 输出和 1024 维通过阿里云百炼北京地域 OpenAI-compatible `/embeddings` 端点调用，显式真实评测入口可启用，但未接入 online KnowledgeRagService；当前线上 Minimal RAG 不使用该远程 Adapter，而使用本地 deterministic 64 维；Embedding 不得错误使用 Chat 模型；模型别名、地域、维度或 Provider 的任何变化
 都必须先通过新的 Architecture Review，不能在实现 Issue 中静默替换。
 
 选择依据与拒绝项：
@@ -515,8 +515,8 @@ flowchart LR
 
 ### 文档导入 Agent（D-021 / #252、#254）
 
-JD 文档导入使用 Import Context 专用的单 Agent、固定 Graph，不进入 #248 的求职目标路由，也不拆成简历 Agent、JD Agent 或
-多 Agent 协作。其目标步骤为：
+文档导入使用 Import Context 专用的单 Agent、固定 Graph，不进入 #248 的求职目标路由，也不拆成简历 Agent、JD Agent 或
+多 Agent 协作。固定步骤为：
 
 ```text
 create_session
@@ -529,7 +529,7 @@ create_session
   -> apply_confirmed_draft
 ```
 
-目标 Tool Registry 只允许以下工具，Graph 不接受模型生成的工具名、任意代码、URL、选择器或运行时动态注册；Profile text-PDF 当前切片未实现这套完整注册表：
+固定 Tool Registry 只允许以下工具，Graph 不接受模型生成的工具名、任意代码、URL、选择器或运行时动态注册：
 
 - `inspect_import_source`：验证 owner、导入类型、MIME/文件签名、大小、页数和来源边界；
 - `extract_document_text`：从受支持的 PDF/DOCX 提取文本，禁止宏执行和外部资源加载；
@@ -538,6 +538,13 @@ create_session
 - `extract_resume_draft` / `extract_jd_draft`：通过 D-007 `ModelPort` 和版本化 Schema 生成候选字段；
 - `validate_import_draft`：执行 owner、Schema、长度、枚举、日期和字段间约束校验；
 - `confirm_import_draft`：验证草稿版本与内容指纹，在 Application 事务中写入确认结果。
+
+D-021 是整个 Document Import Context 的目标架构，覆盖 JD 与 Resume 两个导入目标，不因当前实现切片缩窄。当前实现缺口：
+
+- **JD**：已按目标契约使用持久化 `ImportSession`/`ImportDraft` 固定 Graph 落地；
+- **Profile（Resume）**：目前仅为 `/profile/import-pdf` → `extract_pdf_text` → `ProfileImportAgent` → `ModelPort` → in-memory
+  candidate → `/profile` 一次整体确认的 text-PDF 最小切片；没有 DOCX、扫描 OCR、持久化 Profile ImportSession/ImportDraft
+  和完整 Tool Registry。
 
 当前 JD 切片通过 `POST /imports/jd`、`GET /imports/jd/{session_id}`、草稿 `PUT` 和确认 `POST` 进入真实调用路径。它的
 `ImportSession` 记录 owner、导入种类、来源类型、状态、稳定错误码和当前 Draft 引用；`ImportDraft` 记录独立的
@@ -550,14 +557,15 @@ PostgreSQL 中的候选/编排状态，不拥有 `CandidateProfile`、`JobPostin
 `confirm_import_draft` 的 Approval，不再弹出第二次确认。指纹不匹配、跨 owner、Session 非待确认状态或重复但载荷不同都不得
 写业务事实；同一确认载荷重放返回首次结果。
 
-Profile 路径当前通过 `/profile/import-pdf` 接受有文本层 PDF：`ProfileImportAgent` 使用本地 `extract_pdf_text` 和 `ModelPort`
-生成可编辑候选，用户在 `/profile` 一次整体确认后将非空字段写入新的 `CandidateProfile` 版本，空值保持 unknown；不会自动发布
-`ResumeVersion`。该路径没有持久化 Profile ImportSession/ImportDraft、DOCX 或扫描 PDF OCR。JD 确认在同一事务中创建 `JobPosting` 和首个
-`JobRequirementSnapshot`；任一步失败全部回滚，不留下半成品。模型、OCR 或解析失败不伪造字段，不影响已有 M2-M4 确定性能力。
+Profile 切片中，`ProfileImportAgent` 使用本地 `extract_pdf_text` 和 `ModelPort` 生成可编辑候选，用户在 `/profile` 一次整体确认后
+只把具有非空候选值的字段写入新的 `CandidateProfile` 版本并标记 confirmed，空字符串、空列表、false 或 null 保持 unconfirmed；
+不会自动发布 `ResumeVersion`。该切片没有持久化 Profile ImportSession/ImportDraft、DOCX 或扫描 PDF OCR。JD 确认在同一事务中创建
+`JobPosting` 和首个 `JobRequirementSnapshot`；任一步失败全部回滚，不留下半成品。模型、OCR 或解析失败不伪造字段，不影响已有
+M2-M4 确定性能力。
 
-完整 D-021 Resume Import 目标仍定义 PDF/DOCX、文本提取/OCR、持久化 ImportSession/ImportDraft 和固定 Tool Registry；当前只落地上述
-text-PDF Profile 切片。JD 只支持文本、PNG/JPEG 截图和受控 HTTP(S) 链接。老式 DOC、JD PDF、GitHub/GitLab 项目读取、任意代码执行、
-在线文档转换、自动发布简历和自动投递均不在范围。
+完整 D-021 Resume Import 目标仍定义 PDF/DOCX、文本提取/OCR、持久化 ImportSession/ImportDraft 和固定 Tool Registry，作为统一
+Document Import 目标契约继续有效，不因当前 text-PDF Profile 切片缩窄。JD 只支持文本、PNG/JPEG 截图和受控 HTTP(S) 链接。老式
+DOC、JD PDF、GitHub/GitLab 项目读取、任意代码执行、在线文档转换、自动发布简历和自动投递均不在范围。
 Checkpoint 只保存 Session/Draft/Artifact ID、步骤、版本、hash、结果引用和稳定错误码，不保存简历/JD 正文、Draft JSON、
 Prompt/Response、Secret 或 Token。
 

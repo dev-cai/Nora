@@ -677,8 +677,8 @@ gh workflow run beta-deploy.yml \
   -f rollback_reason='operator-approved reason'
 ```
 
-beta Environment、专用 Runner 与目标部署配置已被真实 workflow 使用；最近运行通过控制面校验和镜像构建并进入专用 Runner，
-但在主机入口阶段失败，尚无完整 `internal-smoke → public-smoke → promote` 成功证据。不得把单元测试、GitHub-hosted build 或本地
+beta Environment、专用 Runner 与目标部署配置路径已被真实 workflow exercise；是否完成某次 Beta 发布，以 GitHub Actions 对应
+run、release manifest 和主机八阶段记录为准，不硬编码最近一次 run 的成败。不得把单元测试、GitHub-hosted build 或本地
 Compose 结果写成真实目标环境部署；具体 workflow run、release manifest、主机八阶段记录和真实 HTTPS public smoke 结果才是部署证据。
 
 #### 联合备份与隔离恢复

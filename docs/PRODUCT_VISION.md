@@ -62,10 +62,11 @@ CandidateProfile
   -> DecisionCase
   -> DecisionReport
   -> ApplicationDecision
-      -> skip -> ApplicationDecision history -> MemoryCandidate
+      -> skip -> ApplicationDecision history
       -> apply -> ResumeVariant + MessageDraft
                -> ApplicationRecord
                -> InterviewCase -> InterviewReview
+               -> MemoryCandidate
 ```
 
 `CandidateProfile` 包含基本信息、项目、经历、教育、技能、求职偏好和确认状态；初版优先维护技术栈、项目经历和 GitHub 等 SWE 求职资产。`ResumeVersion` 是用户确认的简历事实版本，`ResumeVariant` 是针对某个岗位生成的输出版本；二者都不能替代主档。
@@ -133,8 +134,8 @@ Current 状态以默认分支、已合并 PR 和能力台账为证据；Planned 
 
 ## 8. 技术与 Provider 边界
 
-- 当前 Minimal RAG 使用本地 `nora-deterministic` / `sha256-v1` 64 维 Adapter，派生向量存储为 JSONB + exact cosine；D-007 审查的
-  `qwen3.7-text-embedding` dense 1024 维是已实现但未启用的远程目标契约。
+- 当前 Minimal RAG 使用本地 `nora-deterministic` / `sha256-v1` 64 维 Adapter，派生向量存储为 JSONB + exact cosine；`qwen3.7-text-embedding`
+  dense 1024 维远程 Adapter 与显式真实评测入口已实现，但未接入 online KnowledgeRagService，且尚无质量准入。
 - BGE-M3 是已被 D-007 替代的历史候选；Reranker 只有在固定评测集证明收益后才引入。当前冻结的合成 RAG 评测已完成 Hybrid 指标计算，但未达到上线门槛，暂不引入在线 Hybrid 或 Reranker。
 - 模型通过最小 Provider-neutral `ModelPort` 访问；当前 Chat 唯一固定为 DeepSeek `deepseek-v4-flash`；Embedding runtime 与远程目标的区分见上文和 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
 - 地图、天气、企业和公开司法数据只通过受控 Adapter 接入；Provider、许可范围、请求频率、数据保留和失败策略必须由对应

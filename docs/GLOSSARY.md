@@ -97,7 +97,7 @@ Provider 无关的模型访问概念。在 Nora 中由最小 `ModelPort` 与受�
 
 ### Embedding
 将 Chunk 转化为向量表示的过程。当前 Minimal RAG 使用 `nora-deterministic` / `sha256-v1` 64 维 Adapter 与 JSONB exact cosine；
-D-007 审查的 `qwen3.7-text-embedding` dense 1024 维是已实现但未启用的远程目标契约。
+`qwen3.7-text-embedding` dense 1024 维远程 Adapter 与显式真实评测入口已实现，但未接入 online KnowledgeRagService，且尚无质量准入。
 
 ### pgvector
 PostgreSQL 的向量检索扩展。M5 计划在 Embedding 契约确定后评估并启用，是可重建的派生索引存储。

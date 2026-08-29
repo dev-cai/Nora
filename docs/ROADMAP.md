@@ -158,10 +158,11 @@ M5 之后的能力进入触发式候选池；只有满足真实业务、数据�
 - Source、Chunk、Embedding 和索引均可版本化、可重建；
 - 检索先定义固定评测集和指标，不以 Provider 接通作为完成；
 - Evidence Pack 在无 Reranker、无 LLM 时仍成立；
-- 模型只读取版本化事实、规则结果和 Evidence，输出经 Schema 校验且不升级为用户事实；
-- JD 导入模型输出形成 owner 隔离、版本化的 ImportDraft；用户整体确认前不写 JobPosting 或 JobRequirementSnapshot 事实。Profile
-  text-PDF 切片同样只在一次整体确认后写入 CandidateProfile；完整持久化 Resume Import 仍按目标契约定义；
-- Provider 不可用时返回确定性结果，增强版本不覆盖历史；
+- 决策/增强模型消费版本化事实、规则结果和受控 Evidence，输出经 Schema 校验且不升级为用户事实；
+- 导入模型可读取当前 Import Context 中有界、不可信、最小必要的来源正文（如 JD / 简历规范化文本），只形成 owner 隔离、版本化的
+  ImportDraft 或候选，用户整体确认前不写 CandidateProfile、JobPosting 或 JobRequirementSnapshot 事实；
+- 可选模型增强失败或 Provider 不可用时返回确定性结果，增强版本不覆盖历史；Import Provider 不可用时必须 fail safely、不产生部分
+  业务事实，只允许显式定义的手动兜底；
 - 不自动更新主档、执行外部写、并行维护多个向量数据库或强行为叙事引入 Agent Runtime。
 
 ### 退出目标
@@ -169,7 +170,7 @@ M5 之后的能力进入触发式候选池；只有满足真实业务、数据�
 - Source 到 Evidence Pack 的检索链路可执行且引用稳定；
 - 检索具有固定评测集、质量基线、延迟和成本记录；
 - 模型增强具备版本隔离、失败降级和用户/来源过滤；
-- 完整 Resume Import 目标定义 PDF/DOCX、OCR、持久化 ImportSession 与一次整体确认的边界；
+- PDF/DOCX 简历和文本/截图/受控链接 JD 可以生成可编辑草稿，用户以最新版本与内容指纹一次整体确认；
 - 并发编辑产生明确冲突，确认写入具备幂等与原子性证据，解析/OCR/模型失败不会产生部分主档或岗位事实；
 - Embedding 与索引可以重建，部署、备份、安全和数据保留门禁继续成立；
 - Reranker、缓存和 Worker 具有量化引入证据，或形成可审查的不引入结论。

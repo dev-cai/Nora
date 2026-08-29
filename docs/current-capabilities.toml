@@ -20,14 +20,18 @@ code_paths = [
   "backend/alembic/versions/0027_agent_runtime.py",
   "backend/tests/unit/test_agent_runtime.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/268"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/250",
+  "https://github.com/dev-cai/Nora/pull/266",
+  "https://github.com/dev-cai/Nora/pull/268",
+]
 
 [[capabilities]]
 id = "minimal-rag-vertical-slice"
 name = "最小 RAG 纵向链路"
 milestone = "M5"
 status = "current"
-summary = "已交付受用户范围和精确 Source/Artifact 版本约束的 Source → 可重建 Embedding → exact cosine 检索 → grounded/unknown 回答链路；确定性 SHA-256 向量仅保留为测试/基线 fixture，真实 Qwen Embedding Adapter 与 model/version/dimension identity 过滤已就绪但尚未完成质量准入，故线上不切换。派生 Chunk 在源重建时替换，Artifact 删除后立即不可检索，Provider 未配置或输出引用越界时稳定降级为 unknown。"
+summary = "已交付受用户范围和精确 Source/Artifact 版本约束的 Source → 可重建 Embedding → exact cosine 检索 → grounded/unknown 回答链路；当前线上 KnowledgeRagService 仍使用 nora-deterministic / sha256-v1 64 维 Adapter 与 JSONB exact cosine，Qwen 1024 维远程 Adapter、显式真实评测入口和 model/version/dimension identity 隔离已实现，但尚未接入线上检索且没有取得真实质量准入证据，不允许 fallback 冒充成功或切换线上。派生 Chunk 在源重建时替换，Artifact 删除后立即不可检索，Provider 未配置或输出引用越界时稳定降级为 unknown。"
 code_paths = [
   "backend/app/domain/knowledge/artifact.py",
   "backend/app/application/knowledge/rag_service.py",
@@ -190,8 +194,6 @@ evidence = [
   "https://github.com/dev-cai/Nora/pull/259",
   "https://github.com/dev-cai/Nora/pull/262",
   "https://github.com/dev-cai/Nora/pull/263",
-  "https://github.com/dev-cai/Nora/pull/264",
-  "https://github.com/dev-cai/Nora/pull/265",
 ]
 
 [[capabilities]]
@@ -657,7 +659,7 @@ id = "beta-deployment-pipeline"
 name = "Beta 摘要发布与兼容性受限回滚管道"
 milestone = "M4"
 status = "current"
-summary = "提供唯一 GitHub Actions `beta-deploy` 控制面：手工 deploy 固定受保护 main Commit，并重新核对 `release_manifest.py::REQUIRED_CI_CHECKS` 定义的代码质量、容器构建、文档、前端及供应链门禁；由同一次 run 构建 GHCR digest、SBOM、attestation 和迁移绑定 manifest。受保护 beta Environment、单并发锁与专用 self-hosted Runner 已被真实 workflow 使用，主机入口执行 preflight、条件备份、pull、migrate、start、internal/public smoke 和 promote；回滚不执行数据库 downgrade。最近运行已证明控制面、构建和目标 Runner 路径，但主机入口失败，尚无完整 promote 成功证据，不能宣称 Beta 已上线。"
+summary = "提供唯一 GitHub Actions `beta-deploy` 控制面：手工 deploy 固定受保护 main Commit，并重新核对 `release_manifest.py::REQUIRED_CI_CHECKS` 定义的代码质量、容器构建、文档、前端及供应链门禁；由同一次 run 构建 GHCR digest、SBOM、attestation 和迁移绑定 manifest。受保护 beta Environment、单并发锁与专用 self-hosted Runner 路径已被真实 workflow exercise，主机入口执行 preflight、条件备份、pull、migrate、start、internal/public smoke 和 promote；回滚不执行数据库 downgrade。该 capability 不宣称已完成 Beta release；完整发布必须引用某个成功完成 internal/public smoke + promote 的具体动态证据。"
 code_paths = [
   ".github/actionlint.yaml",
   ".github/workflows/beta-deploy.yml",
@@ -695,7 +697,10 @@ code_paths = [
   "backend/tests/unit/test_model_port.py",
   "backend/tests/smoke/test_deepseek_model.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/259"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/242",
+  "https://github.com/dev-cai/Nora/pull/259",
+]
 
 [[capabilities]]
 id = "ai-job-fit-analysis"
