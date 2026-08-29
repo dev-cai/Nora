@@ -80,6 +80,7 @@ flowchart LR
 - `POST /knowledge/sources/{id}/index`
 - `POST /knowledge/ask`
 - `POST /agent-runs`
+- `POST /agent-runs/decision-analysis`
 - `GET /agent-runs/{id}`
 - `POST /agent-runs/{run_id}/approvals/{approval_id}/approve`
 - `POST /agent-runs/{run_id}/approvals/{approval_id}/reject`
@@ -113,7 +114,8 @@ flowchart LR
 最小 RAG API 已进入后端契约：来源索引和知识问答返回 Source/Chunk 定位、检索分数与 grounded/unknown 状态；当前尚无独立 RAG 前端页面，前端不得虚构该能力的导航入口。
 
 Agent Runtime API 已进入后端契约，但当前没有独立浏览器页面或 Pinia Store。调用方只能通过认证 API 查看 Run、Tool 摘要、Approval
-快照和可清理 Checkpoint；前端不得展示 chain-of-thought、注入任意 Tool 名称或绕过 Approval 触发 WRITE Tool。
+快照和可清理 Checkpoint；显式 `/agent-runs/decision-analysis` 入口只接受 `report_id` 并固定执行 JobFit COMPUTE，前端不得展示
+chain-of-thought、注入任意 Tool 名称或绕过 Approval 触发 WRITE Tool。
 
 JD 导入（Current）：`/jobs/new` 的文本、截图和受控链接入口共用 AI 草稿流程。抽取结果先回填正文、职位、公司、地点和五类岗位要求候选；
 用户可修改任意字段，AI 草稿页面只提供一次“确认导入岗位”。提交始终优先请求 AI 自动识别；只有 AI 明确失败且用户已完整填写职位、公司、地点和 JD 正文时，才显示“手动填写兜底”入口。

@@ -7,9 +7,15 @@ from uuid import uuid4
 
 from app.apps.api import create_app
 from app.apps.api.dependencies.decision import get_model_port
+from app.domain.agent_runtime import AgentRunStatus, AgentToolCallStatus
 from app.domain.base.exceptions import ErrorCode
 from app.infrastructure.config import Settings
-from app.infrastructure.database import Base, JobFitAnalysisRecord
+from app.infrastructure.database import (
+    AgentRunRecord,
+    AgentToolCallRecord,
+    Base,
+    JobFitAnalysisRecord,
+)
 from app.ports.model import ModelError, ModelOutputT, ModelRequest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
@@ -266,6 +272,19 @@ def test_job_fit_analysis_api_generation_recovery_isolation_and_fallback(
         assert body["generation_identity"]
         assert model.calls == 1
 
+        agent = client.post(
+            "/agent-runs/decision-analysis",
+            headers=alice,
+            json={"report_id": report_id},
+        )
+        assert agent.status_code == 201
+        agent_body = agent.json()
+        assert agent_body["status"] == AgentRunStatus.COMPLETED.value
+        assert agent_body["approval"] is None
+        assert [item["tool_name"] for item in agent_body["tool_calls"]] == ["analyze_job_fit"]
+        assert agent_body["tool_calls"][0]["status"] == AgentToolCallStatus.SUCCEEDED.value
+        assert agent_body["tool_calls"][0]["result_ref"].startswith("job-fit-analysis:")
+
         replay = client.post(f"/reports/{report_id}/job-fit-analysis", headers=alice)
         assert replay.status_code == 200
         assert replay.json() == body
@@ -293,3 +312,29 @@ def test_job_fit_analysis_api_generation_recovery_isolation_and_fallback(
         assert failed.json()["error_code"] == "model_provider_unavailable"
         assert client.get(f"/reports/{fallback_report['id']}", headers=alice).status_code == 200
         assert _analysis_count(database_url) == 1
+
+        agent_failed = client.post(
+            "/agent-runs/decision-analysis",
+            headers=alice,
+            json={"report_id": fallback_report["id"]},
+        )
+        assert agent_failed.status_code == 503
+
+        async def runtime_failure_state() -> tuple[str, str]:
+            engine = create_async_engine(database_url)
+            factory = async_sessionmaker(engine, expire_on_commit=False)
+            async with factory() as session:
+                run = await session.scalar(
+                    select(AgentRunRecord).order_by(AgentRunRecord.created_at.desc())
+                )
+                call = await session.scalar(
+                    select(AgentToolCallRecord).order_by(AgentToolCallRecord.created_at.desc())
+                )
+            await engine.dispose()
+            assert run is not None
+            assert call is not None
+            return run.status, call.status
+
+        run_status, call_status = asyncio.run(runtime_failure_state())
+        assert run_status == AgentRunStatus.FAILED.value
+        assert call_status == AgentToolCallStatus.FAILED.value

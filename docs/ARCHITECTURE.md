@@ -509,6 +509,9 @@ flowchart LR
   `checkpoint_database_url` 时 LangGraph checkpointer 使用 PostgreSQL，没有该 URL 时才使用 `InMemorySaver` 作为最小/测试
   fallback。PostgreSQL 中的 Agent Run、ToolCall、Approval 和 AgentCheckpoint 事实边界保持不变；Agent State 只保存 ID、版本、
   步骤、结果引用、next action 和 stop reason。
+- Core Decision Agent 使用显式 `POST /agent-runs/decision-analysis` 业务入口，以 `report_id` 固定执行单个
+  `analyze_job_fit` COMPUTE Tool；该 Tool 委托 `GenerateStoredJobFitAnalysisUseCase`，不经过关键词路由、不创建 Approval，
+  结果只以 `job-fit-analysis:{id}:v{version}` 引用返回。通用 `/agent-runs` 入口仍服务其他现有工具路径。
 
 ### 文档导入 Agent（D-021 / #252、#254）
 

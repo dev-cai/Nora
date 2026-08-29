@@ -171,6 +171,78 @@ async def test_compute_completes_without_business_write_or_approval() -> None:
 
 
 @pytest.mark.asyncio
+async def test_decision_entry_uses_explicit_report_anchor_and_fixed_compute_plan() -> None:
+    repository = FakeRuntimeRepository()
+    seen: list[UUID | None] = []
+
+    async def analyze(value: AgentToolInput) -> AgentToolOutput:
+        seen.append(value.report_id)
+        return AgentToolOutput(
+            result_ref="job-fit-analysis:1:v1",
+            summary="已生成人岗分析",
+            target_type="job_fit_analysis",
+            target_id=uuid4(),
+            target_version=1,
+        )
+
+    handlers = _handlers(repository)
+    handlers["analyze_job_fit"] = analyze
+    service = AgentRuntimeService(repository, dict(build_tool_registry(handlers)))
+    report_id = uuid4()
+
+    value = await service.start_decision_analysis(owner_id=uuid4(), report_id=report_id)
+
+    assert value.run.status is AgentRunStatus.COMPLETED
+    assert [item.tool_name for item in value.tool_calls] == ["analyze_job_fit"]
+    assert value.approval is None
+    assert seen == [report_id]
+
+
+@pytest.mark.asyncio
+async def test_compute_failure_records_failed_tool_call_and_run() -> None:
+    repository = FakeRuntimeRepository()
+
+    async def failing_compute(_value: AgentToolInput) -> AgentToolOutput:
+        raise ApplicationError("Model unavailable", error_code=ErrorCode.MODEL_PROVIDER_UNAVAILABLE)
+
+    handlers = _handlers(repository)
+    handlers["analyze_job_fit"] = failing_compute
+    service = AgentRuntimeService(repository, dict(build_tool_registry(handlers)))
+
+    with pytest.raises(ApplicationError) as exc_info:
+        await service.start_decision_analysis(owner_id=uuid4(), report_id=uuid4())
+
+    assert exc_info.value.error_code is ErrorCode.MODEL_PROVIDER_UNAVAILABLE
+    run = next(iter(repository.runs.values()))
+    calls = await repository.list_tool_calls(run.id)
+    assert run.status is AgentRunStatus.FAILED
+    assert len(calls) == 1
+    assert calls[0].status.value == "failed"
+    assert calls[0].error_code == ErrorCode.MODEL_PROVIDER_UNAVAILABLE.value
+
+
+@pytest.mark.asyncio
+async def test_unexpected_compute_failure_records_internal_error_without_exception_text() -> None:
+    repository = FakeRuntimeRepository()
+
+    async def failing_compute(_value: AgentToolInput) -> AgentToolOutput:
+        raise RuntimeError("provider secret response must not be persisted")
+
+    handlers = _handlers(repository)
+    handlers["analyze_job_fit"] = failing_compute
+    service = AgentRuntimeService(repository, dict(build_tool_registry(handlers)))
+
+    with pytest.raises(RuntimeError, match="provider secret"):
+        await service.start_decision_analysis(owner_id=uuid4(), report_id=uuid4())
+
+    run = next(iter(repository.runs.values()))
+    calls = await repository.list_tool_calls(run.id)
+    assert run.status is AgentRunStatus.FAILED
+    assert calls[0].error_code == ErrorCode.INTERNAL_ERROR.value
+    assert "provider secret" not in (run.stop_reason or "")
+
+
+@pytest.mark.asyncio
 async def test_write_interrupts_before_business_write_then_resumes_after_approval() -> None:
     repository = FakeRuntimeRepository()
     service = AgentRuntimeService(repository, dict(build_tool_registry(_handlers(repository))))

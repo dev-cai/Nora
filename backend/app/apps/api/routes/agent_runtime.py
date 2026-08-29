@@ -26,6 +26,12 @@ class StartAgentRunRequest(BaseModel):
     job_posting_id: UUID | None = None
 
 
+class StartDecisionAnalysisRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    report_id: UUID
+
+
 class AgentToolCallResponse(BaseModel):
     id: UUID
     tool_name: str
@@ -150,6 +156,21 @@ async def start_agent_run(
     if value.run.status is AgentRunStatus.WAITING_APPROVAL:
         response.status_code = status.HTTP_202_ACCEPTED
     return AgentRunResponse.from_view(value)
+
+
+@router.post(
+    "/decision-analysis",
+    response_model=AgentRunResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_decision_analysis(
+    payload: StartDecisionAnalysisRequest,
+    user: User = Depends(get_current_user),
+    runtime: AgentRuntimeService = Depends(get_agent_runtime_service),
+) -> AgentRunResponse:
+    return AgentRunResponse.from_view(
+        await runtime.start_decision_analysis(owner_id=user.id, report_id=payload.report_id)
+    )
 
 
 @router.get("/{run_id}", response_model=AgentRunResponse)
