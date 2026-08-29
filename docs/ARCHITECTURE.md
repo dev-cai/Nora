@@ -505,8 +505,10 @@ flowchart LR
   隔离或发布节奏的可复验证据后，才可重新评估队列、独立服务或多 Agent。
 - 当前切片已实现固定五个 Tool 的 typed Registry、仅服务 generic runtime 的确定性目标路由、Run/ToolCall/Approval/Checkpoint
   PostgreSQL 事实表和 API 的启动、查询、批准、拒绝、恢复入口。目标路由不是未来 Core Decision Agent 的 Intent 或
-  Planning 真源；后者必须由明确的业务入口和 typed intent 驱动。Graph Adapter 使用进程内 Checkpointer，重启恢复以
-  PostgreSQL Checkpoint 作为状态边界；Agent State 只保存 ID、版本、步骤、结果引用、next action 和 stop reason。
+  Planning 真源；后者必须由明确的业务入口和 typed intent 驱动。Graph 执行位于 API 进程；正常配置
+  `checkpoint_database_url` 时 LangGraph checkpointer 使用 PostgreSQL，没有该 URL 时才使用 `InMemorySaver` 作为最小/测试
+  fallback。PostgreSQL 中的 Agent Run、ToolCall、Approval 和 AgentCheckpoint 事实边界保持不变；Agent State 只保存 ID、版本、
+  步骤、结果引用、next action 和 stop reason。
 
 ### 文档导入 Agent（D-021 / #252、#254）
 

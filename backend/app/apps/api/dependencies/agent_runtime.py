@@ -99,18 +99,14 @@ def get_agent_runtime_service(
             },
         )
 
-    async def write_preview(value: AgentToolInput) -> AgentToolOutput:
+    async def compute_job_fit_placeholder(value: AgentToolInput) -> AgentToolOutput:
         return AgentToolOutput(
             result_ref=f"tool-input:{user.id}",
             summary=("已校验 typed 输入；当前 COMPUTE 占位只返回结果引用，不写入业务事实。"),
             target_type="compute_result",
-            target_id=value.interview_case_id,
+            target_id=value.job_posting_id,
             target_version=None,
-            payload={
-                "interview_case_id": str(value.interview_case_id)
-                if value.interview_case_id
-                else None
-            },
+            payload={"job_posting_id": str(value.job_posting_id) if value.job_posting_id else None},
         )
 
     async def prepare(value: AgentToolInput) -> AgentToolOutput:
@@ -156,7 +152,7 @@ def get_agent_runtime_service(
 
     handlers = {
         "get_opportunity_context": context,
-        "analyze_job_fit": write_preview,
+        "analyze_job_fit": compute_job_fit_placeholder,
         "retrieve_knowledge": retrieve,
         "prepare_interview": prepare,
         "get_application_status": application_status,
