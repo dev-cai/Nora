@@ -20,7 +20,7 @@ code_paths = [
   "backend/alembic/versions/0027_agent_runtime.py",
   "backend/tests/unit/test_agent_runtime.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/250"]
+evidence = ["https://github.com/dev-cai/Nora/pull/268"]
 
 [[capabilities]]
 id = "minimal-rag-vertical-slice"
