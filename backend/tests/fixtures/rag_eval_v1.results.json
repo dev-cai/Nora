@@ -117,7 +117,7 @@
     }
   },
   "decision": {
-    "selected": "Hybrid",
+    "evaluation_candidate": "Hybrid",
     "vector_passes_threshold": false,
     "hybrid_passes_threshold": false,
     "hybrid_admission": "FAIL",

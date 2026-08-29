@@ -38,8 +38,8 @@ class _RetrievedChunks:
 
 
 class _GroundedModel:
-    def __init__(self, citation_ordinals):
-        self.citation_ordinals = citation_ordinals
+    def __init__(self, citation_indexes):
+        self.citation_indexes = citation_indexes
         self.request = None
 
     async def generate_structured(self, request, output_type):
@@ -47,7 +47,7 @@ class _GroundedModel:
         return output_type(
             answer="来自证据的回答",
             status="grounded",
-            citation_ordinals=self.citation_ordinals,
+            citation_indexes=self.citation_indexes,
         )
 
 
@@ -155,8 +155,8 @@ async def test_citations_use_request_local_indexes_across_sources() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("citation_ordinals", ([0, 0], [2]))
-async def test_invalid_local_citation_indexes_return_unknown(citation_ordinals) -> None:
+@pytest.mark.parametrize("citation_indexes", ([0, 0], [2]))
+async def test_invalid_local_citation_indexes_return_unknown(citation_indexes) -> None:
     owner_id = uuid4()
     source = _source(owner_id)
     chunk = KnowledgeChunk.create(
@@ -172,7 +172,7 @@ async def test_invalid_local_citation_indexes_return_unknown(citation_ordinals) 
         sources=object(),
         chunks=_RetrievedChunks([(chunk, 0.9)]),
         embedding=DeterministicEmbeddingAdapter(),
-        model=_GroundedModel(citation_ordinals),
+        model=_GroundedModel(citation_indexes),
     )
 
     result = await service.ask(owner_id, "查询证据")

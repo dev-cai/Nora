@@ -121,14 +121,14 @@ class KnowledgeRagService:
         by_context_index = {index: (item, score) for index, (item, score) in enumerate(ranked)}
         if (
             result.status != "grounded"
-            or not result.citation_ordinals
-            or len(set(result.citation_ordinals)) != len(result.citation_ordinals)
-            or any(item not in by_context_index for item in result.citation_ordinals)
+            or not result.citation_indexes
+            or len(set(result.citation_indexes)) != len(result.citation_indexes)
+            or any(item not in by_context_index for item in result.citation_indexes)
         ):
             return KnowledgeAnswer(normalized, "unknown", "unknown", evidence)
         citations = tuple(
             _evidence(by_context_index[item][0], score=by_context_index[item][1])
-            for item in result.citation_ordinals
+            for item in result.citation_indexes
         )
         return KnowledgeAnswer(normalized, result.answer, "grounded", citations)
 

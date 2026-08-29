@@ -88,7 +88,7 @@ def test_checked_in_result_snapshot_records_the_baseline_decision() -> None:
     assert result["query_count"] == 28
     assert result["positive_query_count"] == 24
     assert result["negative_query_count"] == 4
-    assert result["decision"]["selected"] == "Hybrid"
+    assert result["decision"]["evaluation_candidate"] == "Hybrid"
     assert result["decision"]["lexical_complementary_positive_queries"] == 14
     assert result["decision"]["hybrid_admission"] == "FAIL"
     assert result["decision"]["reranker"].startswith("not evaluated")

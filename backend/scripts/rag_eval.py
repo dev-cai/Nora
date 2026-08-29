@@ -222,7 +222,9 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
         )
         & set(row["relevant_chunk_ids"])
     )
-    decision = "Vector-only" if vector_passes else "Hybrid"
+    evaluation_candidate = (
+        "Vector-only" if vector_passes else ("Hybrid" if lexical_complement else "none")
+    )
     return {
         "schema_version": fixture["schema_version"],
         "dataset_version": fixture["dataset_version"],
@@ -233,7 +235,7 @@ async def evaluate(fixture: dict[str, Any]) -> dict[str, Any]:
         "negative_query_count": sum(not bool(row["relevant_chunk_ids"]) for row in rows),
         "metrics": metrics,
         "decision": {
-            "selected": decision,
+            "evaluation_candidate": evaluation_candidate,
             "vector_passes_threshold": vector_passes,
             "hybrid_passes_threshold": hybrid_passes,
             "hybrid_admission": "PASS" if hybrid_passes else "FAIL",

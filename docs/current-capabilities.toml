@@ -38,7 +38,10 @@ code_paths = [
   "backend/alembic/versions/0024_knowledge_chunks.py",
   "backend/tests/unit/test_rag_vertical_slice.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/244"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/244",
+  "https://github.com/dev-cai/Nora/pull/269",
+]
 
 [[capabilities]]
 id = "rag-evaluation-baseline"
@@ -53,7 +56,10 @@ code_paths = [
   "backend/scripts/rag_eval.py",
   "backend/tests/unit/test_rag_evaluation.py",
 ]
-evidence = ["https://github.com/dev-cai/Nora/pull/246"]
+evidence = [
+  "https://github.com/dev-cai/Nora/pull/246",
+  "https://github.com/dev-cai/Nora/pull/269",
+]
 
 [[capabilities]]
 id = "engineering-baseline"

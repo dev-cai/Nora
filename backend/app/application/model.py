@@ -75,7 +75,7 @@ class GroundedAnswer(BaseModel):
 
     answer: Annotated[str, Field(min_length=1, max_length=4000)]
     status: Literal["grounded", "unknown"]
-    citation_ordinals: Annotated[list[int], Field(max_length=20)]
+    citation_indexes: Annotated[list[int], Field(max_length=20)]
 
 
 class MemoryCandidateSuggestion(BaseModel):
