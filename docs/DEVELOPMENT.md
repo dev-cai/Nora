@@ -136,6 +136,10 @@ API 容器启动后，Settings 从进程环境读取同名变量；进程环境�
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | DeepSeek Chat Adapter | 固定值，不允许切换 endpoint 或协议；Adapter 请求 `/v1/chat/completions` |
 | `DEEPSEEK_CHAT_MODEL` | `deepseek-v4-flash` | DeepSeek Chat Adapter / JD Import / JobFit 身份 | 进程启动时读取的单一 Chat 模型标识；修改后重新启动，不能按请求动态路由 |
 | `DEEPSEEK_CHAT_TIMEOUT_SECONDS` | `60` | DeepSeek Chat Adapter | 单次调用总墙钟允许 `(0, 60]` 秒；timeout 最多重试一次后返回稳定失败 |
+| `EMBEDDING_API_KEY` | 空 | Qwen Embedding Adapter / 显式动态评测 | 阿里云百炼 Embedding Key；不得提交、记录或传入命令参数，未配置时稳定失败 |
+| `EMBEDDING_API_KEY_FILE` | 空 | Settings 的受控 Embedding Secret 文件入口 | 与直接值互斥；绝对路径、非 symlink、1-16384 bytes 且 group 不可写、others 不可访问 |
+| `EMBEDDING_WORKSPACE_ID` | 空 | Qwen Embedding Adapter | 北京地域业务空间 ID；固定拼接官方 compatible embeddings endpoint |
+| `EMBEDDING_TIMEOUT_SECONDS` | `60` | Qwen Embedding Adapter | 单次调用总墙钟允许 `(0, 60]` 秒；timeout 最多重试一次后返回稳定失败 |
 | `POSTGRES_USER` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 生产环境不得沿用公开示例凭据 |
 | `POSTGRES_PASSWORD` | `change-me-local` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 仅限本地示例；真实值不得提交或输出到日志 |
 | `POSTGRES_DB` | `nora` | Compose 配置 `db`，并参与派生 API 的 `DATABASE_URL` | 数据库名称，不是宿主地址 |
@@ -510,6 +514,20 @@ DEEPSEEK_API_KEY_FILE=/absolute/path/to/deepseek-api-key \
 未设置 `NORA_RUN_DEEPSEEK_SMOKE=1` 时该测试报告 skipped；设置开关但缺少 Key 时明确失败。Smoke 使用固定
 `deepseek-v4-flash`、JSON mode 和本地 Pydantic Schema 校验及无敏感探测内容，不写数据库或其他业务事实。不要把真实 Key 放入 `.env`、命令参数、测试输出或
 仓库；费用预警/额度必须先在 DeepSeek 控制台配置。
+
+### Qwen Embedding RAG 动态评测
+
+普通 CI 只运行 deterministic 基线与 MockTransport 契约测试。真实评测必须在受控 shell 提供独立的
+`EMBEDDING_API_KEY`（或 `EMBEDDING_API_KEY_FILE`）及北京地域 `EMBEDDING_WORKSPACE_ID`，然后执行：
+
+```bash
+backend/.venv/bin/python backend/scripts/rag_eval.py \
+  --embedding-provider real \
+  --output /tmp/rag_eval_v1.qwen.results.json
+```
+
+缺少任一凭据时输出 `not run`，不得将 deterministic 结果冒充真实质量证据。评测输出记录 Provider/model/version/dimension、
+vector 与冻结 RRF Hybrid 指标、延迟和估算成本；真实评测未达到冻结门槛前，线上不得切换 Embedding。
 
 集成测试只连接 `docker-compose.dev.yml` 的 `test` profile 中的隔离 PostgreSQL。`test-db` 使用 tmpfs，不复用开发数据库或命名卷：
 

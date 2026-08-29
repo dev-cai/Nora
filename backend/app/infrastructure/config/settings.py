@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_chat_model: str = Field(default="deepseek-v4-flash", min_length=1, max_length=128)
     deepseek_chat_timeout_seconds: float = Field(default=60.0, gt=0, le=60)
+    embedding_api_key: str = Field(default="", repr=False)
+    embedding_api_key_file: Path | None = Field(default=None, repr=False)
+    embedding_workspace_id: str = ""
+    embedding_timeout_seconds: float = Field(default=60.0, gt=0, le=60)
     artifact_storage_endpoint: str = "storage:9000"
     artifact_storage_access_key: str = Field(default="nora-app", repr=False)
     artifact_storage_access_key_file: Path | None = Field(default=None, repr=False)
@@ -113,6 +117,7 @@ class Settings(BaseSettings):
             "artifact_storage_access_key",
             "artifact_storage_secret_key",
             "deepseek_api_key",
+            "embedding_api_key",
         ):
             file_name = f"{value_name}_file"
             path_value = resolved.get(file_name)
@@ -173,6 +178,18 @@ class Settings(BaseSettings):
             raise ValueError("DEEPSEEK_BASE_URL is fixed to https://api.deepseek.com")
         if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", self.deepseek_chat_model) is None:
             raise ValueError("DEEPSEEK_CHAT_MODEL must be a stable model identifier")
+        if (
+            self.embedding_workspace_id
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", self.embedding_workspace_id)
+            is None
+        ):
+            raise ValueError("EMBEDDING_WORKSPACE_ID must be a stable identifier")
+        if self.embedding_api_key and (
+            self.embedding_api_key != self.embedding_api_key.strip()
+            or any(character.isspace() for character in self.embedding_api_key)
+            or len(self.embedding_api_key) > 4096
+        ):
+            raise ValueError("EMBEDDING_API_KEY must be a bounded value without whitespace")
         return self
 
     def _validate_public_origin(self) -> None:

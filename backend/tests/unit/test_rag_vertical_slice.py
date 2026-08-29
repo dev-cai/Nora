@@ -34,6 +34,7 @@ class _RetrievedChunks:
         self.ranked = ranked
 
     async def search(self, **kwargs):
+        self.kwargs = kwargs
         return self.ranked
 
 
@@ -137,10 +138,11 @@ async def test_citations_use_request_local_indexes_across_sources() -> None:
         embedding_version="v1",
     )
     model = _GroundedModel([0, 1])
+    chunks = _RetrievedChunks([(first, 0.9), (second, 0.8)])
     service = KnowledgeRagService(
         artifacts=_ArtifactService(),
         sources=object(),
-        chunks=_RetrievedChunks([(first, 0.9), (second, 0.8)]),
+        chunks=chunks,
         embedding=DeterministicEmbeddingAdapter(),
         model=model,
     )
@@ -152,6 +154,9 @@ async def test_citations_use_request_local_indexes_across_sources() -> None:
     assert model.request is not None
     assert "[0] 第一来源证据" in model.request.user_input
     assert "[1] 第二来源证据" in model.request.user_input
+    assert chunks.kwargs["embedding_model"] == "nora-deterministic"
+    assert chunks.kwargs["embedding_version"] == "sha256-v1"
+    assert chunks.kwargs["embedding_dimension"] == 64
 
 
 @pytest.mark.asyncio

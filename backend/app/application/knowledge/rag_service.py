@@ -90,6 +90,9 @@ class KnowledgeRagService:
         ranked = await self.chunks.search(
             owner_id=owner_id,
             query_embedding=await self.embedding.embed(normalized),
+            embedding_model=self.embedding.model,
+            embedding_version=self.embedding.version,
+            embedding_dimension=self.embedding.dimension,
             source_id=source_id,
             source_version=source_version,
             limit=limit,
